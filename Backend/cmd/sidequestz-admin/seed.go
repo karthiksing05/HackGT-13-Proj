@@ -550,8 +550,10 @@ func buildSeedWorld(ids seedIDs, places []*models.Activity, now time.Time, loc *
 	w.friendships = append(w.friendships, models.Friendship{ID: models.FriendshipID(ids.sandy, ids.marin), UserIDs: pair, CreatedAt: friendsSince})
 	dm1, dm2 := now.Add(-22*time.Hour), now.Add(-40*time.Minute)
 	w.messages = append(w.messages,
-		models.Message{ID: "seed-msg-dm-1", ThreadID: seedDMThreadID, SenderID: ids.sandy, Text: "That market morning was the best. Let's do it again soon!", SentAt: dm1},
-		models.Message{ID: "seed-msg-dm-2", ThreadID: seedDMThreadID, SenderID: ids.marin, Text: "I'm hosting a golden hour walk tomorrow at 5:30. Join if you're free!", SentAt: dm2},
+		models.Message{ID: "seed-msg-dm-1", ThreadID: seedDMThreadID, SenderID: ids.sandy, SentAt: dm1,
+			Text: "That market morning was the best. Let's do it again soon!"},
+		models.Message{ID: "seed-msg-dm-2", ThreadID: seedDMThreadID, SenderID: ids.marin, SentAt: dm2,
+			Text: "I'm hosting a golden hour walk tomorrow at 5:30. Join if you're free!"},
 	)
 	w.threads = append(w.threads, models.Thread{
 		ID: seedDMThreadID, MemberIDs: []string{ids.sandy, ids.marin}, DMKey: models.DMKey(ids.sandy, ids.marin),
