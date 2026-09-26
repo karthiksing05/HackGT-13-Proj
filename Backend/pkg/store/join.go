@@ -155,21 +155,21 @@ func (j Joins) RecordOf(ctx context.Context, postID, userID string) (*models.Joi
 	return &rec, nil
 }
 
-// MemberState is what one member has on one itinerary's items: their item
+// SocialMemberState is what one member has on one itinerary's items: their item
 // states (notes, transit choice, ticket) and ratings, keyed by item id.
-type MemberState struct {
+type SocialMemberState struct {
 	Items   map[string]*models.ItemState
 	Ratings map[string]*models.Rating
 }
 
 // MemberStates loads every member's item states and ratings for one
 // itinerary, keyed by user id, to render the itinerary per member.
-func (j Joins) MemberStates(ctx context.Context, itineraryID string) (map[string]*MemberState, error) {
-	out := map[string]*MemberState{}
-	get := func(userID string) *MemberState {
+func (j Joins) MemberStates(ctx context.Context, itineraryID string) (map[string]*SocialMemberState, error) {
+	out := map[string]*SocialMemberState{}
+	get := func(userID string) *SocialMemberState {
 		st, ok := out[userID]
 		if !ok {
-			st = &MemberState{Items: map[string]*models.ItemState{}, Ratings: map[string]*models.Rating{}}
+			st = &SocialMemberState{Items: map[string]*models.ItemState{}, Ratings: map[string]*models.Rating{}}
 			out[userID] = st
 		}
 		return st

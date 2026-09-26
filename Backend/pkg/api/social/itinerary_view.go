@@ -16,9 +16,9 @@ import (
 // more than one member else sidequest, people = the first 3 members and
 // extra_going the rest; the member's own notes, transit choice, ticket and
 // rating, and shared notes (notes_scope shared) when they have no note.
-func itineraryView(it *models.Itinerary, viewerID string, ppl people, st *store.MemberState) contract.Itinerary {
+func itineraryView(it *models.Itinerary, viewerID string, ppl people, st *store.SocialMemberState) contract.Itinerary {
 	if st == nil {
-		st = &store.MemberState{}
+		st = &store.SocialMemberState{}
 	}
 	people := ppl.refs(it.MemberIDs, "", 3)
 	extra := max(0, len(it.MemberIDs)-3)

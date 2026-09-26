@@ -214,6 +214,15 @@ func TestGroupThreadView(t *testing.T) {
 	if got.Chips[1] != "You're owed $6" || got.Faces[0].ID != a.UserID || got.LastMessage != "You: photo dump in the album after pls" {
 		t.Fatalf("group for B: %+v", got)
 	}
+	// A host's rename shows in the group's title.
+	if _, err := srv.Store.Collection(store.CollItineraries).UpdateOne(context.Background(),
+		bson.M{"_id": th.ItineraryID}, bson.M{"$set": bson.M{"title": "Dumpling night"}}); err != nil {
+		t.Fatal(err)
+	}
+	srv.Do(t, "GET", "/threads/"+th.ID, nil, b).Expect(t, http.StatusOK).JSON(t, &got)
+	if got.Title != "Dumpling night" || *got.AlbumTitle != "Dumpling night · Sep 24" {
+		t.Fatalf("renamed group: %+v", got)
+	}
 	srv.Clock.Advance(24 * time.Hour)
 	a = srv.Login(t, a.Email, a.Password) // the access token outlived the jump
 	srv.Do(t, "GET", "/threads/"+th.ID, nil, a).Expect(t, http.StatusOK).JSON(t, &got)

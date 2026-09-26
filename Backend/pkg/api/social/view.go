@@ -474,16 +474,17 @@ func (k *threadKit) lastMessage(th *models.Thread, viewerID string) string {
 	return th.LastMessageText
 }
 
-// group fills title, subtitle ("3 people · Today 6 PM"), faces, the chips
-// (people, balance, photos) and the album lines.
+// group fills title (the itinerary's), subtitle ("3 people · Today 6 PM"),
+// faces, the chips (people, balance, photos) and the album lines.
 func (k *threadKit) group(out *contract.ChatThread, th *models.Thread, viewerID string) {
 	loc := k.now.Location()
 	it := k.plans[th.ItineraryID]
-	out.Title = th.Title
-	if out.Title == "" && it != nil {
-		out.Title = it.Title
-	}
-	if out.Title == "" {
+	switch {
+	case it != nil && it.Title != "":
+		out.Title = it.Title // follows a rename by the host
+	case th.Title != "":
+		out.Title = th.Title
+	default:
 		out.Title = "Group chat"
 	}
 	count := httpx.Plural(len(out.Members), "person", "people")
