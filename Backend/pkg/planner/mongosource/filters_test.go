@@ -28,8 +28,8 @@ func sampleQuery() planner.CandidateQuery {
 		ExcludeCategories: []string{"museum"}, ExcludeTags: []string{"touristy"},
 		IncludeCategories: []string{"restaurant", "cafe", "market"}, AnyTags: []string{"food"},
 		ExcludeIDs:      []string{"896e6ea590424da0defda2ed", "not-an-id"},
-		PlaceCategories: itinerary.PlaceCategories(),
-		LimitEvents:     400, LimitPlaces: 600,
+		PlaceCategories: itinerary.PlaceCategories(), MinPlaceRating: 4,
+		LimitEvents: 400, LimitPlaces: 600,
 	}
 }
 

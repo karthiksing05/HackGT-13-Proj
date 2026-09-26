@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -229,13 +228,12 @@ type neighbour struct {
 	pt       travel.Point
 	at       time.Time // previous: when it ends; next: when it starts
 	flexible bool
-	depot    bool // the user's start or end point, not a stop
 }
 
 // neighbours finds what comes before and after stops[idx].
 func neighbours(stops []Stop, idx int, w itinerary.Window) (prev, next neighbour) {
-	prev = neighbour{pt: *w.Start, at: w.From, depot: true}
-	next = neighbour{pt: *w.End, at: w.BackBy, depot: true}
+	prev = neighbour{pt: *w.Start, at: w.From}
+	next = neighbour{pt: *w.End, at: w.BackBy}
 	if idx > 0 {
 		s := stops[idx-1]
 		prev = neighbour{pt: travel.Point{Lat: s.Place.Lat, Lng: s.Place.Lng}, at: s.Depart, flexible: s.Flexible}
@@ -253,22 +251,15 @@ func neighbours(stops []Stop, idx int, w itinerary.Window) (prev, next neighbour
 	return prev, next
 }
 
-// legLimitKm is the longest allowed leg to a neighbour: MaxLegKm between
-// stops, twice that to or from the user's start and end points (§7).
-func legLimitKm(n neighbour, w itinerary.Window) float64 {
-	if n.depot {
-		return 2 * w.MaxLegKm
-	}
-	return w.MaxLegKm
-}
-
 // scheduleAlternative finds the earliest grid start inside the slot that
 // the previous stop can reach and from which the next stop is reachable,
 // within the leg limits. A flexible visit is shortened to fit (never below
 // MinDuration); a flexible next stop may shift by up to altFlexShiftMax.
 func (p *Planner) scheduleAlternative(ctx context.Context, c *Candidate, slot TimeSlot, w itinerary.Window, prev, next neighbour) (start, end time.Time, shiftMin int, ok bool) {
 	itCfg := p.Cfg.Itinerary
-	if travel.HaversineKm(prev.pt, c.Point) > legLimitKm(prev, w) || travel.HaversineKm(c.Point, next.pt) > legLimitKm(next, w) {
+	// Every leg, to and from the user's start and end points too, is
+	// within MaxLegKm (§7).
+	if travel.HaversineKm(prev.pt, c.Point) > w.MaxLegKm || travel.HaversineKm(c.Point, next.pt) > w.MaxLegKm {
 		return start, end, 0, false
 	}
 	legs := lookupLegs(ctx, p.Travel, []travel.Pair{{From: prev.pt, To: c.Point}, {From: c.Point, To: next.pt}}, w.Mode)
@@ -373,26 +364,10 @@ func lookupLegs(ctx context.Context, tp travel.Provider, pairs []travel.Pair, mo
 	return legs
 }
 
-func normSpace(s string) string {
-	return strings.Join(strings.Fields(strings.ToLower(s)), " ")
-}
-
-// altSeriesKey mirrors the optimizer's series keys well enough to keep an
-// alternative from repeating an in-plan series.
+// altSeriesKey is the optimizer's series key, so an alternative never
+// repeats an in-plan series.
 func altSeriesKey(a *models.Activity) string {
-	if a.Kind == "place" {
-		return "place|" + a.ID.Hex()
-	}
-	v := ""
-	if a.VenueName != nil {
-		v = normSpace(*a.VenueName)
-	}
-	if v == "" {
-		if p, ok := activityPoint(a); ok {
-			v = travel.LocKey(p)
-		}
-	}
-	return "event|" + v + "|" + normSpace(a.Name)
+	return itinerary.SeriesKey(a)
 }
 
 // Phrases for the reason line, by category.

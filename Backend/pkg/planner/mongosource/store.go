@@ -8,6 +8,7 @@ package mongosource
 import (
 	"Backend/pkg/models"
 	"Backend/pkg/planner"
+	"Backend/pkg/travel"
 	"context"
 	"errors"
 	"fmt"
@@ -34,14 +35,8 @@ const (
 	StopIDIndex = "options_stops_id"
 )
 
-const (
-	// earthRadiusKm converts the search radius to radians on the same
-	// sphere travel.HaversineKm uses, so Mongo's circle and the Go
-	// re-check agree.
-	earthRadiusKm = 6371.0
-	// fetchBatch bounds the $in list of one vector fetch.
-	fetchBatch = 500
-)
+// fetchBatch bounds the $in list of one vector fetch.
+const fetchBatch = 500
 
 // ErrUnknownCatalog means the catalog name is not on the allow-list, so it
 // is never used as a collection name.
@@ -173,10 +168,13 @@ func eventFilter(q planner.CandidateQuery) bson.D {
 }
 
 // placeFilter is §4.1's place query: schedulable categories minus the
-// excluded ones, plus the shared conditions. Opening hours are checked in
-// Go.
+// excluded ones, the rating rule, plus the shared conditions. Opening hours
+// are checked in Go.
 func placeFilter(q planner.CandidateQuery) bson.D {
 	f, and := shared(q, "place")
+	if r := ratingClause(q); r != nil {
+		and = append(and, r)
+	}
 	excluded := excludedCategories(q)
 	if len(q.PlaceCategories) > 0 {
 		allowed := []string{}
@@ -203,7 +201,7 @@ func shared(q planner.CandidateQuery, kind string) (bson.D, bson.A) {
 	f = append(f, bson.E{Key: "kind", Value: kind})
 	if q.RadiusKm > 0 {
 		f = append(f, bson.E{Key: "location", Value: bson.D{{Key: "$geoWithin", Value: bson.D{{Key: "$centerSphere", Value: bson.A{
-			bson.A{q.Center.Lng, q.Center.Lat}, q.RadiusKm / earthRadiusKm,
+			bson.A{q.Center.Lng, q.Center.Lat}, q.RadiusKm / travel.EarthRadiusKm,
 		}}}}}})
 	}
 	age := planner.AgeRulesFor(q.AgeBracket)
@@ -230,6 +228,18 @@ func shared(q planner.CandidateQuery, kind string) (bson.D, bson.A) {
 		and = append(and, p)
 	}
 	return f, and
+}
+
+// ratingClause keeps places rated at least MinPlaceRating and unrated
+// hikes (planner.MatchesQuery's rule).
+func ratingClause(q planner.CandidateQuery) bson.D {
+	if q.MinPlaceRating <= 0 {
+		return nil
+	}
+	return bson.D{{Key: "$or", Value: bson.A{
+		bson.D{{Key: "rating", Value: bson.D{{Key: "$gte", Value: q.MinPlaceRating}}}},
+		bson.D{{Key: "rating", Value: nil}, {Key: "category", Value: "hike"}},
+	}}}
 }
 
 // priceClause: a null price is unknown, never free. Free-only keeps known

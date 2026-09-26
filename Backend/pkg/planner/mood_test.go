@@ -12,12 +12,12 @@ func TestMoodNegationsBecomeHardExcludes(t *testing.T) {
 		wantTags  []string
 		wantFacet []string
 	}{
-		{"no bars please", []string{"bar", "nightclub"}, []string{"drinks"}, nil},
+		{"no bars please", []string{"bar", "brewery", "nightclub"}, []string{"drinks"}, nil},
 		{"Nothing outdoors, it might rain", nil, []string{"outdoor"}, nil},
 		{"avoid loud clubs", []string{"nightclub"}, nil, nil},
 		{"skip the museums today", []string{"gallery", "museum"}, []string{"art"}, nil},
 		{"don't want live music", []string{"live_music"}, []string{"music"}, nil},
-		{"no bars, but live music would be great", []string{"bar", "nightclub"}, []string{"drinks"}, []string{"Music"}},
+		{"no bars, but live music would be great", []string{"bar", "brewery", "nightclub"}, []string{"drinks"}, []string{"Music"}},
 		{"something chill and outside, then cheap food after", nil, nil, []string{"Outdoors", "Food", "Chill"}},
 	}
 	for _, c := range cases {

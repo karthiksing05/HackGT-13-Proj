@@ -37,6 +37,7 @@
   "category": {
     "$nin": [
       "bar",
+      "brewery",
       "nightclub",
       "museum"
     ]

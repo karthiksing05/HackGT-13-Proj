@@ -24,12 +24,19 @@ type PaceProfile struct {
 // Config holds the optimizer's tunables. Utilities are on a 0..1 scale per
 // stop, so a penalty of 0.15 costs roughly a sixth of a good stop.
 type Config struct {
-	Tau          float64       // score baseline; stops below it add nothing
+	// Score baseline: a stop scoring at or below it adds nothing to a plan;
+	// above it, utility is (score - Tau) / (1 - Tau). 0.5 matches the
+	// model's "good match" line (ml README) and the midpoint of the 0-4 LLM
+	// rerank scale (2/4).
+	Tau          float64
 	LambdaTravel float64       // utility lost per travel minute
 	Buffer       time.Duration // slack between arriving and the next start
-	K            int           // partial paths kept per node
-	PoolSize     int           // finished itineraries kept
-	Mu           float64       // overlap penalty when choosing varied itineraries
+	// Weight of idle time before the first stop, relative to idle time
+	// between stops. 0 by default: waiting at home to go out isn't a cost.
+	FirstWaitWeight float64
+	K               int     // partial paths kept per node
+	PoolSize        int     // finished itineraries kept
+	Mu              float64 // overlap penalty when choosing varied itineraries
 
 	SlotStep        time.Duration // spacing of start times for flexible visits
 	MaxSlots        int           // start times per flexible activity
@@ -37,7 +44,7 @@ type Config struct {
 	MaxDuration     time.Duration
 	DefaultDuration time.Duration
 
-	DefaultUtility float64 // used when the ranker gave no score
+	DefaultUtility float64 // used when the ranker gave no score; above Tau so plans still form
 	PlaceWeight    float64 // places are always there; events are one-offs
 
 	// Utility, when set, replaces the score-based utility: it returns the
@@ -58,12 +65,13 @@ const maxMaskBits = 128
 
 func DefaultConfig() Config {
 	return Config{
-		Tau:          0.3,
-		LambdaTravel: 0.005,
-		Buffer:       10 * time.Minute,
-		K:            16,
-		PoolSize:     64,
-		Mu:           0.5,
+		Tau:             0.5,
+		LambdaTravel:    0.005,
+		Buffer:          10 * time.Minute,
+		FirstWaitWeight: 0,
+		K:               16,
+		PoolSize:        64,
+		Mu:              0.5,
 
 		SlotStep:        30 * time.Minute,
 		MaxSlots:        12,
@@ -71,7 +79,7 @@ func DefaultConfig() Config {
 		MaxDuration:     6 * time.Hour,
 		DefaultDuration: 60 * time.Minute,
 
-		DefaultUtility: 0.4,
+		DefaultUtility: 0.6,
 		PlaceWeight:    0.8,
 
 		SeriesCap: 96,

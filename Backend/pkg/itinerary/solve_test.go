@@ -271,14 +271,17 @@ func bruteForce(g *Graph, w Window, cfg Config) float64 {
 	return best
 }
 
+// Scores are drawn above the baseline, so every stop is worth something and
+// the optimum usually has several stops.
 func randomInstance(r *rand.Rand, n int, constrained bool) (Window, []models.Activity) {
+	tau := DefaultConfig().Tau
 	w := window(at(14, 0), at(23, 0))
 	w.MaxLegKm = 4
 	cats := []string{"live_music", "comedy", "gallery"}
 	var acts []models.Activity
 	for i := 0; i < n; i++ {
 		start := at(14, 0).Add(time.Duration(r.Intn(15*30)) * time.Minute)
-		a := event("E", offset(r.Float64()*3-1.5, r.Float64()*3-1.5), start, 30+r.Intn(4)*30, 0.3+0.7*r.Float64())
+		a := event("E", offset(r.Float64()*3-1.5, r.Float64()*3-1.5), start, 30+r.Intn(4)*30, tau+0.05+(0.95-tau)*r.Float64())
 		a.Name = a.ID.Hex()
 		a.VenueName = str(a.Name)
 		a.Category = "other"
@@ -335,5 +338,28 @@ func TestSolveMatchesBruteForce(t *testing.T) {
 	t.Logf("compared %d instances, %d with multi-stop optima", compared, multiStop)
 	if compared < 100 || multiStop < 50 {
 		t.Fatalf("oracle too weak: %d compared, %d multi-stop", compared, multiStop)
+	}
+}
+
+func TestDiverseCollapsesTimeShiftedCopies(t *testing.T) {
+	cfg := DefaultConfig()
+	w := window(at(15, 0), at(20, 0))
+	expo := dropIn(event("Expo", offset(0.5, 0), at(10, 0), 90, 0.9), at(19, 0))
+	its, _ := plan(w, []models.Activity{expo}, cfg)
+	if len(its) < 2 {
+		t.Fatalf("expected several time-shifted copies before dedupe, got %d", len(its))
+	}
+	if got := Diverse(its, cfg.Mu); len(got) != 1 {
+		t.Errorf("same stop at different times should collapse to one, got %d", len(got))
+	}
+}
+
+func TestHomeLegsRespectRange(t *testing.T) {
+	cfg := DefaultConfig()
+	w := window(at(15, 0), at(23, 0))
+	w.MaxLegKm = 3
+	far := event("Far expo", offset(0, 4), at(17, 0), 90, 0.9) // 4 km from home
+	if its, _ := plan(w, []models.Activity{far}, cfg); len(its) != 0 {
+		t.Errorf("a stop beyond range_km from home should be unreachable, got %s", names(its[0]))
 	}
 }

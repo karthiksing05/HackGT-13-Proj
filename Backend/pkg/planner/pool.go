@@ -241,6 +241,9 @@ type CountLog struct {
 	Ranked    int            `bson:"ranked" json:"ranked"`
 	MLDropped int            `bson:"mlDropped" json:"ml_dropped"`
 	Embedded  int            `bson:"embedded" json:"embedded"`
+	// SeriesSiblings: feasible candidates that share a series with an
+	// earlier one and took its scores instead of their own ranker slot.
+	SeriesSiblings int `bson:"seriesSiblings" json:"series_siblings"`
 }
 
 type ShortlistEntry struct {

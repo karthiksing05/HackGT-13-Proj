@@ -121,13 +121,13 @@ func CheckOption(spec *PlanSpec, opt *Option, lookup func(id string) (*models.Ac
 	}
 	first, last := opt.Stops[0], opt.Stops[len(opt.Stops)-1]
 	if spec.Start != nil {
-		if d := travel.HaversineKm(*spec.Start, travel.Point{Lat: first.Place.Lat, Lng: first.Place.Lng}); d > 2*spec.MaxLegKm+1e-9 {
-			fail("first leg %.2f km > 2×%.2f", d, spec.MaxLegKm)
+		if d := travel.HaversineKm(*spec.Start, travel.Point{Lat: first.Place.Lat, Lng: first.Place.Lng}); d > spec.MaxLegKm+1e-9 {
+			fail("first leg %.2f km > %.2f", d, spec.MaxLegKm)
 		}
 	}
 	if spec.End != nil {
-		if d := travel.HaversineKm(travel.Point{Lat: last.Place.Lat, Lng: last.Place.Lng}, *spec.End); d > 2*spec.MaxLegKm+1e-9 {
-			fail("last leg %.2f km > 2×%.2f", d, spec.MaxLegKm)
+		if d := travel.HaversineKm(travel.Point{Lat: last.Place.Lat, Lng: last.Place.Lng}, *spec.End); d > spec.MaxLegKm+1e-9 {
+			fail("last leg %.2f km > %.2f", d, spec.MaxLegKm)
 		}
 	}
 	if opt.Depart.Before(spec.From) || opt.Arrival.After(spec.BackBy) {

@@ -14,11 +14,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Radius of the phase-A search around the start point: enough for a plan
-// of MaxStops legs, bounded to something a query can serve.
+// Radius of the phase-A search around the start point. Every leg, the
+// first and last included, is at most maxLegKm, so on a round trip a stop
+// is at most ceil(MaxStops/2) legs from home; half the distance to a
+// separate end point is added. Bounded to something a query can serve.
 func radiusFor(spec *PlanSpec, cfg Config, maxLegKm float64) float64 {
 	pace := cfg.Itinerary.Pace(spec.Pace)
-	r := maxLegKm * (1 + 0.5*float64(pace.MaxStops))
+	r := maxLegKm * math.Ceil(float64(pace.MaxStops)/2)
+	if spec.Start != nil && spec.End != nil {
+		r += travel.HaversineKm(*spec.Start, *spec.End) / 2
+	}
 	return math.Min(30, math.Max(3, r))
 }
 
@@ -39,6 +44,7 @@ func baseQuery(spec *PlanSpec, cfg Config, radiusKm float64) CandidateQuery {
 		ExcludeCategories: append([]string(nil), spec.Hard.ExcludeCategories...),
 		ExcludeTags:       append([]string(nil), spec.Hard.ExcludeTags...),
 		PlaceCategories:   placeCategoriesMinus(spec.Hard.ExcludeCategories),
+		MinPlaceRating:    cfg.MinPlaceRating,
 		LimitEvents:       cfg.PhaseAEvents,
 		LimitPlaces:       cfg.PhaseAPlaces,
 	}
@@ -101,6 +107,10 @@ func Feasible(spec *PlanSpec, q *CandidateQuery, itCfg itinerary.Config, acts []
 		}
 		if reason := priceDrop(c, spec.Budget); reason != "" {
 			drop(reason)
+			continue
+		}
+		if !ratingAllowed(a, q.MinPlaceRating) {
+			drop("low_rating")
 			continue
 		}
 		var reason string
@@ -306,9 +316,10 @@ func (p *Planner) retrieve(ctx context.Context, run *Run) error {
 	run.Log.Counts.EventsA, run.Log.Counts.PlacesA = len(events), len(places)
 
 	cands := Feasible(spec, &q, run.ItCfg, append(events, places...), run.Log.Counts.Drops, feasibleOpts{})
-	if len(cands) == 0 && run.relaxRange() {
-		// Relax the range once: wider radius and longer legs. The counts
-		// then describe the relaxed query, which is the one that fed the pool.
+	if len(cands) < cfg.MinCandidates && run.relaxRange() {
+		// Too few fit: relax the range once (twice the radius, longer
+		// legs). The counts then describe the relaxed query, which is the
+		// one that fed the pool.
 		q = baseQuery(spec, cfg, run.RadiusKm)
 		t := p.Clock.Now()
 		events, places, findErr = p.Source.FindCandidates(ctx, q)
@@ -326,14 +337,20 @@ func (p *Planner) retrieve(ctx context.Context, run *Run) error {
 		return nil
 	}
 
+	// One representative per series is embedded, shortlisted and scored:
+	// every timed-entry slot of an exhibition costs one ranker slot and
+	// shares its scores.
+	reps, siblings := seriesRepresentatives(cands)
+	run.Log.Counts.SeriesSiblings = len(cands) - len(reps)
+
 	t := p.Clock.Now()
-	if err := p.fetchEmbeddings(ctx, run, cands); err != nil {
+	if err := p.fetchEmbeddings(ctx, run, reps); err != nil {
 		return err
 	}
 	run.Log.Timings["phase_b_ms"] = p.msSince(t)
 
 	run.QV = BuildQueryVector(run.User, run.SearchEmb, cfg)
-	short := Shortlist(cands, run.QV, spec, cfg)
+	short := Shortlist(reps, run.QV, spec, cfg)
 	run.Log.Counts.Shortlist = len(short)
 
 	t = p.Clock.Now()
@@ -350,8 +367,31 @@ func (p *Planner) retrieve(ctx context.Context, run *Run) error {
 		c.Source, c.Round = "retrieval", 0
 		run.Pool.Add(c)
 		run.Log.Shortlist = append(run.Log.Shortlist, shortlistEntry(c))
+		for _, sib := range siblings[c.ID] {
+			sib.inherit(c)
+			run.Pool.Add(sib)
+		}
 	}
 	return nil
+}
+
+// seriesRepresentatives keeps the first candidate of each series (events
+// arrive by start, so the earliest listing) and files the others under its
+// id.
+func seriesRepresentatives(cands []*Candidate) ([]*Candidate, map[string][]*Candidate) {
+	repOf := map[string]*Candidate{}
+	siblings := map[string][]*Candidate{}
+	var reps []*Candidate
+	for _, c := range cands {
+		key := itinerary.SeriesKey(&c.Act)
+		if rep, ok := repOf[key]; ok {
+			siblings[rep.ID] = append(siblings[rep.ID], c)
+			continue
+		}
+		repOf[key] = c
+		reps = append(reps, c)
+	}
+	return reps, siblings
 }
 
 // jevEnabled is true when the scorer can rerank and the knob allows it.

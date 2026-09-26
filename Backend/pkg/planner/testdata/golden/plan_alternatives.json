@@ -31,11 +31,11 @@
       "address": "500 Stall St, Saltlight Harbor, GA 31994",
       "website_url": "https://saltlight.example/pho-real-noodle-house",
       "summary": "Steaming bowls of seafood pho and crispy imperial rolls.",
-      "utility": 0.67045,
+      "utility": 0.69612,
       "order": 0
     },
     "reason": "Also good food · 0.8 mi away · $",
-    "fit_score": 0.67045,
+    "fit_score": 0.69612,
     "distance_km": 1.33,
     "slot_shift_min": 0
   },
@@ -72,11 +72,11 @@
       "address": "230 Marina Row, Saltlight Harbor, GA 31991",
       "website_url": "https://saltlight.example/siren-song-lounge",
       "summary": "A speakeasy behind a fake fishmonger's freezer door.",
-      "utility": 0.53768,
+      "utility": 0.56061,
       "order": 0
     },
     "reason": "Also drinks · 0.7 mi away · $",
-    "fit_score": 0.53768,
+    "fit_score": 0.56061,
     "distance_km": 1.18,
     "slot_shift_min": 0
   },
@@ -113,51 +113,13 @@
       "address": "871 Brine Ave, Saltlight Harbor, GA 31994",
       "website_url": "https://saltlight.example/seaside-market-hall",
       "summary": "The permanent market under a steel-and-glass roof: fishmongers, flower stalls, spice vendors and forty lunch counters.",
-      "utility": 0.52896,
+      "utility": 0.47413,
       "order": 0
     },
     "reason": "Also good food · 0.3 mi away · Free",
-    "fit_score": 0.52896,
+    "fit_score": 0.47413,
     "distance_km": 0.51,
     "slot_shift_min": 0
-  },
-  {
-    "stop": {
-      "id": "alt_04d10eae26fef0942b373ff6_0",
-      "title": "Shipwreck Escape Rooms",
-      "subtitle": "Games + fun · $$",
-      "place": {
-        "name": "Shipwreck Escape Rooms",
-        "coordinate": {
-          "lat": 31.358256,
-          "lng": -81.427092
-        }
-      },
-      "duration_minutes": 90,
-      "activity_id": "04d10eae26fef0942b373ff6",
-      "kind": "place",
-      "category": "rec_venue",
-      "tags": [
-        "indoor",
-        "group",
-        "medium_energy",
-        "learning"
-      ],
-      "arrive_time": "2026-09-26T22:30:00Z",
-      "depart_time": "2026-09-27T00:00:00Z",
-      "flexible": true,
-      "price_cents": 3000,
-      "price_known": true,
-      "address": "548 Keel St, Saltlight Harbor, GA 31992",
-      "website_url": "https://saltlight.example/shipwreck-escape-rooms",
-      "summary": "Four rooms, from a sinking submarine to a lighthouse keeper's riddle.",
-      "utility": 0.28483,
-      "order": 0
-    },
-    "reason": "Also games · 0.3 mi away",
-    "fit_score": 0.28483,
-    "distance_km": 0.44,
-    "slot_shift_min": 13
   },
   {
     "stop": {
@@ -193,12 +155,50 @@
       "address": "879 Mooring St, Saltlight Harbor, GA 31991",
       "website_url": "https://saltlight.example/the-rusty-anchor",
       "summary": "A dockside pub older than the lighthouse lens.",
-      "utility": 0.17139,
+      "utility": 0.28404,
       "order": 0
     },
     "reason": "Also drinks · 0.9 mi away · $",
-    "fit_score": 0.17139,
+    "fit_score": 0.28404,
     "distance_km": 1.4,
     "slot_shift_min": 0
+  },
+  {
+    "stop": {
+      "id": "alt_04d10eae26fef0942b373ff6_0",
+      "title": "Shipwreck Escape Rooms",
+      "subtitle": "Games + fun · $$",
+      "place": {
+        "name": "Shipwreck Escape Rooms",
+        "coordinate": {
+          "lat": 31.358256,
+          "lng": -81.427092
+        }
+      },
+      "duration_minutes": 90,
+      "activity_id": "04d10eae26fef0942b373ff6",
+      "kind": "place",
+      "category": "rec_venue",
+      "tags": [
+        "indoor",
+        "group",
+        "medium_energy",
+        "learning"
+      ],
+      "arrive_time": "2026-09-26T22:30:00Z",
+      "depart_time": "2026-09-27T00:00:00Z",
+      "flexible": true,
+      "price_cents": 3000,
+      "price_known": true,
+      "address": "548 Keel St, Saltlight Harbor, GA 31992",
+      "website_url": "https://saltlight.example/shipwreck-escape-rooms",
+      "summary": "Four rooms, from a sinking submarine to a lighthouse keeper's riddle.",
+      "utility": 0.28369,
+      "order": 0
+    },
+    "reason": "Also games · 0.3 mi away",
+    "fit_score": 0.28369,
+    "distance_km": 0.44,
+    "slot_shift_min": 13
   }
 ]

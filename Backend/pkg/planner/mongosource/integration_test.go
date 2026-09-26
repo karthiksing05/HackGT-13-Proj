@@ -183,6 +183,9 @@ func TestMongoAndGoFiltersAgree(t *testing.T) {
 				q.ExcludeIDs = append(q.ExcludeIDs, acts[i*7%len(acts)].ID.Hex())
 			}
 		},
+		func(q *planner.CandidateQuery, acts []models.Activity) {
+			q.MinPlaceRating = 4.5 // splits the demo places; unrated hikes stay
+		},
 	}
 	queries, matched := 0, 0
 	for _, w := range worlds {

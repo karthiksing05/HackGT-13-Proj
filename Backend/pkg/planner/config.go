@@ -48,6 +48,17 @@ type Config struct {
 	ExpansionLimit int
 	MaxExpansions  int // expansions per round
 
+	// MinPlaceRating drops places rated below it, and unrated places other
+	// than hikes (trails rarely have ratings).
+	MinPlaceRating float64
+	// MinCandidates: when fewer candidates than this fit, the range is
+	// relaxed once (twice the search radius) before scoring.
+	MinCandidates int
+	// SolverEvents and SolverPlaces cap what one solve sees: the best
+	// series of each kind by utility.
+	SolverEvents int
+	SolverPlaces int
+
 	MLTimeout     time.Duration
 	SearchTimeout time.Duration // the search-profile call (ML_SEARCH_TIMEOUT_MS on the ML side)
 	Jev           string        // off | async | sync
@@ -91,6 +102,10 @@ func DefaultConfig() Config {
 		EmbedFetchCap:  800,
 		ExpansionLimit: 40,
 		MaxExpansions:  2,
+		MinPlaceRating: 4.0,
+		MinCandidates:  5,
+		SolverEvents:   25,
+		SolverPlaces:   25,
 		MLTimeout:      3000 * time.Millisecond,
 		SearchTimeout:  5000 * time.Millisecond,
 		Jev:            "async",
@@ -133,6 +148,10 @@ func FromEnv() Config {
 	c.EmbedFetchCap = envInt("PLANNER_EMBED_FETCH_CAP", c.EmbedFetchCap)
 	c.ExpansionLimit = envInt("PLANNER_EXPANSION_LIMIT", c.ExpansionLimit)
 	c.MaxExpansions = envInt("PLANNER_MAX_EXPANSIONS", c.MaxExpansions)
+	c.MinPlaceRating = envFloat("PLANNER_MIN_PLACE_RATING", c.MinPlaceRating)
+	c.MinCandidates = envInt("PLANNER_MIN_CANDIDATES", c.MinCandidates)
+	c.SolverEvents = envInt("PLANNER_SOLVER_EVENTS", c.SolverEvents)
+	c.SolverPlaces = envInt("PLANNER_SOLVER_PLACES", c.SolverPlaces)
 	c.MLTimeout = envMillis("PLANNER_ML_TIMEOUT_MS", c.MLTimeout)
 	c.SearchTimeout = envMillis("PLANNER_SEARCH_TIMEOUT_MS", c.SearchTimeout)
 	switch j := strings.ToLower(os.Getenv("PLANNER_JEV")); j {
@@ -223,14 +242,14 @@ type Facet struct {
 // facets are reported.
 var facetTable = []Facet{
 	{Name: "Outdoors", Tags: []string{"outdoor", "nature"}, Cats: []string{"park", "garden", "hike", "viewpoint"}},
-	{Name: "Food", Tags: []string{"food"}, Cats: []string{"restaurant", "cafe", "market"}},
+	{Name: "Food", Tags: []string{"food"}, Cats: []string{"restaurant", "cafe", "market", "bakery", "dessert", "food_hall"}},
 	{Name: "Art", Tags: []string{"art"}, Cats: []string{"gallery", "museum"}},
 	{Name: "Music", Tags: []string{"music"}, Cats: []string{"live_music"}},
 	{Name: "Chill", Tags: []string{"low_energy"}},
 	{Name: "Active", Tags: []string{"active", "high_energy"}, Cats: []string{"hike", "rec_venue", "sports_event"}},
 	{Name: "Meet people", Tags: []string{"group"}, Cats: []string{"community_event", "class_workshop", "festival"}},
 	{Name: "Nerdy", Tags: []string{"learning"}, Cats: []string{"class_workshop", "museum", "tour"}},
-	{Name: "Nightlife", Tags: []string{"late_night", "drinks"}, Cats: []string{"bar", "nightclub", "live_music", "comedy"}},
+	{Name: "Nightlife", Tags: []string{"late_night", "drinks"}, Cats: []string{"bar", "nightclub", "brewery", "live_music", "comedy"}},
 }
 
 // FacetByName finds a quick pick's facet; matching ignores case, spaces

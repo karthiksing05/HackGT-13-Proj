@@ -315,9 +315,13 @@ func BuildSpec(req Request, tzHeader string, now time.Time, user *UserContext, c
 	} else if spec.Hard.FreeOnly {
 		spec.Budget = BudgetForLevel(0)
 	}
-	spec.AvoidTags = uniqueStrings(trimAll(user.Prefs.AvoidTags))
+	// Avoided tags match tags and categories, ignoring case ("LIVE_MUSIC"
+	// avoids the live_music category); the catalog's vocabulary is lower case.
+	spec.AvoidTags = uniqueStrings(lowerAll(trimAll(user.Prefs.AvoidTags)))
 	spec.Hard.ExcludeTags = uniqueStrings(append(spec.Hard.ExcludeTags, spec.AvoidTags...))
+	spec.Hard.ExcludeCategories = uniqueStrings(append(spec.Hard.ExcludeCategories, spec.AvoidTags...))
 	sortStrings(spec.Hard.ExcludeTags)
+	sortStrings(spec.Hard.ExcludeCategories)
 	spec.AgeBracket = NormalizeAgeBracket(user.AgeBracket)
 	spec.Flexible = user.Prefs.Flexible
 	return spec, nil
@@ -443,6 +447,14 @@ func paceTarget(pace string) int {
 		return 4
 	}
 	return 3
+}
+
+func lowerAll(in []string) []string {
+	out := make([]string, len(in))
+	for i, s := range in {
+		out[i] = strings.ToLower(s)
+	}
+	return out
 }
 
 func trimAll(in []string) []string {

@@ -46,14 +46,14 @@ type Run struct {
 	startedAt     time.Time
 }
 
-// relaxRange widens the search radius and the per-leg range by half, once
-// per run; walking legs stay within the walk cap. It reports whether it
-// did anything.
+// relaxRange doubles the search radius and widens the per-leg range by
+// half, once per run; walking legs stay within the walk cap. It reports
+// whether it did anything.
 func (r *Run) relaxRange() bool {
 	if containsString(r.Relaxed, "range") {
 		return false
 	}
-	r.RadiusKm = minFloat(30, r.RadiusKm*1.5)
+	r.RadiusKm = minFloat(30, r.RadiusKm*2)
 	r.Spec.MaxLegKm *= 1.5
 	if r.Spec.Mode == travel.Walk && r.Cfg.WalkLegCapKm > 0 && r.Spec.MaxLegKm > r.Cfg.WalkLegCapKm {
 		r.Spec.MaxLegKm = maxFloat(r.Cfg.WalkLegCapKm, r.Window.MaxLegKm)
@@ -128,7 +128,8 @@ func (p *Planner) solveRound(ctx context.Context, run *Run, round int) ([]Scored
 	itCfg.Utility = run.utilityFn()
 
 	t := p.Clock.Now()
-	nodes, drops := itinerary.BuildNodes(run.Window, run.Pool.Activities(), itCfg)
+	acts, capped := run.solverActivities(itCfg.Utility)
+	nodes, drops := itinerary.BuildNodes(run.Window, acts, itCfg)
 	g := itinerary.BuildGraph(ctx, run.Window, nodes, p.Travel, itCfg)
 	its := itinerary.Diverse(itinerary.Solve(g, run.Window, itCfg), itCfg.Mu)
 	rl.SolveMs = p.msSince(t)
@@ -142,11 +143,72 @@ func (p *Planner) solveRound(ctx context.Context, run *Run, round int) ([]Scored
 	for _, d := range drops {
 		rl.Drops[d.Reason]++
 	}
+	if capped > 0 {
+		rl.Drops["solver_cap"] = capped
+	}
 	scored := make([]ScoredPlan, 0, len(its))
 	for _, it := range its {
 		scored = append(scored, run.evaluate(it))
 	}
 	return scored, rl
+}
+
+// solverActivities is the pool as one solve sees it: the best SolverEvents
+// event series and SolverPlaces place series by utility (ties by series
+// key), with every activity of a kept series, in pool order. It returns
+// how many activities it left out.
+func (r *Run) solverActivities(util func(a *models.Activity) float64) ([]models.Activity, int) {
+	acts := r.Pool.Activities()
+	type series struct {
+		key   string
+		place bool
+		best  float64
+	}
+	byKey := map[string]*series{}
+	keys := make([]string, len(acts))
+	for i := range acts {
+		k := itinerary.SeriesKey(&acts[i])
+		keys[i] = k
+		u := util(&acts[i])
+		if s, ok := byKey[k]; !ok {
+			byKey[k] = &series{key: k, place: acts[i].Kind == "place", best: u}
+		} else if u > s.best {
+			s.best = u
+		}
+	}
+	var events, places []*series
+	for _, s := range byKey {
+		if s.place {
+			places = append(places, s)
+		} else {
+			events = append(events, s)
+		}
+	}
+	keep := map[string]bool{}
+	for _, part := range []struct {
+		list  []*series
+		limit int
+	}{{events, r.Cfg.SolverEvents}, {places, r.Cfg.SolverPlaces}} {
+		sort.Slice(part.list, func(i, j int) bool {
+			a, b := part.list[i], part.list[j]
+			if a.best != b.best {
+				return a.best > b.best
+			}
+			return a.key < b.key
+		})
+		for i, s := range part.list {
+			if part.limit <= 0 || i < part.limit {
+				keep[s.key] = true
+			}
+		}
+	}
+	out := make([]models.Activity, 0, len(acts))
+	for i := range acts {
+		if keep[keys[i]] {
+			out = append(out, acts[i])
+		}
+	}
+	return out, len(acts) - len(out)
 }
 
 func copyBoosts(b map[string]float64) map[string]float64 {
@@ -557,6 +619,7 @@ func (p *Planner) expand(ctx context.Context, run *Run, issues []Issue, round in
 	var all []*Candidate
 	logs := make([]ExpansionLog, len(exps))
 	perIssue := make([][]*Candidate, len(exps))
+	siblings := map[string][]*Candidate{}
 	for i, ex := range exps {
 		lg := ExpansionLog{Kind: ex.issue.Kind, Facet: ex.issue.Facet}
 		res := results[i]
@@ -576,8 +639,12 @@ func (p *Planner) expand(ctx context.Context, run *Run, issues []Issue, round in
 			}
 		}
 		lg.Feasible = len(fresh)
-		perIssue[i] = fresh
-		all = append(all, fresh...)
+		reps, sibs := seriesRepresentatives(fresh)
+		for id, list := range sibs {
+			siblings[id] = append(siblings[id], list...)
+		}
+		perIssue[i] = reps
+		all = append(all, reps...)
 		logs[i] = lg
 	}
 	if len(all) > 0 {
@@ -625,6 +692,12 @@ func (p *Planner) expand(ctx context.Context, run *Run, issues []Issue, round in
 			for i := range exps {
 				if c.Source == exps[i].source {
 					logs[i].Added++
+				}
+			}
+			for _, sib := range siblings[c.ID] {
+				sib.inherit(c)
+				if run.Pool.Add(sib) {
+					added++
 				}
 			}
 		}

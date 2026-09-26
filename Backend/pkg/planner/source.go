@@ -38,6 +38,9 @@ type CandidateQuery struct {
 	ExcludeIDs        []string // hex ids
 
 	PlaceCategories []string // place categories that can become a stop
+	// MinPlaceRating keeps places rated at least this, and unrated hikes;
+	// 0 means no rating rule.
+	MinPlaceRating float64
 
 	LimitEvents int
 	LimitPlaces int
@@ -95,8 +98,13 @@ func MatchesQuery(a *models.Activity, q *CandidateQuery) bool {
 				return false
 			}
 		}
-	} else if len(q.PlaceCategories) > 0 && !containsString(q.PlaceCategories, a.Category) {
-		return false
+	} else {
+		if len(q.PlaceCategories) > 0 && !containsString(q.PlaceCategories, a.Category) {
+			return false
+		}
+		if !ratingAllowed(a, q.MinPlaceRating) {
+			return false
+		}
 	}
 	if AgeRulesFor(q.AgeBracket).Blocks(a) {
 		return false
@@ -125,6 +133,19 @@ func MatchesQuery(a *models.Activity, q *CandidateQuery) bool {
 		return false
 	}
 	return !containsString(q.ExcludeIDs, a.ID.Hex())
+}
+
+// ratingAllowed is the place-quality rule: rated at least min, or an
+// unrated hike (trails rarely have ratings). It mirrors the store's query
+// (mongosource.ratingClause).
+func ratingAllowed(a *models.Activity, min float64) bool {
+	if min <= 0 || a.Kind != "place" {
+		return true
+	}
+	if a.Rating == nil {
+		return a.Category == "hike"
+	}
+	return *a.Rating >= min
 }
 
 // priceAllowed is the price clause: a null price is unknown, never free.

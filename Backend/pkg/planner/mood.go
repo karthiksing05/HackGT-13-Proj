@@ -23,14 +23,14 @@ type negationRule struct {
 // Each rule maps a refused thing to catalog vocabulary. Order matters only
 // for logging.
 var negationRules = []negationRule{
-	{synonyms: `bars?|pubs?|drinks?|drinking|alcohol|booze|boozy|cocktails?`, cats: []string{"bar", "nightclub"}, tags: []string{"drinks"}},
+	{synonyms: `bars?|pubs?|drinks?|drinking|alcohol|booze|boozy|cocktails?|breweries|brewery|beer`, cats: []string{"bar", "brewery", "nightclub"}, tags: []string{"drinks"}},
 	{synonyms: `clubs?|clubbing|nightclubs?|dancing`, cats: []string{"nightclub"}},
-	{synonyms: `nightlife|late[- ]nights?|going out late`, cats: []string{"bar", "nightclub"}, tags: []string{"late_night"}},
+	{synonyms: `nightlife|late[- ]nights?|going out late`, cats: []string{"bar", "brewery", "nightclub"}, tags: []string{"late_night"}},
 	{synonyms: `outdoors?y?|outside|nature|hik(?:e|es|ing)|parks?|trails?`, tags: []string{"outdoor"}},
 	{synonyms: `indoors?|inside`, tags: []string{"indoor"}},
 	{synonyms: `art|arts|museums?|galler(?:y|ies)|exhibits?|exhibitions?`, cats: []string{"museum", "gallery"}, tags: []string{"art"}},
 	{synonyms: `music|concerts?|gigs?|live bands?|shows?`, cats: []string{"live_music"}, tags: []string{"music"}},
-	{synonyms: `food|eating|restaurants?|dinner|lunch|brunch|meals?`, cats: []string{"restaurant", "cafe"}, tags: []string{"food"}},
+	{synonyms: `food|eating|restaurants?|dinner|lunch|brunch|meals?`, cats: []string{"restaurant", "cafe", "bakery", "dessert", "food_hall"}, tags: []string{"food"}},
 	{synonyms: `learning|lectures?|workshops?|classes|nerdy|educational`, cats: []string{"class_workshop"}, tags: []string{"learning"}},
 	{synonyms: `sports?|games?|athletic|working out|workouts?`, cats: []string{"sports_event", "rec_venue"}},
 	{synonyms: `touristy|tourist traps?|sightseeing`, cats: []string{"tour", "landmark"}, tags: []string{"touristy"}},
@@ -120,11 +120,11 @@ func ExtractMoodConstraints(mood string, picks []string) (HardConstraints, []Fac
 
 	if familyRe.MatchString(blanked) {
 		hard.ExcludeTags = append(hard.ExcludeTags, "21_plus")
-		hard.ExcludeCategories = append(hard.ExcludeCategories, "bar", "nightclub")
+		hard.ExcludeCategories = append(hard.ExcludeCategories, "bar", "nightclub", "brewery")
 	}
 	if soberRe.MatchString(text) {
 		hard.ExcludeTags = append(hard.ExcludeTags, "drinks")
-		hard.ExcludeCategories = append(hard.ExcludeCategories, "bar", "nightclub")
+		hard.ExcludeCategories = append(hard.ExcludeCategories, "bar", "nightclub", "brewery")
 	}
 	if freeRe.MatchString(text) || standaloneFree.MatchString(text) {
 		hard.FreeOnly = true

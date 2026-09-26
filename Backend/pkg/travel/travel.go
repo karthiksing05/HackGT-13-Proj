@@ -48,7 +48,9 @@ type Provider interface {
 	Legs(ctx context.Context, pairs []Pair, mode Mode) (map[Pair]Leg, error)
 }
 
-const earthRadiusKm = 6371.0
+// EarthRadiusKm is the mean Earth radius. Anything that converts distances
+// to angles (e.g. Mongo $centerSphere) must use the same value.
+const EarthRadiusKm = 6371.0
 
 // HaversineKm is the straight-line distance between two points.
 func HaversineKm(a, b Point) float64 {
@@ -57,7 +59,7 @@ func HaversineKm(a, b Point) float64 {
 	dLng := (b.Lng - a.Lng) * rad
 	h := math.Sin(dLat/2)*math.Sin(dLat/2) +
 		math.Cos(a.Lat*rad)*math.Cos(b.Lat*rad)*math.Sin(dLng/2)*math.Sin(dLng/2)
-	return 2 * earthRadiusKm * math.Asin(math.Sqrt(math.Min(1, h)))
+	return 2 * EarthRadiusKm * math.Asin(math.Sqrt(math.Min(1, h)))
 }
 
 // Top speeds used for lower bounds. They must never be slower than any real
