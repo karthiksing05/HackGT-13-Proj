@@ -9,8 +9,9 @@ import (
 // to early_mornings.
 const earlyMorningHour = 9
 
-// tasteByCategory maps catalog categories (dataingestion) to the trip-type
-// keys of Preferences.ratings, the keys users.taste.tags uses.
+// tasteByCategory maps catalog categories (dataingestion) to taste tags:
+// the trip-type keys of Preferences.ratings, plus social, which the Social
+// bar of GET /me/taste-profile reads before big_crowds.
 var tasteByCategory = map[string][]string{
 	"park":            {"outdoors"},
 	"garden":          {"outdoors"},
@@ -32,8 +33,9 @@ var tasteByCategory = map[string][]string{
 	"comedy":          {"nightlife"},
 	"sports_event":    {"sports", "big_crowds"},
 	"rec_venue":       {"sports"},
-	"festival":        {"big_crowds", "live_music"},
-	"community_event": {"big_crowds"},
+	"festival":        {"social", "big_crowds", "live_music"},
+	"community_event": {"social"},
+	"class_workshop":  {"social"},
 }
 
 // tasteByTag maps catalog tags to trip-type keys.
@@ -48,6 +50,18 @@ var tasteByTag = map[string][]string{
 	"late_night": {"nightlife"},
 	"drinks":     {"nightlife"},
 	"21_plus":    {"nightlife"},
+	"group":      {"social"},
+}
+
+// ratingTagTaste is what the app's rating tags (Rating.tagOptions) say on
+// their own: "Too crowded" pulls big_crowds to 0, "Great people" pulls
+// social to 1.
+var ratingTagTaste = map[string]struct {
+	key    string
+	target float64
+}{
+	"too crowded":  {"big_crowds", 0},
+	"great people": {"social", 1},
 }
 
 // tasteKeys is the trip types a catalog activity speaks to, in a stable order.

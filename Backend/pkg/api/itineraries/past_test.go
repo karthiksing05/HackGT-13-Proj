@@ -301,3 +301,49 @@ func TestRatingSucceedsWhenProfilesFail(t *testing.T) {
 		t.Fatalf("taste with the ML service down: %+v", taste)
 	}
 }
+
+// TestRatingsMoveTheTasteBars: the tags a rating writes are the ones
+// GET /me/taste-profile reads (Outdoors ← outdoors, Social ← social).
+func TestRatingsMoveTheTasteBars(t *testing.T) {
+	srv := testutil.New(t, testutil.WithNow(pastClock))
+	a := srv.Signup(t, "Alice Bars")
+	b := srv.Signup(t, "Bob Bars")
+	bars := func() map[string]float64 {
+		t.Helper()
+		var profile contract.TasteProfile
+		srv.Do(t, "GET", "/me/taste-profile", nil, a).Expect(t, http.StatusOK).JSON(t, &profile)
+		out := map[string]float64{}
+		for _, bar := range profile.Bars {
+			out[bar.Label] = bar.Value
+		}
+		return out
+	}
+	before := bars()
+	hike := seedActivity(t, srv, "hike", "outdoors")
+	req := plan("Group hike", contract.VisibilityFriends, stopSpec{id: "g0", title: "Group hike", start: at(9, 27, 10, 0), minutes: 120})
+	req.Option.Stops[0].ActivityID = &hike
+	it := create(t, srv, a, req)
+	addMember(t, srv, it.ID, b)
+	stop := stops(it)[0].ID
+
+	rate(t, srv, a, stop, 4)
+	taste := tasteOf(t, srv, a.UserID)
+	if !near(taste.Tags["outdoors"], 0.575) || !near(taste.Tags["social"], 0.575) || taste.RatingCount != 1 {
+		t.Fatalf("a 4-star group hike: %+v", taste)
+	}
+	// Adding "Great people" later pulls social toward 1 without re-counting the stars.
+	rate(t, srv, a, stop, 4, "Great people")
+	taste = tasteOf(t, srv, a.UserID)
+	if !near(taste.Tags["outdoors"], 0.575) || !near(taste.Tags["social"], 0.7025) || taste.RatingCount != 1 {
+		t.Fatalf("after adding Great people: %+v", taste)
+	}
+	rate(t, srv, a, stop, 4, "Great people")
+	if again := tasteOf(t, srv, a.UserID); !near(again.Tags["social"], 0.7025) {
+		t.Fatalf("re-saving moved social: %+v", again)
+	}
+	after := bars()
+	if after["Outdoors"] <= before["Outdoors"] || after["Social"] <= before["Social"] ||
+		after["Food"] != before["Food"] || after["Nightlife"] != before["Nightlife"] {
+		t.Fatalf("taste bars before %v after %v", before, after)
+	}
+}

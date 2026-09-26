@@ -25,9 +25,10 @@ const ratedTimeout = 10 * time.Second
 
 // Rate is PUT /ratings/{itemId} (Rating) → 204 for an item of a plan the
 // viewer is on (404 otherwise). A new or changed rating of a stop moves the
-// viewer's taste tags (users.taste, see tasteTargets) and, when the stop is
-// a catalog activity, folds into their taste vectors in the background
-// (api.Profiles; a failing ML service never fails the rating).
+// viewer's taste tags (users.taste.tags, which GET /me/taste-profile reads:
+// see starTargets and tagTargets) and, when the stop is a catalog activity,
+// folds into their taste vectors in the background (api.Profiles; a
+// failing ML service never fails the rating).
 func (h *H) Rate(w http.ResponseWriter, r *http.Request) {
 	var req contract.Rating
 	if !httpx.Decode(w, r, &req) {
@@ -63,25 +64,33 @@ func (h *H) Rate(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	// Re-saving the same stars must not step the taste twice; a newly added
-	// "Too crowded" still counts.
+	if item.Kind == models.ItemTransit {
+		httpx.NoContent(w)
+		return
+	}
+	// Re-saving must not step the taste twice: the stars count again only
+	// when they changed, a rating tag only when it is new.
 	starsChanged := prev == nil || prev.Stars != req.Stars
-	crowdedNew := tooCrowded(tags) && (prev == nil || !tooCrowded(prev.Tags))
-	if item.Kind != models.ItemTransit && (starsChanged || crowdedNew) {
-		targets := h.tasteTargets(ctx, user, it, &item, req.Stars, tags, starsChanged)
+	targets := map[string]float64{}
+	if starsChanged {
+		targets = h.starTargets(ctx, user, it, &item, req.Stars)
+	}
+	var before []string
+	if prev != nil {
+		before = prev.Tags
+	}
+	for key, target := range tagTargets(tags, before) {
+		targets[key] = target
+	}
+	if len(targets) > 0 || prev == nil {
 		if err := h.d.Store.Users().BumpTaste(ctx, uid, targets, prev == nil); err != nil {
 			log.Warn().Err(err).Str("user", uid).Str("item", item.ID).Msg("taste tags not updated")
 		}
-		if starsChanged {
-			h.d.RatedAsync(uid, item.ActivityID, req.Stars, ratedTimeout)
-		}
+	}
+	if starsChanged {
+		h.d.RatedAsync(uid, item.ActivityID, req.Stars, ratedTimeout)
 	}
 	httpx.NoContent(w)
-}
-
-// tooCrowded reports the "Too crowded" rating tag.
-func tooCrowded(tags []string) bool {
-	return slices.ContainsFunc(tags, func(t string) bool { return strings.EqualFold(t, "Too crowded") })
 }
 
 // cleanTags trims, drops empty and repeated tags, keeping their order.
@@ -96,19 +105,13 @@ func cleanTags(tags []string) []string {
 	return out
 }
 
-// tasteTargets is where one rating pulls the viewer's taste tags: with
-// withStars, the trip types the rated activity speaks to (tasteKeys) and
-// early_mornings for a stop that starts before 9 AM go toward (stars−1)/4;
-// the "Too crowded" tag pulls big_crowds to 0.
-func (h *H) tasteTargets(ctx context.Context, user *models.User, it *models.Itinerary, item *models.ItineraryItem, stars int, tags []string, withStars bool) map[string]float64 {
+// starTargets is where the stars pull the taste tags, toward (stars−1)/4:
+// the trip types the rated catalog activity speaks to (tasteKeys),
+// early_mornings for a stop that starts before 9 AM, and social for a stop
+// shared with company.
+func (h *H) starTargets(ctx context.Context, user *models.User, it *models.Itinerary, item *models.ItineraryItem, stars int) map[string]float64 {
 	target := float64(stars-1) / 4
 	out := map[string]float64{}
-	if tooCrowded(tags) {
-		out["big_crowds"] = 0
-	}
-	if !withStars {
-		return out
-	}
 	if item.ActivityID != "" {
 		act, err := h.d.Store.Catalog().Activity(ctx, user.Catalog, item.ActivityID)
 		switch {
@@ -123,8 +126,21 @@ func (h *H) tasteTargets(ctx context.Context, user *models.User, it *models.Itin
 	if item.Start.In(httpx.Location(it.TZ)).Hour() < earlyMorningHour {
 		out["early_mornings"] = target
 	}
-	if tooCrowded(tags) {
-		out["big_crowds"] = 0
+	if len(it.MemberIDs) > 1 {
+		out["social"] = target
+	}
+	return out
+}
+
+// tagTargets is what the rating's own tags say whatever the stars
+// (ratingTagTaste), for the tags not already in before.
+func tagTargets(tags, before []string) map[string]float64 {
+	out := map[string]float64{}
+	for _, tag := range tags {
+		signal, ok := ratingTagTaste[strings.ToLower(tag)]
+		if ok && !slices.ContainsFunc(before, func(b string) bool { return strings.EqualFold(b, tag) }) {
+			out[signal.key] = signal.target
+		}
 	}
 	return out
 }
