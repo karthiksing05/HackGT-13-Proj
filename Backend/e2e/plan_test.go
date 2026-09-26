@@ -449,8 +449,14 @@ func checkoutFlow(t *testing.T, s *Session, it contract.Itinerary) {
 	}
 	var st checkoutStatus
 	expectEvent(t, ws, "checkout.status", 10*time.Second, &st, func(v checkoutStatus) bool { return v.IntentID == intent.ID && v.State == contract.CheckoutPreparing })
-	if msg := fails(t, s, "POST", "/checkout/intents/"+intent.ID+"/approve", nil, http.StatusBadRequest); !strings.Contains(msg, "still getting the quote") {
-		t.Errorf("approve while preparing: %q", msg)
+	// Approving before the quote is ready is refused (CHECKOUT_STEP_DELAY is
+	// 1.5 s on the servers; a slow link may already see the quote).
+	if early := do(t, s, "POST", "/checkout/intents/"+intent.ID+"/approve", nil); early.Status == http.StatusBadRequest {
+		if msg := early.Fail(t); !strings.Contains(msg, "still getting the quote") {
+			t.Errorf("approve while preparing: %q", msg)
+		}
+	} else {
+		t.Fatalf("an approve right after create should find the agent still preparing: %s", early)
 	}
 	quoted := pollIntent(t, s, intent.ID, contract.CheckoutAwaitingApproval)
 	expectEvent(t, ws, "checkout.status", 10*time.Second, &st, func(v checkoutStatus) bool {
