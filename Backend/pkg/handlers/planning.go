@@ -8,7 +8,9 @@ import (
 	"Backend/pkg/util"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -28,6 +30,259 @@ type GenerateMoreRequest struct {
 	Cursor string `json:"cursor"`
 }
 
+func activityAddressString(act models.Activity) string {
+	if act.Address != nil && act.Address.Formatted != nil && *act.Address.Formatted != "" {
+		return *act.Address.Formatted
+	}
+	if act.Address != nil && act.Address.Street != nil && *act.Address.Street != "" {
+		var parts []string
+		parts = append(parts, *act.Address.Street)
+		if act.Address.Locality != nil && *act.Address.Locality != "" {
+			parts = append(parts, *act.Address.Locality)
+		}
+		if act.Address.Region != nil && *act.Address.Region != "" {
+			parts = append(parts, *act.Address.Region)
+		}
+		return strings.Join(parts, ", ")
+	}
+	if act.VenueName != nil && *act.VenueName != "" {
+		return *act.VenueName
+	}
+	if act.City != "" {
+		return strings.Title(act.City)
+	}
+	return ""
+}
+
+func calculateDistanceKm(lat1, lon1, lat2, lon2 float64) float64 {
+	rad := math.Pi / 180.0
+	dLat := (lat2 - lat1) * rad
+	dLon := (lon2 - lon1) * rad
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(lat1*rad)*math.Cos(lat2*rad)*
+			math.Sin(dLon/2)*math.Sin(dLon/2)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+	d := 6371.0 * c
+	if d < 0.1 {
+		return 0.5
+	}
+	return math.Round(d*100) / 100
+}
+
+func calculateLegDuration(distKm float64, mode string) int {
+	switch strings.ToLower(mode) {
+	case "rideshare":
+		dur := int(distKm/35.0*60) + 3
+		if dur < 4 {
+			return 4
+		}
+		return dur
+	case "marta":
+		dur := int(distKm/20.0*60) + 5
+		if dur < 8 {
+			return 8
+		}
+		return dur
+	default: // walk
+		dur := int(distKm / 4.5 * 60)
+		if dur < 5 {
+			return 5
+		}
+		return dur
+	}
+}
+
+func activityToPlanStop(act models.Activity, order int) models.PlanStop {
+	lat, lng := 0.0, 0.0
+	if len(act.Location.Coordinates) >= 2 {
+		lng = act.Location.Coordinates[0]
+		lat = act.Location.Coordinates[1]
+	}
+
+	duration := 60
+	if act.Duration != nil && act.Duration.MedianMin > 0 {
+		duration = int(act.Duration.MedianMin)
+	}
+
+	cost := int64(0)
+	if act.Price != nil && act.Price.Cents > 0 {
+		cost = act.Price.Cents
+	}
+
+	notes := ""
+	if act.Summary != nil && *act.Summary != "" {
+		notes = *act.Summary
+	} else if act.Description != nil && *act.Description != "" {
+		notes = *act.Description
+	} else if len(act.Tags) > 0 {
+		notes = strings.Join(act.Tags, ", ")
+	}
+
+	return models.PlanStop{
+		ID:                 fmt.Sprintf("stop_%s_%d", act.ID.Hex(), order),
+		PlaceID:            act.ID.Hex(),
+		Name:               act.Name,
+		Address:            activityAddressString(act),
+		Lat:                lat,
+		Lng:                lng,
+		Order:              order,
+		DurationMin:        duration,
+		EstimatedCostCents: cost,
+		Notes:              notes,
+	}
+}
+
+func activityToItineraryItem(act models.Activity, arriveTime time.Time, duration time.Duration) models.ItineraryItem {
+	lat, lng := 0.0, 0.0
+	if len(act.Location.Coordinates) >= 2 {
+		lng = act.Location.Coordinates[0]
+		lat = act.Location.Coordinates[1]
+	}
+
+	if act.Duration != nil && act.Duration.MedianMin > 0 {
+		duration = time.Duration(act.Duration.MedianMin) * time.Minute
+	}
+
+	cost := int64(0)
+	if act.Price != nil && act.Price.Cents > 0 {
+		cost = act.Price.Cents
+	}
+
+	notes := ""
+	if act.Summary != nil && *act.Summary != "" {
+		notes = *act.Summary
+	} else if act.Description != nil && *act.Description != "" {
+		notes = *act.Description
+	}
+
+	itemType := act.Kind
+	if itemType == "" {
+		itemType = "activity"
+	}
+
+	departTime := arriveTime.Add(duration)
+
+	return models.ItineraryItem{
+		ID:           util.GenerateID(),
+		Title:        act.Name,
+		Type:         itemType,
+		LocationName: act.Name,
+		Address:      activityAddressString(act),
+		Lat:          lat,
+		Lng:          lng,
+		ArriveTime:   arriveTime,
+		DepartTime:   departTime,
+		PriceCents:   cost,
+		SharedNotes:  notes,
+	}
+}
+
+func buildPlanOptionsFromActivities(activities []models.Activity, req models.PlanGenerateRequest, numOptions int) []models.PlanOption {
+	if len(activities) == 0 {
+		return nil
+	}
+
+	stopsPerOption := 2
+	if len(activities) >= numOptions*3 {
+		stopsPerOption = 3
+	}
+
+	var options []models.PlanOption
+	actIdx := 0
+
+	now := time.Now()
+	for optIdx := 0; optIdx < numOptions; optIdx++ {
+		if actIdx >= len(activities) {
+			break
+		}
+
+		var stops []models.PlanStop
+		for s := 0; s < stopsPerOption && actIdx < len(activities); s++ {
+			stop := activityToPlanStop(activities[actIdx], s)
+			stops = append(stops, stop)
+			actIdx++
+		}
+
+		if len(stops) == 0 {
+			break
+		}
+
+		var legs []models.PlanLeg
+		totalLegDuration := 0
+		var routeSummaries []string
+
+		for i := 0; i < len(stops)-1; i++ {
+			distKm := 1.5
+			if stops[i].Lat != 0 && stops[i+1].Lat != 0 {
+				distKm = calculateDistanceKm(stops[i].Lat, stops[i].Lng, stops[i+1].Lat, stops[i+1].Lng)
+			}
+
+			mode := "walk"
+			if req.RideChoice == "rideshare" || (len(req.TravelModes) > 0 && req.TravelModes[0] == "rideshare") {
+				mode = "rideshare"
+			} else if distKm > 3.0 {
+				mode = "marta"
+			} else if len(req.TravelModes) > i && req.TravelModes[i] != "" {
+				mode = req.TravelModes[i]
+			}
+
+			dur := calculateLegDuration(distKm, mode)
+			legs = append(legs, models.PlanLeg{
+				FromStopID:  stops[i].ID,
+				ToStopID:    stops[i+1].ID,
+				Mode:        mode,
+				DurationMin: dur,
+				DistanceKm:  distKm,
+			})
+			totalLegDuration += dur
+			routeSummaries = append(routeSummaries, fmt.Sprintf("%s %d min", strings.Title(mode), dur))
+		}
+
+		var totalCost int64
+		var totalStopDuration int
+		for _, st := range stops {
+			totalCost += st.EstimatedCostCents
+			totalStopDuration += st.DurationMin
+		}
+
+		totalDuration := totalStopDuration + totalLegDuration
+		arrivalTime := now.Add(time.Duration(totalDuration) * time.Minute)
+		lateFlag := totalDuration > 240
+
+		var title, summary string
+		if len(stops) >= 2 {
+			title = fmt.Sprintf("%s & %s Quest", stops[0].Name, stops[1].Name)
+			summary = fmt.Sprintf("Explore %s, followed by %s.", stops[0].Name, stops[1].Name)
+		} else {
+			title = fmt.Sprintf("%s Experience", stops[0].Name)
+			summary = fmt.Sprintf("Spend an afternoon at %s.", stops[0].Name)
+		}
+
+		routeSummary := strings.Join(routeSummaries, " → ")
+		if routeSummary == "" {
+			routeSummary = "Direct visit"
+		}
+
+		opt := models.PlanOption{
+			ID:               util.GenerateID(),
+			Title:            title,
+			Summary:          summary,
+			Stops:            stops,
+			Legs:             legs,
+			RouteSummary:     routeSummary,
+			TotalCostCents:   totalCost,
+			TotalDurationMin: totalDuration,
+			LateFlag:         lateFlag,
+			ArrivalTime:      arrivalTime,
+		}
+
+		store.GlobalStore.SavePlanOption(&opt)
+		options = append(options, opt)
+	}
+
+	return options
+}
+
 func GeneratePlans(w http.ResponseWriter, r *http.Request) {
 	var req models.PlanGenerateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -45,146 +300,30 @@ func GeneratePlans(w http.ResponseWriter, r *http.Request) {
 		req.BackByTime = "22:00"
 	}
 
-	// Generate first 3 curated options
-	optionsList := []models.PlanOption{
-		{
-			ID:      util.GenerateID(),
-			Title:   "BeltLine Art & Bites Expedition",
-			Summary: "Mural walk along Eastside Trail, dinner at Ponce City Market, and gelato at Krog Street.",
-			Stops: []models.PlanStop{
-				{
-					ID:                 "stop_1",
-					PlaceID:            "place_4",
-					Name:               "Eastside BeltLine Trail",
-					Address:            "10th St NE & Monroe Dr NE, Atlanta, GA",
-					Lat:                33.7820,
-					Lng:                -84.3680,
-					Order:              0,
-					DurationMin:        45,
-					EstimatedCostCents: 0,
-					Notes:              "Scenic walk past Tiny Doors and vibrant murals",
-				},
-				{
-					ID:                 "stop_2",
-					PlaceID:            "place_2",
-					Name:               "Ponce City Market Food Hall",
-					Address:            "675 Ponce De Leon Ave NE, Atlanta, GA",
-					Lat:                33.7724,
-					Lng:                -84.3656,
-					Order:              1,
-					DurationMin:        75,
-					EstimatedCostCents: 2400,
-					Notes:              "Dinner & drinks at the market",
-				},
-				{
-					ID:                 "stop_3",
-					PlaceID:            "place_7",
-					Name:               "Krog Street Market Desserts",
-					Address:            "99 Krog St NE, Atlanta, GA",
-					Lat:                33.7582,
-					Lng:                -84.3642,
-					Order:              2,
-					DurationMin:        40,
-					EstimatedCostCents: 900,
-					Notes:              "Jeni's Splendid Ice Creams stop",
-				},
-			},
-			Legs: []models.PlanLeg{
-				{FromStopID: "stop_1", ToStopID: "stop_2", Mode: "walk", DurationMin: 15, DistanceKm: 1.2},
-				{FromStopID: "stop_2", ToStopID: "stop_3", Mode: "marta", DurationMin: 18, DistanceKm: 2.1},
-			},
-			RouteSummary:     "Walk 15 min → MARTA 18 min",
-			TotalCostCents:   3300,
-			TotalDurationMin: 193,
-			LateFlag:         false,
-			ArrivalTime:      time.Now().Add(3 * time.Hour),
-		},
-		{
-			ID:      util.GenerateID(),
-			Title:   "Midtown Culture & Rooftop Nightlife",
-			Summary: "Explore High Museum jazz, stroll to Fox Theatre, followed by rooftop drinks.",
-			Stops: []models.PlanStop{
-				{
-					ID:                 "stop_mid_1",
-					PlaceID:            "place_3",
-					Name:               "High Museum of Art",
-					Address:            "1280 Peachtree St NE, Atlanta, GA",
-					Lat:                33.7904,
-					Lng:                -84.3853,
-					Order:              0,
-					DurationMin:        90,
-					EstimatedCostCents: 2500,
-					Notes:              "Friday Jazz session",
-				},
-				{
-					ID:                 "stop_mid_2",
-					PlaceID:            "place_6",
-					Name:               "The Fox Theatre District",
-					Address:            "660 Peachtree St NE, Atlanta, GA",
-					Lat:                33.7725,
-					Lng:                -84.3858,
-					Order:              1,
-					DurationMin:        60,
-					EstimatedCostCents: 1500,
-					Notes:              "Lounge & drinks",
-				},
-			},
-			Legs: []models.PlanLeg{
-				{FromStopID: "stop_mid_1", ToStopID: "stop_mid_2", Mode: "marta", DurationMin: 10, DistanceKm: 1.8},
-			},
-			RouteSummary:     "MARTA Red/Gold Line 10 min",
-			TotalCostCents:   4000,
-			TotalDurationMin: 160,
-			LateFlag:         false,
-			ArrivalTime:      time.Now().Add(2*time.Hour + 40*time.Minute),
-		},
-		{
-			ID:      util.GenerateID(),
-			Title:   "Park Haven & Sunset Picnic",
-			Summary: "Piedmont Park stroll, skyline sunset over Clara Meer, and evening tacos.",
-			Stops: []models.PlanStop{
-				{
-					ID:                 "stop_park_1",
-					PlaceID:            "place_1",
-					Name:               "Piedmont Park Meadow",
-					Address:            "1320 Monroe Dr NE, Atlanta, GA",
-					Lat:                33.7879,
-					Lng:                -84.3733,
-					Order:              0,
-					DurationMin:        60,
-					EstimatedCostCents: 0,
-					Notes:              "Sunset viewing with blankets",
-				},
-				{
-					ID:                 "stop_park_2",
-					PlaceID:            "place_2",
-					Name:               "Ponce City Market Rooftop",
-					Address:            "675 Ponce De Leon Ave NE, Atlanta, GA",
-					Lat:                33.7724,
-					Lng:                -84.3656,
-					Order:              1,
-					DurationMin:        80,
-					EstimatedCostCents: 2200,
-					Notes:              "Mini-golf and cocktails",
-				},
-			},
-			Legs: []models.PlanLeg{
-				{FromStopID: "stop_park_1", ToStopID: "stop_park_2", Mode: "walk", DurationMin: 12, DistanceKm: 0.9},
-			},
-			RouteSummary:     "Walk 12 min",
-			TotalCostCents:   2200,
-			TotalDurationMin: 152,
-			LateFlag:         false,
-			ArrivalTime:      time.Now().Add(2*time.Hour + 32*time.Minute),
-		},
+	userAgeBracket := "21_plus"
+	if claims := middleware.GetUserClaims(r); claims != nil {
+		if u, err := store.GlobalStore.GetUserByID(claims.UserID); err == nil && u.AgeBracket != nil {
+			userAgeBracket = *u.AgeBracket
+		}
 	}
 
-	nextCursor := util.EncodeCursor("plans_cursor_page_2")
+	// Retrieve real activities from the database matching the criteria
+	activities, nextCursor, hasMore := store.GlobalStore.ListActivities("", req.StartLocation, req.RangeKm, req.Tags, req.BudgetCents, userAgeBracket, "", 9)
+	if len(activities) < 4 && len(req.Tags) > 0 {
+		// Fallback without tag filter if user tags were too specific
+		activities, nextCursor, hasMore = store.GlobalStore.ListActivities("", req.StartLocation, req.RangeKm, nil, req.BudgetCents, userAgeBracket, "", 9)
+	}
+	if len(activities) < 3 {
+		// Fallback to broader catalog query to ensure options are generated from database
+		activities, nextCursor, hasMore = store.GlobalStore.ListActivities("", "", 0, nil, 0, userAgeBracket, "", 9)
+	}
+
+	optionsList := buildPlanOptionsFromActivities(activities, req, 3)
 
 	middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"options":      optionsList,
 		"cursor":       nextCursor,
-		"done":         false,
+		"done":         !hasMore || len(optionsList) < 3,
 		"mood":         req.MoodText,
 		"rideshare":    req.RideChoice,
 		"travel_modes": req.TravelModes,
@@ -195,63 +334,30 @@ func GenerateMorePlans(w http.ResponseWriter, r *http.Request) {
 	var req GenerateMoreRequest
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
-	moreOptions := []models.PlanOption{
-		{
-			ID:      util.GenerateID(),
-			Title:   "Aquarium Wonders & Downtown Bites",
-			Summary: "Georgia aquarium evening pass, Centennial Park stroll, and downtown rooftop dessert.",
-			Stops: []models.PlanStop{
-				{
-					ID:                 "stop_aqua_1",
-					PlaceID:            "place_5",
-					Name:               "Georgia Aquarium",
-					Address:            "225 Baker St NW, Atlanta, GA",
-					Lat:                33.7634,
-					Lng:                -84.3951,
-					Order:              0,
-					DurationMin:        100,
-					EstimatedCostCents: 4500,
-					Notes:              "Ocean Voyager whale shark gallery",
-				},
-			},
-			Legs:             []models.PlanLeg{},
-			RouteSummary:     "Walk 8 min",
-			TotalCostCents:   4500,
-			TotalDurationMin: 108,
-			LateFlag:         false,
-			ArrivalTime:      time.Now().Add(2 * time.Hour),
-		},
-		{
-			ID:      util.GenerateID(),
-			Title:   "Hidden Murals & Speakeasy Tour",
-			Summary: "Off-the-beaten-path street art followed by a secret entrance cocktail lounge.",
-			Stops: []models.PlanStop{
-				{
-					ID:                 "stop_mural_1",
-					PlaceID:            "place_7",
-					Name:               "Krog Street Tunnel Art",
-					Address:            "1 Krog St NE, Atlanta, GA",
-					Lat:                33.7538,
-					Lng:                -84.3644,
-					Order:              0,
-					DurationMin:        45,
-					EstimatedCostCents: 0,
-					Notes:              "Graffiti photography",
-				},
-			},
-			Legs:             []models.PlanLeg{},
-			RouteSummary:     "Walk 5 min",
-			TotalCostCents:   1800,
-			TotalDurationMin: 90,
-			LateFlag:         false,
-			ArrivalTime:      time.Now().Add(1*time.Hour + 30*time.Minute),
-		},
+	userAgeBracket := "21_plus"
+	if claims := middleware.GetUserClaims(r); claims != nil {
+		if u, err := store.GlobalStore.GetUserByID(claims.UserID); err == nil && u.AgeBracket != nil {
+			userAgeBracket = *u.AgeBracket
+		}
 	}
+
+	// Query next batch of real activities from the database
+	activities, nextCursor, hasMore := store.GlobalStore.ListActivities("", "", 0, nil, 0, userAgeBracket, req.Cursor, 6)
+	if len(activities) == 0 {
+		middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"options": []models.PlanOption{},
+			"cursor":  "",
+			"done":    true,
+		})
+		return
+	}
+
+	moreOptions := buildPlanOptionsFromActivities(activities, models.PlanGenerateRequest{}, 2)
 
 	middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"options": moreOptions,
-		"cursor":  "",
-		"done":    true, // Out of further options
+		"cursor":  nextCursor,
+		"done":    !hasMore || len(moreOptions) < 2,
 	})
 }
 
@@ -262,46 +368,81 @@ func RoutePlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Recalculate legs, stop times, arrival, late flag after drag-to-reorder
-	numStops := len(req.StopOrder)
-	if numStops == 0 {
-		numStops = 3
+	opt, _ := store.GlobalStore.GetPlanOption(req.OptionID)
+	var stops []models.PlanStop
+	if opt != nil && len(opt.Stops) > 0 {
+		stopMap := make(map[string]models.PlanStop)
+		for _, s := range opt.Stops {
+			stopMap[s.ID] = s
+			stopMap[s.PlaceID] = s
+		}
+		for i, id := range req.StopOrder {
+			if s, ok := stopMap[id]; ok {
+				s.Order = i
+				stops = append(stops, s)
+			}
+		}
+		if len(stops) == 0 {
+			stops = opt.Stops
+		}
 	}
 
-	legDuration := 12
-	if req.Ride == "rideshare" {
-		legDuration = 8
+	numStops := len(stops)
+	if numStops == 0 {
+		numStops = len(req.StopOrder)
+		if numStops == 0 {
+			numStops = 3
+		}
 	}
 
 	var legs []models.PlanLeg
 	totalDuration := 0
 	for i := 0; i < numStops-1; i++ {
 		from := fmt.Sprintf("stop_%d", i)
-		if i < len(req.StopOrder) {
-			from = req.StopOrder[i]
-		}
 		to := fmt.Sprintf("stop_%d", i+1)
-		if i+1 < len(req.StopOrder) {
-			to = req.StopOrder[i+1]
+		var fromLat, fromLng, toLat, toLng float64
+		if i < len(stops) {
+			from = stops[i].ID
+			fromLat = stops[i].Lat
+			fromLng = stops[i].Lng
+		}
+		if i+1 < len(stops) {
+			to = stops[i+1].ID
+			toLat = stops[i+1].Lat
+			toLng = stops[i+1].Lng
+		}
+
+		distKm := 1.5
+		if fromLat != 0 && toLat != 0 {
+			distKm = calculateDistanceKm(fromLat, fromLng, toLat, toLng)
 		}
 
 		mode := "walk"
-		if len(req.Modes) > i {
+		if req.Ride == "rideshare" {
+			mode = "rideshare"
+		} else if len(req.Modes) > i && req.Modes[i] != "" {
 			mode = req.Modes[i]
+		} else if distKm > 3.0 {
+			mode = "marta"
 		}
 
+		dur := calculateLegDuration(distKm, mode)
 		legs = append(legs, models.PlanLeg{
 			FromStopID:  from,
 			ToStopID:    to,
 			Mode:        mode,
-			DurationMin: legDuration,
-			DistanceKm:  1.5,
+			DurationMin: dur,
+			DistanceKm:  distKm,
 		})
-		totalDuration += legDuration + 45 // 45 min per stop
+		stopDur := 45
+		if i < len(stops) && stops[i].DurationMin > 0 {
+			stopDur = stops[i].DurationMin
+		}
+		totalDuration += dur + stopDur
 	}
 
 	arrival := time.Now().Add(time.Duration(totalDuration) * time.Minute)
-	lateFlag := totalDuration > 240 // If over 4 hours, mark late flag
+	lateFlag := totalDuration > 240
 
 	middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"option_id":          req.OptionID,
@@ -327,7 +468,7 @@ func CreateItinerary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Title == "" {
-		req.Title = "SideQuest Atlanta"
+		req.Title = "SideQuest"
 	}
 	if req.Visibility == "" {
 		req.Visibility = "just_me"
@@ -364,64 +505,65 @@ func CreateItinerary(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: now,
 	}
 
-	// If no items provided, generate default demo stops
+	userAgeBracket := "21_plus"
+	if u.AgeBracket != nil {
+		userAgeBracket = *u.AgeBracket
+	}
+
+	// If no items provided, retrieve from the selected plan option or directly from database activities
 	if len(itin.Items) == 0 {
-		itin.Items = []models.ItineraryItem{
-			{
-				ID:           util.GenerateID(),
-				Title:        "BeltLine Gathering",
-				Type:         "activity",
-				LocationName: "Eastside BeltLine Trail",
-				Address:      "10th St NE & Monroe Dr NE, Atlanta, GA",
-				Lat:          33.7820,
-				Lng:          -84.3680,
-				ArriveTime:   now.Add(1 * time.Hour),
-				DepartTime:   now.Add(2 * time.Hour),
-				PriceCents:   0,
-				SharedNotes:  "Meet at the 10th street entrance",
-				TransitOptions: []models.TransitOption{
-					{
-						Mode:          "walk",
-						DurationMin:   12,
-						DistanceKm:    1.0,
-						CostCents:     0,
-						Summary:       "Walk via 10th St NE",
-						DepartureTime: now.Add(48 * time.Minute),
-						ArrivalTime:   now.Add(1 * time.Hour),
-					},
-					{
-						Mode:          "marta",
-						DurationMin:   15,
-						DistanceKm:    2.4,
-						CostCents:     250,
-						Summary:       "MARTA Bus 36 from Midtown Station",
-						DepartureTime: now.Add(45 * time.Minute),
-						ArrivalTime:   now.Add(1 * time.Hour),
-					},
-					{
-						Mode:          "rideshare",
-						DurationMin:   7,
-						DistanceKm:    2.0,
-						CostCents:     950,
-						Summary:       "UberX (~4 min pickup)",
-						DepartureTime: now.Add(53 * time.Minute),
-						ArrivalTime:   now.Add(1 * time.Hour),
-					},
-				},
-			},
-			{
-				ID:           util.GenerateID(),
-				Title:        "Ponce City Market Food & Rooftop",
-				Type:         "dining",
-				LocationName: "Ponce City Market",
-				Address:      "675 Ponce De Leon Ave NE, Atlanta, GA",
-				Lat:          33.7724,
-				Lng:          -84.3656,
-				ArriveTime:   now.Add(2*time.Hour + 15*time.Minute),
-				DepartTime:   now.Add(4 * time.Hour),
-				PriceCents:   2500,
-				SharedNotes:  "Rooftop reservations at 8:30pm",
-			},
+		if req.OptionID != "" {
+			if opt, err := store.GlobalStore.GetPlanOption(req.OptionID); err == nil && len(opt.Stops) > 0 {
+				if req.Title == "SideQuest" && opt.Title != "" {
+					itin.Title = opt.Title
+				}
+				curTime := now.Add(1 * time.Hour)
+				for i, stop := range opt.Stops {
+					itemDur := time.Duration(stop.DurationMin) * time.Minute
+					if itemDur <= 0 {
+						itemDur = 45 * time.Minute
+					}
+					item := models.ItineraryItem{
+						ID:           util.GenerateID(),
+						Title:        stop.Name,
+						Type:         "activity",
+						LocationName: stop.Name,
+						Address:      stop.Address,
+						Lat:          stop.Lat,
+						Lng:          stop.Lng,
+						ArriveTime:   curTime,
+						DepartTime:   curTime.Add(itemDur),
+						PriceCents:   stop.EstimatedCostCents,
+						SharedNotes:  stop.Notes,
+					}
+					if i < len(opt.Legs) {
+						leg := opt.Legs[i]
+						item.TransitOptions = []models.TransitOption{
+							{
+								Mode:          leg.Mode,
+								DurationMin:   leg.DurationMin,
+								DistanceKm:    leg.DistanceKm,
+								DepartureTime: curTime.Add(-time.Duration(leg.DurationMin) * time.Minute),
+								ArrivalTime:   curTime,
+								Summary:       fmt.Sprintf("%s (%.1f km)", strings.Title(leg.Mode), leg.DistanceKm),
+							},
+						}
+					}
+					itin.Items = append(itin.Items, item)
+					curTime = curTime.Add(itemDur + 15*time.Minute)
+				}
+			}
+		}
+
+		// If still empty, fetch real activities from the database!
+		if len(itin.Items) == 0 {
+			dbActs, _, _ := store.GlobalStore.ListActivities("", "", 0, nil, 0, userAgeBracket, "", 2)
+			curTime := now.Add(1 * time.Hour)
+			for _, act := range dbActs {
+				item := activityToItineraryItem(act, curTime, 60*time.Minute)
+				itin.Items = append(itin.Items, item)
+				curTime = item.DepartTime.Add(15 * time.Minute)
+			}
 		}
 	}
 
@@ -429,6 +571,16 @@ func CreateItinerary(w http.ResponseWriter, r *http.Request) {
 
 	// Rule of thumb: open plans are published from POST /itineraries
 	if itin.Visibility == "open" {
+		postLat := 33.7820
+		postLng := -84.3680
+		if len(itin.Items) > 0 && (itin.Items[0].Lat != 0 || itin.Items[0].Lng != 0) {
+			postLat = itin.Items[0].Lat
+			postLng = itin.Items[0].Lng
+		} else if u.LastLocation != nil && len(u.LastLocation.Coordinates) >= 2 {
+			postLng = u.LastLocation.Coordinates[0]
+			postLat = u.LastLocation.Coordinates[1]
+		}
+
 		forumPost := &models.ForumPost{
 			ID:                util.GenerateID(),
 			UserID:            u.ID.Hex(),
@@ -438,8 +590,8 @@ func CreateItinerary(w http.ResponseWriter, r *http.Request) {
 			Type:              "itinerary",
 			Title:             itin.Title,
 			Content:           fmt.Sprintf("Open sidequest on %s! Max group size %d. Join us!", itin.Date, itin.MaxGroupSize),
-			Lat:               33.7820,
-			Lng:               -84.3680,
+			Lat:               postLat,
+			Lng:               postLng,
 			Visibility:        "everyone",
 			ItineraryID:       itin.ID,
 			Tags:              []string{"open_plan", "sidequest"},

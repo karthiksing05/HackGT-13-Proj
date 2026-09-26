@@ -66,11 +66,50 @@ func HelloDemoICSTest(w http.ResponseWriter, r *http.Request) {
 	if len(existingItins) == 0 {
 		now := time.Now()
 		tomorrow := now.AddDate(0, 0, 1)
+		acts, _, _ := store.GlobalStore.ListActivities("", "", 0, nil, 0, "21_plus", "", 2)
+		var demoItems []models.ItineraryItem
+		itinTitle := "SideQuest Exploration"
+		if len(acts) > 0 {
+			itinTitle = acts[0].Name + " Quest"
+			for i, act := range acts {
+				addr := ""
+				if act.Address != nil && act.Address.Formatted != nil {
+					addr = *act.Address.Formatted
+				} else if act.Address != nil && act.Address.Street != nil {
+					addr = *act.Address.Street
+				} else if act.VenueName != nil {
+					addr = *act.VenueName
+				}
+				notes := ""
+				if act.Description != nil {
+					notes = *act.Description
+				}
+				lat, lng := 0.0, 0.0
+				if len(act.Location.Coordinates) >= 2 {
+					lng = act.Location.Coordinates[0]
+					lat = act.Location.Coordinates[1]
+				}
+				arrive := tomorrow.Add(time.Duration(14+i*2) * time.Hour)
+				demoItems = append(demoItems, models.ItineraryItem{
+					ID:           util.GenerateID(),
+					Title:        act.Name,
+					Type:         act.Kind,
+					LocationName: act.Name,
+					Address:      addr,
+					Lat:          lat,
+					Lng:          lng,
+					ArriveTime:   arrive,
+					DepartTime:   arrive.Add(90 * time.Minute),
+					SharedNotes:  notes,
+				})
+			}
+		}
+
 		itin := &models.Itinerary{
 			ID:           util.GenerateID(),
 			HostUserID:   demoUID,
 			HostName:     "Demo Explorer",
-			Title:        "Midtown & Piedmont Park Quest",
+			Title:        itinTitle,
 			Date:         tomorrow.Format("2006-01-02"),
 			StartTime:    "14:00",
 			BackByTime:   "18:00",
@@ -87,28 +126,7 @@ func HelloDemoICSTest(w http.ResponseWriter, r *http.Request) {
 			},
 			CreatedAt: now,
 			UpdatedAt: now,
-			Items: []models.ItineraryItem{
-				{
-					ID:           util.GenerateID(),
-					Title:        "Piedmont Park Picnic & Stroll",
-					Type:         "outdoors",
-					LocationName: "Piedmont Park",
-					Address:      "1320 Monroe Dr NE, Atlanta, GA",
-					ArriveTime:   tomorrow.Add(14 * time.Hour),
-					DepartTime:   tomorrow.Add(16 * time.Hour),
-					SharedNotes:  "Meet at the meadow near the lake",
-				},
-				{
-					ID:           util.GenerateID(),
-					Title:        "Ponce City Market Food Tour",
-					Type:         "dining",
-					LocationName: "Ponce City Market",
-					Address:      "675 Ponce De Leon Ave NE, Atlanta, GA",
-					ArriveTime:   tomorrow.Add(16*time.Hour + 30*time.Minute),
-					DepartTime:   tomorrow.Add(18 * time.Hour),
-					SharedNotes:  "Grabbing bites and rooftop view",
-				},
-			},
+			Items:     demoItems,
 		}
 		_ = store.GlobalStore.CreateItinerary(itin)
 	}

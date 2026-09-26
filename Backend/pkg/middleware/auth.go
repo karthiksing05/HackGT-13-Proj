@@ -37,14 +37,10 @@ func BearerAuth(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), UserClaimsKey, claims)
-		ctx = context.WithValue(ctx, UserUserIDKey(UserIDKey), claims.UserID)
+		ctx = context.WithValue(ctx, UserIDKey, claims.UserID)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-func UserUserIDKey(k contextKey) contextKey {
-	return k
 }
 
 // GetUserClaims retrieves claims from the context

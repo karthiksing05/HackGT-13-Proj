@@ -36,6 +36,7 @@ type Store struct {
 	invites        map[string]*models.InviteLink
 	calendarTokens map[string]string // token -> userID
 	userCalTokens  map[string]string // userID -> token
+	planOptions    map[string]*models.PlanOption
 }
 
 var GlobalStore = NewStore()
@@ -57,9 +58,30 @@ func NewStore() *Store {
 		invites:        make(map[string]*models.InviteLink),
 		calendarTokens: make(map[string]string),
 		userCalTokens:  make(map[string]string),
+		planOptions:    make(map[string]*models.PlanOption),
 	}
 	s.seedDefaultCatalog()
 	return s
+}
+
+func (s *Store) SavePlanOption(opt *models.PlanOption) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.planOptions == nil {
+		s.planOptions = make(map[string]*models.PlanOption)
+	}
+	s.planOptions[opt.ID] = opt
+}
+
+func (s *Store) GetPlanOption(id string) (*models.PlanOption, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.planOptions != nil {
+		if opt, ok := s.planOptions[id]; ok {
+			return opt, nil
+		}
+	}
+	return nil, errors.New("plan option not found")
 }
 
 // CalculateAgeBracket calculates "13_17" | "18_20" | "21_plus" from birthDate

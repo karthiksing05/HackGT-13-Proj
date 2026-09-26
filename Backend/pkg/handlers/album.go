@@ -6,7 +6,6 @@ import (
 	"Backend/pkg/store"
 	"Backend/pkg/util"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -47,7 +46,7 @@ func UploadGroupPhoto(w http.ResponseWriter, r *http.Request) {
 
 	photoURL := req.PhotoURL
 	if photoURL == "" {
-		photoURL = fmt.Sprintf("https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=800&auto=format&fit=crop&q=60")
+		photoURL = "https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=800&auto=format&fit=crop&q=60"
 	}
 
 	photo := &models.GroupPhoto{

@@ -127,6 +127,12 @@ func GetCalendarDays(w http.ResponseWriter, r *http.Request) {
 		toTime = parsed
 	}
 
+	userAgeBracket := "21_plus"
+	if u, err := store.GlobalStore.GetUserByID(uid); err == nil && u.AgeBracket != nil {
+		userAgeBracket = *u.AgeBracket
+	}
+	dbEvents, _, _ := store.GlobalStore.ListEvents("", 0, nil, 0, userAgeBracket, "", 20)
+
 	itins, _, _ := store.GlobalStore.ListActiveItineraries(uid, "", 100)
 
 	var days []models.CalendarDay
@@ -166,14 +172,52 @@ func GetCalendarDays(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		groupEvents := []models.CalendarEventItem{}
-		if cur.Weekday() == time.Friday || cur.Weekday() == time.Saturday {
+		var groupEvents []models.CalendarEventItem
+		for _, ev := range dbEvents {
+			evDate := ""
+			if ev.Start != nil {
+				evDate = ev.Start.Format("2006-01-02")
+			}
+			if evDate == dateStr {
+				locStr := ""
+				if ev.VenueName != nil && *ev.VenueName != "" {
+					locStr = *ev.VenueName
+				} else if ev.Address != nil && ev.Address.Street != nil {
+					locStr = *ev.Address.Street
+				} else if ev.Address != nil && ev.Address.Formatted != nil {
+					locStr = *ev.Address.Formatted
+				}
+				startTime := cur.Add(18 * time.Hour)
+				endTime := cur.Add(21 * time.Hour)
+				if ev.Start != nil {
+					startTime = *ev.Start
+				}
+				if ev.End != nil {
+					endTime = *ev.End
+				}
+				groupEvents = append(groupEvents, models.CalendarEventItem{
+					ID:        ev.ID.Hex(),
+					Title:     ev.Name,
+					StartTime: startTime,
+					EndTime:   endTime,
+					Location:  locStr,
+				})
+			}
+		}
+		if len(groupEvents) == 0 && (cur.Weekday() == time.Friday || cur.Weekday() == time.Saturday) && len(dbEvents) > 0 {
+			ev := dbEvents[int(cur.Weekday())%len(dbEvents)]
+			locStr := ""
+			if ev.VenueName != nil && *ev.VenueName != "" {
+				locStr = *ev.VenueName
+			} else if ev.Address != nil && ev.Address.Street != nil {
+				locStr = *ev.Address.Street
+			}
 			groupEvents = append(groupEvents, models.CalendarEventItem{
-				ID:        "grp_evt_" + dateStr,
-				Title:     "BeltLine Sunset Stroll",
+				ID:        ev.ID.Hex(),
+				Title:     ev.Name,
 				StartTime: time.Date(cur.Year(), cur.Month(), cur.Day(), 18, 30, 0, 0, cur.Location()),
 				EndTime:   time.Date(cur.Year(), cur.Month(), cur.Day(), 21, 0, 0, 0, cur.Location()),
-				Location:  "Eastside Trail, Atlanta",
+				Location:  locStr,
 			})
 		}
 
