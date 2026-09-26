@@ -6,3 +6,20 @@
 /.idea/HackGT-13-Proj.iml
 /Backend/.idea/vcs.xml
 /.idea/vcs.xml
+
+
+# macOS
+.DS_Store
+
+# Xcode: per-user settings and build output
+xcuserdata/
+DerivedData/
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+mpcdf-skills
+
+hf_token
+
+__pycache__/

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.karthiksing05.SideQuestz.oauth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>sidequestz</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>SQAPIBaseURL</key>
+	<string>http://127.0.0.1:8000</string>
+	<key>SQAPIMode</key>
+	<string>mock</string>
+	<key>SQMockDelay</key>
+	<string>5</string>
+	<key>SQWebSocketURL</key>
+	<string>ws://127.0.0.1:8000/ws</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>JetBrainsMono-Medium.ttf</string>
+		<string>JetBrainsMono-Bold.ttf</string>
+		<string>JetBrainsMono-ExtraBold.ttf</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
+</dict>
+</plist>
