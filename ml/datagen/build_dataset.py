@@ -1,0 +1,315 @@
+#!/usr/bin/env python3
+"""Turn generation shards into the final dataset, render its card, and optionally push both.
+
+    python ml/datagen/build_dataset.py RUN_DIR --repo-id USER/NAME [--size 100000] [--push]
+
+RUN_DIR holds shard-*.jsonl and stats-*.json from generate.sbatch (fetched with
+`mpcdf.py fetch`). Duplicate listings are dropped, --size rows are sampled at random and
+split into train/test, Parquet copies go to RUN_DIR/dataset/, and the card is written to
+ml/dataset.md. --push uploads the splits and the card (as README.md) to a private
+Hugging Face dataset repo, using the cached `hf auth login` token.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import random
+import re
+import secrets
+import statistics
+import sys
+from collections import Counter
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import generate as gen  # noqa: E402  (constants only; vLLM is imported lazily there)
+
+CARD = gen.REPO / "ml" / "dataset.md"
+
+
+def norm(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def load(run_dir: Path) -> tuple[list[dict], list[dict]]:
+    rows = [json.loads(line) for shard in sorted(run_dir.glob("shard-*.jsonl")) for line in shard.open()]
+    stats = [json.loads(p.read_text()) for p in sorted(run_dir.glob("stats-*.json"))]
+    return rows, stats
+
+
+def dedupe(rows: list[dict]) -> list[dict]:
+    """One row per distinct listing (title + description); IDs and URLs differ by design."""
+    seen, out = set(), []
+    for row in rows:
+        rec = json.loads(row["raw_record"])
+        key = norm(rec["title"]) + "\x00" + norm(rec["description"])
+        if key not in seen:
+            seen.add(key)
+            out.append(row)
+    return out
+
+
+def size_category(n: int) -> str:
+    for limit, label in ((1_000, "n<1K"), (10_000, "1K<n<10K"), (100_000, "10K<n<100K"),
+                         (1_000_000, "100K<n<1M")):
+        if n < limit:
+            return label
+    return "1M<n<10M"
+
+
+def pct(part: int, whole: int) -> str:
+    return f"{100 * part / whole:.1f}%" if whole else "-"
+
+
+def table(header: list[str], rows: list[list]) -> str:
+    lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+    lines += ["| " + " | ".join(str(c) for c in r) + " |" for r in rows]
+    return "\n".join(lines)
+
+
+def render_card(repo_id: str, train: list[dict], test: list[dict], generated: int, dupes: int,
+                stats: list[dict]) -> str:
+    rows = train + test
+    n = len(rows)
+    attempted = sum(s["counters"].get("attempted", 0) for s in stats)
+    rejects = Counter()
+    for s in stats:
+        rejects.update(s["rejects"])
+    seconds = max((s["seconds"] for s in stats), default=0)
+    conflicts = sum(1 for r in rows if "price_conflict" in r["noise"])
+    passed = attempted - sum(rejects.values())
+    out_tokens = sum(s["counters"].get("stage1_output_tokens", 0) + s["counters"].get("stage2_output_tokens", 0)
+                     for s in stats)
+    info = stats[0] if stats else {}
+    by = {k: Counter(r[k] for r in rows) for k in ("category", "completeness", "listing_style", "input_format")}
+    noise = Counter(x for r in rows for x in r["noise"])
+    coverage = []
+    for name in gen.SECTIONS:
+        present = [r["sections"][name.lower()] for r in rows if r["sections"][name.lower()]]
+        coverage.append([f"`{name}`", pct(len(present), n),
+                         f"{statistics.mean(len(b) for b in present):.2f}" if present else "-"])
+    bullets = [sum(len(v) for v in r["sections"].values()) for r in rows]
+    example = next((r for r in test if r["completeness"] == "partial" and "scraper_metadata" in r["noise"]), test[0])
+    reject_rows = [[f"`{k}`", f"{v:,}", pct(v, attempted)] for k, v in rejects.most_common()]
+    s1 = ", ".join(f"{k}={v}" for k, v in gen.S1_SAMPLING.items())
+    s2 = ", ".join(f"{k}={v}" for k, v in gen.S2_SAMPLING.items())
+    top_categories = [[c, f"{k:,}", pct(k, n)] for c, k in by["category"].most_common()]
+    social = pct(sum(1 for r in rows if r["sections"]["social"]), n)
+
+    return f"""---
+license: apache-2.0
+language:
+- en
+pretty_name: SideQuestz Synthetic Event Embedding Text
+size_categories:
+- {size_category(n)}
+task_categories:
+- text-generation
+- feature-extraction
+tags:
+- synthetic
+- events
+- recommendation
+- embeddings
+- structured-text
+configs:
+- config_name: default
+  data_files:
+  - split: train
+    path: data/train-*
+  - split: test
+    path: data/test-*
+---
+
+# SideQuestz synthetic event embedding text
+
+{n:,} synthetic events for the SideQuestz event recommender. Each pairs a messy, realistic raw
+listing with its **embedding text**, the compact eight-section format defined in
+[`ml/description_generation.md`](https://github.com/karthiksing05/HackGT-13-Proj/blob/frontend/ml/description_generation.md)
+(Interests, Activities, Social, Environment, Pace, Cost, Timing, Experience). Everything was
+generated by `{info.get('model', 'Qwen/Qwen3.5-9B')}` on the MPCDF Raven cluster.
+
+Hub: [`{repo_id}`](https://huggingface.co/datasets/{repo_id}) (private)
+
+Uses:
+- fine-tuning or evaluating a small model that converts raw event data into embedding text;
+- a synthetic event catalog for the cosine-similarity baseline (approach A in the spec) and
+  for retrieval experiments;
+- checking prompt and schema changes against a fixed, diverse set of inputs.
+
+## Loading
+
+```python
+from datasets import load_dataset
+ds = load_dataset("{repo_id}")  # private: run `hf auth login` first
+row = ds["train"][0]
+print(row["raw_event"]); print(row["embedding_text"])
+```
+
+## Fields
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | random UUID (hex) |
+| `category`, `topic` | string | event category and topic from the random brief |
+| `listing_style` | string | source style the listing imitates (ticketing site, newsletter, social post, ...) |
+| `completeness` | string | detail level: `complete`, `partial`, `sparse` or `minimal` |
+| `input_format` | string | how the listing was rendered for conversion: `key_value` or `json` |
+| `noise` | list[string] | noise injected in code: `scraper_metadata`, `placeholders`, `price_conflict` |
+| `raw_event` | string | the exact text given to the converter |
+| `raw_record` | string (JSON) | the listing's fields, including injected noise |
+| `embedding_text` | string | the validated embedding text (the target) |
+| `sections` | struct of 8 lists | the same bullets, parsed; absent sections are empty lists |
+| `brief` | string (JSON) | the randomly sampled brief behind the listing |
+
+Splits: `train` ({len(train):,} rows) and `test` ({len(test):,} rows), a random split.
+
+### Example (from `test`)
+
+`raw_event`:
+```text
+{example['raw_event']}
+```
+
+`embedding_text`:
+```text
+{example['embedding_text']}
+```
+
+## How it was made
+
+1. **Random brief.** Each event starts from attributes sampled in code with fresh,
+   unrecorded randomness, so every run differs: {len(gen.CATEGORIES)} categories and
+   {sum(len(v) for v in gen.CATEGORIES.values())} topics, setting and venue type, timing, cost,
+   audience, group format, pace, city, listing style, tone, and a detail level. Sparser
+   detail levels include fewer brief attributes, so missing information is realistic, not
+   hidden.
+2. **Raw listing (model).** The model writes the listing as JSON (title, description, when,
+   venue, address, price, category, tags, organizer, age policy, capacity), with JSON-schema
+   constrained decoding. Sampling: {s1}.
+3. **Scraper noise (code).** Listings get IDs, URLs, source and timestamp fields (65%
+   chance), placeholder values such as `N/A`, `TBD` or `unknown` in empty fields (30% chance
+   when a field is empty), and a contradicting `price` field (10% chance when the
+   description mentions a price). The noise table below shows the resulting shares. Each
+   listing is then rendered as `Key: value` lines (random key names and field order) or as
+   JSON.
+4. **Conversion (model).** The rendered listing goes to the model with the section-2 prompt
+   of `description_generation.md`, copied verbatim, in non-thinking mode. Sampling: {s2}.
+5. **Validation (code).** A conversion is kept only if it follows the spec's rules:
+   - it uses only the eight section names, each with at least one bullet;
+   - bullets are short phrases, not sentences or filler (at most 8 words and 64 characters);
+   - there are no placeholders, URLs, IDs or handles;
+   - two common inventions are caught: a `Cost` section needs price information in the
+     listing, and "online/virtual" `Environment` bullets need an online venue in it.
+
+   Kept conversions are normalized: sections go into schema order, and bullets are
+   lowercased and deduplicated. When the price fields conflict, the `Cost` section is
+   removed, which is the spec's rule for conflicting values. In a 416-event test the model
+   kept `Cost` in every conflicting case. {conflicts:,} rows were handled this way. Finally,
+   {dupes:,} duplicate listings were dropped and {n:,} of the remaining rows were sampled.
+
+Generation ran on {len(stats)} × NVIDIA A100 40 GB (one vLLM {info.get('vllm', '?')} worker per GPU) in
+{seconds / 60:.0f} minutes. Of {attempted:,} attempted events, {passed:,} ({pct(passed, attempted)}) passed
+validation and {generated:,} were kept; {out_tokens:,} tokens were generated in total.
+
+| Rejection reason | Count | Share of attempts |
+|---|---|---|
+{chr(10).join('| ' + ' | '.join(str(c) for c in r) + ' |' for r in reject_rows) or '| none | 0 | - |'}
+
+## Statistics
+
+Section coverage (share of rows with the section; mean bullets when present). Rows have
+{statistics.mean(bullets):.1f} bullets on average.
+
+{table(["Section", "Rows with section", "Mean bullets"], coverage)}
+
+{table(["Detail level", "Rows", "Share"], [[k, f"{v:,}", pct(v, n)] for k, v in by["completeness"].most_common()])}
+
+{table(["Injected noise", "Rows", "Share"], [[f"`{k}`", f"{v:,}", pct(v, n)] for k, v in noise.most_common()])}
+
+Input format: {', '.join(f'`{k}` {pct(v, n)}' for k, v in by['input_format'].most_common())}.
+
+<details><summary>Rows per category</summary>
+
+{table(["Category", "Rows", "Share"], top_categories)}
+
+</details>
+
+## Limitations
+
+- **Synthetic.** Listings and conversions come from one 9B model, so its style, cultural
+  defaults and blind spots (e.g. US-centric venues and prices) carry into both columns.
+- **Rules only partly checked.** Validation enforces the schema mechanically and catches the
+  two most common inventions (unsupported cost and online claims). It cannot fully verify
+  the spec's rule against inferring unsupported characteristics: some bullets still go beyond
+  the listing (e.g. a pace or atmosphere read into a vague line) or sit in a neighbouring
+  section. Spot-check before treating conversions as gold labels.
+- **`Social` is rare.** Only {social} of rows have a `Social` section: the model tends to file
+  group format under `Activities` (e.g. `small group chat`) or `Experience` (e.g. `solo
+  attendance welcome`). Account for this if Social matters to your model.
+- **Odd combinations.** Briefs combine attributes at random, so some events are unusual (a
+  sneaker convention at a trailhead). That is deliberate for coverage, not realism.
+- **English only.** Events are fictional; any resemblance of names or venues to real ones is
+  coincidental.
+- **No preference data.** There are no user preferences or user-event interaction labels, so
+  this doesn't replace behavioral data for the learned compatibility models (approaches B
+  and C).
+
+## Reproducing
+
+The code is in [`ml/datagen/`](https://github.com/karthiksing05/HackGT-13-Proj/tree/frontend/ml/datagen):
+`setup_raven.sh` (environment), `generate.py` + `generate.sbatch` (one Raven node) and
+`build_dataset.py` (this card and the upload). Runs are intentionally nondeterministic, so a
+rerun gives a different dataset with the same design.
+
+License: Apache-2.0, matching the Qwen3.5 model license.
+"""
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("run_dir", type=Path)
+    ap.add_argument("--repo-id", required=True)
+    ap.add_argument("--size", type=int, default=100_000)
+    ap.add_argument("--test-size", type=int, default=2_000)
+    ap.add_argument("--push", action="store_true")
+    a = ap.parse_args()
+
+    rows, stats = load(a.run_dir)
+    unique = dedupe(rows)
+    random.Random(secrets.randbits(64)).shuffle(unique)
+    chosen = unique[:a.size]
+    test, train = chosen[:a.test_size], chosen[a.test_size:]
+    print(f"{len(rows):,} generated, {len(rows) - len(unique):,} duplicates dropped, "
+          f"{len(chosen):,} kept ({len(train):,} train / {len(test):,} test)")
+
+    from datasets import Dataset, DatasetDict, Features, Sequence, Value
+    features = Features({
+        "id": Value("string"), "category": Value("string"), "topic": Value("string"),
+        "listing_style": Value("string"), "completeness": Value("string"), "input_format": Value("string"),
+        "noise": Sequence(Value("string")), "raw_event": Value("string"), "raw_record": Value("string"),
+        "embedding_text": Value("string"),
+        "sections": {s.lower(): Sequence(Value("string")) for s in gen.SECTIONS},
+        "brief": Value("string"),
+    })
+    dsd = DatasetDict({"train": Dataset.from_list(train, features=features),
+                       "test": Dataset.from_list(test, features=features)})
+    out = a.run_dir / "dataset"
+    out.mkdir(exist_ok=True)
+    for split, ds in dsd.items():
+        ds.to_parquet(out / f"{split}.parquet")
+
+    card = render_card(a.repo_id, train, test, len(rows), len(rows) - len(unique), stats)
+    CARD.write_text(card)
+    print(f"card written to {CARD}")
+
+    if a.push:
+        from huggingface_hub import HfApi
+        dsd.push_to_hub(a.repo_id, private=True, commit_message="Add synthetic event embedding-text dataset")
+        HfApi().upload_file(path_or_fileobj=card.encode(), path_in_repo="README.md", repo_id=a.repo_id,
+                            repo_type="dataset", commit_message="Add dataset card")
+        print(f"pushed to https://huggingface.co/datasets/{a.repo_id}")
+
+
+if __name__ == "__main__":
+    main()
