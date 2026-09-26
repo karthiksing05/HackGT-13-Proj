@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -22,7 +23,7 @@ def city():
 @pytest.fixture
 def test_db():
     """A throwaway database on local Mongo; tests using it skip if Mongo isn't running."""
-    client = MongoClient("mongodb://localhost:27017", tz_aware=True, serverSelectionTimeoutMS=1000)
+    client = MongoClient(os.environ.get("TEST_MONGODB_URI", "mongodb://localhost:27017"), tz_aware=True, serverSelectionTimeoutMS=1000)
     try:
         client.admin.command("ping")
     except PyMongoError:

@@ -25,6 +25,8 @@ Keys live in the repo-root `.env` (see `.env.example`). Mongo defaults to
 .venv/bin/python -m ingest run-all                          # every adapter enabled in cities/<slug>.yaml
 .venv/bin/python -m ingest pipeline                         # fetch all sources -> backfill -> blurbs/embedding text -> coverage
 .venv/bin/python -m ingest stats | quota
+.venv/bin/python -m ingest crawl                            # scheduler: new events hourly, places weekly (runs until stopped)
+.venv/bin/python -m ingest crawl --once --now events         # one check right now (cron/launchd friendly)
 .venv/bin/python -m ingest blurb --kind event             # web research + paragraph for every event (Gemini)
 .venv/bin/python -m ingest blurb --limit 3 --dry-run       # try a few; blurbs go to out/, not the DB
 .venv/bin/python -m ingest embed-text --kind event        # structured text for the ML embeddings (same web research)
@@ -35,6 +37,19 @@ Keys live in the repo-root `.env` (see `.env.example`). Mongo defaults to
 Responses are cached under `cache/<adapter>/` (Ticketmaster 1h, Resident Advisor 1h, Google 7 days,
 Overpass 7 days, geocoding and elevation 90 days), so reruns while developing don't spend quota. Geocoding (Google Geocoding API,
 counted against the `google_geocode` quota) only calls the network when Mongo is reachable.
+
+## Crawler (new activities only)
+
+`ingest crawl` (`ingest/crawler.py`, config in `config.yaml` -> `crawler`) checks sources on a
+schedule: Ticketmaster and Resident Advisor every hour, Google Places and OSM trails weekly. Each
+fetched activity is checked against the DB first. A matching source key means it's known and
+left untouched. The same city, normalized name and start within 30 minutes (from any source)
+means it's another listing of a known event, so only its source key is attached. Only
+genuinely new activities are inserted, researched and written up (blurb + embedding text). A new
+showing of a show that's already researched reuses that research instead of a new web search.
+New activities whose write-up failed (e.g. Gemini quota) are retried for `retry_hours`.
+Last-run times per city/tier are kept in the `crawl_state` collection, so restarting the
+crawler doesn't redo the weekly places check early. Per-source counts land in `runs` as usual.
 
 ## Web research, blurbs and embedding text
 

@@ -1,9 +1,25 @@
 default_city: atlanta
 events_horizon_days: 7
 series_detection_days: 28     # fetch this far ahead to spot recurring series; only the horizon is inserted (§6.7)
-refresh:                      # only used by the stretch scheduler (§8)
-  events_every_hours: 6
-  places_every_days: 7
+
+# `ingest crawl` (§8): check sources on a schedule and research/write up only activities not
+# already in the DB. A source only runs if it's enabled in cities/<slug>.yaml.
+crawler:
+  cities: [atlanta]             # --city overrides
+  tiers:
+    events:                     # listing sites that add events all day
+      sources: [ticketmaster, resident_advisor]
+      every_minutes: 60
+      write: true               # research + blurb/embedding text for new ones
+      write_kinds: [event]
+    places:                     # places and trails rarely change; Google Places is paid (budget-checked)
+      sources: [google_places, osm_trails]
+      every_minutes: 10080      # weekly
+      write: false              # places need a lot of research quota; `ingest blurb --kind place` when wanted
+  blurbs: true
+  embed_text: true
+  workers: 4                    # overlapping Gemini calls; per-key pacing still applies
+  retry_hours: 48               # new activities whose write-up failed are retried this long
 
 # Blurb + embedding-text agents (§6.6). Verified on our key 2026-09-26: only gemini-2.5-flash has
 # free-tier Google Search grounding (gemini-3.5-flash-lite and the other 3.x models return 429 with the

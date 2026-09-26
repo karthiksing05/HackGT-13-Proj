@@ -10,7 +10,7 @@ from pymongo.database import Database
 
 from .adapters import ADAPTERS
 from .config import OUT_DIR, City
-from .db import upsert_activity
+from .db import insert_new, upsert_activity
 from .enrich import duration
 from .enrich.geocode import fill_region, locate, make_geocoder
 from .models import Activity, RunStats
@@ -34,8 +34,11 @@ def finalize(act: Activity) -> Activity:
 
 
 def run_adapter(
-    name: str, city: City, db: Database | None, dry_run: bool = False, limit: int | None = None
+    name: str, city: City, db: Database | None, dry_run: bool = False, limit: int | None = None,
+    only_new: bool = False,
 ) -> RunStats:
+    """With only_new (the crawler), activities already in the DB are left untouched and the
+    inserted _ids are returned in stats.newIds; otherwise existing docs are refreshed (upsert)."""
     stats = RunStats(source=name, city=city.slug, startedAt=datetime.now(timezone.utc), dryRun=dry_run)
     sample: list[dict] = []
     adapter = None
@@ -60,6 +63,11 @@ def run_adapter(
                 finalize(act)
                 if dry_run:
                     sample.append(act.model_dump(mode="json"))
+                elif only_new:
+                    result, _id = insert_new(db, act)
+                    setattr(stats, result, getattr(stats, result) + 1)
+                    if result == "inserted":
+                        stats.newIds.append(str(_id))
                 else:
                     result = upsert_activity(db, act)
                     setattr(stats, result, getattr(stats, result) + 1)

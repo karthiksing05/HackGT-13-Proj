@@ -134,6 +134,9 @@ class RunStats(BaseModel):
     skipped: int = 0
     inserted: int = 0
     updated: int = 0
+    known: int = 0           # only_new runs: already in the DB, left untouched
+    linked: int = 0          # only_new runs: another source's listing of a known event
+    newIds: list[str] = []   # only_new runs: _ids inserted, for the research/writing stages
     merged: list[dict] = []
     skipReasons: dict[str, int] = {}
     geocoded: int = 0

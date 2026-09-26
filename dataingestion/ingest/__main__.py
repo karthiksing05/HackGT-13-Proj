@@ -273,6 +273,31 @@ def pipeline(
 
 
 @app.command()
+def crawl(
+    city: Optional[list[str]] = typer.Option(None, "--city", help="Repeatable; defaults to config.yaml crawler.cities"),
+    once: bool = typer.Option(False, "--once", help="Run the due tiers once and exit (for cron/launchd)"),
+    now: Optional[list[str]] = typer.Option(None, "--now", help="Run this tier (events, places) on the first tick even if it isn't due"),
+):
+    """Check sources on a schedule (events hourly, places weekly) and ingest + research only new activities."""
+    from . import crawler
+    from .config import load_global
+
+    cfg = load_global()["crawler"]
+    cities = city or cfg["cities"]
+    known = {t.name for t in crawler.tiers(cfg)}
+    for t in now or []:
+        if t not in known:
+            raise typer.BadParameter(f"unknown tier {t!r}; choose from {', '.join(sorted(known))}")
+    db = get_db()
+    if once:
+        ensure_indexes(db)
+        new = crawler.tick(db, cfg, cities, set(now or []), typer.echo)
+        typer.echo("new: " + (", ".join(f"{c}={n}" for c, n in new.items()) or "nothing was due"))
+    else:
+        crawler.run_forever(db, cities, set(now or []), typer.echo)
+
+
+@app.command()
 def quota():
     """Show quota usage for limited APIs this period."""
     for row in quota_mod.usage(get_db()):
