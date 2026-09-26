@@ -16,13 +16,16 @@
 //	E2E_DEMO_EMAIL     the demo account (default demo@sidequestz.tech)
 //	E2E_WS_URL         the websocket (default: E2E_BASE_URL with ws(s):// and /ws)
 //	E2E_TIME_ZONE      the X-Time-Zone every request sends (default America/New_York)
+//	E2E_DEMO_DATE      the server's DEMO_DATE, when it runs the demo on a fixed date: adds the demo-clock checks
+//	                   (the suite reads the demo account's date from /me either way)
 //
 // What a run changes: it signs up three accounts (e2e.<time>.<n>@example.test,
-// kept afterwards: there is no account deletion), and as the demo account it
-// rates the Heron Creek stop, posts and deletes a free-now post, joins and
-// leaves Marin's plan, sends "Plan together" to Marin once, sends messages to
-// the crew and to Marin, and plans, saves and deletes a sidequest. Expenses,
-// settlements, cards, statuses and the join it makes are undone before it
-// ends. Run `sidequestz-admin seed-demo` afterwards to restore the rating.
+// named Casey, Alice and Bob; kept afterwards, since there is no account
+// deletion), and as the demo account it rates the Heron Creek stop, posts and
+// deletes a free-now post, joins and leaves Marin's plan (its chat keeps her
+// message), sends "Plan together" to Marin once, posts messages in the crew
+// chat, and plans, saves, books and deletes a sidequest. Expenses,
+// settlements, photos, preferences and the join are undone before it ends.
+// Run `sidequestz-admin seed-demo` afterwards to restore the rating.
 // Password-reset steps need DEV_RESET_CODES=1 on the server and skip without it.
 package e2e

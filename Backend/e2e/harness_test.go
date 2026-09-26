@@ -379,7 +379,7 @@ func loginAs(t testing.TB, label, email, password string) *Session {
 		Access: out.Tokens.AccessToken, Refresh: out.Tokens.RefreshToken, User: out.User}
 }
 
-// sandyPrefs is a complete Preferences body for fresh accounts (setup's last step).
+// setupPrefs is a complete Preferences body for fresh accounts (setup's last step).
 func setupPrefs() contract.Preferences {
 	return contract.Preferences{
 		Ratings: contract.Ratings{"outdoors": 5, "food": 4, "live_music": 4, "museums": 3, "nightlife": 2, "big_crowds": 1},
