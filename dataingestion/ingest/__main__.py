@@ -17,6 +17,8 @@ from .pipeline import run_adapter
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 snapshot_app = typer.Typer(no_args_is_help=True)
 app.add_typer(snapshot_app, name="snapshot", help="Export/import activities as JSON.")
+research_app = typer.Typer(no_args_is_help=True)
+app.add_typer(research_app, name="research", help="Hand web research to an outside agent (Claude Code) and load its notes.")
 
 CityOpt = typer.Option(None, "--city", help="City slug; defaults to config.yaml default_city.")
 
@@ -82,12 +84,17 @@ def run_all(city: Optional[str] = CityOpt, dry_run: bool = typer.Option(False, "
             _print_stats(run_adapter(name, c, db, dry_run=dry_run))
 
 
-def _select(city: Optional[str], kind: str, limit: int, activity_id: Optional[str]):
+def _select(city: Optional[str], kind: str, limit: int, activity_id: Optional[str], research_provider: Optional[str] = None):
     from bson import ObjectId
+
+    from .agent.research import CLAUDE
 
     c = load_city(city)
     db = get_db()
     q: dict = {"city": c.slug}
+    if research_provider == CLAUDE:
+        # No live research with `claude`: only activities whose notes were imported are worth writing.
+        q["_id"] = {"$in": db.research.distinct("activityId", {"provider": CLAUDE})}
     if activity_id:
         q["_id"] = ObjectId(activity_id)
     elif kind != "all":
@@ -136,6 +143,15 @@ def _run_batch(agent, docs, force: bool, dry_run: bool, out_name: str, record) -
 KindOpt = typer.Option("event", "--kind", help="event, place or all")
 LimitOpt = typer.Option(0, "--limit", help="0 = every matching activity")
 IdOpt = typer.Option(None, "--id", help="One activity by _id")
+ResearchOpt = typer.Option(None, "--research-provider", help="muse, gemini or claude; overrides config.yaml. "
+                           "claude = only activities with notes from `ingest research import`")
+
+
+def _agent_cfg(research_provider: Optional[str]) -> dict:
+    from .config import load_global
+
+    cfg = load_global()["blurb"]
+    return {**cfg, "research_provider": research_provider} if research_provider else cfg
 
 
 @app.command()
@@ -146,13 +162,13 @@ def blurb(
     activity_id: Optional[str] = IdOpt,
     force: bool = typer.Option(False, "--force", help="Rewrite even if the blurb is current"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Write blurbs to out/ instead of the DB (research is still cached)"),
+    research_provider: Optional[str] = ResearchOpt,
 ):
     """Research activities on the web and write their detail-screen paragraph (§6.6)."""
     from .agent.blurb import BlurbAgent
-    from .config import load_global
 
-    c, db, docs = _select(city, kind, limit, activity_id)
-    agent = BlurbAgent(db, load_global()["blurb"], c.name, dry_run=dry_run)
+    c, db, docs = _select(city, kind, limit, activity_id, research_provider)
+    agent = BlurbAgent(db, _agent_cfg(research_provider), c.name, dry_run=dry_run)
     _run_batch(agent, docs, force, dry_run, f"blurbs_{c.slug}_dryrun.json", lambda doc, res: {
         "_id": str(doc["_id"]), "name": doc["name"], **res.blurb,
         "researchNotes": (res.research or {}).get("notes"),
@@ -167,13 +183,13 @@ def embed_text(
     activity_id: Optional[str] = IdOpt,
     force: bool = typer.Option(False, "--force", help="Regenerate even if current"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Write results to out/ instead of the DB (research is still cached)"),
+    research_provider: Optional[str] = ResearchOpt,
 ):
     """Web-research activities and write structured embedding text for the ML model."""
     from .agent.embed_text import EmbedTextAgent
-    from .config import load_global
 
-    c, db, docs = _select(city, kind, limit, activity_id)
-    agent = EmbedTextAgent(db, load_global()["blurb"], c.name, dry_run=dry_run)
+    c, db, docs = _select(city, kind, limit, activity_id, research_provider)
+    agent = EmbedTextAgent(db, _agent_cfg(research_provider), c.name, dry_run=dry_run)
     _run_batch(agent, docs, force, dry_run, f"embed_text_{c.slug}_dryrun.json", lambda doc, res: {
         "_id": str(doc["_id"]), "name": doc["name"], "embeddingText": res.text,
         "eventData": res.event_data, "sources": [s["url"] for s in (res.research or {}).get("sources", [])],
@@ -275,6 +291,41 @@ def stats(city: Optional[str] = CityOpt):
         d = acts.count_documents({**q, **den})
         n = acts.count_documents({**q, **den, **num})
         typer.echo(f"  {label:<22} {n}/{d}" + (f" ({100 * n / d:.0f}%)" if d else ""))
+
+
+@research_app.command("todo")
+def research_todo(
+    city: Optional[str] = CityOpt,
+    kind: str = KindOpt,
+    limit: int = typer.Option(10, "--limit", help="0 = every activity still missing notes"),
+    out: Optional[Path] = typer.Option(None, "--out", help="Default: out/research_todo_<city>.json"),
+):
+    """Write upcoming activities that need research (facts + empty notes/sources) to a JSON file."""
+    import json
+
+    from .agent.research import research_todo as todo
+    from .config import OUT_DIR
+
+    c = load_city(city)
+    rows = todo(get_db(), c.slug, kind, limit)
+    path = out or OUT_DIR / f"research_todo_{c.slug}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(rows, indent=1, ensure_ascii=False, default=str))
+    typer.echo(f"wrote {len(rows)} activities to {path}; fill in notes + sources, then `ingest research import {path}`")
+
+
+@research_app.command("import")
+def research_import(path: Path):
+    """Load filled-in notes (from `research todo`) as `claude` research, shared by blurb and embed-text."""
+    import json
+
+    from .agent.research import import_research
+
+    counts = import_research(get_db(), json.loads(path.read_text()))
+    typer.echo(" ".join(f"{k}={v}" for k, v in counts.items()))
+    if counts["facts_changed"]:
+        typer.secho("some activities changed since the todo was exported; check their notes still apply", fg=typer.colors.YELLOW)
+    typer.echo("next: ingest blurb --research-provider claude  (and/or embed-text)")
 
 
 @snapshot_app.command("export")

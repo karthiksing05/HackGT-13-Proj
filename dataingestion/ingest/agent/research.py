@@ -2,7 +2,8 @@
 
 One web-search call per activity returns factual bullet notes plus source URLs. The
 provider is config (`blurb.research_provider`): `muse` (Muse Spark's web_search tool, the
-default) or `gemini` (Google Search grounding). Results live in the `research` collection,
+default), `gemini` (Google Search grounding) or `claude` (notes written outside the pipeline,
+e.g. by Claude Code, and loaded with `ingest research import`; never calls an API). Results live in the `research` collection,
 keyed by activity, facts hash and provider, so every writer reuses them and each activity
 is researched once per provider. Writing is always Gemini.
 """
@@ -77,6 +78,71 @@ def input_hash(facts: dict) -> str:
     return hashlib.sha1(json.dumps(stable, sort_keys=True, default=str).encode()).hexdigest()
 
 
+CLAUDE = "claude"
+
+
+def research_todo(db: Database, city: str, kind: str = "event", limit: int = 0, now: datetime | None = None) -> list[dict]:
+    """Rows for `ingest research todo`: upcoming activities with no `claude` notes for their
+    current facts, soonest first. Fill `notes` and `sources`, then `import_research` them."""
+    q: dict = {"city": city, "$or": [{"start": None}, {"start": {"$gte": now or datetime.now(timezone.utc)}}]}
+    if kind != "all":
+        q["kind"] = kind
+    rows, seen = [], set()
+    for doc in db.activities.find(q, {"embedding": 0}).sort([("start", 1), ("ratingCount", -1)]):
+        facts = facts_packet(doc)
+        h = input_hash(facts)
+        series = (doc.get("recurrence") or {}).get("seriesKey")
+        show = series or (doc["name"], doc.get("venueName"))
+        if show in seen or db.research.find_one({"activityId": doc["_id"], "inputHash": h, "provider": CLAUDE}):
+            continue  # already researched, or another showing already in this file
+        seen.add(show)
+        rows.append({"activityId": str(doc["_id"]), "name": doc["name"], "inputHash": h,
+                     "seriesKey": series, "facts": facts, "notes": "", "sources": []})
+        if limit and len(rows) >= limit:
+            break
+    return rows
+
+
+def _showings(db: Database, doc: dict) -> list[dict]:
+    """Every showing of the same event shares the notes: its series, plus same-name showings at
+    the same venue (series detection can miss them, and their URLs/descriptions often differ)."""
+    series = (doc.get("recurrence") or {}).get("seriesKey")
+    same = [{"city": doc.get("city"), "name": doc["name"], "venueName": doc.get("venueName")}]
+    if series:
+        same.append({"recurrence.seriesKey": series})
+    found = {doc["_id"]: doc}
+    for t in db.activities.find({"$or": same}, {"embedding": 0}):
+        found.setdefault(t["_id"], t)
+    return list(found.values())
+
+
+def import_research(db: Database, rows: list[dict], model: str = "claude") -> dict[str, int]:
+    """Store externally written notes as `claude` research. Rows with empty notes are skipped;
+    rows whose facts changed since export still import (under the current hash) but are counted."""
+    from bson import ObjectId
+
+    counts = {"imported": 0, "empty": 0, "missing": 0, "facts_changed": 0}
+    for row in rows:
+        if not (row.get("notes") or "").strip():
+            counts["empty"] += 1
+            continue
+        doc = db.activities.find_one({"_id": ObjectId(row["activityId"])})
+        if doc is None:
+            counts["missing"] += 1
+            continue
+        h = input_hash(facts_packet(doc))
+        counts["facts_changed"] += bool(row.get("inputHash")) and row["inputHash"] != h
+        sources = [s if isinstance(s, dict) else {"title": None, "url": s} for s in row.get("sources") or []]
+        for t in _showings(db, doc):
+            key = {"activityId": t["_id"], "inputHash": input_hash(facts_packet(t)), "provider": CLAUDE}
+            db.research.replace_one(key, {
+                **key, "notes": row["notes"].strip(), "sources": sources, "searchQueries": row.get("searchQueries") or [],
+                "model": row.get("model") or model, "createdAt": datetime.now(timezone.utc),
+            }, upsert=True)
+        counts["imported"] += 1
+    return counts
+
+
 class Researcher:
     """Grounded research (cached in Mongo) plus a write call with model fallback."""
 
@@ -105,8 +171,8 @@ class Researcher:
             cached = self.db.research.find_one({**key, "provider": provider_filter})
             if cached:
                 return cached
-        if self.grounded_off:
-            return None
+        if self.grounded_off or self.provider == CLAUDE:
+            return None  # `claude` notes only come from `ingest research import`
         url = doc.get("url")
         prompt = RESEARCH_PROMPT.format(
             kind="event" if doc.get("kind") == "event" else "place",

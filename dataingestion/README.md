@@ -51,8 +51,23 @@ Research and writing are separate steps:
      sections) and regenerated once on failure. Editing the prompt file regenerates everything.
    - `blurb` -> `activities.blurb` (the 50-90 word paragraph for the detail screen).
 
-`config.yaml` -> `blurb.research_provider` switches research between `muse` (default) and
-`gemini` (Google Search grounding, 20 requests/day per model on the free tier). Writes use
+`config.yaml` -> `blurb.research_provider` switches research between `muse` (default),
+`gemini` (Google Search grounding, 20 requests/day per model on the free tier) and `claude`.
+
+**Research by Claude Code (no Muse key needed).** The `claude` provider never calls an API: an
+outside agent (e.g. Claude Code with web search) writes the notes into a file and they are imported.
+
+```sh
+.venv/bin/python -m ingest research todo --limit 10     # out/research_todo_<city>.json: facts, empty notes/sources
+# ...have Claude Code fill in "notes" (bullet facts) and "sources" (URLs) for each row...
+.venv/bin/python -m ingest research import out/research_todo_atlanta.json
+.venv/bin/python -m ingest blurb --research-provider claude          # only activities with imported notes
+.venv/bin/python -m ingest embed-text --research-provider claude
+```
+
+`todo` lists upcoming activities without `claude` notes, one row per show (repeat showings are
+folded together), soonest first. `import` stores each row's notes for every showing of that show,
+skips rows with empty notes, and warns if an activity's facts changed since the export. Writes use
 `gemini-3.5-flash-lite` (fallback `gemini-flash-latest`).
 
 The Muse key needs billing on the Meta developer account: without it every call returns

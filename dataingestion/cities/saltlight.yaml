@@ -1,0 +1,20 @@
+# Fake HackGT 13 demo city. All activities come from demo/saltlight_harbor.json
+# (python -m demo.generate; python -m ingest snapshot import demo/saltlight_harbor.json).
+slug: saltlight
+name: Saltlight Harbor
+country_code: US
+default_region: GA
+language: en
+timezone: America/New_York
+currency: USD
+price_tiers: [0, 15, 40, 80]
+center: { lat: 31.3700, lng: -81.4250 }
+bbox: { south: 31.25, west: -81.55, north: 31.50, east: -81.30 }
+hikes_radius_km: 25
+elevation_dataset: ned10m
+neighborhoods: [Lighthouse Point, Marina Row, The Shipyard, Deepwater Quarter, Seaside Market, Kelp Hollow, Tidepool Heights, Lanternfall Beach]
+demo:
+  start: { lat: 31.3680, lng: -81.4250 }   # Seaside Market Square
+  window_local: ["Sun 13:00", "Sun 17:00"]
+query_terms: { places: [], events: [] }
+adapters: {}                  # no live sources; everything is fake
