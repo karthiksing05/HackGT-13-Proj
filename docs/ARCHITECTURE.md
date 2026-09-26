@@ -120,7 +120,7 @@ sequenceDiagram
     ML-->>API: {positive_text, negative_text, positive_embedding, negative_embedding, profile_text_hash, model}
     API->>DB: users $set the texts, both vectors, embeddingModel, profileTextHash, profileInputHash
     API-->>App: 200 Preferences
-    Note over API,ML: ML error or 15 s timeout → the save still succeeds; old vectors kept, hashes cleared so the next refresh retries
+    Note over API,ML: ML error or 15 s timeout → the save still succeeds, old vectors kept, hashes cleared so the next refresh retries
 ```
 
 A Facebook import refreshes the profile the same way; disconnecting Facebook refreshes it in the
@@ -143,19 +143,19 @@ sequenceDiagram
         P->>DB: FindCandidates events (city, geo radius, window, price, age, exclusions)
         P->>DB: FindCandidates places (city, geo radius, categories, price, exclusions)
     end
-    P->>P: Go-side feasibility (hours, duration, budget, distance; every drop counted)
+    P->>P: Go-side feasibility (hours, duration, budget, distance, every drop counted)
     P->>DB: FetchEmbeddings(feasible ids)
     P->>P: query vector = norm((1−w)·positive + w·search) → cosine shortlist (N=120, facet quotas, category caps)
-    P->>ML: POST /v1/events/rank (classifier only, 3 s; fallback = 0.6·cosine rank + 0.4·prior)
+    P->>ML: POST /v1/events/rank (classifier only, 3 s, fallback = 0.6·cosine rank + 0.4·prior)
     loop ≤ 3 rounds, ≤ 5 s soft budget
         P->>P: BuildNodes(utility = raw score + facet boosts) → BuildGraph → Solve(K) → Diverse(Mu)
-        P->>P: Evaluate → Score; Diagnose the top 3 (uncovered facet, idle gap, weak stop, shared stop, …)
+        P->>P: Evaluate → Score, Diagnose the top 3 (uncovered facet, idle gap, weak stop, shared stop, …)
         P->>DB: Expand: targeted queries for ≤ 2 issues, ExcludeIDs = pool
         P->>ML: one rank call for the additions
     end
-    P->>DB: plan_pools.save (options, stop records, query vector; TTL 6 h) and plan_runs.save (the log; TTL 72 h)
-    P-->>App: PlanBatch {options[0:3], cursor "dag_<run>_3", done, reason?}
-    P-)ML: Jev rerank of the final shortlist (background; PLANNER_JEV=async, healthz reports jev: true, the user has profile texts)
+    P->>DB: plan_pools.save (options, stop records, query vector, TTL 6 h) and plan_runs.save (the log, TTL 72 h)
+    P-->>App: PlanBatch {options[0:3], cursor "dag_{run}_3", done, reason?}
+    P-)ML: Jev rerank of the final shortlist (background, PLANNER_JEV=async, healthz reports jev: true, the user has profile texts)
 ```
 
 The loop, its stop rules and the guarantees it asserts are in [PLANNER.md](PLANNER.md). The response
@@ -173,10 +173,10 @@ sequenceDiagram
     participant Hub as Realtime hub
     App->>API: POST /plans/alternatives {option_id, stop_id, stop_order}
     API->>DB: plan_pools.get(run) → stop records, spec, query vector, cached scores
-    API->>API: slot = [arrive − 30 min, depart + 30 min]; anchor = the stop; exclude in-plan ids and series
+    API->>API: slot = [arrive − 30 min, depart + 30 min], anchor = the stop, exclude in-plan ids and series
     API->>DB: FindCandidates(center = anchor, radius = max leg, same category or ≥ 2 shared tags, slot) + FetchEmbeddings
-    API->>API: score 0.7·cosine + 0.3·ML; keep up to 5; reason "Also {phrase} · {mi} mi away"
-    API->>DB: plan_pools.addAlternatives (ids alt_<activity>_<slot>)
+    API->>API: score 0.7·cosine + 0.3·ML, keep up to 5, reason "Also {phrase} · {mi} mi away"
+    API->>DB: plan_pools.addAlternatives (ids alt_{activity}_{slot})
     API-->>App: [PlanAlternative {stop, reason}]
     App->>API: POST /plans/route {option_id, stop_order (with the alt id in place), start, end, start_time, back_by, ride, modes}
     API->>DB: plan_pools.get → resolve stops (option ∪ alternatives)
@@ -206,13 +206,13 @@ sequenceDiagram
     participant Hub as Realtime hub
     participant H as App (host)
     J->>API: POST /forum/posts/{id}/join-requests
-    API->>DB: the post id is the itinerary id; a shared plan the caller may see, not host or member, not locked or started, spots left
-    API->>DB: itineraries.addMember; threads.ensureGroup(itinerary); join_requests.record
+    API->>DB: the post id is the itinerary id, a shared plan the caller may see, not host or member, not locked or started, spots left
+    API->>DB: itineraries.addMember, threads.ensureGroup(itinerary), join_requests.record
     API-->>J: 200 JoinResult {status: "joined", itinerary_id, thread_id}
     API->>Hub: join.update, itinerary.updated, thread.updated → joiner
     API->>Hub: join.request {post_id, from} → host
     Hub-->>H: {"type": "join.request", "data": …}
-    API->>Hub: itinerary.updated, thread.updated → every member; forum.update → everyone
+    API->>Hub: itinerary.updated, thread.updated → every member, forum.update → everyone
 ```
 
 Forum plan posts are derived, not stored: every itinerary whose visibility is `friends` or `open` is a
