@@ -2,6 +2,7 @@ package social
 
 import (
 	"Backend/pkg/api"
+	"Backend/pkg/api/itineraries"
 	"Backend/pkg/api/view"
 	"Backend/pkg/contract"
 	"Backend/pkg/httpx"
@@ -20,7 +21,6 @@ import (
 const (
 	MsgJoinFreePost = "Use Plan together for this post."
 	MsgJoinOwnPlan  = "You host this sidequest."
-	MsgLeaveOwnPlan = "You host this sidequest. Delete it instead."
 	MsgPlanTogether = "Saw your post. Want to plan something together?"
 	MsgOwnPost      = "That's your own post."
 )
@@ -137,24 +137,20 @@ func (h *H) pushJoin(ctx context.Context, it *models.Itinerary, th *models.Threa
 }
 
 // CancelJoin is DELETE /forum/posts/{id}/join-requests → 204. A member
-// leaves the plan and its group chat (itinerary.removed to them,
-// itinerary.updated and thread.updated to the rest); anyone else just has
-// nothing to cancel.
+// leaves exactly as with POST /itineraries/{id}/leave (itineraries.Leave):
+// out of the plan and its group chat with their join cancelled;
+// itinerary.removed to them, itinerary.updated and thread.updated to the
+// rest, forum.update; the host gets 400. Anyone else only has their join
+// record, if any, marked cancelled.
 func (h *H) CancelJoin(w http.ResponseWriter, r *http.Request) {
 	viewerID := api.UserID(r)
 	ctx := r.Context()
-	id := mux.Vars(r)["id"]
-	it, err := h.d.Store.Forum().ActivePlan(ctx, id)
+	it, err := h.d.Store.Forum().ActivePlan(ctx, mux.Vars(r)["id"])
 	if err != nil {
 		api.Fail(w, r, err)
 		return
 	}
-	if it.HostID == viewerID {
-		httpx.Error(w, http.StatusBadRequest, MsgLeaveOwnPlan)
-		return
-	}
 	if !it.IsMember(viewerID) {
-		// Not in it (never joined, or already left): only the record changes.
 		if err := h.d.Store.Joins().Cancel(ctx, it.ID, viewerID); err != nil {
 			api.Fail(w, r, err)
 			return
@@ -162,44 +158,12 @@ func (h *H) CancelJoin(w http.ResponseWriter, r *http.Request) {
 		httpx.NoContent(w)
 		return
 	}
-	if err := h.leave(ctx, it, viewerID, httpx.TZ(r)); err != nil {
+	// ErrNotFound: they left in the meantime, which is what they asked for.
+	if err := itineraries.Leave(ctx, h.d, it, viewerID, httpx.TZ(r)); err != nil && !errors.Is(err, store.ErrNotFound) {
 		api.Fail(w, r, err)
 		return
 	}
 	httpx.NoContent(w)
-}
-
-// leave takes a member out of an itinerary and its group thread and tells
-// everyone concerned.
-func (h *H) leave(ctx context.Context, it *models.Itinerary, userID string, tz *time.Location) error {
-	updated, removed, err := h.d.Store.Joins().RemoveMember(ctx, it.ID, userID)
-	if err != nil {
-		return err
-	}
-	if err := h.d.Store.Joins().Cancel(ctx, it.ID, userID); err != nil {
-		return err
-	}
-	if !removed {
-		return nil
-	}
-	var th *models.Thread
-	groups, err := h.d.Store.Threads().ByItinerary(ctx, []string{it.ID})
-	if err != nil {
-		return err
-	}
-	if group := groups[it.ID]; group != nil {
-		if th, err = h.d.Store.Threads().RemoveMember(ctx, group.ID, userID); err != nil {
-			return err
-		}
-	}
-	p := h.d.Publish()
-	realtime.ItineraryRemoved(p, []string{userID}, it.ID)
-	h.pushItinerary(ctx, updated, updated.MemberIDs)
-	if th != nil {
-		h.pushThread(ctx, th, tz, th.MemberIDs)
-	}
-	realtime.ForumUpdate(p)
-	return nil
 }
 
 // PlanTogether is POST /forum/posts/{id}/plan-together → ChatThread: the DM

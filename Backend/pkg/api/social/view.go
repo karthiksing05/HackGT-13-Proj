@@ -83,31 +83,9 @@ func firstWord(name string) string {
 
 // ---- tz-aware labels (callers pass times already in the viewer's zone) ----
 
-// dayDiff is the number of calendar days from now's date to t's (DST-safe).
-func dayDiff(t, now time.Time) int {
-	y1, m1, d1 := now.Date()
-	y2, m2, d2 := t.Date()
-	a := time.Date(y1, m1, d1, 12, 0, 0, 0, time.UTC)
-	b := time.Date(y2, m2, d2, 12, 0, 0, 0, time.UTC)
-	return int(math.Round(b.Sub(a).Hours() / 24))
-}
-
-// dayLabel is "Today", "Tomorrow", a weekday within the week ("Sat"), else "Oct 3".
-func dayLabel(t, now time.Time) string {
-	switch diff := dayDiff(t, now); {
-	case diff == 0:
-		return "Today"
-	case diff == 1:
-		return "Tomorrow"
-	case diff > 1 && diff < 7:
-		return httpx.Weekday(t)
-	}
-	return httpx.MonthDay(t)
-}
-
 // whenLabel is a plan's "Today · 5:30–8 PM".
 func whenLabel(start, end, now time.Time) string {
-	return dayLabel(start, now) + " · " + httpx.TimeRange(start, end)
+	return httpx.DayLabel(start, now) + " · " + httpx.TimeRange(start, end)
 }
 
 // lockLabel is "Locks 5:00 PM" (today), "Locks Fri 9 PM" (this week) or
@@ -117,7 +95,7 @@ func lockLabel(lock, now time.Time) string {
 	if !lock.After(now) {
 		verb = "Locked "
 	}
-	switch diff := dayDiff(lock, now); {
+	switch diff := httpx.DayDiff(lock, now); {
 	case diff == 0:
 		return verb + httpx.Clock(lock)
 	case diff > 0 && diff < 7:
@@ -128,7 +106,7 @@ func lockLabel(lock, now time.Time) string {
 
 // lastTimeLabel is a thread's "5:12 PM" (today), "Thu" (this past week) or "Sep 20".
 func lastTimeLabel(t, now time.Time) string {
-	switch diff := dayDiff(t, now); {
+	switch diff := httpx.DayDiff(t, now); {
 	case diff == 0:
 		return httpx.Clock(t)
 	case diff < 0 && diff > -7:
@@ -333,7 +311,7 @@ func (v *postView) planPost(it *models.Itinerary) (feedItem, bool) {
 	title := it.Title
 	when := whenLabel(start, end, v.now)
 	day := "today"
-	if dayDiff(start, v.now) != 0 {
+	if httpx.DayDiff(start, v.now) != 0 {
 		day = strings.ToLower(httpx.Weekday(start))
 	}
 	tier, tags := 0, []string{}
@@ -492,7 +470,7 @@ func (k *threadKit) group(out *contract.ChatThread, th *models.Thread, viewerID 
 	albumDay := th.CreatedAt
 	if it != nil {
 		start := it.Start.In(loc)
-		out.Subtitle += " · " + dayLabel(start, k.now) + " " + httpx.ClockShort(start)
+		out.Subtitle += " · " + httpx.DayLabel(start, k.now) + " " + httpx.ClockShort(start)
 		albumDay = it.Start
 	}
 	out.Faces = k.ppl.refs(th.MemberIDs, viewerID, 2)

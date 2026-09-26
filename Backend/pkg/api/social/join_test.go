@@ -1,6 +1,7 @@
 package social_test
 
 import (
+	"Backend/pkg/api/itineraries"
 	"Backend/pkg/api/social"
 	"Backend/pkg/contract"
 	"Backend/pkg/models"
@@ -8,6 +9,7 @@ import (
 	"Backend/pkg/store"
 	"Backend/pkg/testutil"
 	"context"
+	"encoding/json"
 	"net/http"
 	"slices"
 	"sync"
@@ -91,6 +93,23 @@ func TestJoinPlan(t *testing.T) {
 	if broadcasts(srv, realtime.EventForumUpdate) != 1 || direct(srv, stranger.UserID, realtime.EventItineraryUpdated) != 0 {
 		t.Fatal("forum.update broadcast / no itinerary for outsiders")
 	}
+	// One renderer: each member's itinerary.updated is exactly their GET /itineraries/{id}.
+	for _, s := range []*testutil.Session{host, member, joiner} {
+		var event realtime.Event
+		for _, e := range srv.Events.For(s.UserID) {
+			if e.Type == realtime.EventItineraryUpdated {
+				event = e
+			}
+		}
+		pushed, err := json.Marshal(event.Data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := srv.Do(t, "GET", "/itineraries/"+it.ID, nil, s).Expect(t, http.StatusOK)
+		if canonical(t, pushed) != canonical(t, got.Body) {
+			t.Fatalf("itinerary.updated for %s differs from GET /itineraries/{id}:\n%s\n%s", s.User.Name, pushed, got.Body)
+		}
+	}
 
 	// The group thread works for the joiner right away.
 	var thread contract.ChatThread
@@ -172,12 +191,25 @@ func TestCancelJoinLeavesThePlan(t *testing.T) {
 	if len(removed) != 1 || removed[0].ItineraryID != it.ID || direct(srv, joiner.UserID, realtime.EventThreadUpdated) != 0 {
 		t.Fatalf("leaver events: %+v", removed)
 	}
-	for _, s := range []*testutil.Session{host, other} {
-		its := eventsFor[contract.Itinerary](t, srv, s.UserID, realtime.EventItineraryUpdated)
-		if len(its) != 1 || its[0].GoingCount != 2 || direct(srv, s.UserID, realtime.EventThreadUpdated) != 1 {
-			t.Fatalf("remaining member %s: %+v", s.User.Name, its)
+	remaining := func(route string) {
+		t.Helper()
+		for _, s := range []*testutil.Session{host, other} {
+			its := eventsFor[contract.Itinerary](t, srv, s.UserID, realtime.EventItineraryUpdated)
+			threads := eventsFor[contract.ChatThread](t, srv, s.UserID, realtime.EventThreadUpdated)
+			if len(its) != 1 || its[0].GoingCount != 2 {
+				t.Fatalf("%s: itinerary.updated to %s: %+v", route, s.User.Name, its)
+			}
+			if len(threads) != 1 || threads[0].ID != *res.ThreadID || len(threads[0].Members) != 2 || threads[0].Chips[0] != "2 people" {
+				t.Fatalf("%s: thread.updated to %s: %+v", route, s.User.Name, threads)
+			}
+			for _, m := range threads[0].Members {
+				if m.ID == joiner.UserID {
+					t.Fatalf("%s: the leaver is still in %s's thread", route, s.User.Name)
+				}
+			}
 		}
 	}
+	remaining("DELETE /forum/posts/{id}/join-requests")
 	if broadcasts(srv, realtime.EventForumUpdate) != 1 {
 		t.Fatal("leaving must broadcast forum.update")
 	}
@@ -185,7 +217,7 @@ func TestCancelJoinLeavesThePlan(t *testing.T) {
 
 	// Nothing to cancel twice; the host deletes instead; unknown plans 404.
 	srv.Do(t, "DELETE", "/forum/posts/"+it.ID+"/join-requests", nil, joiner).Expect(t, http.StatusNoContent)
-	if res := srv.Do(t, "DELETE", "/forum/posts/"+it.ID+"/join-requests", nil, host); res.Status != http.StatusBadRequest || res.Message() != social.MsgLeaveOwnPlan {
+	if res := srv.Do(t, "DELETE", "/forum/posts/"+it.ID+"/join-requests", nil, host); res.Status != http.StatusBadRequest || res.Message() != itineraries.MsgHostLeave {
 		t.Fatalf("host cancel: %d %s", res.Status, res.Body)
 	}
 	srv.Do(t, "DELETE", "/forum/posts/nope/join-requests", nil, joiner).Expect(t, http.StatusNotFound)
@@ -198,6 +230,17 @@ func TestCancelJoinLeavesThePlan(t *testing.T) {
 	}
 	if rec, _ := srv.Store.Joins().RecordOf(context.Background(), it.ID, joiner.UserID); rec.Status != models.JoinAccepted {
 		t.Fatalf("record after rejoin: %+v", rec)
+	}
+
+	// Leaving through the itineraries route reaches the thread's members the same way.
+	srv.Events.Reset()
+	srv.Do(t, "POST", "/itineraries/"+it.ID+"/leave", nil, joiner).Expect(t, http.StatusNoContent)
+	remaining("POST /itineraries/{id}/leave")
+	if n := direct(srv, joiner.UserID, realtime.EventItineraryRemoved); n != 1 || direct(srv, joiner.UserID, realtime.EventThreadUpdated) != 0 {
+		t.Fatalf("the leaver: itinerary.removed %d", n)
+	}
+	if rec, _ := srv.Store.Joins().RecordOf(context.Background(), it.ID, joiner.UserID); rec.Status != models.JoinCancelled {
+		t.Fatalf("record after leaving: %+v", rec)
 	}
 }
 

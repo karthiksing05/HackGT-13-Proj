@@ -134,6 +134,46 @@ func TestFormatting(t *testing.T) {
 	}
 }
 
+// TestDayLabelAcrossDST counts calendar days, not 24-hour spans: the
+// spring-forward night (2026-03-08, 23 hours) and the fall-back night
+// (2026-11-01, 25 hours) are one day each in New York.
+func TestDayLabelAcrossDST(t *testing.T) {
+	ny := Location("America/New_York")
+	at := func(month time.Month, day, h int) time.Time { return time.Date(2026, month, day, h, 0, 0, 0, ny) }
+	cases := []struct{ got, want string }{
+		// From the switch day: midnight to midnight is 23 hours.
+		{DayLabel(at(time.March, 9, 12), at(time.March, 8, 10)), "Tomorrow"},
+		{DayLabel(at(time.March, 15, 12), at(time.March, 8, 10)), "Mar 15"},
+		{DayLabel(at(time.March, 8, 12), at(time.March, 7, 22)), "Tomorrow"},
+		{DayLabel(at(time.March, 8, 21), at(time.March, 7, 22)), "Tomorrow"},
+		{DayLabel(at(time.March, 7, 1), at(time.March, 7, 22)), "Today"},
+		{DayLabel(at(time.March, 13, 12), at(time.March, 7, 22)), "Fri"},
+		{DayLabel(at(time.March, 14, 12), at(time.March, 7, 22)), "Mar 14"}, // a week on, not "Sat"
+		{DayLabel(at(time.November, 1, 12), at(time.October, 31, 22)), "Tomorrow"},
+		{DayLabel(at(time.November, 7, 21), at(time.October, 31, 22)), "Nov 7"},
+		{DayLabel(at(time.March, 8, 12).UTC(), at(time.March, 7, 22)), "Tomorrow"}, // t read in now's zone
+	}
+	for _, c := range cases {
+		if c.got != c.want {
+			t.Errorf("got %q, want %q", c.got, c.want)
+		}
+	}
+	for _, c := range []struct {
+		t, now time.Time
+		want   int
+	}{
+		{at(time.March, 8, 1), at(time.March, 7, 23), 1},
+		{at(time.March, 7, 23), at(time.March, 8, 1), -1},
+		{at(time.March, 15, 0), at(time.March, 1, 12), 14},
+		{at(time.November, 2, 0), at(time.October, 31, 23), 2},
+		{at(time.March, 7, 23).UTC(), at(time.March, 7, 22), 0}, // 04:00 UTC the next day, still the 7th in New York
+	} {
+		if got := DayDiff(c.t, c.now); got != c.want {
+			t.Errorf("DayDiff(%s, %s) = %d, want %d", c.t, c.now, got, c.want)
+		}
+	}
+}
+
 func TestLimiter(t *testing.T) {
 	now := time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
 	l := NewLimiter(60, 3)

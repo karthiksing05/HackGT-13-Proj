@@ -8,6 +8,7 @@ package social
 
 import (
 	"Backend/pkg/api"
+	"Backend/pkg/api/itineraries"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
@@ -16,8 +17,10 @@ import (
 type H struct{ d *api.Deps }
 
 // Register mounts the §4 C routes. Literal paths (/forum/posts/mine,
-// /threads/dm, /friends/requests) come before their {id} siblings.
+// /threads/dm, /friends/requests) come before their {id} siblings. It also
+// lends the itineraries area this area's thread and forum-post views.
 func Register(r *mux.Router, d *api.Deps) {
+	itineraries.UseSocial(itinerarySocial{})
 	h := &H{d: d}
 	r.Handle("/forum/posts", d.Protect(h.ListPosts)).Methods("GET")
 	r.Handle("/forum/posts/mine", d.Protect(h.MyPost)).Methods("GET")

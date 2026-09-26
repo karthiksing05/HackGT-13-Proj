@@ -91,26 +91,6 @@ func (j Joins) AddMember(ctx context.Context, itineraryID, userID string, now ti
 	return nil, false, ErrConflict
 }
 
-// RemoveMember takes userID out of an itinerary they joined (never its
-// host). removed is false when they were not a member; the itinerary is
-// returned either way.
-func (j Joins) RemoveMember(ctx context.Context, itineraryID, userID string) (it *models.Itinerary, removed bool, err error) {
-	filter := bson.M{"_id": itineraryID, "hostId": bson.M{"$ne": userID}, "memberIds": userID}
-	update := bson.M{"$pull": bson.M{"memberIds": userID}, "$set": bson.M{"updatedAt": j.s.Now()}}
-	var doc models.Itinerary
-	err = j.plans().FindOneAndUpdate(ctx, filter, update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&doc)
-	if err == nil {
-		return &doc, true, nil
-	}
-	if !errors.Is(err, mongo.ErrNoDocuments) {
-		return nil, false, err
-	}
-	if err := decodeOne(j.plans().FindOne(ctx, bson.M{"_id": itineraryID}), &doc); err != nil {
-		return nil, false, err
-	}
-	return &doc, false, nil
-}
-
 // SetThread records the group thread on the itinerary when it has none yet.
 func (j Joins) SetThread(ctx context.Context, itineraryID, threadID string) error {
 	_, err := j.plans().UpdateOne(ctx,
@@ -153,48 +133,4 @@ func (j Joins) RecordOf(ctx context.Context, postID, userID string) (*models.Joi
 		return nil, err
 	}
 	return &rec, nil
-}
-
-// SocialMemberState is what one member has on one itinerary's items: their item
-// states (notes, transit choice, ticket) and ratings, keyed by item id.
-type SocialMemberState struct {
-	Items   map[string]*models.ItemState
-	Ratings map[string]*models.Rating
-}
-
-// MemberStates loads every member's item states and ratings for one
-// itinerary, keyed by user id, to render the itinerary per member.
-func (j Joins) MemberStates(ctx context.Context, itineraryID string) (map[string]*SocialMemberState, error) {
-	out := map[string]*SocialMemberState{}
-	get := func(userID string) *SocialMemberState {
-		st, ok := out[userID]
-		if !ok {
-			st = &SocialMemberState{Items: map[string]*models.ItemState{}, Ratings: map[string]*models.Rating{}}
-			out[userID] = st
-		}
-		return st
-	}
-	cursor, err := j.s.db.Collection(CollItemStates).Find(ctx, bson.M{"itineraryId": itineraryID})
-	if err != nil {
-		return nil, err
-	}
-	var states []*models.ItemState
-	if err := cursor.All(ctx, &states); err != nil {
-		return nil, err
-	}
-	for _, st := range states {
-		get(st.UserID).Items[st.ItemID] = st
-	}
-	cursor, err = j.s.db.Collection(CollRatings).Find(ctx, bson.M{"itineraryId": itineraryID})
-	if err != nil {
-		return nil, err
-	}
-	var ratings []*models.Rating
-	if err := cursor.All(ctx, &ratings); err != nil {
-		return nil, err
-	}
-	for _, r := range ratings {
-		get(r.UserID).Ratings[r.ItemID] = r
-	}
-	return out, nil
 }

@@ -77,13 +77,14 @@ func TestLabels(t *testing.T) {
 			t.Errorf("got %q, want %q", tc.got, tc.want)
 		}
 	}
-	// Across the spring-forward night the next day is still "Tomorrow".
-	march := at(2027, 3, 13, 22, 0)
-	if got := dayLabel(at(2027, 3, 14, 18, 0), march); got != "Tomorrow" {
+	// The switch day's 23 hours: a plan the next evening is "Tomorrow",
+	// and one a week on is its date (httpx.DayLabel counts calendar days).
+	switchDay := at(2026, 3, 8, 10, 0)
+	if got := whenLabel(at(2026, 3, 9, 18, 0), at(2026, 3, 9, 20, 0), switchDay); got != "Tomorrow · 6–8 PM" {
 		t.Errorf("DST: %q", got)
 	}
-	if got := dayDiff(at(2026, 11, 2, 0, 30), at(2026, 10, 31, 23, 30)); got != 2 {
-		t.Errorf("fall back: %d", got)
+	if got := lockLabel(at(2026, 3, 15, 9, 0), switchDay); got != "Locks Mar 15 9 AM" {
+		t.Errorf("DST week: %q", got)
 	}
 }
 
