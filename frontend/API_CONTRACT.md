@@ -84,7 +84,7 @@ HTTPS URL. Plain `http://` is allowed only for local networks (`NSAllowsLocalNet
 ### Me, integrations, payments
 | Method | HTTP | Body / query | Response |
 |---|---|---|---|
-| `me` / `updateMe` | `GET` / `PATCH /me` | `UserPatch` (`name, username, date_of_birth, status`: `open` = open to all \| `friends_only` \| `busy`; email and password can't change here) | `User` (includes `id, avatar_color, school, setup_complete`, and when the account has them `home_base: Place` and `city`). The home base is where a new plan starts and where the Forum looks first; Account shows it, and the handle line shows `school`, or `city` without one. The app can't change either yet |
+| `me` / `updateMe` | `GET` / `PATCH /me` | `UserPatch` (`name, username, date_of_birth, status`: `open` = open to all \| `friends_only` \| `busy`; email and password can't change here) | `User` (includes `id, avatar_color, school, setup_complete`, and when the account has them `home_base: Place` and `city`). The home base is where a new plan starts and where the Forum looks first; Account shows it, and the handle line shows `school`, or `city` without one. The app can't change either yet. A demo account's `User` (here, in `PATCH /me` and in the login/sign-up `AuthResponse`) also has `demo_date: "YYYY-MM-DD"`: the server runs that account on that day at the real time of day in New York, and the app's clock does the same ("today", the calendar, Create's default date). Leave it out for everyone else |
 | `uploadPhoto` | `POST /me/photo` | multipart, field `photo`, `image/jpeg` | `{url}` |
 | `deletePhoto` | `DELETE /me/photo` | | 2xx |
 | `setAvatarColor` | `PATCH /me/avatar` | `{color}` (`ink`/`sage`/`clay`/`forest`/`sand`) | 2xx |

@@ -32,7 +32,10 @@ final class AppEnvironment {
 
     // MARK: Session (shared by Home header, Account, Setup, Photo sheet…)
 
-    var user: User?
+    /// Every change (sign-in, `GET /me`, `PATCH /me`, sign-out) also sets the clock's demo date.
+    var user: User? {
+        didSet { followDemoDate() }
+    }
     /// The profile photo picked on this device (shown immediately while/after uploading).
     var profileImage: UIImage?
     var preferences: Preferences?
@@ -68,6 +71,7 @@ final class AppEnvironment {
         let modeString = defaults.string(forKey: "SQAPIMode") ?? info["SQAPIMode"] as? String ?? "live"
         let mode = Mode(rawValue: modeString) ?? .live
         let auth = AuthStore()
+        // One clock for the environment and its API client, so they share the demo date.
         let clock: AppClock = mode == .mock ? .demo : .live
         let forceVoiceDemo = defaults.bool(forKey: "SQVoiceDemo")
 
@@ -138,6 +142,26 @@ final class AppEnvironment {
         if let me = try? await meCall.value { user = me }
         if let prefs = try? await prefsCall.value { preferences = prefs }
         if !isMock, auth.isSignedIn { socket?.connect() }
+    }
+
+    /// Live mode: a demo account's `demo_date` moves the shared clock, and with it "now" for the API
+    /// client, formatting, Create and Home, to that day; no user or no date means the real date.
+    /// When that moves "today" under screens that already loaded (a slow `GET /me` at launch),
+    /// they reload for the new day.
+    private func followDemoDate() {
+        guard mode == .live else { return }
+        let today = clock.dayKey(clock.now)
+        clock.demoDate = user?.demoDate
+        guard user != nil, clock.dayKey(clock.now) != today else { return }
+        let jobs = Array(reloaders.values)
+        guard !jobs.isEmpty else { return }
+        Task {
+            await withTaskGroup(of: Void.self) { group in
+                for job in jobs {
+                    group.addTask { await job() }
+                }
+            }
+        }
     }
 
     // MARK: Pull to refresh
