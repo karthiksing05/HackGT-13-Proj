@@ -6,11 +6,13 @@
     RANKING_CHECKPOINT     classifier checkpoint path (required for "classifier")
     RANKING_MODEL_VERSION  overrides the reported model_version
     RANKING_DEVICE         torch device for the classifier (default "cpu")
+    USER_EMBEDDING_ALPHA   preference retention for /v1/compatibility/user-embedding/update (default 0.8)
 """
 
 import os
 
 from compatibility import CompatibilityModel, CosineCompatibilityModel
+from compatibility.user_embedding import DEFAULT_ALPHA, MovingAverageUpdater
 
 from .api import create_app
 from .service import EventRankingService
@@ -38,4 +40,7 @@ def load_model() -> CompatibilityModel:
     return model
 
 
-app = create_app(EventRankingService(load_model()))
+app = create_app(
+    EventRankingService(load_model()),
+    MovingAverageUpdater(float(os.environ.get("USER_EMBEDDING_ALPHA", DEFAULT_ALPHA))),
+)
