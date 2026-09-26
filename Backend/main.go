@@ -5,6 +5,7 @@ import (
 	"Backend/pkg/config"
 	"Backend/pkg/datastore"
 	"Backend/pkg/ml"
+	plannerwire "Backend/pkg/planner/wire"
 	"Backend/pkg/realtime"
 	"Backend/pkg/router"
 	"Backend/pkg/store"
@@ -49,6 +50,11 @@ func main() {
 		// /plans/* answer 503. Profiles (pkg/profiles over the ML client) is
 		// wired once the ML rewrite lands; until then profile refreshes are
 		// no-ops. The checkout agent (backend-D) starts its state machine here.
+	}
+	if p, err := plannerwire.Planner(ctx, st.DB(), deps.ML); err != nil {
+		log.Error().Err(err).Msg("planner not started; /plans/* answer 503")
+	} else {
+		deps.Planner = p
 	}
 	hub := realtime.NewHub(deps.Auth().UserFromToken)
 	deps.Hub = hub

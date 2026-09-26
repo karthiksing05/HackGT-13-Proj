@@ -180,7 +180,7 @@ func (p *Planner) Route(ctx context.Context, in RouteInput) (RouteResult, error)
 }
 
 func (p *Planner) routeStops(ctx context.Context, w itinerary.Window, optionID string, stops []Stop) RouteResult {
-	ev := itinerary.EvaluateStops(ctx, w, evalStops(stops), p.Travel)
+	ev := itinerary.Evaluate(ctx, w, evalStops(stops), p.Travel)
 	res := RouteResult{
 		OptionID: optionID, Legs: []Leg{}, StopTimes: []StopTime{},
 		Arrival: ev.Arrival.UTC(), Depart: ev.Depart.UTC(),
@@ -193,7 +193,10 @@ func (p *Planner) routeStops(ctx context.Context, w itinerary.Window, optionID s
 	for i, s := range stops {
 		st := StopTime{StopID: s.ID, Start: ev.Starts[i].UTC(), End: ev.Ends[i].UTC(), Flexible: s.Flexible}
 		if s.Flexible && len(s.OpenSlots) > 0 && !withinSlots(st.Start, st.End, s.OpenSlots) {
+			// A closed place breaks the plan like a missed start: it counts
+			// in broken_at and adds the minutes spent outside its hours.
 			st.Closed = true
+			res.MinutesLate += minutesOutside(st.Start, st.End, s.OpenSlots)
 			if res.BrokenAt < 0 || i < res.BrokenAt {
 				res.BrokenAt = i
 			}
@@ -202,6 +205,20 @@ func (p *Planner) routeStops(ctx context.Context, w itinerary.Window, optionID s
 	}
 	res.LateFlag = res.MinutesLate > 0 || res.BrokenAt >= 0
 	return res
+}
+
+// minutesOutside is how much of [start, end] falls outside the best
+// matching slot, rounded up to whole minutes (at least 1).
+func minutesOutside(start, end time.Time, slots []TimeSlot) int {
+	best := time.Duration(0)
+	for _, s := range slots {
+		if o := minTime(end, s.To).Sub(maxTime(start, s.From)); o > best {
+			best = o
+		}
+	}
+	out := end.Sub(start) - best
+	m := int((out + time.Minute - 1) / time.Minute)
+	return max(m, 1)
 }
 
 // StopDetail is what the save step needs about a stop id (the api.Planner
@@ -213,6 +230,38 @@ type StopDetail struct {
 	Bookable    bool
 	DurationMin int
 	Stop        *Stop
+}
+
+// ResolveStopByID finds a stop from its id alone, as the api seam asks:
+// the newest live pool that holds it (an option's stop or a suggested
+// alternative), else the activity the id names, looked up in each catalog
+// (activity ids are ObjectIDs, unique across both).
+func (p *Planner) ResolveStopByID(ctx context.Context, stopID string) (*StopDetail, error) {
+	if f, ok := p.Pools.(StopFinder); ok {
+		_, s, err := f.FindStop(ctx, stopID)
+		if err == nil {
+			return detailFromStop(s), nil
+		}
+		if !errors.Is(err, ErrPoolNotFound) {
+			return nil, err
+		}
+	}
+	actID, ok := ActivityIDFromStop(stopID)
+	if !ok || p.Lookup == nil {
+		return nil, &UnknownStopError{ID: stopID}
+	}
+	for _, catalog := range []string{"demo_activities", "activities"} {
+		acts, err := p.Lookup.GetActivities(ctx, catalog, []string{actID})
+		if err != nil {
+			return nil, err
+		}
+		if len(acts) == 1 {
+			s := stopFromActivity(&acts[0], nil)
+			s.ID = stopID
+			return detailFromStop(&s), nil
+		}
+	}
+	return nil, &UnknownStopError{ID: stopID}
 }
 
 // ResolveStop finds a stop by id: in the pool of optionID when one is
