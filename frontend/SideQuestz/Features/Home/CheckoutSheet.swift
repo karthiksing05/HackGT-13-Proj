@@ -127,6 +127,8 @@ struct HomeCheckoutSheet: View {
             }
         }
         receipt(current)
+            // Not priced yet: skeleton amounts, and the S if the agent takes a while.
+            .sqSlowLoading(current.state == .preparing, lines: ["The agent is preparing your order…"], logoSize: 32)
             .sqAppear(count)
         cardRow(current)
             .sqAppear(count + 1)
@@ -238,12 +240,14 @@ struct HomeCheckoutSheet: View {
         .accessibilityLabel(step.done ? "\(step.text), done" : step.text)
     }
 
+    /// The amounts, or shimmering bars in their place while the agent is still pricing the order.
     private func receipt(_ current: CheckoutIntent) -> some View {
-        VStack(spacing: 6) {
-            receiptLine("\(current.quantity) × \(current.itemTitle)", Money.orPlaceholder(current.subtotalCents))
-            receiptLine("Fees", Money.orPlaceholder(current.feesCents, placeholder: "[fees]"))
+        let pricing = current.state == .preparing
+        return VStack(spacing: 6) {
+            receiptLine("\(current.quantity) × \(current.itemTitle)", Money.orPlaceholder(current.subtotalCents), pending: pricing)
+            receiptLine("Fees", Money.orPlaceholder(current.feesCents, placeholder: "[fees]"), pending: pricing)
                 .foregroundStyle(Theme.text3)
-            receiptLine("Total", Money.orPlaceholder(current.totalCents, placeholder: "[total]"))
+            receiptLine("Total", Money.orPlaceholder(current.totalCents, placeholder: "[total]"), pending: pricing)
                 .fontWeight(.bold)
                 .padding(.top, 6)
                 .overlay(alignment: .top) { Rectangle().fill(Theme.receiptRule).frame(height: 1) }
@@ -255,11 +259,17 @@ struct HomeCheckoutSheet: View {
         .background(Theme.cream, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    private func receiptLine(_ label: String, _ amount: String) -> some View {
+    private func receiptLine(_ label: String, _ amount: String, pending: Bool = false) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(label).lineLimit(2)
             Spacer(minLength: 8)
-            Text(amount).sqNumeric()
+            if pending {
+                SkeletonBlock(width: 56, height: 11, radius: 5, color: Theme.skeletonOnCream)
+                    .sqShimmer()
+                    .accessibilityLabel("not priced yet")
+            } else {
+                Text(amount).sqNumeric()
+            }
         }
         .homeLine(15)
         .accessibilityElement(children: .combine)

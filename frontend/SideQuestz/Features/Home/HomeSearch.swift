@@ -138,7 +138,7 @@ struct HomeSearchResultsView: View {
     @Environment(AppEnvironment.self) private var env
 
     var body: some View {
-        HomeLoadable(state: model.results ?? .loading, minHeight: 200, retry: retry) {
+        HomeLoadable(state: model.results ?? .loading, minHeight: 200, slowLines: ["Searching…"], retry: retry) {
             HomeSearchSkeleton()
         } content: { results in
             if results.isEmpty {

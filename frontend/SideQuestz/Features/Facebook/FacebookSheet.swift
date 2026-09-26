@@ -32,6 +32,7 @@ struct FacebookSheet: View {
             }
         }
         .animation(Motion.standard, value: model.connection.phase)
+        .animation(Motion.standard, value: model.isImporting)
         .task { await model.load(env) }
         .confirmationDialog("Disconnect Facebook?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
             Button("Disconnect", role: .destructive) {
@@ -77,7 +78,22 @@ struct FacebookSheet: View {
 
     // MARK: Content
 
+    /// What the server does while it reads Facebook (in that order), under the S.
+    private static let importLines = ["Reading Pages you like…", "Matching them to your likes…", "Looking for friends on SideQuests…"]
+
     @ViewBuilder private var content: some View {
+        if model.isImporting {
+            // Reading Facebook takes a moment: the S over what's happening, then the fresh import.
+            LoadingStateView(lines: Self.importLines, minHeight: 220)
+                .transition(.opacity)
+        } else {
+            connectionContent
+                .transition(.opacity)
+        }
+    }
+
+    /// The connection as we know it: its last import, how to connect, or why it couldn't load.
+    @ViewBuilder private var connectionContent: some View {
         switch model.connection {
         case .loading:
             LoadingStateView(minHeight: 220)

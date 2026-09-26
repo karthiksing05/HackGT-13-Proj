@@ -84,6 +84,7 @@ struct HomeEventSheet: View {
                 switch detail {
                 case .loading:
                     HomeEventSkeleton()
+                        .sqSlowLoading()
                         .transition(.opacity)
                 case .failed(let message):
                     ErrorStateView(message: message, minHeight: 420) { Task { await load() } }
@@ -294,6 +295,7 @@ struct HomeEventSheet: View {
             switch transit {
             case .loading:
                 HomeTransitSkeleton()
+                    .sqSlowLoading()
                     .transition(.opacity)
             case .failed(let message):
                 ErrorStateView(message: message, minHeight: 84) { Task { await loadTransit() } }

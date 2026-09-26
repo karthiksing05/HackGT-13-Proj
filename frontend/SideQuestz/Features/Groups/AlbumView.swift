@@ -152,6 +152,7 @@ struct GroupAlbumView: View {
             switch photos {
             case .loading:
                 SkeletonView(layout: .grid(columns: 3, count: 9))
+                    .sqSlowLoading()
                     .transition(.opacity)
             case .failed(let message):
                 ErrorStateView(message: message) { Task { await retryLoad() } }

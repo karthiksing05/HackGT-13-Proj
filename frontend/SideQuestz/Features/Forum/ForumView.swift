@@ -346,6 +346,7 @@ struct ForumView: View {
             switch posts {
             case .loading:
                 ForumFeedSkeleton()
+                    .sqSlowLoading(lines: ["Finding posts near \(query.area.isCurrentLocation ? "you" : query.area.name)…"])
                     .transition(.opacity)
             case .failed(let message):
                 ErrorStateView(message: message) { Task { await retryPosts() } }

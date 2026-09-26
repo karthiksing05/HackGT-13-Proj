@@ -73,6 +73,7 @@ struct CreateSwapSheet: View {
             .sqShimmer()
             .accessibilityElement()
             .accessibilityLabel("Finding similar spots")
+            .sqSlowLoading(lines: ["Finding similar spots…"])
             .transition(.opacity)
         case .failed(let message):
             ErrorStateView(message: message, minHeight: 200) {

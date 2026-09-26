@@ -16,6 +16,7 @@ struct HomeInsightsCard: View {
             switch state {
             case .loading:
                 HomeInsightsSkeleton()
+                    .sqSlowLoading(lines: ["Looking at what you rated…"], logoSize: 32)
                     .transition(.opacity)
             case .failed:
                 EmptyView()

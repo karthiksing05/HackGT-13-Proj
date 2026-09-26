@@ -259,18 +259,39 @@ final class SideQuestzUITests: XCTestCase {
         expect(element(app, labelContains: "Your likes are updated"))
     }
 
+    // MARK: Loading policy
+
+    /// `-SQSlowLoadingAfter 0`: every first load shows the S at once instead of its skeleton, and
+    /// Home, Calendar and the Forum still render.
+    func testSlowLoadingAtOnceStillRendersHome() {
+        let app = launchSignedIn(["-SQSlowLoadingAfter", "0"])
+
+        expect(element(app, labelContains: "Free Friday afternoon"))
+        app.buttons["Calendar"].tapWhenReady(timeout)
+        expect(element(app, type: .button, labelBeginsWith: "MATH 3012"))
+        app.buttons["Sidequests"].tapWhenReady(timeout)
+
+        expectMainShellResponds(app)
+    }
+
     // MARK: Helpers
 
-    private func launch() -> XCUIApplication {
+    /// Launches with the suite's arguments plus `extraArguments`. To run the whole suite with more
+    /// (say `-SQSlowLoadingAfter 0`): `TEST_RUNNER_SQ_UI_LAUNCH_ARGS="-SQSlowLoadingAfter 0" xcodebuild test …`.
+    private func launch(_ extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-SQSkipIntro", "YES", "-SQResetSession", "YES",
                                 "-SQAPIMode", "mock", "-SQMockLatency", "0"]
+        if let extra = ProcessInfo.processInfo.environment["SQ_UI_LAUNCH_ARGS"] {
+            app.launchArguments += extra.split(separator: " ").map(String.init)
+        }
+        app.launchArguments += extraArguments
         app.launch()
         return app
     }
 
-    private func launchSignedIn() -> XCUIApplication {
-        let app = launch()
+    private func launchSignedIn(_ extraArguments: [String] = []) -> XCUIApplication {
+        let app = launch(extraArguments)
         type(app.textFields["Email"], "jordan@gatech.edu")
         type(app.secureTextFields["Password"], "sidequest1\n")
         expect(app.buttons["Sidequests"])

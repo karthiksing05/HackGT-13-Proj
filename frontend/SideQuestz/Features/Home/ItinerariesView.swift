@@ -46,7 +46,7 @@ struct HomeItinerariesView: View {
                 .padding(.horizontal, Metrics.side)
                 .padding(.top, 20)
                 .padding(.bottom, 10)
-            HomeLoadable(state: store.itineraries, retry: retry) {
+            HomeLoadable(state: store.itineraries, slowLines: ["Loading your sidequests…"], slowLogoSize: 44, retry: retry) {
                 HomeItinerariesSkeleton()
             } content: { list in
                 content(list)

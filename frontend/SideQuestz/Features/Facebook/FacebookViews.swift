@@ -34,9 +34,13 @@ struct FacebookSetupSection: View {
     let onDisconnected: () -> Void
 
     @State private var working = false
+    /// Connecting has taken a while (`SlowLoading.threshold`): the caption says so.
+    @State private var stillReading = false
     @State private var error: String?
 
     private var connected: Bool { imported != nil }
+    /// Facebook is being read (connect + import); a disconnect is quick and says nothing.
+    private var importing: Bool { working && !connected }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -47,13 +51,26 @@ struct FacebookSetupSection: View {
                 ErrorBox(messages: [error])
                     .sqTransition(.rise)
             }
-            Text("Reads Pages you like and your city. Never posts.")
+            Text(stillReading ? "Still reading your Pages…" : "Reads Pages you like and your city. Never posts.")
                 .sqFont(13)
                 .foregroundStyle(Theme.text3)
                 .authLineHeight(1.35, size: 13)
                 .fixedSize(horizontal: false, vertical: true)
+                .contentTransition(.opacity)
+                .authMotion(value: stillReading)
         }
         .task { await restore() }
+        .task(id: importing) { await waitForSlowImport() }
+    }
+
+    /// Once connecting has run for `SlowLoading.threshold`, the caption turns into
+    /// "Still reading your Pages…" (and back when it's done).
+    private func waitForSlowImport() async {
+        stillReading = false
+        guard importing else { return }
+        try? await Task.sleep(for: SlowLoading.threshold)
+        guard !Task.isCancelled else { return }
+        stillReading = true
     }
 
     private var row: some View {

@@ -133,6 +133,10 @@ struct DesignGalleryView: View {
                     SuccessBanner(text: "Added \"Pizza\" · $40.00 split equally 3 ways ($13.33 each). Everyone was notified.") {}
                     Button("Open a sheet") { showSheet = true }.buttonStyle(.sqPrimary)
                 }
+
+                group("Slow loading") {
+                    DesignGallerySlowLoading()
+                }
             }
             .padding(.bottom, 40)
         }
@@ -151,6 +155,34 @@ struct DesignGalleryView: View {
             content()
         }
         .padding(.horizontal, Metrics.side)
+    }
+}
+
+/// The loading policy in miniature (`SlowLoading`): a skeleton, then the S after a second here
+/// (the app waits `-SQSlowLoadingAfter`, 2 s by default). Replay starts it over.
+private struct DesignGallerySlowLoading: View {
+    @State private var run = 0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SkeletonView(layout: .rows(count: 2))
+                .sqSlowLoading(after: .seconds(1), lines: ["Loading your groups…"])
+                .id(run)
+            HStack(spacing: 10) {
+                Text("Skeleton first; the S after 1 s here, \(appThreshold) in the app (-SQSlowLoadingAfter).")
+                    .captionStyle(12)
+                Spacer(minLength: 0)
+                Button("Replay") { run += 1 }
+                    .buttonStyle(.sqTintPill)
+            }
+        }
+    }
+
+    /// The app's threshold, for the caption.
+    private var appThreshold: String {
+        let parts = SlowLoading.threshold.components
+        let seconds = Double(parts.seconds) + Double(parts.attoseconds) / 1e18
+        return seconds >= 86_400 ? "never" : "\(seconds.formatted(.number.precision(.fractionLength(0...2)))) s"
     }
 }
 
