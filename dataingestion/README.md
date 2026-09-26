@@ -17,10 +17,10 @@ Fills MongoDB with activities (events + places) for the planner. The full design
   Editing the prompt changes the hash, which re-embeds ([../docs/EMBEDDINGS.md](../docs/EMBEDDINGS.md)).
 - **The demo city is separate.** `demo/saltlight_harbor.json` (from `python -m demo.generate`) is a
   fictional city in the same schema; it lives in `demo_activities`, which only the demo account reads.
-  `snapshot import` targets `activities`, so load it with `mongoimport --collection demo_activities`
-  ([../docs/DATA.md](../docs/DATA.md#the-demo-snapshot)). Its events run from Sep 26 to Oct 2, 2026 (New York time).
-  The JSON has no `embeddingText` or vectors; the deployed copy got its texts from this pipeline's
-  prompt and its vectors from the Raven backfill.
+  The embedded copy (texts from this pipeline's prompt, vectors from the Raven backfill) lives in
+  MongoDB's `demo_activities` and is the one to use: `Backend/scripts/pull-demo-catalog.sh` copies it
+  locally ([../docs/DATA.md](../docs/DATA.md#the-demo-snapshot)). The JSON has no `embeddingText` or
+  vectors. Its events run from Sep 26 to Oct 2, 2026 (New York time).
 - **Not deployed.** The pipeline and the crawler run from a laptop against a local Mongo or a tunnel to
   the VPS; the VPS holds a snapshot of the Atlanta catalog (vectors backfilled on 2026-09-26) and the
   demo city. Deploying the crawler is on the [roadmap](../docs/ROADMAP.md).

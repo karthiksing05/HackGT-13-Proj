@@ -109,8 +109,8 @@ first to set a variable wins); `ml/deploy.sh` reads `DEPLOY_*` and `ML_DEPLOY_*`
 `/opt/ml/.env` with `umask 077` (values from the root `.env` or newly generated, never echoed), copy
 `gcp-sa.json` to `/opt/ml/` with mode 600, and confirm `ufw status` still blocks 8080, 8000 and 27017.
 Both `.env` files must show `-rw-------`. The catalogs must be in `freetime`: `activities` from the
-ingestion snapshot, `demo_activities` from `dataingestion/demo/saltlight_harbor.json`
-([DATA.md](DATA.md#the-demo-snapshot)).
+ingestion snapshot, `demo_activities` is the embedded Saltlight catalog of record (texts and vectors), which
+`Backend/scripts/pull-demo-catalog.sh` copies to a local Mongo ([DATA.md](DATA.md#the-demo-snapshot)).
 
 **2. ML service.**
 

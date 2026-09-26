@@ -26,8 +26,9 @@ planner moves any start more than 60 km from Saltlight Harbor back to it.
 ## What is seeded
 
 Times hang off the seed run in `DEMO_TZ` (default `America/New_York`), so "tomorrow" stays tomorrow
-after a reseed. The demo accounts are being moved to a demo date of Sep 24, 2026 (the server's
-`DEMO_DATE`), so every Saltlight event is upcoming; the first events are on Saturday, Sep 26. The bots
+after a reseed. The demo accounts live on a fixed demo date, the server's `DEMO_DATE=2026-09-27`: Sunday, the
+busiest day in the catalog (17 events, from an 11 AM brunch crawl to an 8 PM bioluminescence paddle,
+with 22 more through Oct 2). "Today" is that date at the real time of day, on any real day. The bots
 have random passwords nobody knows.
 
 | Item | Detail |

@@ -27,9 +27,10 @@ the fictional seaside city made for HackGT, and plans only from its `demo_activi
 
 ## What's already there
 
-Times are relative to when `seed-demo` ran, in `DEMO_TZ` (default `America/New_York`). For example,
-seeded Sat Sep 26 → Marin's plan is Sun Sep 27, 5:30–8 PM, the crew outing was Sat Sep 19 and the solo
-walk Fri Sep 25. Re-seed on the morning of a demo so "tomorrow" and "free now" still hold.
+The demo accounts live on the server's `DEMO_DATE` (2026-09-27, a Sunday: the catalog's busiest day,
+17 events), at the real time of day in `DEMO_TZ` (`America/New_York`), whatever the real date is. Seed
+times hang off that date: Marin's plan is Mon Sep 28, 5:30–8 PM, and the crew outing and the solo walk
+were on Sat Sep 26. Re-seed before a demo so the free-now post is live again.
 
 | Tab | What she sees |
 |---|---|
@@ -44,7 +45,7 @@ walk Fri Sep 25. Re-seed on the morning of a demo so "tomorrow" and "free now" s
 ## A 60-second showcase
 
 1. Tap **Use the demo account**. On Home tap "1 past event to rate", then **Rate** the greenway and save.
-2. Tap **+** (it starts at Seaside Market Square), pick a window later today, tap **Outdoors** and **Music**.
+2. Tap **+** (it starts at Seaside Market Square), keep today (Sunday, 17 events) with a window a few hours ahead, tap **Outdoors** and **Music**.
 3. On Review, hold a stop › **Swap for something similar**, then **Start this sidequest**.
 4. **Forum**: Marin's plan › **Request to join** → "You're in · Open chat"; it is now on Home for tomorrow.
 5. **Groups** › Saturday market crew › **Splits**: "You owe $2.00", and who owes whom.
