@@ -1,0 +1,24 @@
+[Unit]
+Description=SideQuestz Backend Service
+After=network.target mongod.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/backend
+ExecStart=/opt/backend/sidequestz-server
+#Restart=always
+#RestartSec=5s
+
+Environment=PORT=8080
+Environment=MONGO_URI=mongodb://127.0.0.1:27017
+Environment=MONGO_DB=freetime
+Environment=JWT_SECRET=JWT_SECRET
+Environment=COOKIE_SECURE=true
+
+# Security Hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
