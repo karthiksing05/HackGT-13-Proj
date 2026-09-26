@@ -154,9 +154,12 @@ func (p *Planner) Generate(ctx context.Context, user *UserContext, spec PlanSpec
 	}
 
 	options := p.render(run)
+	if len(options) == 0 {
+		return p.finishEmpty(ctx, run, "no_feasible_itinerary")
+	}
 	pool := p.buildPool(run, options)
 	jevCands := p.prepareJev(run, options)
-	run.Log.Final = FinalLog{OptionIDs: optionIDs(options), Relaxed: run.Relaxed, TotalMs: p.msSince(run.startedAt)}
+	run.Log.Final = FinalLog{OptionIDs: optionIDs(options), Relaxed: run.Relaxed, TotalMs: p.msSince(run.startedAt), Rejected: run.rejected}
 	if err := p.Pools.SavePool(ctx, pool); err != nil {
 		return Batch{}, fmt.Errorf("planner: save pool: %w", err)
 	}
@@ -175,7 +178,7 @@ func (p *Planner) Generate(ctx context.Context, user *UserContext, spec PlanSpec
 }
 
 func (p *Planner) finishEmpty(ctx context.Context, run *Run, reason string) (Batch, error) {
-	run.Log.Final = FinalLog{OptionIDs: []string{}, Relaxed: run.Relaxed, TotalMs: p.msSince(run.startedAt), Reason: reason}
+	run.Log.Final = FinalLog{OptionIDs: []string{}, Relaxed: run.Relaxed, TotalMs: p.msSince(run.startedAt), Reason: reason, Rejected: run.rejected}
 	if err := p.Pools.SaveRun(ctx, &run.Log); err != nil {
 		log.Warn().Err(err).Str("run", run.ID).Msg("planner: save run")
 	}

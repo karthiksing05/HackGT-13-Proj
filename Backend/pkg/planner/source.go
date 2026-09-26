@@ -7,8 +7,9 @@ import (
 	"time"
 )
 
-// Fixed-start events must begin this long before the window closes.
-const eventStartMargin = 15 * time.Minute
+// EventStartMargin: fixed-start events must begin at least this long before
+// the window (or slot) closes.
+const EventStartMargin = 15 * time.Minute
 
 // CandidateQuery is a guaranteed pre-filter: every field is a hard
 // condition the store applies before anything is scored. MatchesQuery is
@@ -90,14 +91,14 @@ func MatchesQuery(a *models.Activity, q *CandidateQuery) bool {
 				return false
 			}
 		} else {
-			if start.Before(q.From) || start.After(q.To.Add(-eventStartMargin)) {
+			if start.Before(q.From) || start.After(q.To.Add(-EventStartMargin)) {
 				return false
 			}
 		}
 	} else if len(q.PlaceCategories) > 0 && !containsString(q.PlaceCategories, a.Category) {
 		return false
 	}
-	if ageRules(q.AgeBracket).blocks(a) {
+	if AgeRulesFor(q.AgeBracket).Blocks(a) {
 		return false
 	}
 	if containsString(q.ExcludeCategories, a.Category) {
@@ -126,35 +127,38 @@ func MatchesQuery(a *models.Activity, q *CandidateQuery) bool {
 	return !containsString(q.ExcludeIDs, a.ID.Hex())
 }
 
-// priceAllowed is the price clause: null price means unknown, never free.
+// priceAllowed is the price clause: a null price is unknown, never free.
+// It mirrors the store's query exactly (mongosource.priceClause).
 func priceAllowed(a *models.Activity, q *CandidateQuery) bool {
+	p := a.Price
 	if q.FreeOnly {
-		if a.Price == nil {
+		if p == nil {
 			return freeIfUnknownCategories[a.Category]
 		}
-		return a.Price.IsFree || (a.Price.Min != nil && *a.Price.Min == 0)
+		return p.IsFree || (p.Min != nil && *p.Min == 0)
 	}
 	if q.MaxTier >= 3 {
 		return true
 	}
-	if a.Price == nil {
+	if p == nil {
 		return q.AllowUnknownPrice
 	}
-	if a.Price.Tier > 0 && a.Price.Tier <= q.MaxTier {
+	switch {
+	case p.Tier >= 1 && p.Tier <= q.MaxTier:
 		return true
-	}
-	if a.Price.Min != nil && *a.Price.Min <= tierBounds[q.MaxTier] {
+	case p.Min != nil && *p.Min <= TierBound(q.MaxTier):
 		return true
+	case p.IsFree:
+		return true
+	case p.Tier == 0 && p.Min == nil:
+		return q.AllowUnknownPrice // a price object that states no amount
 	}
-	if a.Price.Tier == 0 && a.Price.Min == nil {
-		// A price object that says nothing about the amount.
-		return q.AllowUnknownPrice || a.Price.IsFree
-	}
-	return a.Price.IsFree
+	return false
 }
 
-// tierBound is the upper price (whole units) of a tier for the query.
-func tierBound(tier int) float64 {
+// TierBound is the upper price, in whole currency units, of a price tier
+// (0 → 0, 1 → 15, 2 → 40, 3 → 80).
+func TierBound(tier int) float64 {
 	if tier < 0 {
 		return 0
 	}

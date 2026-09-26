@@ -116,6 +116,9 @@ func TestGuaranteesAcrossTheMatrix(t *testing.T) {
 							if run.ML.Mode != "classifier" {
 								t.Errorf("ml mode %q", run.ML.Mode)
 							}
+							if run.Final.Rejected != 0 {
+								t.Errorf("the runtime check rejected %d options", run.Final.Rejected)
+							}
 							for _, e := range run.Shortlist {
 								if drops[e.ID] {
 									t.Errorf("dropped id %s is in the pool (source %s)", e.ID, e.Source)

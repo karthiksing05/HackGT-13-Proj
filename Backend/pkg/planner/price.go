@@ -4,7 +4,6 @@ import (
 	"Backend/pkg/models"
 	"math"
 	"regexp"
-	"strings"
 )
 
 // A missing price is unknown, never free. The ingested documents carry
@@ -105,34 +104,43 @@ func tierSymbol(tier int) string {
 	return "$$$"
 }
 
-// activityName-based age gates.
-var (
-	name21Re = regexp.MustCompile(`(?i)21\+`)
-	name18Re = regexp.MustCompile(`(?i)(?:18\+|21\+)`)
+// Name patterns that mark adults-only listings, matched case-insensitively
+// (the same source goes into the Mongo $regex with option "i").
+const (
+	adultName21 = `21\+`
+	adultName18 = `(?:18\+|21\+)`
 )
 
-// AgeRules are the exclusions a bracket implies, applied identically by the
-// Mongo query and the Go re-check.
+var (
+	name21Re = regexp.MustCompile(`(?i)` + adultName21)
+	name18Re = regexp.MustCompile(`(?i)` + adultName18)
+)
+
+// AgeRules are the exclusions an age bracket implies. The store turns them
+// into query conditions and the planner re-checks them with Blocks, so the
+// two can never disagree.
 type AgeRules struct {
 	ExcludeTags       []string
 	ExcludeCategories []string
-	NamePattern       string // regexp source, empty for none
+	NamePattern       string // matched case-insensitively; empty for none
+	nameRe            *regexp.Regexp
 }
 
-// ageRules follows §4.1: 21_plus filters nothing; 18_20 drops 21+ tags,
-// bars, nightclubs and "21+" names; 13_17 additionally drops "18+" names and
+// AgeRulesFor follows §4.1: 21_plus filters nothing; 18_20 drops 21+ tags,
+// bars, nightclubs and "21+" names; 13_17 also drops "18+" names and
 // anything tagged drinks.
-func ageRules(bracket string) AgeRules {
+func AgeRulesFor(bracket string) AgeRules {
 	switch NormalizeAgeBracket(bracket) {
 	case "18_20":
-		return AgeRules{ExcludeTags: []string{"21_plus"}, ExcludeCategories: []string{"bar", "nightclub"}, NamePattern: name21Re.String()}
+		return AgeRules{ExcludeTags: []string{"21_plus"}, ExcludeCategories: []string{"bar", "nightclub"}, NamePattern: adultName21, nameRe: name21Re}
 	case "13_17":
-		return AgeRules{ExcludeTags: []string{"21_plus", "drinks"}, ExcludeCategories: []string{"bar", "nightclub"}, NamePattern: name18Re.String()}
+		return AgeRules{ExcludeTags: []string{"21_plus", "drinks"}, ExcludeCategories: []string{"bar", "nightclub"}, NamePattern: adultName18, nameRe: name18Re}
 	}
 	return AgeRules{}
 }
 
-func (r AgeRules) blocks(a *models.Activity) bool {
+// Blocks reports whether the bracket may not see the activity.
+func (r AgeRules) Blocks(a *models.Activity) bool {
 	if containsString(r.ExcludeCategories, a.Category) {
 		return true
 	}
@@ -141,13 +149,7 @@ func (r AgeRules) blocks(a *models.Activity) bool {
 			return true
 		}
 	}
-	if r.NamePattern != "" {
-		if strings.Contains(r.NamePattern, "18") {
-			return name18Re.MatchString(a.Name)
-		}
-		return name21Re.MatchString(a.Name)
-	}
-	return false
+	return r.nameRe != nil && r.nameRe.MatchString(a.Name)
 }
 
 func maxInt(a, b int) int {

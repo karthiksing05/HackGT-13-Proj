@@ -42,6 +42,7 @@ type Run struct {
 
 	ladder        int  // few_plans relax steps taken
 	facetsDropped bool // soft mood facets removed
+	rejected      int  // rendered options that failed CheckOption
 	startedAt     time.Time
 }
 

@@ -84,7 +84,7 @@ func Feasible(spec *PlanSpec, q *CandidateQuery, itCfg itinerary.Config, acts []
 			drop("out_of_radius")
 			continue
 		}
-		if ageRules(spec.AgeBracket).blocks(a) {
+		if AgeRulesFor(spec.AgeBracket).Blocks(a) {
 			drop("age_gate")
 			continue
 		}
@@ -204,7 +204,7 @@ func eventFeasible(a *models.Activity, spec *PlanSpec, q *CandidateQuery, itCfg 
 	if start.Add(maxDuration(end.Sub(start), p75)).After(spec.BackBy) {
 		return "outside_window"
 	}
-	if start.Before(q.From) || start.After(q.To.Add(-eventStartMargin)) {
+	if start.Before(q.From) || start.After(q.To.Add(-EventStartMargin)) {
 		return "outside_slot"
 	}
 	return ""

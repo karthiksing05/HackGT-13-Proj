@@ -8,17 +8,33 @@ import (
 	"math"
 	"strings"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 const kmPerMile = 1.609344
 
 // render turns the run's best plans into options, "Best match" first.
+// Every option is checked against the guarantees before it is shown; one
+// that fails would mean a bug upstream, so it is left out and logged.
 func (p *Planner) render(run *Run) []Option {
+	lookup := func(id string) (*models.Activity, bool) {
+		if c := run.Pool.Get(id); c != nil {
+			return &c.Act, true
+		}
+		return nil, false
+	}
 	out := make([]Option, 0, len(run.Best))
 	used := map[string]bool{}
-	for i, sp := range run.Best {
-		opt := renderOption(run, sp, i)
-		opt.Tag = optionTag(i, opt, used, run.Spec)
+	for _, sp := range run.Best {
+		opt := renderOption(run, sp, len(out))
+		if v := CheckOption(&run.Spec, &opt, lookup); len(v) > 0 {
+			run.rejected++
+			log.Error().Str("run", run.ID).Str("signature", sp.Signature).Strs("violations", v).
+				Msg("planner: option failed the guarantees; left out")
+			continue
+		}
+		opt.Tag = optionTag(len(out), opt, used, run.Spec)
 		used[opt.Tag] = true
 		out = append(out, opt)
 	}

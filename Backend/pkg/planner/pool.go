@@ -318,6 +318,7 @@ type FinalLog struct {
 	Relaxed   []string `bson:"relaxed" json:"relaxed"`
 	TotalMs   int64    `bson:"totalMs" json:"total_ms"`
 	Reason    string   `bson:"reason,omitempty" json:"reason,omitempty"`
+	Rejected  int      `bson:"rejected" json:"rejected"` // options left out by CheckOption (0 unless there is a bug)
 }
 
 // OutcomeLog is patched in by POST /itineraries.
