@@ -81,6 +81,15 @@ def load_jev():
     return call_jev
 
 
+def configure_logging() -> None:
+    """The app's loggers at LOG_LEVEL (default INFO: one line per embed call, fallbacks, warmup);
+    uvicorn keeps its own handlers. httpx's line per outbound request is left out."""
+    logging.basicConfig(
+        level=os.environ.get("LOG_LEVEL", "INFO").upper(), format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
 def load_embedder(stats: EmbedStats) -> tuple[Embedder, EmbeddingSettings]:
     """The provider chain from the environment; with EMBED_WARMUP the slow parts (weights, first
     remote call, the Vertex probe) run on a daemon thread so startup never blocks."""
@@ -105,6 +114,7 @@ def start_warmup(embedder: Embedder) -> threading.Thread:
 
 
 load_dotenv(find_dotenv(usecwd=True))
+configure_logging()
 _stats = EmbedStats()
 _embedder, _settings = load_embedder(_stats)
 _embedding = EmbeddingService(_embedder, _stats)
