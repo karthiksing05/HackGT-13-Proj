@@ -1,0 +1,133 @@
+{
+  "city": "saltlight",
+  "kind": "event",
+  "location": {
+    "$geoWithin": {
+      "$centerSphere": [
+        [
+          -81.425,
+          31.368
+        ],
+        0.0007848061528802386
+      ]
+    }
+  },
+  "tags": {
+    "$nin": [
+      "21_plus",
+      "drinks",
+      "touristy"
+    ]
+  },
+  "name": {
+    "$not": {
+      "$regularExpression": {
+        "pattern": "(?:18\\+|21\\+)",
+        "options": "i"
+      }
+    }
+  },
+  "_id": {
+    "$nin": [
+      {
+        "$oid": "896e6ea590424da0defda2ed"
+      }
+    ]
+  },
+  "category": {
+    "$nin": [
+      "bar",
+      "nightclub",
+      "museum"
+    ]
+  },
+  "$and": [
+    {
+      "$or": [
+        {
+          "category": {
+            "$in": [
+              "restaurant",
+              "cafe",
+              "market"
+            ]
+          }
+        },
+        {
+          "tags": {
+            "$in": [
+              "food"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "$or": [
+        {
+          "price.tier": {
+            "$gte": 1,
+            "$lte": 1
+          }
+        },
+        {
+          "price.min": {
+            "$lte": 15.0
+          }
+        },
+        {
+          "price.isFree": true
+        },
+        {
+          "price.tier": {
+            "$in": [
+              null,
+              0
+            ]
+          },
+          "price.min": null
+        },
+        {
+          "price": null
+        }
+      ]
+    },
+    {
+      "$or": [
+        {
+          "attendance": {
+            "$ne": "drop_in"
+          },
+          "start": {
+            "$gte": {
+              "$date": "2026-09-26T22:00:00Z"
+            },
+            "$lte": {
+              "$date": "2026-09-27T02:45:00Z"
+            }
+          }
+        },
+        {
+          "attendance": "drop_in",
+          "start": {
+            "$lt": {
+              "$date": "2026-09-27T03:00:00Z"
+            }
+          },
+          "$or": [
+            {
+              "end": null
+            },
+            {
+              "end": {
+                "$gt": {
+                  "$date": "2026-09-26T22:00:00Z"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

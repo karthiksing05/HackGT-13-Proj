@@ -1,0 +1,105 @@
+{
+  "city": "saltlight",
+  "kind": "place",
+  "location": {
+    "$geoWithin": {
+      "$centerSphere": [
+        [
+          -81.425,
+          31.368
+        ],
+        0.0007848061528802386
+      ]
+    }
+  },
+  "tags": {
+    "$nin": [
+      "21_plus",
+      "drinks",
+      "touristy"
+    ]
+  },
+  "name": {
+    "$not": {
+      "$regularExpression": {
+        "pattern": "(?:18\\+|21\\+)",
+        "options": "i"
+      }
+    }
+  },
+  "_id": {
+    "$nin": [
+      {
+        "$oid": "896e6ea590424da0defda2ed"
+      }
+    ]
+  },
+  "category": {
+    "$in": [
+      "cafe",
+      "gallery",
+      "garden",
+      "hike",
+      "landmark",
+      "market",
+      "park",
+      "rec_venue",
+      "restaurant",
+      "shopping",
+      "viewpoint",
+      "zoo_aquarium"
+    ]
+  },
+  "$and": [
+    {
+      "$or": [
+        {
+          "category": {
+            "$in": [
+              "restaurant",
+              "cafe",
+              "market"
+            ]
+          }
+        },
+        {
+          "tags": {
+            "$in": [
+              "food"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "$or": [
+        {
+          "price.tier": {
+            "$gte": 1,
+            "$lte": 1
+          }
+        },
+        {
+          "price.min": {
+            "$lte": 15.0
+          }
+        },
+        {
+          "price.isFree": true
+        },
+        {
+          "price.tier": {
+            "$in": [
+              null,
+              0
+            ]
+          },
+          "price.min": null
+        },
+        {
+          "price": null
+        }
+      ]
+    }
+  ]
+}
