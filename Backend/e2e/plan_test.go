@@ -172,8 +172,7 @@ func TestDemoPlanAndSidequest(t *testing.T) {
 
 	// A window that started two hours ago is planned from now: no stop in
 	// the past (the account's now, which the demo clock may move).
-	now := time.Now().In(c.Loc)
-	bizNow := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day()-1, now.Hour(), now.Minute(), now.Second(), 0, c.Loc)
+	bizNow := businessNow(t, s)
 	started := req
 	started.StartTime, started.BackBy = contract.NewTime(bizNow.Add(-2*time.Hour)), contract.NewTime(bizNow.Add(3*time.Hour))
 	started.Date = started.StartTime

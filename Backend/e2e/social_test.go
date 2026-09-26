@@ -360,14 +360,16 @@ func TestSharedPlan(t *testing.T) {
 	var thEv contract.ChatThread
 	expectEvent(t, aws, "thread.updated", 10*time.Second, &thEv, func(v contract.ChatThread) bool { return v.ID == threadID })
 
-	// Full now: a third person gets "full" and changes nothing.
-	if c.DemoPassword != "" {
+	// Full now: a third person gets "full" and changes nothing. (Not asked
+	// of the demo account when it lives on another date: from its clock the
+	// plan may already have started, which answers "closed".)
+	if c.DemoPassword != "" && get[contract.User](t, sandy(t), "/me").DemoDate == nil {
 		full := send[contract.JoinResult](t, sandy(t), "POST", "/forum/posts/"+plan.ID+"/join-requests", nil, http.StatusOK)
 		if full.Status != contract.JoinFull || full.ThreadID != nil {
 			t.Errorf("joining a full plan: %+v", full)
 		}
 	}
-	if p := planPost(t, bob, plan.ID); p.JoinStatus != contract.JoinJoined || *p.SpotsLeft != 0 || p.ThreadID == nil || *p.ThreadID != threadID {
+	if p := planPost(t, bob, plan.ID, "&"+near[1:]); p.JoinStatus != contract.JoinJoined || *p.SpotsLeft != 0 || p.ThreadID == nil || *p.ThreadID != threadID {
 		t.Errorf("Bob's post after joining: %+v", p)
 	}
 

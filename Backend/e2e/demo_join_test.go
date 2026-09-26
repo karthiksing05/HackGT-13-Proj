@@ -6,6 +6,7 @@ import (
 	"Backend/pkg/contract"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -24,10 +25,11 @@ type messageNew struct {
 	Message  contract.Message `json:"message"`
 }
 
-// planPost is the viewer's rendering of a plan post in their feed.
-func planPost(t testing.TB, s *Session, id string) contract.ForumPost {
+// planPost is the viewer's rendering of a plan post in their feed (area is
+// extra query parameters, "&lat=…&lng=…" for someone without a home base).
+func planPost(t testing.TB, s *Session, id string, area ...string) contract.ForumPost {
 	t.Helper()
-	for _, p := range forum(t, s, "?type=plans") {
+	for _, p := range forum(t, s, "?type=plans"+strings.Join(area, "")) {
 		if p.ID == id {
 			return p
 		}

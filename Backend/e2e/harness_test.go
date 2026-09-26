@@ -477,6 +477,17 @@ func demoToday(t testing.TB, s *Session) time.Time {
 	return localDay(time.Now(), c.Loc)
 }
 
+// businessNow is now as the server lives it for s: the real time of day on
+// the account's demo date (the real now without one). Times the app sends
+// for "now"-relative things (a free-now post's until) are in this clock.
+func businessNow(t testing.TB, s *Session) time.Time {
+	t.Helper()
+	c := config(t)
+	day := demoToday(t, s)
+	now := time.Now().In(c.Loc)
+	return time.Date(day.Year(), day.Month(), day.Day(), now.Hour(), now.Minute(), now.Second(), 0, c.Loc)
+}
+
 // waitFor polls fn until it reports done or the timeout passes.
 func waitFor(t testing.TB, timeout time.Duration, what string, fn func() bool) {
 	t.Helper()

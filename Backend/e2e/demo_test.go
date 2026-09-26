@@ -418,7 +418,7 @@ func TestDemoFreeNowPost(t *testing.T) {
 	do(t, s, "GET", "/forum/posts/mine", nil).NoContent(t)
 
 	home := get[contract.User](t, s, "/me").HomeBase
-	until := contract.NewTime(time.Now().Add(2 * time.Hour).Truncate(time.Minute))
+	until := contract.NewTime(businessNow(t, s).Add(2 * time.Hour).Truncate(time.Minute))
 	area, radius := "Seaside Market", 3
 	body := contract.NewForumPost{Type: contract.PostFreeNow, Visibility: contract.PostFriends, Until: &until,
 		Lat: &home.Coordinate.Lat, Lng: &home.Coordinate.Lng, AreaLabel: &area, RadiusMi: &radius}
@@ -447,8 +447,8 @@ func TestDemoFreeNowPost(t *testing.T) {
 	}
 	fails(t, s, "DELETE", "/forum/posts/"+mine.ID, nil, http.StatusNotFound)
 
-	past := contract.NewTime(time.Now().Add(-time.Minute))
-	tooLong := contract.NewTime(time.Now().Add(25 * time.Hour))
+	past := contract.NewTime(businessNow(t, s).Add(-time.Minute))
+	tooLong := contract.NewTime(businessNow(t, s).Add(25 * time.Hour))
 	zero := 0
 	for name, bad := range map[string]contract.NewForumPost{
 		"plan type":  {Type: contract.PostPlan, Visibility: contract.PostEveryone},
