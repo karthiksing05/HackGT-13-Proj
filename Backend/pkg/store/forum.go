@@ -38,7 +38,9 @@ func (f Forum) ReplaceFreePost(ctx context.Context, post *models.ForumPost) erro
 	post.Type = models.PostFreeNow
 	post.ExpiresAt = post.Until
 	post.CreatedAt = f.s.Now()
-	for attempt := 0; attempt < 3; attempt++ {
+	// Each lost race means a concurrent post by the same author was stored
+	// (and that request finished), so n simultaneous posts need n attempts.
+	for attempt := 0; attempt < 8; attempt++ {
 		if _, err := f.coll().DeleteMany(ctx, bson.M{"authorId": post.AuthorID, "type": models.PostFreeNow}); err != nil {
 			return err
 		}
@@ -49,7 +51,6 @@ func (f Forum) ReplaceFreePost(ctx context.Context, post *models.ForumPost) erro
 		if !IsDuplicate(err) {
 			return err
 		}
-		// A concurrent post by the same author landed in between: replace it too.
 	}
 	return ErrConflict
 }

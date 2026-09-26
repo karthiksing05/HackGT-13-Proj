@@ -9,6 +9,7 @@ import (
 	"Backend/pkg/store"
 	"Backend/pkg/testutil"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -242,4 +243,37 @@ func TestThreadWithNullMapsStillWorks(t *testing.T) {
 		t.Fatalf("unread after repair: %+v", list)
 	}
 	srv.Do(t, "POST", "/threads/"+th.ID+"/read", nil, b).Expect(t, http.StatusNoContent)
+}
+
+func TestSocialEventsOverTheSocket(t *testing.T) {
+	srv := testutil.New(t)
+	a := srv.Signup(t, "Wes Socket")
+	b := srv.Signup(t, "Zoe Socket")
+	var dm contract.ChatThread
+	srv.Do(t, "POST", "/threads/dm", contract.StartDMRequest{UserID: b.UserID}, a).Expect(t, http.StatusOK).JSON(t, &dm)
+	conn, _, err := srv.Dial(t, b.Access, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.ExpectEvent(t, conn, realtime.EventConnected, 3*time.Second)
+
+	send(t, srv, a, dm.ID, "ping", testutil.Ptr("c-9"))
+	env := testutil.ExpectEvent(t, conn, realtime.EventMessageNew, 3*time.Second)
+	var msg realtime.MessageNewData
+	if err := json.Unmarshal(env.Data, &msg); err != nil || msg.ThreadID != dm.ID || msg.Message.SenderName != "Wes" ||
+		msg.Message.Text != "ping" || msg.Message.ClientID == nil || *msg.Message.ClientID != "c-9" {
+		t.Fatalf("message.new: %s %v", env.Data, err)
+	}
+	env = testutil.ExpectEvent(t, conn, realtime.EventThreadUpdated, 3*time.Second)
+	var th contract.ChatThread
+	if err := json.Unmarshal(env.Data, &th); err != nil || th.ID != dm.ID || th.Unread != 1 || th.LastMessage != "Wes: ping" || th.Title != "Wes Socket" {
+		t.Fatalf("thread.updated: %s %v", env.Data, err)
+	}
+
+	srv.Do(t, "POST", "/forum/posts", freeNow(contract.PostEveryone, techSquare, "Tech Square", nil), a).Expect(t, http.StatusCreated)
+	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	_, raw, err := conn.ReadMessage()
+	if err != nil || string(raw) != `{"type":"forum.update","data":{}}` {
+		t.Fatalf("forum.update broadcast: %s %v", raw, err)
+	}
 }

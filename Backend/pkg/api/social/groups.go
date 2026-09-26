@@ -8,6 +8,7 @@ import (
 	"Backend/pkg/models"
 	"Backend/pkg/realtime"
 	"net/http"
+	"sort"
 
 	"github.com/gorilla/mux"
 )
@@ -31,6 +32,13 @@ func (h *H) ListPhotos(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
+	// Photos added in the same millisecond: the later (UUIDv7) id first.
+	sort.SliceStable(list, func(i, j int) bool {
+		if !list[i].CreatedAt.Equal(list[j].CreatedAt) {
+			return list[i].CreatedAt.After(list[j].CreatedAt)
+		}
+		return list[i].ID > list[j].ID
+	})
 	owners := make([]string, 0, len(list))
 	for _, p := range list {
 		owners = append(owners, p.OwnerID)
