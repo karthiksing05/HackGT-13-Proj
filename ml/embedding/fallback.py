@@ -173,6 +173,10 @@ class CachingEmbedder(Embedder):
         if misses:
             miss_texts = [texts[i] for i in misses]
             result = self.inner.embed_result(miss_texts, kind)
+            if result.vectors.shape != (len(misses), self.dim):
+                raise EmbedderError(
+                    "bad_response", f"{result.provider} returned shape {result.vectors.shape}, expected {(len(misses), self.dim)}", retryable=False, provider=result.provider
+                )
             out[misses] = result.vectors
             provider = result.provider
             if not bypass_cache:

@@ -73,7 +73,9 @@ class SqliteEmbeddingCache(EmbeddingCache):
     def _conn(self) -> sqlite3.Connection:
         conn = getattr(self._local, "conn", None)
         if conn is None:
-            conn = sqlite3.connect(str(self.path), timeout=5.0)
+            # Each thread keeps its own connection; `check_same_thread=False` only lets `close()`
+            # (called from whichever thread shuts the service down) close the others' connections.
+            conn = sqlite3.connect(str(self.path), timeout=5.0, check_same_thread=False)
             self._local.conn = conn
             with self._lock:
                 self._connections.add(conn)

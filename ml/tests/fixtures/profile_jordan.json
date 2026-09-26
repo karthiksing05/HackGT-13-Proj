@@ -1,0 +1,49 @@
+{
+  "request": {
+    "ratings": {
+      "food": 4,
+      "museums": 3,
+      "nightlife": 2,
+      "outdoors": 5
+    },
+    "company": "small_group",
+    "pace": "balanced",
+    "spend": "under_15",
+    "flexibility": "bit_over_ok",
+    "prefer_free": true,
+    "answers": {},
+    "facebook_interests": [
+      "Hiking",
+      "Indie rock",
+      "Coffee",
+      "Street food",
+      "Board games"
+    ],
+    "rated_events": [
+      {
+        "stars": 5,
+        "tags": [
+          "Great people"
+        ],
+        "category": "park",
+        "activity_tags": [
+          "outdoor"
+        ]
+      },
+      {
+        "stars": 2,
+        "tags": [
+          "Too crowded"
+        ],
+        "category": "bar",
+        "activity_tags": [
+          "late_night"
+        ]
+      }
+    ]
+  },
+  "template_version": "profile-v1",
+  "positive_text": "Interests:\n- outdoor recreation\n- local food\n- hiking\n- indie rock\n- coffee\n- street food\n- board games\n\nActivities:\n- park visit\n- guided hike\n- food tasting\n\nSocial:\n- small-group setting\n- close friends\n- meeting new people\n\nEnvironment:\n- outdoor setting\n\nPace:\n- moderate pace\n\nCost:\n- free admission\n- under $15 admission",
+  "negative_text": "Interests:\n- nightlife\n\nSocial:\n- large crowds\n\nEnvironment:\n- loud nightclub setting\n\nTiming:\n- late night",
+  "profile_text_hash": "profile-v1:fb4be85a364df278174ad3bcd633efeecc6a10e3"
+}
