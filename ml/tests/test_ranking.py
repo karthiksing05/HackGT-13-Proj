@@ -1,3 +1,4 @@
+import math
 import unittest
 from datetime import datetime, timedelta, timezone
 
@@ -95,7 +96,7 @@ class ApiTests(unittest.TestCase):
             with self.subTest(events=events):
                 response = self.post({"user": user(max_price=10), "events": events})
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.json(), {"events": [], "model_version": "cosine-v1"})
+                self.assertEqual(response.json(), {"events": [], "model_version": "cosine-v1", "reranked": False})
 
     def test_zero_negative_embedding_means_no_negative_signal(self):
         body = {"user": user(negative_embedding=[0.0, 0.0, 0.0]), "events": [event("e", [0.0, 0.0, 1.0])]}
@@ -164,6 +165,179 @@ class ApiTests(unittest.TestCase):
         events = [EventInput(id=f"e{i}", embedding=[1.0, float(i), 0.0]) for i in range(10)]
         service.rank(UserInput(**user()), events, RankingOptions())
         self.assertEqual(calls, [10])
+
+
+class SearchBlendTests(unittest.TestCase):
+    EVENTS = [event("profile", [1.0, 0.0, 0.0]), event("searched", [0.0, 1.0, 0.0])]
+
+    def rank(self, service=None, **body):
+        service = service or EventRankingService(CosineCompatibilityModel(), filters=[])
+        response = TestClient(create_app(service)).post(
+            "/v1/events/rank", json={"user": user(), "events": self.EVENTS, **body}
+        )
+        return response
+
+    def order(self, response):
+        self.assertEqual(response.status_code, 200, response.text)
+        return [e["event_id"] for e in response.json()["events"]]
+
+    def test_search_pulls_ranking_toward_it(self):
+        self.assertEqual(self.order(self.rank()), ["profile", "searched"])
+        self.assertEqual(self.order(self.rank(search_embedding=[0.0, 1.0, 0.0])), ["searched", "profile"])
+
+    def test_zero_search_embedding_means_no_search(self):
+        self.assertEqual(self.order(self.rank(search_embedding=[0.0, 0.0, 0.0])), ["profile", "searched"])
+
+    def test_zero_weight_ignores_search(self):
+        service = EventRankingService(CosineCompatibilityModel(), filters=[], search_weight=0.0)
+        response = self.rank(service, search_embedding=[0.0, 1.0, 0.0])
+        self.assertEqual(self.order(response), ["profile", "searched"])
+
+    def test_search_dimension_is_400(self):
+        response = self.rank(search_embedding=[0.0, 1.0])
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("search_embedding must have dimension 3", response.json()["detail"])
+
+    def test_non_finite_search_is_422_without_echo(self):
+        payload = (
+            '{"user": {"positive_embedding": [1, 0, 0], "negative_embedding": [0, 0, 1]},'
+            ' "events": [], "search_embedding": [NaN, 1, 0]}'
+        )
+        response = TestClient(create_app(EventRankingService(CosineCompatibilityModel(), filters=[]))).post(
+            "/v1/events/rank", content=payload, headers={"content-type": "application/json"}
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertNotIn("input", response.text)
+
+    def test_model_gets_unit_norm_blend(self):
+        seen = []
+        model = CosineCompatibilityModel()
+        original = model._score_batch
+        model._score_batch = lambda u, events: seen.append(u.positive.vector) or original(u, events)
+        service = EventRankingService(model, filters=[])
+        service.rank(UserInput(**user()), [EventInput(**e) for e in self.EVENTS], RankingOptions(), [0.0, 1.0, 0.0])
+
+        norm = math.hypot(0.4, 0.6)
+        self.assertAlmostEqual(seen[0][0], 0.4 / norm)
+        self.assertAlmostEqual(seen[0][1], 0.6 / norm)
+        self.assertAlmostEqual(float(sum(v * v for v in seen[0])), 1.0)
+
+    def test_weight_out_of_range(self):
+        for weight in (-0.1, 1.5):
+            with self.subTest(weight=weight), self.assertRaises(ValueError):
+                EventRankingService(CosineCompatibilityModel(), filters=[], search_weight=weight)
+
+
+def recording_jev(scores: dict[str, object], requests: list | None = None, fail: bool = False):
+    """A fake Jev client that records each request and answers with `scores` by event id."""
+
+    async def client(request: dict) -> dict:
+        if requests is not None:
+            requests.append(request)
+        if fail:
+            raise ConnectionError("down")
+        return {"answers": {f"event_{eid}": {"type": "score", "score": s} for eid, s in scores.items()}}
+
+    return client
+
+
+class RerankTests(unittest.TestCase):
+    # Model order (cosine vs [1, 0, 0]): a > b > c > d.
+    EVENTS = [
+        event("a", [1.0, 0.0, 0.0], description="Interests:\n- jazz"),
+        event("b", [1.0, 0.5, 0.0], description="Interests:\n- pottery"),
+        event("c", [1.0, 1.0, 0.0], description="Interests:\n- hiking"),
+        event("d", [0.5, 1.0, 0.0]),
+    ]
+    USER = user(positive_text="Interests:\n- jazz", negative_text="Social:\n- large crowds")
+
+    def post(self, jev, body=None, top_k=20):
+        service = EventRankingService(CosineCompatibilityModel(), filters=[], jev=jev, rerank_top_k=top_k)
+        response = TestClient(create_app(service)).post(
+            "/v1/events/rank", json={"user": self.USER, "events": self.EVENTS, **(body or {})}
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def ids(self, body):
+        return [e["event_id"] for e in body["events"]]
+
+    def test_jev_reorders_and_reports_scores(self):
+        body = self.post(recording_jev({"a": 0.5, "b": 3.5, "c": 2.0}))
+        self.assertTrue(body["reranked"])
+        # d has no description: not sent to Jev, placed after the judged events.
+        self.assertEqual(self.ids(body), ["b", "c", "a", "d"])
+        self.assertEqual([e["rerank_score"] for e in body["events"]], [3.5, 2.0, 0.5, None])
+
+    def test_request_carries_texts_and_search(self):
+        requests = []
+        self.post(recording_jev({}, requests), {"search_text": "  Interests:\n- live jazz  "})
+        state = requests[0]["state"]
+        self.assertEqual(state["user"]["description"], "Interests:\n- jazz")
+        self.assertEqual(state["user"]["dislikes"], "Social:\n- large crowds")
+        self.assertEqual(state["search"], {"description": "Interests:\n- live jazz"})
+        self.assertEqual([e["id"] for e in state["events"]], ["a", "b", "c"])
+
+    def test_only_top_k_is_reranked(self):
+        requests = []
+        body = self.post(recording_jev({"a": 0.1, "b": 3.0}, requests), top_k=2)
+        self.assertEqual([e["id"] for e in requests[0]["state"]["events"]], ["a", "b"])
+        self.assertEqual(self.ids(body), ["b", "a", "c", "d"])
+
+    def test_request_top_k_overrides_service(self):
+        requests = []
+        self.post(recording_jev({}, requests), {"options": {"rerank_top_k": 1}})
+        self.assertEqual([e["id"] for e in requests[0]["state"]["events"]], ["a"])
+
+    def test_limit_applies_after_rerank(self):
+        body = self.post(recording_jev({"a": 0.5, "b": 3.5, "c": 2.0}), {"options": {"limit": 2}})
+        self.assertEqual(self.ids(body), ["b", "c"])
+
+    def test_skipped_without_profile_text_or_when_disabled(self):
+        requests = []
+        jev = recording_jev({"c": 4.0}, requests)
+        for extra in ({"user": user()}, {"options": {"rerank": False}}):
+            with self.subTest(extra=extra):
+                body = self.post(jev, extra)
+                self.assertFalse(body["reranked"])
+                self.assertEqual(self.ids(body), ["a", "b", "c", "d"])
+        self.assertEqual(requests, [])
+
+    def test_no_jev_configured_keeps_model_order(self):
+        body = self.post(None)
+        self.assertFalse(body["reranked"])
+        self.assertEqual(self.ids(body), ["a", "b", "c", "d"])
+        self.assertIsNone(body["events"][0]["rerank_score"])
+
+    def test_jev_failure_keeps_model_order(self):
+        with self.assertLogs("reranking.reranker", level="ERROR"):
+            body = self.post(recording_jev({}, fail=True))
+        self.assertFalse(body["reranked"])
+        self.assertEqual(self.ids(body), ["a", "b", "c", "d"])
+
+    def test_final_sort_uses_jev_then_model_score(self):
+        # Input order is the reverse of model order, so nothing here relies on input order.
+        shuffled = {"events": list(reversed(self.EVENTS))}
+        body = self.post(recording_jev({"a": 2.0, "b": 2.0, "c": 3.0}), shuffled)
+        # c: highest Jev score. a and b tie on Jev, so the model score (a > b) decides. d: not judged.
+        self.assertEqual(self.ids(body), ["c", "a", "b", "d"])
+
+    def test_top_k_is_picked_by_model_score_not_input_order(self):
+        requests = []
+        shuffled = {"events": list(reversed(self.EVENTS))}
+        body = self.post(recording_jev({"a": 1.0, "b": 2.0}, requests), shuffled, top_k=2)
+        self.assertEqual(sorted(e["id"] for e in requests[0]["state"]["events"]), ["a", "b"])
+        self.assertEqual(self.ids(body), ["b", "a", "c", "d"])
+
+    def test_jev_failure_is_sorted_by_model_score(self):
+        shuffled = {"events": list(reversed(self.EVENTS))}
+        with self.assertLogs("reranking.reranker", level="ERROR"):
+            body = self.post(recording_jev({}, fail=True), shuffled)
+        self.assertEqual(self.ids(body), ["a", "b", "c", "d"])
+
+    def test_top_k_must_be_positive(self):
+        with self.assertRaises(ValueError):
+            EventRankingService(CosineCompatibilityModel(), filters=[], rerank_top_k=0)
 
 
 class FilterTests(unittest.TestCase):

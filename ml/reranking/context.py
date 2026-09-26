@@ -5,7 +5,7 @@ When those schemas change, update these functions; the Jev request building,
 parsing, and ranking code does not need to change.
 """
 
-from .models import Event, EventContext, User, UserContext
+from .models import Event, EventContext, SearchContext, User, UserContext
 
 
 def user_to_context(user: User) -> UserContext:
@@ -26,7 +26,7 @@ def user_to_context(user: User) -> UserContext:
         sections.append(_bullets("Preferences", preferences))
 
     description = "\n\n".join(sections) or "No stated interests or preferences."
-    return UserContext(user_id=user.id, description=description)
+    return UserContext(user_id=user.id, description=description, dislikes=user_dislikes_description(user))
 
 
 def user_dislikes_description(user: User) -> str | None:
@@ -37,6 +37,13 @@ def user_dislikes_description(user: User) -> str | None:
     if not user.dislikes:
         return None
     return _bullets("Dislikes", user.dislikes)
+
+
+def search_to_context(text: str | None) -> SearchContext | None:
+    """The search's preference text, or None when the user gave none (so no search is applied)."""
+    if text is None or not text.strip():
+        return None
+    return SearchContext(description=text.strip())
 
 
 def event_to_context(event: Event) -> EventContext:

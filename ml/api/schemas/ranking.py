@@ -22,10 +22,16 @@ class UserInput(BaseModel):
 
     A missing optional field disables the corresponding filter. An all-zero
     `negative_embedding` means the user has no negative signal.
+
+    `positive_text` / `negative_text` are the eight-section likes and dislikes
+    the embeddings were made from. The Jev rerank reads them; without
+    `positive_text` there is no rerank.
     """
 
     positive_embedding: Vector
     negative_embedding: Vector
+    positive_text: str | None = None
+    negative_text: str | None = None
 
     max_price: NonNegative | None = None
     latitude: Latitude | None = None
@@ -37,10 +43,15 @@ class UserInput(BaseModel):
 
 
 class EventInput(BaseModel):
-    """A candidate event. `id` is opaque to this service and never used for lookups."""
+    """A candidate event. `id` is opaque to this service and never used for lookups.
+
+    `description` is the event's eight-section embedding text, read by the Jev
+    rerank. Events without one can't be judged and go after judged ones.
+    """
 
     id: Annotated[str, Field(min_length=1)]
     embedding: Vector
+    description: str | None = None
 
     price: NonNegative | None = None
     start_time: AwareDatetime | None = None
@@ -51,21 +62,44 @@ class EventInput(BaseModel):
 
 
 class RankingOptions(BaseModel):
+    """`rerank_top_k` is how many of the best model-ranked events Jev reorders
+    (default: the service's setting); `rerank: false` skips Jev. `limit` is
+    applied after the rerank.
+    """
+
     min_score: FiniteFloat | None = None
     limit: Annotated[int, Field(gt=0)] | None = None
+    rerank: bool = True
+    rerank_top_k: Annotated[int, Field(gt=0)] | None = None
 
 
 class RankEventsRequest(BaseModel):
+    """`search_embedding` embeds what the user asked for in this search (the
+    eight-section preference paragraph). It is blended into the user's positive
+    embedding for this request only and never stored; absent or all-zero means
+    no search. `search_text` is that same paragraph, for the Jev rerank.
+    """
+
     user: UserInput
     events: list[EventInput]
+    search_embedding: Vector | None = None
+    search_text: str | None = None
     options: RankingOptions = Field(default_factory=RankingOptions)
 
 
 class RankedEvent(BaseModel):
+    """`score` is the compatibility model's; `rerank_score` is Jev's 0-4 score,
+    null for events Jev didn't judge.
+    """
+
     event_id: str
     score: float
+    rerank_score: float | None = None
 
 
 class RankEventsResponse(BaseModel):
+    """`reranked` is true only when Jev actually reordered the top events."""
+
     events: list[RankedEvent]
     model_version: str
+    reranked: bool = False

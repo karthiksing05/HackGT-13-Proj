@@ -1,11 +1,12 @@
 import asyncio
 import unittest
 
-from reranking import Event, User, rerank_events
-from reranking.jev import EVENT_MATCH_CRITERIA, build_jev_request, parse_jev_scores
+from reranking import Event, SearchContext, User, rerank_events, search_to_context
+from reranking.jev import EVENT_MATCH_CRITERIA, SEARCH_MATCH_CRITERIA, build_jev_request, parse_jev_scores
 from reranking.context import event_to_context, user_to_context
 
 USER = User(id="u1", name="Sam", interests=["jazz"], preferred_environment="social", budget=20)
+SEARCH = SearchContext(description="Interests:\n- live jazz\n\nSocial:\n- small group")
 
 
 def make_event(event_id: str) -> Event:
@@ -21,8 +22,8 @@ def fake_jev(scores: dict[str, object]):
     return client
 
 
-def rerank(events, jev):
-    return asyncio.run(rerank_events(USER, events, jev=jev))
+def rerank(events, jev, search=None):
+    return asyncio.run(rerank_events(USER, events, search=search, jev=jev))
 
 
 class RequestTests(unittest.TestCase):
@@ -37,6 +38,34 @@ class RequestTests(unittest.TestCase):
         for question in request["questions"].values():
             self.assertEqual(question["type"], "score")
             self.assertEqual(question["criteria"], EVENT_MATCH_CRITERIA)
+        self.assertNotIn("search", state)
+        self.assertNotIn("dislikes", state["user"])
+
+    def test_search_request(self):
+        events = [event_to_context(make_event("a")), event_to_context(make_event("b"))]
+        request = build_jev_request(user_to_context(USER), events, SEARCH)
+
+        self.assertEqual(request["state"]["search"], {"description": SEARCH.description})
+        for question in request["questions"].values():
+            self.assertEqual(question["criteria"], SEARCH_MATCH_CRITERIA)
+            self.assertIn("search", question["instructions"])
+
+    def test_user_dislikes_sent_separately(self):
+        user = User(id="u2", name="Ali", interests=["jazz"], dislikes=["crowds"])
+        context = user_to_context(user)
+        state = build_jev_request(context, [event_to_context(make_event("a"))])["state"]
+
+        self.assertEqual(state["user"]["dislikes"], "Dislikes:\n- crowds")
+        self.assertNotIn("Dislikes", context.description)
+
+
+class SearchContextTests(unittest.TestCase):
+    def test_empty_means_no_search(self):
+        for text in (None, "", "   \n"):
+            self.assertIsNone(search_to_context(text))
+
+    def test_strips_whitespace(self):
+        self.assertEqual(search_to_context("  Interests:\n- jazz \n").description, "Interests:\n- jazz")
 
 
 class ParseTests(unittest.TestCase):
@@ -81,6 +110,18 @@ class RerankTests(unittest.TestCase):
         ranked = rerank([first, dup, make_event("b")], fake_jev({"a": 0.1, "b": 2.0}))
         self.assertEqual([e.id for e in ranked], ["b", "a"])
         self.assertIs(ranked[1], first)
+
+    def test_search_reaches_jev(self):
+        requests = []
+        scored = fake_jev({"a": 0.4, "b": 3.2})
+
+        async def recording(request):
+            requests.append(request)
+            return await scored(request)
+
+        ranked = rerank([make_event("a"), make_event("b")], recording, search=SEARCH)
+        self.assertEqual([e.id for e in ranked], ["b", "a"])
+        self.assertEqual(requests[0]["state"]["search"]["description"], SEARCH.description)
 
     def test_jev_failure_falls_back_to_retrieval_order(self):
         async def failing(_):

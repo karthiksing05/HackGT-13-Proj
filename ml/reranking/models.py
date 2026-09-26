@@ -3,8 +3,8 @@
 `User` and `Event` are placeholder domain models. Their fields are arbitrary
 and expected to change; only `context.py` should depend on them.
 
-`UserContext`, `EventContext`, and `EventScore` are the stable types the Jev
-ranking code is written against.
+`UserContext`, `EventContext`, `SearchContext`, and `EventScore` are the
+stable types the Jev ranking code is written against.
 """
 
 from dataclasses import dataclass, field
@@ -39,6 +39,14 @@ class Event:
 @dataclass(frozen=True)
 class UserContext:
     user_id: str
+    description: str
+    dislikes: str | None = None  # kept apart from `description`, which is embedded as positive signal
+
+
+@dataclass(frozen=True)
+class SearchContext:
+    """What the user wants from one search, in the eight-section format. Not persisted."""
+
     description: str
 
 

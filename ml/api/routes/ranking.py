@@ -10,9 +10,17 @@ router = APIRouter()
 
 
 @router.post("/v1/events/rank", response_model=RankEventsResponse)
-def rank_events(
+async def rank_events(
     request: RankEventsRequest,
     ranking_service: EventRankingService = Depends(get_ranking_service),
 ) -> RankEventsResponse:
-    events = ranking_service.rank(user=request.user, events=request.events, options=request.options)
-    return RankEventsResponse(events=events, model_version=ranking_service.model.version)
+    outcome = await ranking_service.rank_and_rerank(
+        user=request.user,
+        events=request.events,
+        options=request.options,
+        search_embedding=request.search_embedding,
+        search_text=request.search_text,
+    )
+    return RankEventsResponse(
+        events=outcome.events, model_version=ranking_service.model.version, reranked=outcome.reranked
+    )

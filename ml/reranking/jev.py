@@ -10,7 +10,7 @@ from typing import Any, Awaitable, Callable
 
 from typesafe_sdk import AsyncTypeSafeClient
 
-from .models import EventContext, EventScore, UserContext
+from .models import EventContext, EventScore, SearchContext, UserContext
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,33 @@ EVENT_MATCH_CRITERIA: list[str] = [
     ),
 ]
 
+# Used instead of EVENT_MATCH_CRITERIA when the user describes what they want
+# from this search. Same rules: independent levels, one dimension. The search
+# leads and the profile is background.
+SEARCH_MATCH_CRITERIA: list[str] = [
+    (
+        "The event has nothing to do with what the user is looking for right now, or clearly "
+        "conflicts with their preferences, and they would most likely skip it."
+    ),
+    (
+        "The event has little connection to what the user is looking for right now, or has "
+        "drawbacks relative to their preferences that make attending unlikely."
+    ),
+    (
+        "The event only loosely relates to what the user is looking for right now, or fits it but "
+        "clashes with their usual preferences; there is no strong reason to expect them to pick it or avoid it."
+    ),
+    (
+        "The event fits what the user is looking for right now and there is a plausible reason they "
+        "would enjoy it, but the fit is partial or there are minor drawbacks relative to their preferences."
+    ),
+    (
+        "The event clearly fits what the user is looking for right now and suits their usual "
+        "preferences, with clear reasons to expect that they would want to attend it."
+    ),
+]
+assert len(SEARCH_MATCH_CRITERIA) == len(EVENT_MATCH_CRITERIA), "both scales must share MAX_SCORE"
+
 # Jev's Score primitive returns a continuous value in [0, len(criteria) - 1].
 MAX_SCORE = len(EVENT_MATCH_CRITERIA) - 1
 
@@ -55,33 +82,55 @@ def question_key(event_id: str) -> str:
     return f"event_{event_id}"
 
 
-def build_jev_state(user: UserContext, events: list[EventContext]) -> dict[str, Any]:
-    return {
-        "user": {"id": user.user_id, "description": user.description},
-        "events": [{"id": e.event_id, "description": e.description} for e in events],
-    }
+def build_jev_state(
+    user: UserContext, events: list[EventContext], search: SearchContext | None = None
+) -> dict[str, Any]:
+    user_state = {"id": user.user_id, "description": user.description}
+    if user.dislikes:
+        user_state["dislikes"] = user.dislikes
+    state: dict[str, Any] = {"user": user_state}
+    if search is not None:
+        state["search"] = {"description": search.description}
+    state["events"] = [{"id": e.event_id, "description": e.description} for e in events]
+    return state
 
 
-def build_jev_questions(events: list[EventContext]) -> dict[str, dict[str, Any]]:
+def build_jev_questions(
+    events: list[EventContext], search: SearchContext | None = None
+) -> dict[str, dict[str, Any]]:
+    criteria = EVENT_MATCH_CRITERIA if search is None else SEARCH_MATCH_CRITERIA
     return {
         question_key(e.event_id): {
             "type": "score",
-            "instructions": (
-                f'How likely is the user to enjoy or want to attend the event with id "{e.event_id}"? '
-                "Judge only that event, based on the user's stated interests and preferences."
-            ),
-            "criteria": EVENT_MATCH_CRITERIA,
+            "instructions": _instructions(e.event_id, search),
+            "criteria": criteria,
         }
         for e in events
     }
 
 
-def build_jev_request(user: UserContext, events: list[EventContext]) -> dict[str, Any]:
+def build_jev_request(
+    user: UserContext, events: list[EventContext], search: SearchContext | None = None
+) -> dict[str, Any]:
     # The SDK accepts a JSON object as state and serializes it for us.
     return {
-        "state": build_jev_state(user, events),
-        "questions": build_jev_questions(events),
+        "state": build_jev_state(user, events, search),
+        "questions": build_jev_questions(events, search),
     }
+
+
+def _instructions(event_id: str, search: SearchContext | None) -> str:
+    if search is None:
+        return (
+            f'How likely is the user to enjoy or want to attend the event with id "{event_id}"? '
+            "Judge only that event, based on the user's stated interests and preferences."
+        )
+    return (
+        "The user is currently looking for what the search description says. "
+        f'How likely is the user to want to attend the event with id "{event_id}" for this search? '
+        "Judge only that event. Treat the search as the main requirement and the user's profile "
+        "(interests, preferences and dislikes) as background; where they conflict, follow the search."
+    )
 
 
 async def call_jev(request: dict[str, Any]) -> dict[str, Any]:

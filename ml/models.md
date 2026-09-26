@@ -350,5 +350,8 @@ the result.
 - **A re-ranker, not a search engine.** It was trained on candidates that were already plausible (retrieved
   and hard negatives) plus random ones. Use cosine retrieval to shortlist, then this model to rank the
   shortlist.
+- **Blended user vectors are untested.** `/v1/events/rank` blends a search's embedding into the user's
+  positive embedding (`SEARCH_WEIGHT`, default 0.6). The model only saw single-text embeddings, so tune the
+  weight against real searches.
 - **`Social` preferences are under-represented.** Only 7% of training events have a `Social` section, so
   group-size preferences carry less weight than interests or timing.
