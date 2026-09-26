@@ -99,6 +99,7 @@ struct GroupSplitsView: View {
             switch ledger {
             case .loading:
                 SplitsSkeleton()
+                    .sqSlowLoading()
                     .transition(.opacity)
             case .failed(let message):
                 ErrorStateView(message: message) { Task { await retryLoad() } }

@@ -19,6 +19,9 @@ final class FacebookModel {
 
     var isConnected: Bool { connection.value?.connected ?? false }
     var lastImport: FacebookImport? { connection.value?.lastImport }
+    /// Facebook is being read (the import after connecting, or a refresh): the sheet shows the S
+    /// over what the server is doing meanwhile, and Setup's caption says it's still going.
+    var isImporting: Bool { work == .connecting || work == .refreshing }
 
     /// Loads (or quietly reloads) the connection, and the saved preferences the changes are shown against.
     func load(_ env: AppEnvironment) async {

@@ -127,6 +127,7 @@ private struct ThreadScreen: View {
                 .sqShimmer()
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Loading")
+                .sqSlowLoading()
                 .transition(.opacity)
             }
         }

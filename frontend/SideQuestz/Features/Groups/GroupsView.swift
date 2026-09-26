@@ -50,6 +50,7 @@ struct GroupsView: View {
                     GroupsSkeleton()
                     MessagesSkeleton()
                 }
+                .sqSlowLoading(lines: ["Loading your groups…"])
                 .transition(.opacity)
             case .failed(let message):
                 ErrorStateView(message: message) { Task { await load(showLoading: true) } }

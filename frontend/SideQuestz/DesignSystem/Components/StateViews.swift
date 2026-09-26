@@ -99,13 +99,19 @@ struct EmptyStateView: View {
 }
 
 /// Switches between loading / error / content for a `Loadable`, cross-fading between them. While
-/// loading it shows `skeleton` (the content's shape, shimmering) or else the logo loader.
+/// loading it shows `skeleton` (the content's shape, shimmering; the logo loader takes its place
+/// after `slowAfter`, see `SlowLoading`) or else the logo loader right away.
 /// Several views passed as content stack with no spacing: wrap rows in your own `VStack(spacing:)`.
 struct LoadableView<Value, Content: View>: View {
     let state: Loadable<Value>
     var loadingLabel: String? = nil
     var skeleton: SkeletonLayout? = nil
     var minHeight: CGFloat = 160
+    /// The skeleton gives way to the logo loader after this long.
+    var slowAfter: Duration = SlowLoading.threshold
+    /// Lines under that loader (they rotate when there are several).
+    var slowLines: [String] = []
+    var slowLogoSize: CGFloat = 40
     let retry: () -> Void
     @ViewBuilder var content: (Value) -> Content
 
@@ -118,6 +124,7 @@ struct LoadableView<Value, Content: View>: View {
                 Group {
                     if let skeleton {
                         SkeletonView(layout: skeleton)
+                            .sqSlowLoading(after: slowAfter, lines: slowLines, logoSize: slowLogoSize)
                     } else {
                         LoadingStateView(label: loadingLabel, minHeight: minHeight)
                     }

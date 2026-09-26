@@ -3,11 +3,15 @@ import SwiftUI
 // MARK: - Loading container
 
 /// Home's loading / error / content switch. While the first load runs it shows `skeleton` (the
-/// section's own shape), then cross-fades to the content. The content is stacked leading with no
+/// section's own shape; the logo loader over `slowLines` takes its place after `slowAfter`, see
+/// `SlowLoading`), then cross-fades to the content. The content is stacked leading with no
 /// spacing, exactly as it sits in its parent, so a multi-view section keeps its layout.
 struct HomeLoadable<Value, Skeleton: View, Content: View>: View {
     let state: Loadable<Value>
     var minHeight: CGFloat = 160
+    var slowAfter: Duration = SlowLoading.threshold
+    var slowLines: [String] = []
+    var slowLogoSize: CGFloat = 40
     let retry: () -> Void
     @ViewBuilder var skeleton: () -> Skeleton
     @ViewBuilder var content: (Value) -> Content
@@ -19,6 +23,7 @@ struct HomeLoadable<Value, Skeleton: View, Content: View>: View {
             case .loading:
                 skeleton()
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .sqSlowLoading(after: slowAfter, lines: slowLines, logoSize: slowLogoSize)
                     .transition(.opacity)
             case .failed(let message):
                 ErrorStateView(message: message, minHeight: minHeight, retry: retry)

@@ -396,13 +396,19 @@ private struct AuthArriveModifier: ViewModifier {
 // MARK: - Loading
 
 /// Like the kit's `LoadableView`, but the loading state is a skeleton that echoes this section's own
-/// layout (shimmering while `shimmers`), cross-fading to the content or an error. Pass the content
-/// as one view (a `VStack` of rows): this container overlaps its children.
+/// layout (shimmering while `shimmers`), cross-fading to the content or an error. A first load
+/// that's still running after `slowAfter` swaps the skeleton for the logo loader (`SlowLoading`);
+/// the S is 32pt by default, since these are cards. Pass the content as one view (a `VStack` of
+/// rows): this container overlaps its children.
 struct AuthLoadable<Value, Skeleton: View, Content: View>: View {
     let state: Loadable<Value>
     var minHeight: CGFloat = 120
-    /// Off while the screen isn't visible (tabs stay alive underneath), so nothing animates offscreen.
+    /// Off while the screen isn't visible (tabs stay alive underneath), so nothing animates offscreen
+    /// and the slow-loading wait doesn't start until the card can be seen.
     var shimmers = true
+    var slowAfter: Duration = SlowLoading.threshold
+    var slowLines: [String] = []
+    var slowLogoSize: CGFloat = 32
     let retry: () -> Void
     @ViewBuilder var skeleton: () -> Skeleton
     @ViewBuilder var content: (Value) -> Content
@@ -415,6 +421,7 @@ struct AuthLoadable<Value, Skeleton: View, Content: View>: View {
                     .sqShimmer(active: shimmers)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("Loading")
+                    .sqSlowLoading(shimmers, after: slowAfter, lines: slowLines, logoSize: slowLogoSize)
                     .transition(.opacity)
             case .failed(let message):
                 ErrorStateView(message: message, minHeight: minHeight, retry: retry)

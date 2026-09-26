@@ -29,7 +29,7 @@ struct HomeCalendarView: View {
     }
 
     var body: some View {
-        HomeLoadable(state: store.days, minHeight: 240, retry: retry) {
+        HomeLoadable(state: store.days, minHeight: 240, slowLines: ["Loading your calendar…"], retry: retry) {
             HomeCalendarSkeleton()
         } content: { days in
             chips(days)

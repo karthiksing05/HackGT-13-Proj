@@ -143,6 +143,7 @@ struct ThreadChatView: View {
             switch messages {
             case .loading:
                 SkeletonView(layout: .bubbles(count: 5))
+                    .sqSlowLoading()
                     .transition(.opacity)
             case .failed(let message):
                 ErrorStateView(message: message) { Task { await retryLoad() } }
