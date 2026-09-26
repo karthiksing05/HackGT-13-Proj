@@ -848,10 +848,17 @@ func docsOf[T any](items []T, id func(*T) string) []seedDoc {
 }
 
 // writeSeedWorld replaces every seeded document (inserting the missing
-// ones), then undoes what a walkthrough changes that the seed does not own:
-// Sandy's rating of the solo stop and an accepted friendship with Theo. It
-// returns how many documents of each collection the demo has.
+// ones) and undoes what a walkthrough changes that the seed does not own:
+// another default card of Sandy's, her rating of the solo stop and an
+// accepted friendship with Theo. It returns how many documents of each
+// collection the demo has.
 func writeSeedWorld(ctx context.Context, st *store.Store, w *seedWorld) ([]seedCount, error) {
+	// One default card per user (a unique partial index): another card Sandy
+	// made the default stops being it before the demo Visa takes over.
+	if _, err := st.Collection(store.CollPaymentMethods).UpdateMany(ctx,
+		bson.M{"userId": w.sandyID, "_id": bson.M{"$ne": seedCardID}, "isDefault": true}, bson.M{"$set": bson.M{"isDefault": false}}); err != nil {
+		return nil, fmt.Errorf("make room for the demo Visa as the default: %w", err)
+	}
 	collections := []struct {
 		name string
 		docs []seedDoc
@@ -881,10 +888,6 @@ func writeSeedWorld(ctx context.Context, st *store.Store, w *seedWorld) ([]seedC
 	}
 	if _, err := st.Collection(store.CollFriendships).DeleteOne(ctx, bson.M{"_id": models.FriendshipID(w.sandyID, w.theoID)}); err != nil {
 		return nil, fmt.Errorf("reset Theo's request: %w", err)
-	}
-	if _, err := st.Collection(store.CollPaymentMethods).UpdateMany(ctx,
-		bson.M{"userId": w.sandyID, "_id": bson.M{"$ne": seedCardID}}, bson.M{"$set": bson.M{"isDefault": false}}); err != nil {
-		return nil, fmt.Errorf("keep the demo Visa the default: %w", err)
 	}
 	return counts, nil
 }

@@ -20,8 +20,9 @@ func init() {
 	)
 }
 
-// checkoutIntentForA gives A a plan with a priced stop and a card, starts a
-// checkout for it and points B's request at A's intent.
+// checkoutIntentForA gives A a plan with a priced stop, starts a checkout
+// for it and points B's request at A's intent. Whether A has a card (other
+// rows may add one) only changes the intent's state; B gets 404 either way.
 func checkoutIntentForA(method, suffix string) func(t *testing.T, srv *testutil.Server, a *testutil.Session) (string, string, any) {
 	return func(t *testing.T, srv *testutil.Server, a *testutil.Session) (string, string, any) {
 		t.Helper()
@@ -35,11 +36,7 @@ func checkoutIntentForA(method, suffix string) func(t *testing.T, srv *testutil.
 				End: now.Add(2 * time.Hour), Bookable: true, PriceCents: &price}},
 			CreatedAt: now, UpdatedAt: now,
 		}
-		card := models.PaymentMethod{ID: store.NewID(), UserID: a.UserID, Brand: "Visa", Last4: "4242", IsDefault: true, CreatedAt: now}
 		if _, err := srv.Store.Collection(store.CollItineraries).InsertOne(t.Context(), itin); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := srv.Store.Collection(store.CollPaymentMethods).InsertOne(t.Context(), card); err != nil {
 			t.Fatal(err)
 		}
 		var intent contract.CheckoutIntent

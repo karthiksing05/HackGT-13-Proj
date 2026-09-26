@@ -308,6 +308,10 @@ func TestSeedDemo(t *testing.T) {
 	if _, err := st.Collection(store.CollFriendRequests).UpdateOne(ctx, bson.M{"_id": seedRequestID}, bson.M{"$set": bson.M{"status": models.RequestAccepted}}); err != nil {
 		t.Fatal(err)
 	}
+	// She added a Mastercard and made it the default (one default per user).
+	if _, err := st.Collection(store.CollPaymentMethods).UpdateOne(ctx, bson.M{"_id": seedCardID}, bson.M{"$set": bson.M{"isDefault": false}}); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := st.Collection(store.CollPaymentMethods).InsertOne(ctx, models.PaymentMethod{ID: "pm-extra", UserID: sandyID, Brand: "Mastercard",
 		Last4: "5454", IsDefault: true}); err != nil {
 		t.Fatal(err)
@@ -340,6 +344,9 @@ func TestSeedDemo(t *testing.T) {
 	}
 	if extra := findDoc[models.PaymentMethod](t, st, store.CollPaymentMethods, bson.M{"_id": "pm-extra"}); extra.IsDefault {
 		t.Fatal("the demo Visa must be the only default card")
+	}
+	if visa := findDoc[models.PaymentMethod](t, st, store.CollPaymentMethods, bson.M{"_id": seedCardID}); !visa.IsDefault {
+		t.Fatal("a second run must make the demo Visa the default again")
 	}
 	user = findDoc[models.User](t, st, store.CollUsers, bson.M{"_id": sandy.id})
 	if user.Prefs.Spend != "under_15" || user.ProfileTextHash != "" || len(user.PositiveEmbedding) != 2 {
