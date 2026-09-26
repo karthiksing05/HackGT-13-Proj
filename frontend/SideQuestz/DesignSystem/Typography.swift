@@ -47,7 +47,7 @@ extension View {
     /// 32 / ExtraBold, tracking −1. Tab screen titles ("Your sidequestz", "Forum", "Groups").
     func largeTitleStyle() -> some View {
         font(.mono(32, .extraBold, relativeTo: .largeTitle)).tracking(-1).foregroundStyle(Theme.ink)
-            .lineLimit(1).minimumScaleFactor(0.8)
+            .lineLimit(1).minimumScaleFactor(0.6)
     }
 
     /// 28 / ExtraBold, tracking −0.8. Setup + forgot-password step titles.

@@ -36,6 +36,10 @@ struct MainShell: View {
         let selected = router.tab == tab
         return content()
             .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: Metrics.tabBarContentHeight) }
+            // Like the prototype, tab content ends at the tab bar instead of showing through it.
+            .mask(alignment: .top) {
+                Rectangle().padding(.bottom, Metrics.tabBarContentHeight).ignoresSafeArea(edges: .top)
+            }
             .opacity(selected ? 1 : 0)
             .allowsHitTesting(selected)
             .accessibilityHidden(!selected)

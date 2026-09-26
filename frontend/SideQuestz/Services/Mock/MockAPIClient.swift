@@ -145,6 +145,9 @@ final class MockAPIClient: APIClient {
         if let dob = request.dateOfBirth {
             user.ageBracket = Validation.ageBracket(age: Validation.age(birthDate: dob, on: clock.now, calendar: clock.calendar))
         }
+        // A brand-new account has no calendar connected and no saved card yet (Setup steps 2 and 4).
+        connected = [.google: false, .outlook: false]
+        cards = []
         return AuthResponse(user: user, tokens: mockTokens())
     }
 

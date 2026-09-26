@@ -2,6 +2,8 @@ import Foundation
 
 /// Trip types rated 1–5 in Setup › "What do you enjoy?".
 enum TripType: String, Codable, CaseIterable, Identifiable, CodingKeyRepresentable {
+    // Used as dictionary keys: keep camelCase raw values — the snake_case JSON strategy converts
+    // dictionary keys both ways ("live_music" on the wire).
     case outdoors, food, museums, liveMusic, nightlife, sports, shopping, bigCrowds, earlyMornings, longWalks
 
     var id: String { rawValue }
@@ -28,7 +30,8 @@ enum TripType: String, Codable, CaseIterable, Identifiable, CodingKeyRepresentab
 }
 
 enum Company: String, Codable, CaseIterable, Identifiable {
-    case solo, smallGroup, bigGroup
+    case solo
+    case smallGroup = "small_group", bigGroup = "big_group"
     var id: String { rawValue }
     var label: String {
         switch self {
@@ -62,7 +65,7 @@ enum Pace: String, Codable, CaseIterable, Identifiable {
 
 /// Setup › "Typical spend per sidequest". Becomes the default budget in Create.
 enum SpendTier: String, Codable, CaseIterable, Identifiable {
-    case freeOnly, under15, from15to40, over40
+    case freeOnly = "free_only", under15 = "under_15", from15to40 = "15_to_40", over40 = "over_40"
     var id: String { rawValue }
     var label: String {
         switch self {
@@ -84,7 +87,7 @@ enum SpendTier: String, Codable, CaseIterable, Identifiable {
 }
 
 enum Flexibility: String, Codable, CaseIterable, Identifiable {
-    case stickToBudget, bitOverOK
+    case stickToBudget = "stick_to_budget", bitOverOK = "bit_over_ok"
     var id: String { rawValue }
     var label: String {
         switch self {
@@ -95,7 +98,8 @@ enum Flexibility: String, Codable, CaseIterable, Identifiable {
 }
 
 enum SplitStyle: String, Codable, CaseIterable, Identifiable {
-    case equally, payOwn, takeTurns
+    case equally
+    case payOwn = "pay_own", takeTurns = "take_turns"
     var id: String { rawValue }
     var label: String {
         switch self {

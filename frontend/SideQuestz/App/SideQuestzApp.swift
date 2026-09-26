@@ -9,6 +9,8 @@ struct SideQuestzApp: App {
         let env = AppEnvironment.makeDefault()
         let defaults = UserDefaults.standard
         if defaults.bool(forKey: "SQResetIntro") { defaults.set(false, forKey: "hasSeenIntro") }
+        // UI tests start signed out: `-SQResetSession YES`.
+        if defaults.bool(forKey: "SQResetSession") { env.auth.clear() }
         let hasSeenIntro = defaults.bool(forKey: "hasSeenIntro")
 
         let router = Router(phase: !hasSeenIntro ? .splash : env.auth.isSignedIn ? .main : .auth)

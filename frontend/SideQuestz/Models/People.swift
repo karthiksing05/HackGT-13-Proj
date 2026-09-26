@@ -12,7 +12,8 @@ struct Place: Codable, Hashable {
 }
 
 enum PresenceStatus: String, Codable, CaseIterable, Identifiable {
-    case open, online, notFree
+    case open, online
+    case notFree = "not_free"
 
     var id: String { rawValue }
 
@@ -42,7 +43,8 @@ enum PresenceStatus: String, Codable, CaseIterable, Identifiable {
 }
 
 enum AgeBracket: String, Codable {
-    case under13, teen, under21, adult
+    case under13 = "under_13", teen
+    case under21 = "under_21", adult
 }
 
 /// The five initials colors a user can pick (Photo sheet › "Or use your initials").
@@ -109,7 +111,7 @@ enum Initials {
 // MARK: - Friends
 
 enum FriendActivity: String, Codable {
-    case free, onSidequest, busy, new
+    case free, onSidequest = "on_sidequest", busy, new
 
     var dotColor: Color {
         switch self {

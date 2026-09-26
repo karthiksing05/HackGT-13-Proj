@@ -18,17 +18,95 @@ struct SheetGrabber: View {
 struct SheetScaffold<Content: View>: View {
     var spacing: CGFloat = 14
     var grabberColor: Color = Theme.lineStrong
+    /// In a `.fitted(max:)` sheet, let the child marked `.sheetShrinks()` give up height (and scroll
+    /// inside itself) so everything else stays on screen, like the prototype's flex-column sheets.
+    var shrinksToFit = false
     @ViewBuilder var content: Content
     @Environment(\.safeAreaBottom) private var safeBottom
+    @Environment(\.sheetHeightLimit) private var heightLimit
 
     var body: some View {
-        VStack(alignment: .leading, spacing: spacing) {
-            SheetGrabber(color: grabberColor)
-            content
+        stack
+            .padding(.top, 8)
+            .padding(.horizontal, Metrics.side)
+            .padding(.bottom, bottomPadding)
+    }
+
+    private var bottomPadding: CGFloat { max(0, 34 - safeBottom) }
+
+    @ViewBuilder private var stack: some View {
+        if shrinksToFit, let heightLimit {
+            ShrinkingVStack(spacing: spacing, maxHeight: heightLimit - 8 - bottomPadding) {
+                SheetGrabber(color: grabberColor)
+                content
+            }
+        } else {
+            VStack(alignment: .leading, spacing: spacing) {
+                SheetGrabber(color: grabberColor)
+                content
+            }
         }
-        .padding(.top, 8)
-        .padding(.horizontal, Metrics.side)
-        .padding(.bottom, max(0, 34 - safeBottom))
+    }
+}
+
+private nonisolated struct SheetShrinksKey: LayoutValueKey {
+    static let defaultValue = false
+}
+
+extension View {
+    /// The child of a `SheetScaffold(shrinksToFit: true)` that gets shorter when the sheet hits its
+    /// max height. Make it a `ScrollView` so its hidden part stays reachable.
+    func sheetShrinks() -> some View {
+        layoutValue(key: SheetShrinksKey.self, value: true)
+    }
+}
+
+/// A leading-aligned vertical stack. Children get their ideal heights; past `maxHeight` the
+/// `.sheetShrinks()` child loses the difference (CSS flex-shrink on an `overflow: hidden` item).
+private struct ShrinkingVStack: Layout {
+    var spacing: CGFloat
+    var maxHeight: CGFloat
+    /// Keep about two rows visible however tall everything else gets.
+    var minShrunkHeight: CGFloat = 120
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let sizes = sizes(width: proposal.width, subviews: subviews)
+        return CGSize(width: proposal.width ?? sizes.map(\.width).max() ?? 0, height: totalHeight(sizes))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for (subview, size) in zip(subviews, sizes(width: bounds.width, subviews: subviews)) {
+            subview.place(at: CGPoint(x: bounds.minX, y: y), anchor: .topLeading,
+                          proposal: ProposedViewSize(width: bounds.width, height: size.height))
+            y += size.height + spacing
+        }
+    }
+
+    private func totalHeight(_ sizes: [CGSize]) -> CGFloat {
+        sizes.map(\.height).reduce(0, +) + spacing * CGFloat(max(0, sizes.count - 1))
+    }
+
+    private func sizes(width: CGFloat?, subviews: Subviews) -> [CGSize] {
+        var sizes = subviews.map { $0.sizeThatFits(ProposedViewSize(width: width, height: nil)) }
+        let overflow = totalHeight(sizes) - maxHeight
+        if overflow > 0, let index = subviews.firstIndex(where: { $0[SheetShrinksKey.self] }) {
+            let natural = sizes[index].height
+            sizes[index].height = max(min(minShrunkHeight, natural), natural - overflow)
+        }
+        return sizes
+    }
+}
+
+private struct SheetHeightLimitKey: EnvironmentKey {
+    static let defaultValue: CGFloat? = nil
+}
+
+extension EnvironmentValues {
+    /// The tallest a `.fitted(max:)` sheet's content can be before the sheet scrolls.
+    var sheetHeightLimit: CGFloat? {
+        get { self[SheetHeightLimitKey.self] }
+        set { self[SheetHeightLimitKey.self] = newValue }
     }
 }
 
@@ -96,16 +174,19 @@ private struct SQItemSheetModifier<Item: Identifiable, SheetContent: View>: View
     @State private var coverShown = false
 
     func body(content: Content) -> some View {
-        content
+        // Read `shownItem` in body: the cover's content closure is only rebuilt when this modifier
+        // re-renders, so reading it solely inside the closure yields a stale nil (a blank cover).
+        let current = shownItem
+        return content
             .fullScreenCover(isPresented: $coverShown, onDismiss: {
                 shownItem = nil
                 onDismiss?()
             }) {
-                if let shownItem {
+                if let current {
                     SQSheetContainer(style: style, isPresented: item != nil,
                                      requestDismiss: { item = nil },
                                      finished: { setCover(false) },
-                                     content: { sheet(shownItem) })
+                                     content: { sheet(current) })
                         .presentationBackground(.clear)
                 }
             }
@@ -134,6 +215,7 @@ private struct SQSheetContainer<Content: View>: View {
     @State private var visible = false
     @State private var drag: CGFloat = 0
     @State private var contentHeight: CGFloat = 0
+    @Environment(\.safeAreaTop) private var safeTop
     @Environment(\.safeAreaBottom) private var safeBottom
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -168,15 +250,18 @@ private struct SQSheetContainer<Content: View>: View {
         let shape = UnevenRoundedRectangle(topLeadingRadius: Metrics.sheetRadius, topTrailingRadius: Metrics.sheetRadius, style: .continuous)
         Group {
             switch style.height {
-            case .fitted(let max):
-                if let max {
-                    let limit = max - safeBottom
+            case .fitted(let maxHeight):
+                if let maxHeight {
+                    // Never taller than the screen below the status bar (740 on an 844pt screen
+                    // leaves 104 above; smaller phones keep a small gap).
+                    let limit = min(maxHeight, screenHeight - safeTop - 10) - safeBottom
                     ScrollView {
                         measured
                     }
                     .scrollBounceBehavior(.basedOnSize)
                     .scrollDismissesKeyboard(.interactively)
                     .frame(height: min(contentHeight, limit))
+                    .environment(\.sheetHeightLimit, limit)
                 } else {
                     content()
                 }

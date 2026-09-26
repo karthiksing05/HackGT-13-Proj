@@ -36,6 +36,8 @@ final class Router {
 
     /// Demo deep link from `-SQRoute …`; features consume the parts meant for them.
     private(set) var pendingLaunch: [String]?
+    /// `-SQRoute gallery` shows the design-system gallery (development aid).
+    var showsDesignGallery = false
 
     init(phase: Phase) {
         self.phase = phase
@@ -106,6 +108,10 @@ final class Router {
         let parts = route.parts
         guard let head = parts.first else { return }
         switch head {
+        case "gallery":
+            env.startDemoSessionIfNeeded()
+            showsDesignGallery = true
+            return
         case "splash":
             phase = .splash
             return

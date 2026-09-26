@@ -24,7 +24,7 @@ struct SQButtonStyle: ButtonStyle {
             .sqFont(fontSize, weight)
             .foregroundStyle(foreground)
             .lineLimit(1)
-            .minimumScaleFactor(0.8)
+            .minimumScaleFactor(0.7)
             .padding(.horizontal, fullWidth ? 12 : 14)
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: height)
             .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
@@ -139,7 +139,9 @@ struct BackButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 2) {
+                // A 20pt box like the prototype's 20×20 chevron SVG.
                 Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold))
+                    .frame(width: 20, height: 20)
                 Text(title).sqFont(17)
             }
             .foregroundStyle(Theme.sageInk)
@@ -158,8 +160,13 @@ struct CloseCircleButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "xmark")
-                .font(.system(size: 13, weight: .bold))
+            // The prototype's 16pt × (lines 12 units long in a 24-unit box, 2.4 stroke).
+            Path { p in
+                p.move(to: CGPoint(x: 0, y: 0)); p.addLine(to: CGPoint(x: 8, y: 8))
+                p.move(to: CGPoint(x: 8, y: 0)); p.addLine(to: CGPoint(x: 0, y: 8))
+            }
+            .stroke(style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+            .frame(width: 8, height: 8)
                 .foregroundStyle(Theme.text2)
                 .frame(width: 32, height: 32)
                 .background(Theme.cream, in: Circle())

@@ -24,6 +24,9 @@ struct RootView: View {
                     MainShell()
                         .transition(.opacity)
                 }
+                if router.showsDesignGallery {
+                    DesignGalleryView().zIndex(10)
+                }
             }
             .environment(\.safeAreaTop, proxy.safeAreaInsets.top)
             .environment(\.safeAreaBottom, proxy.safeAreaInsets.bottom)
