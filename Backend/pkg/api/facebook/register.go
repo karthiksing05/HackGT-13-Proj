@@ -41,6 +41,10 @@ func newH(d *api.Deps) *H {
 	h := &H{d: d}
 	if c := NewClient(d.Cfg.FBAppID, d.Cfg.FBAppSecret, graphVersion(d.Cfg.FBGraphVersion)); c != nil {
 		h.client = c
+		if !strings.HasPrefix(d.Cfg.PublicBaseURL, "https://") {
+			log.Warn().Str("redirect_uri", h.redirectURI()).
+				Msg("Facebook Login needs an https redirect URI; plain http works only for localhost while the Meta app is in Development mode")
+		}
 	} else {
 		log.Warn().Msg("Facebook connector off: FB_APP_ID and FB_APP_SECRET are not set")
 	}
