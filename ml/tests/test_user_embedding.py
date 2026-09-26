@@ -6,7 +6,8 @@ from fastapi.testclient import TestClient
 
 from compatibility import CosineCompatibilityModel
 from compatibility.user_embedding import EmbeddingUpdateError, MovingAverageUpdater, UserEmbeddingUpdater, l2_normalize
-from ranking import EventRankingService, create_app
+from api import create_app
+from api.helpers.ranking import EventRankingService
 
 URL = "/v1/compatibility/user-embedding/update"
 CURRENT = [0.12, -0.42, 0.31]

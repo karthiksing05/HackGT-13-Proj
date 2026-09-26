@@ -12,22 +12,15 @@ import numpy as np
 
 from compatibility import CompatibilityModel, Embedding, UserEmbedding
 
+from ..errors import InferenceError, RankingRequestError
+from ..schemas.ranking import EventInput, RankedEvent, RankingOptions, UserInput
 from .filters import HardFilter, default_filters
-from .schemas import EventInput, RankedEvent, RankingOptions, UserInput
 
 logger = logging.getLogger(__name__)
 
 # Request vectors carry no encoder version; they are all assumed to come from
 # the same encoder, so one shared tag satisfies the model's version check.
 REQUEST_EMBEDDING_VERSION = "request"
-
-
-class RankingRequestError(ValueError):
-    """The request is well-formed but cannot be ranked (maps to HTTP 400)."""
-
-
-class InferenceError(RuntimeError):
-    """The compatibility model failed (maps to HTTP 500)."""
 
 
 class EventRankingService:

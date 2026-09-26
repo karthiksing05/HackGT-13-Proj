@@ -2,7 +2,7 @@
 
 Pydantic rejects missing fields, non-numeric or non-finite values, empty
 vectors and unknown kinds (422). The cross-field dimension check lives in the
-updater (400), matching the split used by `ranking`.
+updater (400), matching the split used by `/v1/events/rank`.
 """
 
 from typing import Annotated, Literal

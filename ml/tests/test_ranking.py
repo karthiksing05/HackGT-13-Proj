@@ -4,19 +4,17 @@ from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 
 from compatibility import CompatibilityModel, CosineCompatibilityModel, ScoringResult
-from ranking import (
+from api import create_app
+from api.helpers.filters import (
     AvailabilityFilter,
-    EventInput,
-    EventRankingService,
     ExcludedCategoryFilter,
     MaxDistanceFilter,
     MaxPriceFilter,
-    RankingOptions,
     UpcomingFilter,
-    UserInput,
-    create_app,
+    haversine_miles,
 )
-from ranking.filters import haversine_miles
+from api.helpers.ranking import EventRankingService
+from api.schemas.ranking import EventInput, RankingOptions, UserInput
 
 NOW = datetime(2026, 9, 26, 12, tzinfo=timezone.utc)
 
@@ -152,7 +150,7 @@ class ApiTests(unittest.TestCase):
         for model in (FailingModel(), NaNModel()):
             with self.subTest(model=model.version):
                 client = TestClient(create_app(EventRankingService(model, filters=[])))
-                with self.assertLogs("ranking.service", level="ERROR"):
+                with self.assertLogs("api.helpers.ranking", level="ERROR"):
                     response = self.post({"user": user(), "events": [event("e", [1.0, 0.0, 0.0])]}, client)
                 self.assertEqual(response.status_code, 500)
                 self.assertEqual(response.json(), {"detail": "Compatibility inference failed."})

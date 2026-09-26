@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from datetime import datetime, timezone
 
-from .schemas import EventInput, UserInput
+from ..schemas.ranking import EventInput, UserInput
 
 Clock = Callable[[], datetime]
 

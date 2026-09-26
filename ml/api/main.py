@@ -1,6 +1,6 @@
 """ASGI entry point, configured from the environment.
 
-    cd ml && uvicorn ranking.main:app
+    cd ml && uvicorn api.main:app
 
     RANKING_MODEL          "cosine" (default) or "classifier"
     RANKING_CHECKPOINT     classifier checkpoint path (required for "classifier")
@@ -14,8 +14,8 @@ import os
 from compatibility import CompatibilityModel, CosineCompatibilityModel
 from compatibility.user_embedding import DEFAULT_ALPHA, MovingAverageUpdater
 
-from .api import create_app
-from .service import EventRankingService
+from .app import create_app
+from .helpers.ranking import EventRankingService
 
 
 def load_model() -> CompatibilityModel:

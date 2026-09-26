@@ -1,29 +1,14 @@
-"""HTTP layer for the ranking service. Routes only translate; logic lives in `EventRankingService`."""
+"""App factory: wires helpers onto `app.state`, mounts routers and maps errors to HTTP."""
 
-from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from compatibility.user_embedding import MovingAverageUpdater, UserEmbeddingUpdater
-from compatibility.user_embedding.routes import router as user_embedding_router
+from compatibility.user_embedding import EmbeddingUpdateError, MovingAverageUpdater, UserEmbeddingUpdater
 
-from .schemas import RankEventsRequest, RankEventsResponse
-from .service import EventRankingService, InferenceError, RankingRequestError
-
-router = APIRouter()
-
-
-def get_ranking_service(request: Request) -> EventRankingService:
-    return request.app.state.ranking_service
-
-
-@router.post("/v1/events/rank", response_model=RankEventsResponse)
-def rank_events(
-    request: RankEventsRequest,
-    ranking_service: EventRankingService = Depends(get_ranking_service),
-) -> RankEventsResponse:
-    events = ranking_service.rank(user=request.user, events=request.events, options=request.options)
-    return RankEventsResponse(events=events, model_version=ranking_service.model.version)
+from .errors import InferenceError, RankingRequestError
+from .helpers.ranking import EventRankingService
+from .routes import ranking_router, user_embedding_router
 
 
 def create_app(
@@ -32,7 +17,7 @@ def create_app(
     app = FastAPI(title="SideQuestz event ranking")
     app.state.ranking_service = ranking_service
     app.state.user_embedding_updater = user_embedding_updater or MovingAverageUpdater()
-    app.include_router(router)
+    app.include_router(ranking_router)
     app.include_router(user_embedding_router)
 
     @app.exception_handler(RequestValidationError)
@@ -43,7 +28,8 @@ def create_app(
         return JSONResponse(status_code=422, content={"detail": errors})
 
     @app.exception_handler(RankingRequestError)
-    def invalid_request(_: Request, exc: RankingRequestError) -> JSONResponse:
+    @app.exception_handler(EmbeddingUpdateError)
+    def invalid_request(_: Request, exc: ValueError) -> JSONResponse:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     @app.exception_handler(InferenceError)
