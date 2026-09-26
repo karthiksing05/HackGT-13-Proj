@@ -317,6 +317,8 @@ final class CreateFlowModel {
         // The home base is known already: the start shows at once, before the phone answers.
         let home = env.user?.homeBase
         if start == nil, let home { start = home }
+        // Leaving from the home base, the default plan comes back to it ("End where I start").
+        if let home, start == home, end == nil { endSameAsStart = true }
         let task = Task {
             let suggestionsCall: Task<[Place], Never>? = end == nil && !endSameAsStart
                 ? Task { await env.places.suggestions(for: "", near: home?.coordinate, limit: 3) }

@@ -269,14 +269,14 @@ struct HomeBaseTests {
 
     @Test func createStartsAtHomeBaseWhenSet() async throws {
         // The preview account has a home base: the start is set before the phone answers, and the
-        // default end is somewhere else.
+        // default plan comes back to it.
         let env = AppEnvironment.preview()
         let home = try #require(env.user?.homeBase)
         let model = CreateFlowModel(draft: CreateDraft(), env: env)
         #expect(model.start == nil)
         await model.loadDefaultPlacesIfNeeded()
         #expect(model.start == home)
-        #expect(model.end != nil && model.end?.name != home.name && model.end?.name != MockPlaces.techSquare.label)
+        #expect(model.endSameAsStart && model.end == nil && model.endPlace == home)
         #expect(model.placesLoaded && model.currentPlace == MockPlaces.techSquare.place)
         await model.loadSuggestions()
         #expect(Array(model.suggestions.prefix(2)) == [.currentLocation, .homeBase(home)])
