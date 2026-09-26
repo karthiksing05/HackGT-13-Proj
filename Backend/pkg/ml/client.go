@@ -283,15 +283,15 @@ func (c *Client) RankActivities(
 
 		if user.PositiveText != "" {
 			posText = &user.PositiveText
-		} else if user.Prefs.Answers.PerfectAfternoon != "" {
-			t := user.Prefs.Answers.PerfectAfternoon
+		} else if user.Prefs.Answers["perfect_afternoon"] != "" {
+			t := user.Prefs.Answers["perfect_afternoon"]
 			posText = &t
 		}
 
 		if user.NegativeText != "" {
 			negText = &user.NegativeText
-		} else if user.Prefs.Answers.NeverWant != "" {
-			t := user.Prefs.Answers.NeverWant
+		} else if user.Prefs.Answers["never_do"] != "" {
+			t := user.Prefs.Answers["never_do"]
 			negText = &t
 		}
 	}
