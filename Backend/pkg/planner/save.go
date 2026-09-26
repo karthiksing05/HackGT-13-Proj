@@ -2,6 +2,7 @@ package planner
 
 import (
 	"Backend/pkg/itinerary"
+	"Backend/pkg/models"
 	"context"
 	"errors"
 	"strings"
@@ -16,6 +17,7 @@ import (
 // subtitle, place and duration); Route is what /plans/route returned.
 type SaveInput struct {
 	UserID       string
+	Catalog      string // the user's catalog: fills in stops the pool no longer has
 	Plan         Request
 	Option       Option
 	StopOrder    []string
@@ -105,7 +107,11 @@ func (p *Planner) BuildItinerary(ctx context.Context, in SaveInput) (ItineraryDr
 	var pool *PlanPool
 	var opt *Option
 	if runID, ok := RunIDFromOption(in.Option.ID); ok {
-		if pl, err := p.Pools.GetPool(ctx, runID); err == nil {
+		pl, err := p.Pools.GetPool(ctx, runID)
+		if err == nil && in.UserID != "" && pl.UserID != "" && pl.UserID != in.UserID {
+			err = ErrPoolNotFound // someone else's plan: use only what the body says
+		}
+		if err == nil {
 			pool = pl
 			for i := range pool.Options {
 				if pool.Options[i].ID == in.Option.ID {
@@ -141,14 +147,16 @@ func (p *Planner) BuildItinerary(ctx context.Context, in SaveInput) (ItineraryDr
 	ld := date.In(tz)
 	draft.Date = time.Date(ld.Year(), ld.Month(), ld.Day(), 0, 0, 0, 0, tz)
 
-	// Stops: pool records first, the body's stops as the fallback.
-	stops, err := saveStops(pool, opt, in)
+	// Stops: pool records first, the body's stops as the fallback (filled
+	// in from the user's catalog where the ids allow it).
+	stops, fromBody, err := saveStops(pool, opt, in)
 	if err != nil {
 		return draft, err
 	}
 	if len(stops) == 0 {
 		return draft, ErrNoStops
 	}
+	p.enrichFromCatalog(ctx, in.Catalog, stops, fromBody)
 
 	// Times: the route's when it is consistent, else a fresh evaluation.
 	var starts, ends []time.Time
@@ -258,53 +266,100 @@ func (p *Planner) BuildItinerary(ctx context.Context, in SaveInput) (ItineraryDr
 	return draft, nil
 }
 
-// saveStops resolves the order against the pool, or against the body's
-// option when the pool is gone. Unknown ids are an error either way.
-func saveStops(pool *PlanPool, opt *Option, in SaveInput) ([]Stop, error) {
-	if pool != nil && opt != nil {
-		stops, err := resolveStops(pool, opt, in.StopOrder)
-		if err == nil {
-			return stops, nil
-		}
-		var unknown *UnknownStopError
-		if !errors.As(err, &unknown) {
-			return nil, err
-		}
-		// The body may carry stops the pool never saw; fall through.
-	}
+// saveStops resolves the order: the pool's records (the option's stops and
+// the alternatives suggested for it) first, the body's stops for anything
+// the pool does not have. Unknown ids are an error. fromBody marks the stops
+// that came from the body.
+func saveStops(pool *PlanPool, opt *Option, in SaveInput) (stops []Stop, fromBody []bool, err error) {
 	known := map[string]Stop{}
+	pooled := map[string]bool{}
 	for _, s := range in.Option.Stops {
 		known[s.ID] = s
 	}
 	if pool != nil {
 		for id, s := range pool.Alternatives {
-			known[id] = s
+			known[id], pooled[id] = s, true
 		}
 		if opt != nil {
 			for _, s := range opt.Stops {
-				known[s.ID] = s
+				known[s.ID], pooled[s.ID] = s, true
 			}
 		}
 	}
 	order := in.StopOrder
 	if len(order) == 0 {
-		for _, s := range in.Option.Stops {
+		src := in.Option.Stops
+		if opt != nil {
+			src = opt.Stops
+		}
+		for _, s := range src {
 			order = append(order, s.ID)
 		}
 	}
-	var out []Stop
+	seen := map[string]bool{}
 	for _, id := range order {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
 		s, ok := known[id]
 		if !ok {
-			return nil, &UnknownStopError{ID: id}
+			return nil, nil, &UnknownStopError{ID: id}
+		}
+		if s.ActivityID == "" {
+			s.ActivityID, _ = ActivityIDFromStop(id)
 		}
 		if s.DurationMinutes <= 0 {
 			s.DurationMinutes = 60
 		}
-		s.Order = len(out)
-		out = append(out, s)
+		s.Order = len(stops)
+		stops = append(stops, s)
+		fromBody = append(fromBody, !pooled[id])
 	}
-	return out, nil
+	return stops, fromBody, nil
+}
+
+// enrichFromCatalog fills in what the app does not send back for a stop
+// (category, price, links, whether its time can move) from the user's own
+// catalog. What the user saw (title, place, duration) is kept.
+func (p *Planner) enrichFromCatalog(ctx context.Context, catalog string, stops []Stop, fromBody []bool) {
+	cat, ok := NormalizeCatalog(catalog)
+	if p.Lookup == nil || !ok || catalog == "" {
+		return
+	}
+	var ids []string
+	for i, s := range stops {
+		if fromBody[i] && s.ActivityID != "" {
+			ids = append(ids, s.ActivityID)
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	acts, err := p.Lookup.GetActivities(ctx, cat, ids)
+	if err != nil {
+		log.Warn().Err(err).Msg("planner: enrich saved stops")
+		return
+	}
+	byID := map[string]*models.Activity{}
+	for i := range acts {
+		byID[acts[i].ID.Hex()] = &acts[i]
+	}
+	for i := range stops {
+		a := byID[stops[i].ActivityID]
+		if !fromBody[i] || a == nil {
+			continue
+		}
+		full := stopFromActivity(a, nil)
+		s := &stops[i]
+		s.Kind, s.Category, s.Tags = full.Kind, full.Category, full.Tags
+		s.PriceCents, s.PriceKnown, s.Tier, s.TierKnown = full.PriceCents, full.PriceKnown, full.Tier, full.TierKnown
+		s.WebsiteURL, s.TicketURL, s.ImageURL, s.Summary, s.Address = full.WebsiteURL, full.TicketURL, full.ImageURL, full.Summary, full.Address
+		s.Flexible = a.Kind == "place" || (a.Attendance != nil && *a.Attendance == "drop_in")
+		if !s.Place.HasCoord {
+			s.Place = full.Place
+		}
+	}
 }
 
 func routeConsistent(r RouteResult, stops int) bool {

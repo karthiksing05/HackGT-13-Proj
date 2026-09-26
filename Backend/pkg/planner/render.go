@@ -72,6 +72,9 @@ func renderStop(run *Run, s itinerary.Stop, i int) Stop {
 	stop.DurationMinutes = int(node.End.Sub(node.Start).Minutes())
 	stop.Flexible = node.Flexible
 	stop.SeriesKey = node.SeriesKey
+	if node.Flexible {
+		stop.OpenSlots = openSlotsFor(a, run.Spec.TZ, run.Spec.From, run.Spec.BackBy)
+	}
 	if c := run.Pool.Get(a.ID.Hex()); c != nil {
 		stop.Utility = round5(c.Raw())
 	}
@@ -111,6 +114,58 @@ func stopFromActivity(a *models.Activity, tz *time.Location) Stop {
 	}
 	stop.Subtitle = stopSubtitle(stop, a, tz)
 	return stop
+}
+
+// openSlotPad widens the stored opening slots beyond the plan's window, so
+// a re-route with a moved start or back-by time can still be checked.
+const openSlotPad = 12 * time.Hour
+
+// openSlotsFor is when a flexible activity can be visited around the
+// window: a place's opening hours, a drop-in event's span.
+func openSlotsFor(a *models.Activity, tz *time.Location, from, to time.Time) []TimeSlot {
+	from, to = from.Add(-openSlotPad), to.Add(openSlotPad)
+	if a.Kind == "place" {
+		loc := tz
+		if a.Timezone != "" {
+			if l, err := time.LoadLocation(a.Timezone); err == nil {
+				loc = l
+			}
+		}
+		if loc == nil {
+			return nil
+		}
+		ivs, ok := itinerary.OpenIntervals(a.WeeklyHours, a.Category, loc, from, to)
+		if !ok {
+			return nil
+		}
+		out := make([]TimeSlot, len(ivs))
+		for i, iv := range ivs {
+			out[i] = TimeSlot{From: iv.Start.UTC(), To: iv.End.UTC()}
+		}
+		return out
+	}
+	if a.Start == nil {
+		return nil
+	}
+	start := a.Start.UTC()
+	end := to
+	if a.End != nil && a.End.After(start) {
+		end = a.End.UTC()
+	} else {
+		_, median := visitLengths(a)
+		end = start.Add(median)
+	}
+	return []TimeSlot{{From: start, To: end}}
+}
+
+// withinSlots reports whether [start, end] fits inside one slot.
+func withinSlots(start, end time.Time, slots []TimeSlot) bool {
+	for _, s := range slots {
+		if !start.Before(s.From) && !end.After(s.To) {
+			return true
+		}
+	}
+	return false
 }
 
 func placeName(a *models.Activity) string {

@@ -160,6 +160,9 @@ func (p *Planner) Alternatives(ctx context.Context, in AlternativesInput) ([]Alt
 		s.Arrive, s.Depart = start.UTC(), end.UTC()
 		s.DurationMinutes = int(end.Sub(start).Minutes())
 		s.Flexible = c.Kind == "place" || (c.Act.Attendance != nil && *c.Act.Attendance == "drop_in")
+		if s.Flexible {
+			s.OpenSlots = openSlotsFor(&c.Act, tz, w.From, w.BackBy)
+		}
 		s.SeriesKey = altSeriesKey(&c.Act)
 		s.Utility = round5(fit)
 		if series[s.SeriesKey] {

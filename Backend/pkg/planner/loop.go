@@ -193,6 +193,7 @@ func (p *Planner) runLoop(ctx context.Context, run *Run) {
 			cur.Stop = "converged"
 			return
 		}
+		ladderBefore := run.ladder
 		adapted := adapt(run, issues, cur)
 		n := cfg.MaxExpansions
 		if n > len(issues) {
@@ -203,7 +204,9 @@ func (p *Planner) runLoop(ctx context.Context, run *Run) {
 			cur.Stop = "nothing_to_add"
 			return
 		}
-		if r > 0 && top3Sum(run.Best)-prev < cfg.Epsilon && added == 0 {
+		// Converged: no gain and nothing new. A relax-ladder step taken just
+		// now still gets its round, or it would be reported but never tried.
+		if r > 0 && top3Sum(run.Best)-prev < cfg.Epsilon && added == 0 && run.ladder == ladderBefore {
 			cur.Stop = "epsilon"
 			return
 		}

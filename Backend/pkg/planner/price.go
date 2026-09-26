@@ -12,15 +12,15 @@ import (
 // used cents. These helpers are the one place that reads the price.
 
 // activityCost returns the cheapest known price in cents. known is false
-// when the document has no price information at all.
+// when the document states no amount: no price at all, or only a tier.
 func activityCost(a *models.Activity) (cents int64, known bool) {
 	p := a.Price
 	if p == nil {
 		return 0, false
 	}
 	switch {
-	case p.Min != nil:
-		if *p.Min <= 0 || math.IsNaN(*p.Min) || math.IsInf(*p.Min, 0) {
+	case p.Min != nil && !math.IsNaN(*p.Min) && !math.IsInf(*p.Min, 0):
+		if *p.Min <= 0 {
 			return 0, true
 		}
 		return int64(math.Round(*p.Min * 100)), true
@@ -28,9 +28,6 @@ func activityCost(a *models.Activity) (cents int64, known bool) {
 		return 0, true
 	case p.Cents > 0:
 		return p.Cents, true
-	case p.Tier > 0:
-		// A tier without a price: the tier's lower bound is the best guess.
-		return int64(tierBounds[minInt(p.Tier, len(tierBounds))-1] * 100), true
 	}
 	return 0, false
 }
@@ -151,13 +148,6 @@ func (r AgeRules) blocks(a *models.Activity) bool {
 		return name21Re.MatchString(a.Name)
 	}
 	return false
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 func maxInt(a, b int) int {

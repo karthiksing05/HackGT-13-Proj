@@ -64,6 +64,10 @@ type Stop struct {
 	SeriesKey  string    `bson:"seriesKey" json:"-"`
 	Tier       int       `bson:"tier" json:"-"`
 	TierKnown  bool      `bson:"tierKnown" json:"-"`
+	// OpenSlots is when a flexible stop can be visited (a place's opening
+	// hours, a drop-in's span) around the plan's window, so a reorder that
+	// moves the visit outside them is caught. Empty for fixed events.
+	OpenSlots []TimeSlot `bson:"openSlots,omitempty" json:"-"`
 }
 
 // Leg is one hop. Mode is always one of the app's values: walk, marta,

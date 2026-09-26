@@ -23,15 +23,20 @@ type RouteInput struct {
 	Modes     []string
 }
 
-// StopTime is one stop's scheduled interval after re-timing.
+// StopTime is one stop's scheduled interval after re-timing. Closed marks
+// a flexible stop whose new time falls outside its opening hours.
 type StopTime struct {
 	StopID   string    `json:"stop_id"`
 	Start    time.Time `json:"start"`
 	End      time.Time `json:"end"`
 	Flexible bool      `json:"flexible"`
+	Closed   bool      `json:"closed,omitempty"`
 }
 
 // RouteResult is the contract's RouteResult plus the additive fields.
+// BrokenAt is the first stop, in the new order, that no longer works: a
+// fixed-time event reached late or a place that would be closed; -1 when
+// every stop still works.
 type RouteResult struct {
 	OptionID         string     `json:"option_id,omitempty"`
 	Legs             []Leg      `json:"legs"`
@@ -186,8 +191,16 @@ func (p *Planner) routeStops(ctx context.Context, w itinerary.Window, optionID s
 		res.Legs = append(res.Legs, renderLeg(leg, i, stops, w.DriveLabel))
 	}
 	for i, s := range stops {
-		res.StopTimes = append(res.StopTimes, StopTime{StopID: s.ID, Start: ev.Starts[i].UTC(), End: ev.Ends[i].UTC(), Flexible: s.Flexible})
+		st := StopTime{StopID: s.ID, Start: ev.Starts[i].UTC(), End: ev.Ends[i].UTC(), Flexible: s.Flexible}
+		if s.Flexible && len(s.OpenSlots) > 0 && !withinSlots(st.Start, st.End, s.OpenSlots) {
+			st.Closed = true
+			if res.BrokenAt < 0 || i < res.BrokenAt {
+				res.BrokenAt = i
+			}
+		}
+		res.StopTimes = append(res.StopTimes, st)
 	}
+	res.LateFlag = res.MinutesLate > 0 || res.BrokenAt >= 0
 	return res
 }
 
