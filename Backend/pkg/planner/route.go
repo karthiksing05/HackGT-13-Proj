@@ -12,6 +12,7 @@ import (
 // RouteInput is the app's RouteRequest in planner terms. Start, End,
 // StartTime, BackBy, Ride and Modes override the pool's window when set.
 type RouteInput struct {
+	UserID    string // the caller; another user's pool reads as expired
 	OptionID  string
 	StopOrder []string
 	Start     *Place
@@ -52,8 +53,9 @@ func (e *UnknownStopError) Error() string { return "Unknown stop " + e.ID }
 // ErrUnknownOption means the option id is not in the pool.
 var ErrUnknownOption = errors.New("unknown option")
 
-// loadPool fetches the pool an option belongs to and the option itself.
-func (p *Planner) loadPool(ctx context.Context, optionID string) (*PlanPool, *Option, error) {
+// loadPool fetches the pool an option belongs to and the option itself. A
+// pool owned by someone else is reported as not found, so ids leak nothing.
+func (p *Planner) loadPool(ctx context.Context, userID, optionID string) (*PlanPool, *Option, error) {
 	runID, ok := RunIDFromOption(optionID)
 	if !ok {
 		return nil, nil, ErrPoolNotFound
@@ -61,6 +63,9 @@ func (p *Planner) loadPool(ctx context.Context, optionID string) (*PlanPool, *Op
 	pool, err := p.Pools.GetPool(ctx, runID)
 	if err != nil {
 		return nil, nil, err
+	}
+	if userID != "" && pool.UserID != "" && pool.UserID != userID {
+		return nil, nil, ErrPoolNotFound
 	}
 	for i := range pool.Options {
 		if pool.Options[i].ID == optionID {
@@ -157,7 +162,7 @@ func evalStops(stops []Stop) []itinerary.EvalStop {
 // alternatives, in the order given, against the pool's window with the
 // request's overrides.
 func (p *Planner) Route(ctx context.Context, in RouteInput) (RouteResult, error) {
-	pool, opt, err := p.loadPool(ctx, in.OptionID)
+	pool, opt, err := p.loadPool(ctx, in.UserID, in.OptionID)
 	if err != nil {
 		return RouteResult{}, err
 	}
@@ -197,11 +202,12 @@ type StopDetail struct {
 	Stop        *Stop
 }
 
-// ResolveStop finds a stop by id: in the pool the id's option belongs to
-// when known, else by the activity id through the catalog lookup.
-func (p *Planner) ResolveStop(ctx context.Context, optionID, stopID string) (*StopDetail, error) {
+// ResolveStop finds a stop by id: in the pool of optionID when one is
+// given (the option's stops and its suggested alternatives), else by the
+// activity id the stop id carries, in the caller's catalog.
+func (p *Planner) ResolveStop(ctx context.Context, userID, catalog, optionID, stopID string) (*StopDetail, error) {
 	if optionID != "" {
-		if pool, opt, err := p.loadPool(ctx, optionID); err == nil {
+		if pool, opt, err := p.loadPool(ctx, userID, optionID); err == nil {
 			if opt != nil {
 				for i := range opt.Stops {
 					if opt.Stops[i].ID == stopID {
@@ -212,24 +218,28 @@ func (p *Planner) ResolveStop(ctx context.Context, optionID, stopID string) (*St
 			if s, ok := pool.Alternatives[stopID]; ok {
 				return detailFromStop(&s), nil
 			}
+		} else if !errors.Is(err, ErrPoolNotFound) && !errors.Is(err, ErrUnknownOption) {
+			return nil, err
 		}
 	}
 	actID, ok := ActivityIDFromStop(stopID)
 	if !ok || p.Lookup == nil {
 		return nil, &UnknownStopError{ID: stopID}
 	}
-	for _, catalog := range []string{"activities", "demo_activities"} {
-		acts, err := p.Lookup.GetActivities(ctx, catalog, []string{actID})
-		if err != nil {
-			return nil, err
-		}
-		if len(acts) == 1 {
-			s := stopFromActivity(&acts[0], nil)
-			s.ID = stopID
-			return detailFromStop(&s), nil
-		}
+	cat, ok := NormalizeCatalog(catalog)
+	if !ok {
+		return nil, &UnknownStopError{ID: stopID}
 	}
-	return nil, &UnknownStopError{ID: stopID}
+	acts, err := p.Lookup.GetActivities(ctx, cat, []string{actID})
+	if err != nil {
+		return nil, err
+	}
+	if len(acts) != 1 {
+		return nil, &UnknownStopError{ID: stopID}
+	}
+	s := stopFromActivity(&acts[0], nil)
+	s.ID = stopID
+	return detailFromStop(&s), nil
 }
 
 func detailFromStop(s *Stop) *StopDetail {

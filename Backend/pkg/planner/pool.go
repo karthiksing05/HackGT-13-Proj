@@ -265,6 +265,7 @@ type RoundLog struct {
 	MLMs        int64              `bson:"mlMs" json:"ml_ms"`
 	MongoMs     int64              `bson:"mongoMs" json:"mongo_ms"`
 	Top3        []TopLog           `bson:"top3" json:"top3"`
+	Top3Sum     float64            `bson:"top3Sum" json:"top3_sum"` // the three best scores, the convergence measure
 	Issues      []IssueLog         `bson:"issues" json:"issues"`
 	Expansions  []ExpansionLog     `bson:"expansions" json:"expansions"`
 	Adapted     []string           `bson:"adapted" json:"adapted"`

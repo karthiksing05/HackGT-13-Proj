@@ -4,16 +4,22 @@ import (
 	"Backend/pkg/models"
 	"Backend/pkg/travel"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"hash/fnv"
 	"math"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
+
+var update = flag.Bool("update", false, "rewrite the golden files in testdata/golden")
 
 // Test time: Saturday 26 Sep 2026, noon in Saltlight (America/New_York).
 var (
@@ -105,7 +111,7 @@ func searchVectorFor(in SearchInput) []float64 {
 		}
 	}
 	for _, w := range strings.Fields(strings.ToLower(in.MoodText)) {
-		switch w {
+		switch strings.Trim(w, ",.!") {
 		case "outside", "outdoors", "nature":
 			tokens = append(tokens, "outdoor", "nature")
 		case "food", "eat", "dinner":
@@ -122,6 +128,8 @@ func searchVectorFor(in SearchInput) []float64 {
 	return vectorOf(tokens...)
 }
 
+var sandyPositive = vectorOf("outdoor", "nature", "music", "food", "low_energy", "cat:park", "cat:live_music", "cat:market")
+
 // sandy is the demo user: Saltlight catalog, likes the outdoors, walks and
 // live music, dislikes crowds and clubs.
 func sandy() *UserContext {
@@ -129,12 +137,12 @@ func sandy() *UserContext {
 		ID: "sandy", Catalog: "demo_activities", City: "saltlight", AgeBracket: "21_plus",
 		HomeBase:          &Place{Name: "Seaside Market Square", Lat: seasideMkt.Lat, Lng: seasideMkt.Lng, HasCoord: true},
 		Prefs:             UserPrefs{Pace: "balanced", Flexible: true, PreferFree: true},
-		PositiveEmbedding: vectorOf("outdoor", "nature", "music", "food", "low_energy", "cat:park", "cat:live_music", "cat:market"),
+		PositiveEmbedding: sandyPositive,
 		NegativeEmbedding: vectorOf("cat:nightclub", "high_energy", "late_night"),
 	}
 }
 
-// appRequestJSON builds an app-shape body for the Saltlight Saturday evening.
+// reqOpts builds an app-shape body.
 type reqOpts struct {
 	start, end   travel.Point
 	from, backBy time.Time
@@ -146,6 +154,7 @@ type reqOpts struct {
 	modes        []string
 }
 
+// defaultReq is the Saltlight Saturday evening, walking, $$.
 func defaultReq() reqOpts {
 	return reqOpts{
 		start: seasideMkt, end: seasideMkt,
@@ -170,8 +179,11 @@ func appRequestJSON(o reqOpts) []byte {
 		"pace":       o.pace,
 		"modes":      o.modes,
 	}
-	if body["tags"] == nil {
+	if o.tags == nil {
 		body["tags"] = []string{}
+	}
+	if o.modes == nil {
+		body["modes"] = []string{}
 	}
 	b, _ := json.Marshal(body)
 	return b
@@ -194,13 +206,20 @@ func testConfig() Config {
 	return cfg
 }
 
+// preferenceScore is the fake classifier: closeness to what Sandy likes,
+// mapped onto 0.5..1.
+func preferenceScore(c *Candidate) float64 {
+	v := c.Act.Embedding
+	if len(v) == 0 {
+		v = vectorFor(&c.Act)
+	}
+	return clamp01(0.5 + 0.5*dot(sandyPositive, v))
+}
+
 func newTestPlanner(acts []models.Activity, cfg Config) *testPlanner {
 	clock := NewFakeClock(testNow)
 	src := &FakeSource{Activities: acts, VectorFor: vectorFor}
-	scorer := &FakeScorer{Fn: func(c *Candidate) float64 {
-		// Prefer what Sandy likes, deterministically.
-		return clamp01(0.5 + 0.5*dot(sandy().PositiveEmbedding, vectorFor(&c.Act)))
-	}}
+	scorer := &FakeScorer{Fn: preferenceScore}
 	search := &FakeVectorizer{Fn: searchVectorFor}
 	pools := NewMemPoolStore(clock)
 	counter := 0
@@ -243,27 +262,75 @@ func (tp *testPlanner) allOptions(t *testing.T, user *UserContext, first Batch) 
 		if err != nil {
 			t.Fatalf("more: %v", err)
 		}
-		out = append(out, b.Options...)
-		cursor = b.Cursor
-		if b.Done && cursor != "" {
-			t.Fatalf("done with a cursor: %+v", b)
+		if len(b.Options) == 0 {
+			t.Fatalf("cursor %s gave an empty page", cursor)
 		}
+		out = append(out, b.Options...)
+		if b.Done != (b.Cursor == "") {
+			t.Fatalf("done=%v with cursor %q", b.Done, b.Cursor)
+		}
+		cursor = b.Cursor
 	}
 	return out
 }
 
+func (tp *testPlanner) run(t *testing.T, id string) *PlanRun {
+	t.Helper()
+	r, ok := tp.pools.GetRun(id)
+	if !ok {
+		t.Fatalf("run %s not saved", id)
+	}
+	return r
+}
+
+func (tp *testPlanner) pool(t *testing.T, id string) *PlanPool {
+	t.Helper()
+	p, err := tp.pools.GetPool(t.Context(), id)
+	if err != nil {
+		t.Fatalf("pool %s: %v", id, err)
+	}
+	return p
+}
+
 var appLegModes = map[string]bool{"walk": true, "marta": true, "drive": true, "rideshare": true}
 
-// assertGuarantees is the §7 checklist for one option.
-func assertGuarantees(t *testing.T, spec PlanSpec, user *UserContext, opt Option, catalog map[string]models.Activity) {
+// effectiveSpec is the spec the options must satisfy: the request's, with
+// the range and budget relaxations the run applied (and reported).
+func effectiveSpec(t *testing.T, spec PlanSpec, pool *PlanPool, relaxed []string) PlanSpec {
 	t.Helper()
+	eff := spec
+	if pool.Window.MaxLegKm != spec.MaxLegKm {
+		if !containsString(relaxed, "range") || pool.Window.MaxLegKm < spec.MaxLegKm {
+			t.Errorf("leg range changed %.2f → %.2f without a range relaxation (%v)", spec.MaxLegKm, pool.Window.MaxLegKm, relaxed)
+		}
+		eff.MaxLegKm = pool.Window.MaxLegKm
+	}
+	if pool.Spec.Budget != spec.Budget {
+		if !containsString(relaxed, "budget") || spec.Budget.FreeOnly {
+			t.Errorf("budget changed %+v → %+v without a budget relaxation (%v)", spec.Budget, pool.Spec.Budget, relaxed)
+		}
+		eff.Budget = pool.Spec.Budget
+	}
+	return eff
+}
+
+// assertGuarantees reports every §7 violation of one option.
+func assertGuarantees(t *testing.T, spec PlanSpec, opt Option, catalog map[string]models.Activity) {
+	t.Helper()
+	for _, v := range guaranteeViolations(spec, opt, catalog) {
+		t.Errorf("option %s (%s): %s", opt.ID, opt.Name, v)
+	}
+}
+
+// guaranteeViolations is the §7 checklist for one option.
+func guaranteeViolations(spec PlanSpec, opt Option, catalog map[string]models.Activity) []string {
+	var out []string
 	fail := func(format string, args ...any) {
-		t.Helper()
-		t.Errorf("option %s (%s): %s", opt.ID, opt.Name, fmt.Sprintf(format, args...))
+		out = append(out, fmt.Sprintf(format, args...))
 	}
 	if len(opt.Stops) == 0 {
 		fail("no stops")
-		return
+		return out
 	}
 	if len(opt.Legs) != len(opt.Stops)+1 {
 		fail("%d legs for %d stops", len(opt.Legs), len(opt.Stops))
@@ -293,13 +360,17 @@ func assertGuarantees(t *testing.T, spec PlanSpec, user *UserContext, opt Option
 			fail("stop %d activity %s is not in the user's catalog", i, s.ActivityID)
 			continue
 		}
+		if s.ID != StopID(s.ActivityID, i) {
+			fail("stop %d id %s", i, s.ID)
+		}
 		if s.Arrive.Before(spec.From) {
 			fail("stop %d arrives %v before %v", i, s.Arrive, spec.From)
 		}
 		if s.Depart.After(spec.BackBy) {
 			fail("stop %d departs %v after %v", i, s.Depart, spec.BackBy)
 		}
-		if a.Kind == "event" && a.Attendance != nil && *a.Attendance != "drop_in" {
+		dropIn := a.Attendance != nil && *a.Attendance == "drop_in"
+		if a.Kind == "event" && !dropIn && a.Start != nil && !(a.End != nil && a.End.Sub(*a.Start) > 6*time.Hour) {
 			p75, _ := visitLengths(&a)
 			if a.Start.Add(maxDuration(s.Depart.Sub(s.Arrive), p75)).After(spec.BackBy) && !opt.LateFlag {
 				fail("stop %d could run past back-by without late_flag", i)
@@ -310,8 +381,13 @@ func assertGuarantees(t *testing.T, spec PlanSpec, user *UserContext, opt Option
 			if spec.Budget.FreeOnly && *s.PriceCents != 0 {
 				fail("stop %d costs %d on a free-only plan", i, *s.PriceCents)
 			}
-		} else if spec.Budget.FreeOnly && !freeIfUnknownCategories[a.Category] {
-			fail("stop %d has an unknown price on a free-only plan", i)
+		} else {
+			if s.PriceCents != nil {
+				fail("stop %d has price_cents without a known price", i)
+			}
+			if spec.Budget.FreeOnly && (a.Price != nil || !freeIfUnknownCategories[a.Category]) {
+				fail("stop %d has an unknown price on a free-only plan", i)
+			}
 		}
 		if spec.Budget.Tier < 3 && s.TierKnown && s.Tier > spec.Budget.Tier {
 			fail("stop %d tier %d over budget tier %d", i, s.Tier, spec.Budget.Tier)
@@ -338,6 +414,9 @@ func assertGuarantees(t *testing.T, spec PlanSpec, user *UserContext, opt Option
 			if d := travel.HaversineKm(travel.Point{Lat: prev.Place.Lat, Lng: prev.Place.Lng}, travel.Point{Lat: s.Place.Lat, Lng: s.Place.Lng}); d > spec.MaxLegKm+1e-9 {
 				fail("leg into stop %d is %.2f km > %.2f", i, d, spec.MaxLegKm)
 			}
+			if s.Arrive.Before(prev.Depart) {
+				fail("stop %d starts before stop %d ends", i, i-1)
+			}
 		}
 	}
 	if spec.Budget.TotalCents > 0 && known > spec.Budget.TotalCents {
@@ -350,6 +429,10 @@ func assertGuarantees(t *testing.T, spec PlanSpec, user *UserContext, opt Option
 	if d := travel.HaversineKm(travel.Point{Lat: last.Place.Lat, Lng: last.Place.Lng}, *spec.End); d > 2*spec.MaxLegKm+1e-9 {
 		fail("last leg %.2f km > 2×%.2f", d, spec.MaxLegKm)
 	}
+	if opt.Depart.Before(spec.From) || opt.Arrival.After(spec.BackBy) {
+		fail("leaves %v, back %v, window %v–%v", opt.Depart, opt.Arrival, spec.From, spec.BackBy)
+	}
+	return out
 }
 
 func catalogByID(acts []models.Activity) map[string]models.Activity {
@@ -361,3 +444,94 @@ func catalogByID(acts []models.Activity) map[string]models.Activity {
 }
 
 func approx(a, b, eps float64) bool { return math.Abs(a-b) <= eps }
+
+// --- synthetic activities ---------------------------------------------------
+
+var synthCounter uint32 = 0x10000
+
+func synthID() bson.ObjectID {
+	synthCounter++
+	var id bson.ObjectID
+	id[0] = 0xAA
+	id[8] = byte(synthCounter >> 24)
+	id[9] = byte(synthCounter >> 16)
+	id[10] = byte(synthCounter >> 8)
+	id[11] = byte(synthCounter)
+	return id
+}
+
+// offsetKm is a point dx km east and dy km north of p.
+func offsetKm(p travel.Point, dxKm, dyKm float64) travel.Point {
+	return travel.Point{Lat: p.Lat + dyKm/111.0, Lng: p.Lng + dxKm/(111.0*math.Cos(p.Lat*math.Pi/180))}
+}
+
+func strp(s string) *string   { return &s }
+func f64p(v float64) *float64 { return &v }
+func timep(t time.Time) *time.Time {
+	u := t.UTC()
+	return &u
+}
+
+func priceOf(min float64) *models.ActivityPrice {
+	return &models.ActivityPrice{Min: f64p(min), Max: f64p(min), Currency: "USD", Tier: tierForAmount(min), IsFree: min == 0}
+}
+
+func synthEvent(name, category string, at travel.Point, start time.Time, minutes int, tags []string, price *models.ActivityPrice) models.Activity {
+	return models.Activity{
+		ID: synthID(), Kind: "event", City: "saltlight", Name: name, Category: category, Tags: tags,
+		Location:  models.GeoJSONPoint{Type: "Point", Coordinates: []float64{at.Lng, at.Lat}},
+		VenueName: strp(name + " Hall"), Start: timep(start), Attendance: strp("fixed_start"), Timezone: "America/New_York",
+		Duration: &models.ActivityDuration{MedianMin: float64(minutes), P75Min: float64(minutes)}, Price: price,
+	}
+}
+
+func synthPlace(name, category string, at travel.Point, hours []models.WeeklyHourRange, tags []string, price *models.ActivityPrice) models.Activity {
+	return models.Activity{
+		ID: synthID(), Kind: "place", City: "saltlight", Name: name, Category: category, Tags: tags,
+		Location: models.GeoJSONPoint{Type: "Point", Coordinates: []float64{at.Lng, at.Lat}},
+		Timezone: "America/New_York", WeeklyHours: hours,
+		Duration: &models.ActivityDuration{MedianMin: 60, P75Min: 75}, Price: price,
+		Rating: f64p(4.5), Popularity: f64p(0.8),
+	}
+}
+
+// dailyHours is open→close every day, as minutes of the week.
+func dailyHours(openHour, closeHour int) []models.WeeklyHourRange {
+	var out []models.WeeklyHourRange
+	for d := 0; d < 7; d++ {
+		out = append(out, models.WeeklyHourRange{Open: d*1440 + openHour*60, Close: d*1440 + closeHour*60})
+	}
+	return out
+}
+
+func localAt(hour, min int) time.Time { return time.Date(2026, 9, 26, hour, min, 0, 0, ny) }
+
+// --- golden files -------------------------------------------------------------
+
+// golden compares v's indented JSON with testdata/golden/<name>; -update
+// rewrites the file.
+func golden(t *testing.T, name string, v any) {
+	t.Helper()
+	got, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = append(got, '\n')
+	path := filepath.Join("testdata", "golden", name)
+	if *update {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, got, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("golden %s missing (run with -update): %v", name, err)
+	}
+	if string(want) != string(got) {
+		t.Errorf("%s differs from the golden file; run with -update and review.\n--- got ---\n%s", name, got)
+	}
+}

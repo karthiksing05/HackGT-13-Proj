@@ -36,16 +36,47 @@ type Run struct {
 	MaxSlots int
 	Mu       float64
 
+	// Dropped holds ids the classifier left out of its answer: they stay
+	// out of the pool for the whole run, expansions included.
+	Dropped map[string]bool
+
 	ladder        int  // few_plans relax steps taken
 	facetsDropped bool // soft mood facets removed
 	startedAt     time.Time
 }
 
-func (r *Run) relaxRange() {
+// relaxRange widens the search radius and the per-leg range by half, once
+// per run; walking legs stay within the walk cap. It reports whether it
+// did anything.
+func (r *Run) relaxRange() bool {
+	if containsString(r.Relaxed, "range") {
+		return false
+	}
 	r.RadiusKm = minFloat(30, r.RadiusKm*1.5)
 	r.Spec.MaxLegKm *= 1.5
+	if r.Spec.Mode == travel.Walk && r.Cfg.WalkLegCapKm > 0 && r.Spec.MaxLegKm > r.Cfg.WalkLegCapKm {
+		r.Spec.MaxLegKm = maxFloat(r.Cfg.WalkLegCapKm, r.Window.MaxLegKm)
+	}
 	r.Window.MaxLegKm = r.Spec.MaxLegKm
 	r.Relaxed = appendUnique(r.Relaxed, "range")
+	return true
+}
+
+func maxFloat(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// droppedIDs lists the classifier's dropped ids in a fixed order.
+func (r *Run) droppedIDs() []string {
+	out := make([]string, 0, len(r.Dropped))
+	for id := range r.Dropped {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func appendUnique(list []string, s string) []string {
@@ -139,6 +170,7 @@ func (p *Planner) runLoop(ctx context.Context, run *Run) {
 			}
 			rl.Top3 = append(rl.Top3, TopLog{Signature: sp.Signature, Score: round5(sp.Score), Metrics: sp.Metrics})
 		}
+		rl.Top3Sum = round5(top3Sum(run.Best))
 		run.Log.Rounds = append(run.Log.Rounds, rl)
 		cur := &run.Log.Rounds[len(run.Log.Rounds)-1]
 
@@ -238,9 +270,6 @@ func diagnose(run *Run) []Issue {
 	best := top[0].It
 	pace := run.ItCfg.Pace(run.Spec.Pace)
 	target := paceTarget(run.Spec.Pace)
-	if len(best.Stops) < target-1 {
-		add(Issue{Kind: "under_pace"})
-	}
 	for i := 1; i < len(best.Stops); i++ {
 		s := best.Stops[i]
 		if wait := s.Node.Start.Sub(s.Arrive); wait > pace.MaxWait/2 {
@@ -295,6 +324,9 @@ func diagnose(run *Run) []Issue {
 				}
 			}
 		}
+	}
+	if len(best.Stops) < target-1 {
+		add(Issue{Kind: "under_pace"})
 	}
 	return issues
 }
@@ -355,10 +387,13 @@ func (r *Run) relaxLadder() string {
 				return "k:32,slots:18"
 			}
 		case 1:
-			r.relaxRange()
-			return "range"
+			if r.relaxRange() {
+				return "range"
+			}
 		case 2:
-			if r.Spec.Flexible && r.Spec.Budget.Tier < 3 {
+			// Only a priced budget moves up a tier: a free-only plan stays
+			// free, whatever the user's flexibility.
+			if r.Spec.Flexible && !r.Spec.Budget.FreeOnly && r.Spec.Budget.Tier < 3 {
 				r.Spec.Budget = BudgetForLevel(r.Spec.Budget.Tier + 1)
 				r.Window.BudgetCents = r.Spec.Budget.TotalCents
 				r.Relaxed = appendUnique(r.Relaxed, "budget")
@@ -404,7 +439,7 @@ func (p *Planner) expansionQuery(run *Run, is Issue) (expansion, bool) {
 	cfg := run.Cfg
 	spec := &run.Spec
 	q := baseQuery(spec, cfg, run.RadiusKm)
-	q.ExcludeIDs = run.Pool.IDs()
+	q.ExcludeIDs = append(run.Pool.IDs(), run.droppedIDs()...)
 	q.LimitEvents, q.LimitPlaces = cfg.ExpansionLimit, cfg.ExpansionLimit
 	ex := expansion{issue: is, topK: 20, source: "expand:" + is.Kind}
 	slot := func(s *TimeSlot) {

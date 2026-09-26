@@ -13,6 +13,7 @@ import (
 
 // AlternativesInput is the app's AlternativesRequest.
 type AlternativesInput struct {
+	UserID    string // the caller; another user's pool reads as expired
 	OptionID  string
 	StopID    string
 	StopOrder []string
@@ -32,14 +33,14 @@ const (
 	altFlexShiftMax = 30 * time.Minute
 	altLimit        = 60
 	altMaxResults   = 5
-	altMinResults   = 3
 )
 
 // Alternatives is §6.4: the same kind of thing as stop S, reachable in S's
 // slot between its neighbours, not already in the plan, scored against the
-// pool's query vector.
+// pool's query vector. It returns up to five, best first; fewer (or none)
+// when the catalog has nothing else that fits.
 func (p *Planner) Alternatives(ctx context.Context, in AlternativesInput) ([]Alternative, error) {
-	pool, opt, err := p.loadPool(ctx, in.OptionID)
+	pool, opt, err := p.loadPool(ctx, in.UserID, in.OptionID)
 	if err != nil {
 		return nil, err
 	}
@@ -76,10 +77,10 @@ func (p *Planner) Alternatives(ctx context.Context, in AlternativesInput) ([]Alt
 	if target.Arrive.IsZero() {
 		slot = TimeSlot{From: w.From, To: w.BackBy}
 	}
+	prev, next := neighbours(stops, idx, w)
 	anchor := travel.Point{Lat: target.Place.Lat, Lng: target.Place.Lng}
 	if !target.Place.HasCoord {
-		prev, next := neighbourPoints(stops, idx, w)
-		anchor = travel.Point{Lat: (prev.Lat + next.Lat) / 2, Lng: (prev.Lng + next.Lng) / 2}
+		anchor = travel.Point{Lat: (prev.pt.Lat + next.pt.Lat) / 2, Lng: (prev.pt.Lng + next.pt.Lng) / 2}
 	}
 
 	// Query: the pool's filters, centred on the anchor, matching the stop's
@@ -131,8 +132,6 @@ func (p *Planner) Alternatives(ctx context.Context, in AlternativesInput) ([]Alt
 
 	// Schedule each candidate at its earliest feasible grid start in the
 	// slot, honouring the neighbours.
-	prevEnd, nextStart, nextFlexible := neighbourTimes(stops, idx, w)
-	prevPt, nextPt := neighbourPoints(stops, idx, w)
 	type scored struct {
 		c     *Candidate
 		stop  Stop
@@ -143,7 +142,7 @@ func (p *Planner) Alternatives(ctx context.Context, in AlternativesInput) ([]Alt
 	var results []scored
 	for _, c := range kept {
 		scoreForShortlist(c, qv, spec.Facets, p.Cfg)
-		start, end, shift, ok := p.scheduleAlternative(ctx, c, slot, w, prevEnd, prevPt, nextStart, nextPt, nextFlexible)
+		start, end, shift, ok := p.scheduleAlternative(ctx, c, slot, w, prev, next)
 		if !ok {
 			continue
 		}
@@ -222,47 +221,63 @@ func poolSpec(pool *PlanPool, w itinerary.Window) PlanSpec {
 	}
 }
 
-func neighbourPoints(stops []Stop, idx int, w itinerary.Window) (prev, next travel.Point) {
-	prev, next = *w.Start, *w.End
+// neighbour is the stop (or depot) on one side of the stop being replaced.
+type neighbour struct {
+	pt       travel.Point
+	at       time.Time // previous: when it ends; next: when it starts
+	flexible bool
+	depot    bool // the user's start or end point, not a stop
+}
+
+// neighbours finds what comes before and after stops[idx].
+func neighbours(stops []Stop, idx int, w itinerary.Window) (prev, next neighbour) {
+	prev = neighbour{pt: *w.Start, at: w.From, depot: true}
+	next = neighbour{pt: *w.End, at: w.BackBy, depot: true}
 	if idx > 0 {
-		prev = travel.Point{Lat: stops[idx-1].Place.Lat, Lng: stops[idx-1].Place.Lng}
+		s := stops[idx-1]
+		prev = neighbour{pt: travel.Point{Lat: s.Place.Lat, Lng: s.Place.Lng}, at: s.Depart, flexible: s.Flexible}
+		if s.Depart.IsZero() {
+			prev.at = w.From
+		}
 	}
 	if idx+1 < len(stops) {
-		next = travel.Point{Lat: stops[idx+1].Place.Lat, Lng: stops[idx+1].Place.Lng}
+		s := stops[idx+1]
+		next = neighbour{pt: travel.Point{Lat: s.Place.Lat, Lng: s.Place.Lng}, at: s.Arrive, flexible: s.Flexible}
+		if s.Arrive.IsZero() {
+			next.at = w.BackBy
+		}
 	}
 	return prev, next
 }
 
-func neighbourTimes(stops []Stop, idx int, w itinerary.Window) (prevEnd, nextStart time.Time, nextFlexible bool) {
-	prevEnd, nextStart, nextFlexible = w.From, w.BackBy, false
-	if idx > 0 && !stops[idx-1].Depart.IsZero() {
-		prevEnd = stops[idx-1].Depart
+// legLimitKm is the longest allowed leg to a neighbour: MaxLegKm between
+// stops, twice that to or from the user's start and end points (§7).
+func legLimitKm(n neighbour, w itinerary.Window) float64 {
+	if n.depot {
+		return 2 * w.MaxLegKm
 	}
-	if idx+1 < len(stops) && !stops[idx+1].Arrive.IsZero() {
-		nextStart, nextFlexible = stops[idx+1].Arrive, stops[idx+1].Flexible
-	}
-	return
+	return w.MaxLegKm
 }
 
 // scheduleAlternative finds the earliest grid start inside the slot that
-// the previous stop can reach and from which the next stop is reachable.
-// A flexible next stop may shift by up to altFlexShiftMax.
-func (p *Planner) scheduleAlternative(ctx context.Context, c *Candidate, slot TimeSlot, w itinerary.Window,
-	prevEnd time.Time, prevPt travel.Point, nextStart time.Time, nextPt travel.Point, nextFlexible bool) (start, end time.Time, shiftMin int, ok bool) {
+// the previous stop can reach and from which the next stop is reachable,
+// within the leg limits. A flexible visit is shortened to fit (never below
+// MinDuration); a flexible next stop may shift by up to altFlexShiftMax.
+func (p *Planner) scheduleAlternative(ctx context.Context, c *Candidate, slot TimeSlot, w itinerary.Window, prev, next neighbour) (start, end time.Time, shiftMin int, ok bool) {
 	itCfg := p.Cfg.Itinerary
-	legs := lookupLegs(ctx, p.Travel, []travel.Pair{{From: prevPt, To: c.Point}, {From: c.Point, To: nextPt}}, w.Mode)
-	inLeg := legs[travel.Pair{From: prevPt, To: c.Point}]
-	outLeg := legs[travel.Pair{From: c.Point, To: nextPt}]
-	earliest := maxTime(slot.From, prevEnd.Add(inLeg.Duration+itCfg.Buffer))
-	if travel.HaversineKm(prevPt, c.Point) > w.MaxLegKm*2 || travel.HaversineKm(c.Point, nextPt) > w.MaxLegKm*2 {
+	if travel.HaversineKm(prev.pt, c.Point) > legLimitKm(prev, w) || travel.HaversineKm(c.Point, next.pt) > legLimitKm(next, w) {
 		return start, end, 0, false
 	}
-	latestEnd := nextStart.Add(-outLeg.Duration - itCfg.Buffer)
-	if nextFlexible {
+	legs := lookupLegs(ctx, p.Travel, []travel.Pair{{From: prev.pt, To: c.Point}, {From: c.Point, To: next.pt}}, w.Mode)
+	inLeg := legs[travel.Pair{From: prev.pt, To: c.Point}]
+	outLeg := legs[travel.Pair{From: c.Point, To: next.pt}]
+	earliest := maxTime(slot.From, prev.at.Add(inLeg.Duration+itCfg.Buffer))
+	latestEnd := next.at.Add(-outLeg.Duration - itCfg.Buffer)
+	if next.flexible {
 		latestEnd = latestEnd.Add(altFlexShiftMax)
 	}
 	latestEnd = minTime(latestEnd, w.BackBy.Add(-outLeg.Duration))
-	p75, median := visitLengths(&c.Act)
+	_, median := visitLengths(&c.Act)
 	visit := median
 	if visit < itCfg.MinDuration {
 		visit = itCfg.MinDuration
@@ -270,7 +285,6 @@ func (p *Planner) scheduleAlternative(ctx context.Context, c *Candidate, slot Ti
 	if visit > itCfg.MaxDuration {
 		visit = itCfg.MaxDuration
 	}
-	_ = p75
 
 	a := &c.Act
 	if a.Kind == "event" && !(a.Attendance != nil && *a.Attendance == "drop_in") {
@@ -308,13 +322,10 @@ func (p *Planner) scheduleAlternative(ctx context.Context, c *Candidate, slot Ti
 		found := false
 		for _, iv := range intervals {
 			t := maxTime(iv.Start, earliest)
-			if !t.Equal(iv.Start) {
+			if t.After(iv.Start) {
 				t = gridUp(t, itCfg.SlotStep)
 			}
-			v := visit
-			if iv.End.Sub(t) < v {
-				v = iv.End.Sub(t)
-			}
+			v := minDuration(visit, minTime(iv.End, latestEnd).Sub(t))
 			if v < itCfg.MinDuration {
 				continue
 			}
@@ -322,14 +333,14 @@ func (p *Planner) scheduleAlternative(ctx context.Context, c *Candidate, slot Ti
 			found = true
 			break
 		}
-		if !found || end.After(latestEnd) {
+		if !found {
 			return start, end, 0, false
 		}
 	}
-	if !nextFlexible {
+	if !next.flexible {
 		return start, end, 0, true
 	}
-	if over := end.Add(outLeg.Duration + itCfg.Buffer).Sub(nextStart); over > 0 {
+	if over := end.Add(outLeg.Duration + itCfg.Buffer).Sub(next.at); over > 0 {
 		shiftMin = int(over.Minutes())
 	}
 	return start, end, shiftMin, true

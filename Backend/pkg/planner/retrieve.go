@@ -303,9 +303,9 @@ func (p *Planner) retrieve(ctx context.Context, run *Run) error {
 	run.Log.Counts.EventsA, run.Log.Counts.PlacesA = len(events), len(places)
 
 	cands := Feasible(spec, &q, run.ItCfg, append(events, places...), run.Log.Counts.Drops, feasibleOpts{})
-	if len(cands) == 0 {
-		// Relax the range once: wider radius and longer legs.
-		run.relaxRange()
+	if len(cands) == 0 && run.relaxRange() {
+		// Relax the range once: wider radius and longer legs. The counts
+		// then describe the relaxed query, which is the one that fed the pool.
 		q = baseQuery(spec, cfg, run.RadiusKm)
 		t := p.Clock.Now()
 		events, places, findErr = p.Source.FindCandidates(ctx, q)
@@ -314,6 +314,7 @@ func (p *Planner) retrieve(ctx context.Context, run *Run) error {
 			return findErr
 		}
 		run.Log.Counts.EventsA, run.Log.Counts.PlacesA = len(events), len(places)
+		run.Log.Counts.Drops = map[string]int{}
 		cands = Feasible(spec, &q, run.ItCfg, append(events, places...), run.Log.Counts.Drops, feasibleOpts{})
 	}
 	run.Log.Counts.Feasible = len(cands)
@@ -337,12 +338,57 @@ func (p *Planner) retrieve(ctx context.Context, run *Run) error {
 	run.Log.Timings["classifier_ms"] = p.msSince(t)
 	run.Log.ML.Mode = mode
 	run.Log.Counts.Ranked = len(kept)
+	if mode == "classifier" && p.jevEnabled() && cfg.Jev == "sync" {
+		t = p.Clock.Now()
+		p.rerankSync(ctx, run, kept)
+		run.Log.Timings["jev_ms"] = p.msSince(t)
+	}
 	for _, c := range kept {
 		c.Source, c.Round = "retrieval", 0
 		run.Pool.Add(c)
 		run.Log.Shortlist = append(run.Log.Shortlist, shortlistEntry(c))
 	}
 	return nil
+}
+
+// jevEnabled is true when the scorer can rerank and the knob allows it.
+func (p *Planner) jevEnabled() bool {
+	if p.Scorer == nil || p.Cfg.Jev == "off" || p.Cfg.Jev == "" {
+		return false
+	}
+	jc, ok := p.Scorer.(JevCapable)
+	return ok && jc.JevAvailable()
+}
+
+// rerankSync (PLANNER_JEV=sync) waits for the reranker on the best
+// JevTopK of the shortlist so its scores steer the solve. A failure only
+// leaves the classifier scores in place.
+func (p *Planner) rerankSync(ctx context.Context, run *Run, kept []*Candidate) {
+	var send []*Candidate
+	for _, c := range kept {
+		if len(c.Act.Embedding) > 0 && len(send) < run.Cfg.JevTopK {
+			send = append(send, c)
+		}
+	}
+	if len(send) == 0 {
+		return
+	}
+	jctx, cancel := context.WithTimeout(ctx, run.Cfg.JevTimeout)
+	defer cancel()
+	res, err := p.Scorer.Score(jctx, p.scoreRequest(run, send, true))
+	now := p.Clock.Now()
+	jl := &JevLog{Requested: true, CompletedAt: &now, Scores: map[string]float64{}}
+	if err != nil {
+		jl.Err = err.Error()
+	}
+	for _, c := range send {
+		if j, ok := res.Rerank[c.ID]; ok && err == nil {
+			j = math.Max(0, math.Min(4, j))
+			c.Jev = &j
+			jl.Scores[c.ID] = j
+		}
+	}
+	run.Log.ML.Jev = jl
 }
 
 func shortlistEntry(c *Candidate) ShortlistEntry {
@@ -395,6 +441,15 @@ func (p *Planner) fetchEmbeddings(ctx context.Context, run *Run, cands []*Candid
 // neither the call is skipped). Ids the service dropped stay dropped. On
 // error everyone keeps the cosine/prior blend and the mode says why.
 func (p *Planner) scoreCandidates(ctx context.Context, run *Run, cands []*Candidate, timeout time.Duration) ([]*Candidate, string) {
+	if len(run.Dropped) > 0 {
+		var fresh []*Candidate
+		for _, c := range cands {
+			if !run.Dropped[c.ID] {
+				fresh = append(fresh, c)
+			}
+		}
+		cands = fresh
+	}
 	if p.Scorer == nil {
 		return cands, "skipped:no_scorer"
 	}
@@ -432,6 +487,10 @@ func (p *Planner) scoreCandidates(ctx context.Context, run *Run, cands []*Candid
 		s, ok := res.Scores[c.ID]
 		if !ok {
 			run.Log.Counts.MLDropped++
+			if run.Dropped == nil {
+				run.Dropped = map[string]bool{}
+			}
+			run.Dropped[c.ID] = true
 			continue
 		}
 		s = clamp01(s)

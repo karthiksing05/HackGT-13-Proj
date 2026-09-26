@@ -185,14 +185,19 @@ func jaccard(a, b map[string]bool) float64 {
 	return float64(inter) / float64(union)
 }
 
-// top3Sum is the convergence measure: the summed scores of the first three.
+// top3Sum is the convergence measure: the summed scores of the three best
+// plans by score (not the diversity order, which may put a lower score in
+// the top three). mergeBest only ever adds plans or raises a signature's
+// score, so this never decreases from round to round.
 func top3Sum(best []ScoredPlan) float64 {
-	s := 0.0
+	scores := make([]float64, len(best))
 	for i, p := range best {
-		if i >= 3 {
-			break
-		}
-		s += p.Score
+		scores[i] = p.Score
+	}
+	sort.Sort(sort.Reverse(sort.Float64Slice(scores)))
+	s := 0.0
+	for i := 0; i < len(scores) && i < 3; i++ {
+		s += scores[i]
 	}
 	return s
 }

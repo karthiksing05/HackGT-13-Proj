@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -154,6 +155,7 @@ func (p *Planner) Generate(ctx context.Context, user *UserContext, spec PlanSpec
 
 	options := p.render(run)
 	pool := p.buildPool(run, options)
+	jevCands := p.prepareJev(run, options)
 	run.Log.Final = FinalLog{OptionIDs: optionIDs(options), Relaxed: run.Relaxed, TotalMs: p.msSince(run.startedAt)}
 	if err := p.Pools.SavePool(ctx, pool); err != nil {
 		return Batch{}, fmt.Errorf("planner: save pool: %w", err)
@@ -162,7 +164,7 @@ func (p *Planner) Generate(ctx context.Context, user *UserContext, spec PlanSpec
 		log.Warn().Err(err).Str("run", run.ID).Msg("planner: save run")
 	}
 	p.logRun(run, len(options))
-	p.scheduleJev(run, options)
+	p.startJev(run, jevCands)
 
 	batch := pageBatch(pool, 0, p.Cfg.FirstPage)
 	batch.Relaxed = run.Relaxed
@@ -280,21 +282,27 @@ func (p *Planner) More(ctx context.Context, user *UserContext, cursor string) (B
 	return pageBatch(pool, offset, p.Cfg.MorePage), nil
 }
 
-// scheduleJev runs the reranker after the response when configured: sync
-// before returning is handled by the caller through Cfg.Jev == "sync";
-// async fires one background call over the final shortlist.
-func (p *Planner) scheduleJev(run *Run, options []Option) {
-	if p.Scorer == nil || p.Cfg.Jev == "off" || p.Cfg.Jev == "" {
-		return
-	}
-	if jc, ok := p.Scorer.(JevCapable); !ok || !jc.JevAvailable() {
-		return
+// prepareJev picks the candidates the async reranker will see and marks
+// the run as having requested it (before the run is saved). With
+// PLANNER_JEV=sync the reranker already ran during retrieval.
+func (p *Planner) prepareJev(run *Run, options []Option) []*Candidate {
+	if !p.jevEnabled() || p.Cfg.Jev != "async" || run.Log.ML.Mode != "classifier" {
+		return nil
 	}
 	cands := p.jevCandidates(run, options)
+	if len(cands) > 0 {
+		run.Log.ML.Jev = &JevLog{Requested: true, Scores: map[string]float64{}}
+	}
+	return cands
+}
+
+// startJev fires one background rerank over the final shortlist after the
+// response is built; its scores land in plan_runs.ml.jev and in the pool's
+// score cache, which /plans/alternatives reads.
+func (p *Planner) startJev(run *Run, cands []*Candidate) {
 	if len(cands) == 0 {
 		return
 	}
-	run.Log.ML.Jev = &JevLog{Requested: true, Scores: map[string]float64{}}
 	job := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), p.Cfg.JevTimeout)
 		defer cancel()
@@ -305,10 +313,12 @@ func (p *Planner) scheduleJev(run *Run, options []Option) {
 		if err != nil {
 			jl.Err = err.Error()
 		} else {
-			for id, s := range res.Rerank {
-				v := s
-				jl.Scores[id] = v
-				scores[id] = PoolScore{Jev: &v}
+			for _, c := range cands {
+				if s, ok := res.Rerank[c.ID]; ok {
+					v := math.Max(0, math.Min(4, s))
+					jl.Scores[c.ID] = v
+					scores[c.ID] = PoolScore{Jev: &v}
+				}
 			}
 		}
 		if err := p.Pools.PatchRun(ctx, run.ID, map[string]any{"ml.jev": jl}); err != nil {
@@ -320,14 +330,11 @@ func (p *Planner) scheduleJev(run *Run, options []Option) {
 			}
 		}
 	}
-	switch {
-	case p.Cfg.Jev == "sync":
-		job()
-	case p.Background != nil:
+	if p.Background != nil {
 		p.Background(job)
-	default:
-		go job()
+		return
 	}
+	go job()
 }
 
 // jevCandidates are the stops of the rendered options plus the best of the

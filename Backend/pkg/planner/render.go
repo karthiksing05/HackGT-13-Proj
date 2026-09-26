@@ -174,6 +174,7 @@ func legMode(m travel.Mode, driveLabel string) string {
 	return "walk"
 }
 
+// legVerb labels a leg mode the way the app does (TravelMode.label).
 func legVerb(mode string) string {
 	switch mode {
 	case "marta":
@@ -182,8 +183,25 @@ func legVerb(mode string) string {
 		return "Drive"
 	case "rideshare":
 		return "Rideshare"
+	case "uber":
+		return "Uber"
 	}
 	return "Walk"
+}
+
+// metaLegWord names the non-walking legs in an option's meta line, worded
+// like the contract's example ("2 transit legs").
+func metaLegWord(mode travel.Mode, driveLabel string) string {
+	switch mode {
+	case travel.Transit:
+		return "transit"
+	case travel.Drive:
+		if driveLabel == "rideshare" {
+			return "rideshare"
+		}
+		return "drive"
+	}
+	return "walk"
 }
 
 // --- names, tags, meta -------------------------------------------------------
@@ -203,8 +221,14 @@ func optionName(stops []Stop) string {
 	return name
 }
 
-// shortName keeps the first three words, drops a leading "The" and cuts at
-// ":", " at " or " - ".
+// Words a short name should not end on ("Sunset Jazz on" → "Sunset Jazz").
+var trailingConnectors = map[string]bool{
+	"a": true, "an": true, "and": true, "at": true, "for": true, "in": true, "of": true,
+	"on": true, "the": true, "to": true, "with": true, "&": true, "+": true, "-": true,
+}
+
+// shortName keeps the first three words, drops a leading "The", cuts at
+// ":", " at " or " - ", and never ends on a connector word.
 func shortName(title string) string {
 	s := strings.TrimSpace(title)
 	for _, sep := range []string{":", " at ", " - ", " – ", " — "} {
@@ -218,6 +242,9 @@ func shortName(title string) string {
 	}
 	if len(words) > 3 {
 		words = words[:3]
+	}
+	for len(words) > 1 && trailingConnectors[strings.ToLower(words[len(words)-1])] {
+		words = words[:len(words)-1]
 	}
 	if len(words) == 0 {
 		return strings.TrimSpace(title)
@@ -267,14 +294,16 @@ func coversFacet(s Stop, f Facet) bool {
 	return f.Covers(&a)
 }
 
-// optionMeta is "{Free|~$|~$$|~$$$} · {miles} mi {walking|by transit|…} · {n} {marta|…} legs".
+// optionMeta is "{Free|~$|~$$|~$$$} · {miles} mi {walking|by transit|…} ·
+// {n} {transit|drive|rideshare} legs"; the price part is left out when no
+// stop's price is known, and walking-only plans count stops instead.
 func optionMeta(opt Option, spec *PlanSpec, totalKm float64) string {
 	var parts []string
 	if price := optionPrice(opt); price != "" {
 		parts = append(parts, price)
 	}
 	parts = append(parts, fmt.Sprintf("%.1f mi %s", totalKm/kmPerMile, travelPhrase(spec.Mode, spec.DriveLabel)))
-	label := legMode(spec.Mode, spec.DriveLabel)
+	label := metaLegWord(spec.Mode, spec.DriveLabel)
 	n := 0
 	for _, l := range opt.Legs {
 		if l.Mode != "walk" {
