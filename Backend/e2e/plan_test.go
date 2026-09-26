@@ -5,6 +5,7 @@ package e2e
 import (
 	"Backend/pkg/contract"
 	"fmt"
+	"math"
 	"net/http"
 	"slices"
 	"strings"
@@ -155,6 +156,17 @@ func TestDemoPlanAndSidequest(t *testing.T) {
 	junk := send[contract.PlanBatch](t, s, "POST", "/plans/generate/more", contract.MoreRequest{Cursor: "dag_nope_3"}, http.StatusOK)
 	if len(junk.Options) != 0 || !junk.Done {
 		t.Errorf("an unknown cursor: %+v", junk)
+	}
+
+	// Her phone in Atlanta: the plan still starts at her home base in Saltlight.
+	away := req
+	away.Start, away.End = techSquare, techSquare
+	for _, o := range send[contract.PlanBatch](t, s, "POST", "/plans/generate", away, http.StatusOK).Options {
+		for _, st := range o.Stops {
+			if p := st.Place.Coordinate; p == nil || math.Abs(p.Lat-home.Coordinate.Lat) > 0.3 || math.Abs(p.Lng-home.Coordinate.Lng) > 0.3 {
+				t.Errorf("a start 400 km away was not moved to the home base: %s at %+v", st.Title, st.Place.Coordinate)
+			}
+		}
 	}
 
 	// The window already ended, or an enum the app never sends.
