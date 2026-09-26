@@ -41,7 +41,8 @@ if [ "$SKIP_TESTS" = false ]; then
 fi
 
 build() {
-  local name="$1" pkg="$2" out="${OUTPUT_DIR}/${name}"
+  local name="$1" pkg="$2"
+  local out="${OUTPUT_DIR}/${name}"
   [ "$TARGET_OS" = "windows" ] && out="${out}.exe"
   echo "==> building ${out}"
   CGO_ENABLED=0 GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" go build -trimpath -ldflags="-s -w" -o "$out" "$pkg"
