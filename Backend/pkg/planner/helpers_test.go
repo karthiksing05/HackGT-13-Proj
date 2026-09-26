@@ -1,14 +1,13 @@
 package planner
 
 import (
+	"Backend/pkg/ml"
 	"Backend/pkg/models"
 	"Backend/pkg/travel"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"hash/fnv"
 	"math"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,7 +28,16 @@ var (
 	techSquare = travel.Point{Lat: 33.7766, Lng: -84.3890}
 )
 
-const testDim = 32
+// Vectors live in the catalog's embedding space. The Saltlight fixture
+// carries each document's stored 1024-d Qwen3-Embedding-0.6B vector
+// (testdata/make_fixture.py reads them from MongoDB), and everything else a
+// test needs a vector for is built from those: a token ("kind:event",
+// "cat:park", "outdoor") stands for the unit mean of the vectors of the
+// fixture documents it describes, so Sandy's taste, a request's search
+// vector and a synthetic activity sit in the same space as the catalog.
+const testDim = ml.Dim
+
+const saltlightFixture = "testdata/saltlight_2026-09-26.json"
 
 var (
 	fixtureMu    sync.Mutex
@@ -58,7 +66,7 @@ func loadFixture(t *testing.T, path string) []models.Activity {
 }
 
 func saltlight(t *testing.T) []models.Activity {
-	return loadFixture(t, "testdata/saltlight_2026-09-26.json")
+	return loadFixture(t, saltlightFixture)
 }
 
 func atlanta(t *testing.T) []models.Activity {
@@ -69,21 +77,66 @@ func atlanta(t *testing.T) []models.Activity {
 	return acts
 }
 
-// tokenVector is a deterministic pseudo-random unit vector per token, so
-// documents sharing categories or tags are close in cosine space.
+var (
+	tokenOnce      sync.Once
+	tokenCentroids map[string][]float64
+	catalogMean    []float64
+)
+
+// tokenVector is the unit mean of the fixture vectors of the documents a
+// token describes; a token no document has is the catalog's mean direction.
 func tokenVector(token string) []float64 {
-	h := fnv.New64a()
-	_, _ = h.Write([]byte(strings.ToLower(token)))
-	r := rand.New(rand.NewSource(int64(h.Sum64())))
-	v := make([]float64, testDim)
-	for i := range v {
-		v[i] = r.NormFloat64()
+	tokenOnce.Do(loadTokenCentroids)
+	if v, ok := tokenCentroids[strings.ToLower(token)]; ok {
+		return v
 	}
-	return l2norm(v)
+	return catalogMean
 }
 
-// vectorFor is the fake embedding of a document: its kind, category and tags.
+func loadTokenCentroids() {
+	b, err := os.ReadFile(saltlightFixture)
+	if err != nil {
+		panic(fmt.Sprintf("the test vectors come from the Saltlight fixture: %v", err))
+	}
+	var acts []models.Activity
+	if err := json.Unmarshal(b, &acts); err != nil {
+		panic(fmt.Sprintf("decode %s: %v", saltlightFixture, err))
+	}
+	sums := map[string][]float64{}
+	add := func(key string, v []float64) {
+		sum, ok := sums[key]
+		if !ok {
+			sum = make([]float64, testDim)
+			sums[key] = sum
+		}
+		for i, x := range v {
+			sum[i] += x
+		}
+	}
+	for _, a := range acts {
+		if len(a.Embedding) != testDim {
+			panic(fmt.Sprintf("%s has a %d-d vector; regenerate the fixture", a.Name, len(a.Embedding)))
+		}
+		add("", a.Embedding)
+		add("kind:"+a.Kind, a.Embedding)
+		add("cat:"+a.Category, a.Embedding)
+		for _, tag := range a.Tags {
+			add(strings.ToLower(tag), a.Embedding)
+		}
+	}
+	tokenCentroids = map[string][]float64{}
+	for k, sum := range sums {
+		tokenCentroids[k] = l2norm(sum)
+	}
+	catalogMean = tokenCentroids[""]
+}
+
+// vectorFor is a document's vector: the stored one (every fixture document
+// has it), else the mix of its kind, category and tags.
 func vectorFor(a *models.Activity) []float64 {
+	if len(a.Embedding) == testDim {
+		return a.Embedding
+	}
 	tokens := append([]string{"kind:" + a.Kind, "cat:" + a.Category}, a.Tags...)
 	return vectorOf(tokens...)
 }
@@ -206,14 +259,19 @@ func testConfig() Config {
 	return cfg
 }
 
-// preferenceScore is the fake classifier: closeness to what Sandy likes,
-// mapped onto 0.5..1.
+// preferenceScore is the fake classifier: closeness to Sandy's taste, on
+// the real classifier's scale. Cosines in the catalog's space are
+// compressed (0.58–0.83 against her taste vector across the fixture), so
+// they are centred on the fixture's median and stretched through a
+// logistic: 0.04–0.83 across the fixture, parks, trails and live music at
+// the top, museums and tech workshops at the bottom, much as the real
+// scores rank them (scenarios_test.go).
 func preferenceScore(c *Candidate) float64 {
 	v := c.Act.Embedding
 	if len(v) == 0 {
 		v = vectorFor(&c.Act)
 	}
-	return clamp01(0.5 + 0.5*dot(sandyPositive, v))
+	return 1 / (1 + math.Exp(-20*(dot(sandyPositive, v)-0.745)))
 }
 
 func newTestPlanner(acts []models.Activity, cfg Config) *testPlanner {

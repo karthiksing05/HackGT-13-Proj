@@ -80,10 +80,9 @@ database `freetime`):
 
 ```sh
 docker run -d --name sq-mongo -p 27017:27017 mongo:7
-# the demo city's 100 activities go into demo_activities (seed-demo needs them). The JSON has no texts or
-# vectors, so the demo city ranks by priors until they are copied in (docs/DATA.md, "The demo snapshot")
-docker cp dataingestion/demo/saltlight_harbor.json sq-mongo:/tmp/ && docker exec sq-mongo \
-  mongoimport --db freetime --collection demo_activities --jsonArray --file /tmp/saltlight_harbor.json
+# the demo city: copy the embedded Saltlight catalog (100 activities with embedding texts and vectors)
+# from production's demo_activities into the local Mongo (seed-demo and the planner need it)
+Backend/scripts/pull-demo-catalog.sh
 ```
 
 **ML service** (Python 3.11+; the bundled classifier loads without any token; the embedding provider
@@ -166,7 +165,8 @@ not in the repository: the server's seed reads it from `DEMO_PASSWORD`, and the 
 the `SQ_DEMO_PASSWORD` build setting (`xcodebuild … SQ_DEMO_PASSWORD='…'`) or the `-SQDemoPassword`
 launch argument. When the app has it, the sign-in screen shows **Use the demo account**, which fills in
 her email and password and signs in. Without it, sign in by typing them, or create your own account (new
-accounts get the real Atlanta catalog). The walkthrough is in [docs/DEMO.md](docs/DEMO.md).
+accounts get the real Atlanta catalog). The walkthrough is in [docs/DEMO.md](docs/DEMO.md), and a one-page
+brief for the account in [docs/DEMO_ACCOUNT.md](docs/DEMO_ACCOUNT.md).
 
 ## Configuration and secrets
 
