@@ -1,6 +1,7 @@
 package social
 
 import (
+	"Backend/pkg/api/photos"
 	"Backend/pkg/api/view"
 	"Backend/pkg/contract"
 	"Backend/pkg/httpx"
@@ -166,7 +167,7 @@ func photoView(p *models.Photo, viewerID string, ppl people) contract.GroupPhoto
 			by = "Someone"
 		}
 	}
-	url := strings.TrimRight(ppl.base, "/") + "/photos/" + p.ID
+	url := photos.URL(ppl.base, p.ID)
 	owner := p.OwnerID
 	return contract.GroupPhoto{ID: p.ID, ByName: by, UploaderID: &owner, CreatedAt: contract.Ptr(p.CreatedAt), URL: &url}
 }
@@ -493,10 +494,10 @@ func (k *threadKit) group(out *contract.ChatThread, th *models.Thread, viewerID 
 	for _, b := range balances(k.expenses[th.ID], viewerID, th.MemberIDs) {
 		net += b.NetCents
 	}
-	photos := httpx.Plural(k.photos[th.ID], "photo", "photos")
-	out.Chips = []string{count, balanceChip(net), photos}
+	photoCount := httpx.Plural(k.photos[th.ID], "photo", "photos")
+	out.Chips = []string{count, balanceChip(net), photoCount}
 	albumTitle := out.Title + " · " + httpx.MonthDay(albumDay.In(loc))
-	albumSubtitle := photos + " · " + count
+	albumSubtitle := photoCount + " · " + count
 	out.AlbumTitle, out.AlbumSubtitle = &albumTitle, &albumSubtitle
 }
 

@@ -4,7 +4,7 @@ package me
 
 import (
 	"Backend/pkg/api"
-	"Backend/pkg/api/social"
+	socialapi "Backend/pkg/api/social"
 	"Backend/pkg/api/view"
 	"Backend/pkg/contract"
 	"Backend/pkg/httpx"
@@ -105,7 +105,7 @@ func (h *H) Patch(w http.ResponseWriter, r *http.Request) {
 		}
 		if statusChanged {
 			// Seam (backend-C): friends hear the new status line.
-			social.StatusChanged(r.Context(), h.d, user, httpx.TZ(r))
+			socialapi.StatusChanged(r.Context(), h.d, user, httpx.TZ(r))
 		}
 	}
 	httpx.JSON(w, http.StatusOK, view.User(user, h.d.Cfg.PublicBaseURL, now))

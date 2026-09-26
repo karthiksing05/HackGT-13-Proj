@@ -2,28 +2,18 @@ package social
 
 import (
 	"Backend/pkg/api"
+	"Backend/pkg/api/photos"
 	"Backend/pkg/contract"
 	"Backend/pkg/httpx"
 	"Backend/pkg/models"
 	"Backend/pkg/realtime"
-	"bytes"
-	"errors"
-	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/gorilla/mux"
 )
 
-// Sentences of the Album tab.
-const (
-	MsgPhotoMissing = "Pick a photo to upload."
-	MsgPhotoType    = "That file isn't a photo. Pick a JPEG or PNG."
-	MsgPhotoOwner   = "You can only delete photos you added."
-)
-
-// multipartHeadroom covers the form framing around the photo bytes.
-const multipartHeadroom = 64 << 10
+// MsgPhotoOwner is the Album's answer to deleting someone else's photo.
+const MsgPhotoOwner = "You can only delete photos you added."
 
 // albumLimit caps GET /groups/{id}/photos.
 const albumLimit = 200
@@ -36,13 +26,13 @@ func (h *H) ListPhotos(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	photos, err := h.d.Store.Photos().ListForGroup(r.Context(), th.ID, albumLimit)
+	list, err := h.d.Store.Photos().ListForGroup(r.Context(), th.ID, albumLimit)
 	if err != nil {
 		api.Fail(w, r, err)
 		return
 	}
-	owners := make([]string, 0, len(photos))
-	for _, p := range photos {
+	owners := make([]string, 0, len(list))
+	for _, p := range list {
 		owners = append(owners, p.OwnerID)
 	}
 	ppl, err := h.loadPeople(r.Context(), owners)
@@ -50,15 +40,16 @@ func (h *H) ListPhotos(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	out := make([]contract.GroupPhoto, 0, len(photos))
-	for _, p := range photos {
+	out := make([]contract.GroupPhoto, 0, len(list))
+	for _, p := range list {
 		out = append(out, photoView(p, viewerID, ppl))
 	}
 	httpx.JSON(w, http.StatusOK, out)
 }
 
 // UploadPhoto is POST /groups/{id}/photos (multipart "photo", JPEG or PNG,
-// up to MAX_PHOTO_BYTES) → 201 GroupPhoto; members hear photo.added.
+// up to MAX_PHOTO_BYTES, read by photos.ReadUpload) → 201 GroupPhoto;
+// members hear photo.added.
 func (h *H) UploadPhoto(w http.ResponseWriter, r *http.Request) {
 	viewerID := api.UserID(r)
 	th, err := h.d.Store.Threads().GroupForMember(r.Context(), mux.Vars(r)["id"], viewerID)
@@ -66,12 +57,12 @@ func (h *H) UploadPhoto(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	data, contentType, err := h.readPhoto(w, r)
+	upload, err := photos.ReadUpload(r, h.d.Cfg.MaxPhotoBytes)
 	if err != nil {
 		api.Fail(w, r, err)
 		return
 	}
-	photo := &models.Photo{OwnerID: viewerID, Kind: models.PhotoKindGroup, GroupID: th.ID, ContentType: contentType, Bytes: data}
+	photo := &models.Photo{OwnerID: viewerID, Kind: models.PhotoKindGroup, GroupID: th.ID, ContentType: upload.ContentType, Bytes: upload.Bytes}
 	if err := h.d.Store.Photos().Put(r.Context(), photo); err != nil {
 		api.Fail(w, r, err)
 		return
@@ -114,42 +105,4 @@ func (h *H) DeletePhoto(w http.ResponseWriter, r *http.Request) {
 	}
 	h.pushThread(r.Context(), th, httpx.TZ(r), th.MemberIDs)
 	httpx.NoContent(w)
-}
-
-// readPhoto reads the multipart "photo" part: its bytes and a content type
-// from the magic bytes (JPEG or PNG). Too large → 413.
-func (h *H) readPhoto(w http.ResponseWriter, r *http.Request) ([]byte, string, error) {
-	limit := h.d.Cfg.MaxPhotoBytes
-	tooBig := httpx.E(http.StatusRequestEntityTooLarge,
-		fmt.Sprintf("That photo is too big. Pick one under %d MB.", max(1, limit>>20)))
-	r.Body = http.MaxBytesReader(w, r.Body, limit+multipartHeadroom)
-	if err := r.ParseMultipartForm(multipartHeadroom); err != nil {
-		var maxErr *http.MaxBytesError
-		if errors.As(err, &maxErr) {
-			return nil, "", tooBig
-		}
-		return nil, "", httpx.BadRequest(MsgPhotoMissing)
-	}
-	defer func() { _ = r.MultipartForm.RemoveAll() }()
-	file, _, err := r.FormFile("photo")
-	if err != nil {
-		return nil, "", httpx.BadRequest(MsgPhotoMissing)
-	}
-	defer file.Close()
-	data, err := io.ReadAll(io.LimitReader(file, limit+1))
-	switch {
-	case err != nil:
-		return nil, "", httpx.BadRequest(MsgPhotoMissing)
-	case int64(len(data)) > limit:
-		return nil, "", tooBig
-	case len(data) == 0:
-		return nil, "", httpx.BadRequest(MsgPhotoMissing)
-	}
-	switch {
-	case bytes.HasPrefix(data, []byte{0xFF, 0xD8, 0xFF}):
-		return data, "image/jpeg", nil
-	case bytes.HasPrefix(data, []byte("\x89PNG\r\n\x1a\n")):
-		return data, "image/png", nil
-	}
-	return nil, "", httpx.BadRequest(MsgPhotoType)
 }

@@ -217,7 +217,7 @@ func (h *H) Settle(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusConflict, MsgBalanceChanged)
 		return
 	}
-	cards, err := h.d.Store.Expenses().SettleCards(ctx, viewerID)
+	cards, err := h.d.Store.Payments().List(ctx, viewerID)
 	if err != nil {
 		api.Fail(w, r, err)
 		return
@@ -248,7 +248,8 @@ func (h *H) Settle(w http.ResponseWriter, r *http.Request) {
 	httpx.NoContent(w)
 }
 
-// pickCard is the chosen card, else the default one, else the first.
+// pickCard is the chosen card, else the default one, else the oldest (the
+// default when none is flagged).
 func pickCard(cards []*models.PaymentMethod, id *string) *models.PaymentMethod {
 	if id != nil {
 		for _, c := range cards {

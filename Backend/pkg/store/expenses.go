@@ -89,18 +89,3 @@ func (e Expenses) Delete(ctx context.Context, groupID, id, createdBy string) err
 	}
 	return nil
 }
-
-// SettleCards reads the user's saved (simulated) cards from the shared
-// payment_methods collection, oldest first, to pay a settle-up with.
-func (e Expenses) SettleCards(ctx context.Context, userID string) ([]*models.PaymentMethod, error) {
-	cursor, err := e.s.db.Collection(CollPaymentMethods).Find(ctx, bson.M{"userId": userID},
-		options.Find().SetSort(bson.D{{Key: "createdAt", Value: 1}, {Key: "_id", Value: 1}}))
-	if err != nil {
-		return nil, err
-	}
-	cards := []*models.PaymentMethod{}
-	if err := cursor.All(ctx, &cards); err != nil {
-		return nil, err
-	}
-	return cards, nil
-}
