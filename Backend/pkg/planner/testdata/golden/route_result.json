@@ -3,45 +3,57 @@
   "legs": [
     {
       "from_stop_id": "start",
-      "to_stop_id": "stop_ad4f58795ec3ba0d008af20a_1",
-      "mode": "walk",
-      "minutes": 18,
-      "distance_km": 1.37
-    },
-    {
-      "from_stop_id": "stop_ad4f58795ec3ba0d008af20a_1",
-      "to_stop_id": "stop_bd670883e140022274fe9e2f_0",
-      "mode": "walk",
-      "minutes": 26,
-      "distance_km": 1.95
-    },
-    {
-      "from_stop_id": "stop_bd670883e140022274fe9e2f_0",
-      "to_stop_id": "end",
+      "to_stop_id": "stop_bd670883e140022274fe9e2f_2",
       "mode": "walk",
       "minutes": 12,
       "distance_km": 0.87
+    },
+    {
+      "from_stop_id": "stop_bd670883e140022274fe9e2f_2",
+      "to_stop_id": "stop_6a31ffa8d4ca54aa5578259f_1",
+      "mode": "walk",
+      "minutes": 20,
+      "distance_km": 1.53
+    },
+    {
+      "from_stop_id": "stop_6a31ffa8d4ca54aa5578259f_1",
+      "to_stop_id": "stop_9bdbbc5e9aab712a5b769f72_0",
+      "mode": "walk",
+      "minutes": 11,
+      "distance_km": 0.82
+    },
+    {
+      "from_stop_id": "stop_9bdbbc5e9aab712a5b769f72_0",
+      "to_stop_id": "end",
+      "mode": "walk",
+      "minutes": 21,
+      "distance_km": 1.54
     }
   ],
   "stop_times": [
     {
-      "stop_id": "stop_ad4f58795ec3ba0d008af20a_1",
-      "start": "2026-09-27T00:30:00Z",
-      "end": "2026-09-27T02:00:00Z",
+      "stop_id": "stop_bd670883e140022274fe9e2f_2",
+      "start": "2026-09-27T01:30:00Z",
+      "end": "2026-09-27T02:45:00Z",
       "flexible": true
     },
     {
-      "stop_id": "stop_bd670883e140022274fe9e2f_0",
-      "start": "2026-09-27T02:26:00Z",
-      "end": "2026-09-27T03:41:00Z",
-      "flexible": true,
-      "closed": true
+      "stop_id": "stop_6a31ffa8d4ca54aa5578259f_1",
+      "start": "2026-09-27T03:05:00Z",
+      "end": "2026-09-27T03:50:00Z",
+      "flexible": true
+    },
+    {
+      "stop_id": "stop_9bdbbc5e9aab712a5b769f72_0",
+      "start": "2026-09-27T04:01:00Z",
+      "end": "2026-09-27T04:01:00Z",
+      "flexible": false
     }
   ],
-  "arrival": "2026-09-27T03:53:00Z",
-  "depart": "2026-09-27T00:12:00Z",
-  "minutes_late": 94,
-  "broken_at": 1,
+  "arrival": "2026-09-27T04:22:00Z",
+  "depart": "2026-09-27T01:18:00Z",
+  "minutes_late": 413,
+  "broken_at": 2,
   "late_flag": true,
-  "total_duration_min": 221
+  "total_duration_min": 184
 }

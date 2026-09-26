@@ -28,7 +28,7 @@ func (p *Planner) render(run *Run) []Option {
 	used := map[string]bool{}
 	for _, sp := range run.Best {
 		opt := renderOption(run, sp, len(out))
-		if v := CheckOption(&run.Spec, &opt, lookup); len(v) > 0 {
+		if v := checkOption(&run.Spec, &opt, lookup, run.ItCfg); len(v) > 0 {
 			run.rejected++
 			log.Error().Str("run", run.ID).Str("signature", sp.Signature).Strs("violations", v).
 				Msg("planner: option failed the guarantees; left out")
@@ -462,7 +462,8 @@ var categoryLabels = map[string]string{
 	"park": "Park", "hike": "Hike", "bar": "Bar", "landmark": "Landmark", "museum": "Museum",
 	"gallery": "Gallery", "garden": "Garden", "shopping": "Shopping", "rec_venue": "Games + fun",
 	"zoo_aquarium": "Zoo + aquarium", "market": "Market", "viewpoint": "Views", "restaurant": "Restaurant",
-	"cafe": "Café", "nightclub": "Nightclub", "live_music": "Live music", "comedy": "Comedy",
+	"cafe": "Café", "bakery": "Bakery", "dessert": "Dessert", "food_hall": "Food hall", "brewery": "Brewery",
+	"nightclub": "Nightclub", "live_music": "Live music", "comedy": "Comedy",
 	"class_workshop": "Workshop", "community_event": "Community", "festival": "Festival",
 	"sports_event": "Sports", "tour": "Tour", "theater": "Theater", "cinema": "Cinema", "other": "Sidequest",
 }

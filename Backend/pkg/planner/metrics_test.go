@@ -11,24 +11,29 @@ import (
 
 func TestPlanScoreWeights(t *testing.T) {
 	w := DefaultConfig().Weights
-	perfect := PlanMetrics{Fit: 1, Coverage: 1, Variety: 1, PaceFit: 1}
-	if s := planScore(perfect, w); !approx(s, 0.9, 1e-12) {
-		t.Errorf("perfect plan = %v, want 0.9", s)
+	perfect := PlanMetrics{Fit: 1, Fill: 1, Coverage: 1, Variety: 1, PaceFit: 1}
+	if s := planScore(perfect, w); !approx(s, 1, 1e-12) {
+		t.Errorf("perfect plan = %v, want 1", s)
 	}
 	late := perfect
 	late.LateRisk = true
-	if s := planScore(late, w); !approx(s, 0.85, 1e-12) {
+	if s := planScore(late, w); !approx(s, 0.95, 1e-12) {
 		t.Errorf("late risk = %v", s)
 	}
 	spent := perfect
 	spent.BudgetUse = 1.0 // 10 % over the 0.9 threshold costs 0.05
-	if s := planScore(spent, w); !approx(s, 0.85, 1e-12) {
+	if s := planScore(spent, w); !approx(s, 0.95, 1e-12) {
 		t.Errorf("budget use 1.0 = %v", s)
 	}
 	busy := perfect
 	busy.TravelShare, busy.IdleShare = 0.5, 0.2
-	if s := planScore(busy, w); !approx(s, 0.9-0.025-0.01, 1e-12) {
+	if s := planScore(busy, w); !approx(s, 1-0.075-0.01, 1e-12) {
 		t.Errorf("travel/idle = %v", s)
+	}
+	weak := perfect
+	weak.WeakStops = 2
+	if s := planScore(weak, w); !approx(s, 0.8, 1e-12) {
+		t.Errorf("two weak stops = %v", s)
 	}
 	if s := planScore(PlanMetrics{LateRisk: true, BudgetUse: 5, TravelShare: 1, IdleShare: 1}, w); s != 0 {
 		t.Errorf("score must clamp at 0, got %v", s)

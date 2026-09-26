@@ -6,8 +6,11 @@ package itinerary
 //	score = utility - mu * max Jaccard(series, chosen series)
 //
 // The first element is always the best itinerary. The whole pool is
-// ordered, so later pages ("more options") stay varied too.
+// ordered, so later pages ("more options") stay varied too. Itineraries
+// with the same stops in the same order (e.g. one drop-in visited at 16:00
+// or 16:30) collapse to the best of them.
 func Diverse(pool []Itinerary, mu float64) []Itinerary {
+	pool = dedupe(pool)
 	sets := make([]map[string]bool, len(pool))
 	for i, it := range pool {
 		sets[i] = seriesSet(it)
@@ -61,4 +64,25 @@ func jaccard(a, b map[string]bool) float64 {
 		return 0
 	}
 	return float64(inter) / float64(union)
+}
+
+// dedupe keeps the highest-utility itinerary for each stop sequence.
+func dedupe(pool []Itinerary) []Itinerary {
+	best := map[string]int{}
+	var out []Itinerary
+	for _, it := range pool {
+		sig := ""
+		for _, st := range it.Stops {
+			sig += st.Node.SeriesKey + "\x00"
+		}
+		if i, ok := best[sig]; ok {
+			if it.Utility > out[i].Utility {
+				out[i] = it
+			}
+			continue
+		}
+		best[sig] = len(out)
+		out = append(out, it)
+	}
+	return out
 }

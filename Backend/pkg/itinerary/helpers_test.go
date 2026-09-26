@@ -45,7 +45,7 @@ func event(name string, loc travel.Point, start time.Time, minutes int, score fl
 		ID:         newID(),
 		Kind:       "event",
 		Name:       name,
-		Category:   "live_music",
+		Category:   "theater", // attended whole; clipped stays have their own tests
 		VenueName:  str(name + " Hall"),
 		Location:   models.GeoJSONPoint{Type: "Point", Coordinates: []float64{loc.Lng, loc.Lat}},
 		Start:      &s,

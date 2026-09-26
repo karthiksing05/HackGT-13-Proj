@@ -101,7 +101,7 @@ func (p *Planner) newRun(user *UserContext, spec PlanSpec) *Run {
 	run := &Run{
 		ID: p.NewID(), User: user, Spec: spec, Cfg: cfg, ItCfg: itCfg,
 		Pool: NewPool(), Boosts: map[string]float64{}, Relaxed: []string{},
-		Deadline: now.Add(cfg.SoftBudget), K: itCfg.K, MaxSlots: itCfg.MaxSlots, Mu: itCfg.Mu,
+		Deadline: now.Add(cfg.SoftBudget), K: itCfg.K, MaxSlots: itCfg.MaxSlots, Mu: itCfg.Mu, ScoreMu: cfg.ScoreMu,
 		startedAt: now,
 	}
 	run.Window = spec.Window()
@@ -159,6 +159,8 @@ func (p *Planner) Generate(ctx context.Context, user *UserContext, spec PlanSpec
 		return p.finishEmpty(ctx, run, "no_candidates_fit_window")
 	}
 	p.runLoop(ctx, run)
+	run.Best, run.weakDropped = preferStrong(run.Best, run.Cfg.FirstPage)
+	run.Best, run.travelHeavy = withinTravelShare(run.Best, run.Cfg.MaxTravelShare)
 	if len(run.Best) == 0 {
 		return p.finishEmpty(ctx, run, "no_feasible_itinerary")
 	}
@@ -169,7 +171,7 @@ func (p *Planner) Generate(ctx context.Context, user *UserContext, spec PlanSpec
 	}
 	pool := p.buildPool(run, options)
 	jevCands := p.prepareJev(run, options)
-	run.Log.Final = FinalLog{OptionIDs: optionIDs(options), Relaxed: run.Relaxed, TotalMs: p.msSince(run.startedAt), Rejected: run.rejected}
+	run.Log.Final = FinalLog{OptionIDs: optionIDs(options), Relaxed: run.Relaxed, TotalMs: p.msSince(run.startedAt), Rejected: run.rejected, TravelHeavy: run.travelHeavy, WeakDropped: run.weakDropped}
 	if err := p.Pools.SavePool(ctx, pool); err != nil {
 		return Batch{}, fmt.Errorf("planner: save pool: %w", err)
 	}

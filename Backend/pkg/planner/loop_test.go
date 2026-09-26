@@ -114,7 +114,7 @@ func TestLoopStopRules(t *testing.T) {
 	t.Run("converged", func(t *testing.T) {
 		tp := newTestPlanner(saltlight(t), testConfig())
 		o := defaultReq()
-		o.tags, o.mood = []string{"Outdoors", "Food"}, "something chill outside, then food"
+		o.tags, o.backBy = []string{"Food"}, localAt(22, 0)
 		batch, _ := tp.generate(t, sandy(), o)
 		run := tp.run(t, batch.RunID)
 		if len(run.Rounds) != 1 || run.Rounds[0].Stop != "converged" || len(run.Rounds[0].Issues) != 0 {
@@ -187,8 +187,11 @@ func TestLoopStopRules(t *testing.T) {
 func TestRelaxLadderWhenNoItineraryFits(t *testing.T) {
 	// One park 1.5 km away and a 40-minute window: it passes the filters
 	// (open, in range) but no visit plus the walk there and back fits.
+	// (MinCandidates is off: the retrieval's own range step is tested below.)
 	park := synthPlace("Far park", "park", offsetKm(seasideMkt, 0, 1.5), dailyHours(0, 24), []string{"outdoor"}, priceOf(0))
-	tp := newTestPlanner([]models.Activity{park}, testConfig())
+	cfg := testConfig()
+	cfg.MinCandidates = 0
+	tp := newTestPlanner([]models.Activity{park}, cfg)
 	o := defaultReq()
 	o.backBy = localAt(18, 40)
 	batch, _ := tp.generate(t, sandy(), o)
@@ -213,11 +216,14 @@ func TestRelaxLadderWhenNoItineraryFits(t *testing.T) {
 	}
 }
 
-func TestRangeRelaxedOnceWhenNothingIsInRange(t *testing.T) {
-	// Walkable range: legs of 2 km, a 5 km search. Everything is 5.5 km out.
+func TestRangeRelaxedOnceWhenTooFewFit(t *testing.T) {
+	// Walkable range: legs of 2 km (to and from home too), a 4 km search.
+	// Three places 2.5 km out fit the search but no leg: fewer than
+	// MinCandidates, so the range is relaxed once (legs of 3 km, a search
+	// twice as wide) and they become reachable.
 	var acts []models.Activity
 	for i, c := range []string{"park", "landmark", "viewpoint"} {
-		acts = append(acts, synthPlace(c, c, offsetKm(seasideMkt, 0.2*float64(i), 5.5), dailyHours(0, 24), []string{"outdoor"}, priceOf(0)))
+		acts = append(acts, synthPlace(c, c, offsetKm(seasideMkt, 0.2*float64(i), 2.5), dailyHours(0, 24), []string{"outdoor"}, priceOf(0)))
 	}
 	tp := newTestPlanner(acts, testConfig())
 	batch, spec := tp.generate(t, sandy(), defaultReq())
@@ -228,14 +234,14 @@ func TestRangeRelaxedOnceWhenNothingIsInRange(t *testing.T) {
 		t.Errorf("relaxed = %v", batch.Relaxed)
 	}
 	pool := tp.pool(t, batch.RunID)
-	if pool.Window.MaxLegKm != 3 || pool.Spec.RadiusKm != 7.5 {
+	if pool.Window.MaxLegKm != 3 || pool.Spec.RadiusKm != 8 {
 		t.Errorf("leg %.2f radius %.2f", pool.Window.MaxLegKm, pool.Spec.RadiusKm)
 	}
 	eff := effectiveSpec(t, spec, pool, batch.Relaxed)
 	for _, opt := range tp.allOptions(t, sandy(), batch) {
 		assertGuarantees(t, eff, opt, catalogByID(acts))
 	}
-	if n := len(tp.source.Calls); n < 2 || tp.source.Calls[1].RadiusKm != 7.5 {
+	if n := len(tp.source.Calls); n < 2 || tp.source.Calls[0].RadiusKm != 4 || tp.source.Calls[1].RadiusKm != 8 {
 		t.Errorf("%d queries; the second should use the relaxed radius", n)
 	}
 

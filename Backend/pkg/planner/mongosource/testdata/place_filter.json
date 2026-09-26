@@ -36,7 +36,10 @@
   },
   "category": {
     "$in": [
+      "bakery",
       "cafe",
+      "dessert",
+      "food_hall",
       "gallery",
       "garden",
       "hike",
@@ -46,6 +49,7 @@
       "rec_venue",
       "restaurant",
       "shopping",
+      "tour",
       "viewpoint",
       "zoo_aquarium"
     ]
@@ -98,6 +102,19 @@
         },
         {
           "price": null
+        }
+      ]
+    },
+    {
+      "$or": [
+        {
+          "rating": {
+            "$gte": 4.0
+          }
+        },
+        {
+          "rating": null,
+          "category": "hike"
         }
       ]
     }
