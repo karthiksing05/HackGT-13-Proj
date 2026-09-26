@@ -23,8 +23,14 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// quietLogs silences the server log during tests unless SQ_TEST_LOG=1.
-var quietLogs sync.Once
+// init silences the server log during tests unless SQ_TEST_LOG=1. It runs
+// before any test goroutine, so background work that logs (profile
+// refreshes, the checkout agent) never races the logger swap.
+func init() {
+	if os.Getenv("SQ_TEST_LOG") != "1" {
+		log.Logger = zerolog.Nop()
+	}
+}
 
 // TimeZone is the X-Time-Zone every helper request carries.
 const TimeZone = "America/New_York"
@@ -68,9 +74,10 @@ type Server struct {
 }
 
 type serverOptions struct {
-	cfg     func(*config.Config)
-	planner api.Planner
-	now     time.Time
+	cfg      func(*config.Config)
+	planner  api.Planner
+	profiles api.Profiles
+	now      time.Time
 }
 
 // Option customizes New.
@@ -82,6 +89,10 @@ func WithConfig(fn func(*config.Config)) Option { return func(o *serverOptions) 
 // WithPlanner wires a planner (nil = 503 on /plans/*).
 func WithPlanner(p api.Planner) Option { return func(o *serverOptions) { o.planner = p } }
 
+// WithProfiles wires a profile refresher, usually a *ProfilesRecorder
+// (nil = the no-op the handlers see when ML is not wired).
+func WithProfiles(p api.Profiles) Option { return func(o *serverOptions) { o.profiles = p } }
+
 // WithNow pins the clock. The default is the real time at start, frozen;
 // keep pinned constants near the present because TTL indexes delete by
 // wall clock.
@@ -90,11 +101,6 @@ func WithNow(t time.Time) Option { return func(o *serverOptions) { o.now = t } }
 // New builds a server; everything is torn down with the test.
 func New(t testing.TB, opts ...Option) *Server {
 	t.Helper()
-	quietLogs.Do(func() {
-		if os.Getenv("SQ_TEST_LOG") != "1" {
-			log.Logger = zerolog.Nop()
-		}
-	})
 	o := serverOptions{now: time.Now().UTC().Truncate(time.Second)}
 	for _, opt := range opts {
 		opt(&o)
@@ -131,7 +137,7 @@ func New(t testing.TB, opts ...Option) *Server {
 	if err := s.EnsureIndexes(t.Context()); err != nil {
 		t.Fatalf("EnsureIndexes: %v", err)
 	}
-	deps := &api.Deps{Store: s, Cfg: cfg, Now: clock.Now, Planner: o.planner}
+	deps := &api.Deps{Store: s, Cfg: cfg, Now: clock.Now, Planner: o.planner, Profiles: o.profiles}
 	hub := realtime.NewHub(deps.Auth().UserFromToken)
 	rec := realtime.NewRecorder(hub)
 	deps.Hub = rec

@@ -45,7 +45,11 @@ type Deps struct {
 	Cfg     *config.Config
 	Now     func() time.Time // testable clock; nil = time.Now
 	Planner Planner
-	ML      *ml.Client // best-effort profile refresh
+	// Profiles refreshes users' taste vectors (see profiles.go); nil = no-op.
+	Profiles Profiles
+	// ML is the raw ML client for pkg/profiles and the planner; handlers use
+	// Profiles instead.
+	ML *ml.Client
 
 	authOnce sync.Once
 	auth     *middleware.Auth

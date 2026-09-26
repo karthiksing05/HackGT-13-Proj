@@ -102,6 +102,26 @@ typed helpers in `pkg/realtime/events.go`: `MessageNew`, `ThreadUpdated`, `Threa
 while it is nil. `POST /itineraries` (backend-B) enriches stops through `d.Planner.ResolveStop` when the
 planner is present and falls back to `option.stops` otherwise.
 
+## Profiles seam (taste vectors)
+
+Handlers never call the ML client. `api.Profiles` (`Refresh(ctx, userID)`, `Rated(ctx, userID, activityID,
+stars)`) is set on `Deps.Profiles` in `main.go` by `pkg/profiles` once the ML rewrite lands; until then
+it is nil and every helper is a no-op. Use the nil-safe helpers: `d.RefreshProfile(ctx, userID, 15*time.Second)`
+(synchronous: `PUT /me/preferences`, Facebook import, the demo seed; log the error, never fail the
+request), `d.RefreshProfileAsync(userID, 20*time.Second)` (sign-up), `d.RatedAsync(userID, activityID,
+stars, 10*time.Second)` (`PUT /ratings/{itemId}` for a stop with an `activityId`). Tests:
+`p := &testutil.ProfilesRecorder{}; srv := testutil.New(t, testutil.WithProfiles(p))`, then
+`p.WaitRefreshes(t, userID, 1, time.Second)` / `p.WaitRated(t, 1, time.Second)`; set `p.Err` to prove a
+failing ML service does not fail the request.
+
+## Indexes and collections for new files
+
+`appIndexes` and `AppCollections` in `store.go` are package-level slices: a new collection's store file
+registers its own indexes (and adds itself to what `reset-app-data` drops) from an `init()` in that file,
+e.g. `func init() { appIndexes = append(appIndexes, indexSpec{coll: collPlanTogether, keys: bson.D{{Key:
+"postId", Value: 1}, {Key: "userId", Value: 1}}, name: "postId_userId_unique", unique: true});
+AppCollections = append(AppCollections, collPlanTogether) }`. Never edit `store.go` itself.
+
 ## Tests
 
 ```go

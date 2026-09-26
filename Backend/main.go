@@ -46,8 +46,9 @@ func main() {
 		Now:   time.Now,
 		ML:    ml.NewClient(cfg.MLServiceURL),
 		// Planner is wired by the planner agent (pkg/planner); until then
-		// /plans/* answer 503. The checkout agent (backend-D) starts its
-		// state machine here.
+		// /plans/* answer 503. Profiles (pkg/profiles over the ML client) is
+		// wired once the ML rewrite lands; until then profile refreshes are
+		// no-ops. The checkout agent (backend-D) starts its state machine here.
 	}
 	hub := realtime.NewHub(deps.Auth().UserFromToken)
 	deps.Hub = hub
