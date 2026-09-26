@@ -26,7 +26,7 @@ const threadLimit = 200
 // threads' itineraries, photo counts and expenses, and for DMs whether the
 // two are friends plus their presence.
 func (h *H) threadKit(ctx context.Context, threads []*models.Thread, tz *time.Location) (*threadKit, error) {
-	now := h.d.Clock().In(tz)
+	now := h.d.BusinessNow(ctx).In(tz)
 	var members, planIDs, groupIDs, pairIDs []string
 	for _, th := range threads {
 		members = append(members, th.MemberIDs...)

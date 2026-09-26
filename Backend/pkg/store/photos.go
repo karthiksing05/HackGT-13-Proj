@@ -16,13 +16,14 @@ func (s *Store) Photos() Photos { return Photos{s} }
 
 func (p Photos) coll() *mongo.Collection { return p.s.db.Collection(CollPhotos) }
 
-// Put stores a photo, assigning its id and createdAt and recording the size.
+// Put stores a photo, assigning its id and createdAt (business time: an
+// album shows it) and recording the size.
 func (p Photos) Put(ctx context.Context, photo *models.Photo) error {
 	if photo.ID == "" {
 		photo.ID = NewID()
 	}
 	photo.Size = len(photo.Bytes)
-	photo.CreatedAt = p.s.Now()
+	photo.CreatedAt = p.s.BusinessNow(ctx)
 	_, err := p.coll().InsertOne(ctx, photo)
 	return err
 }

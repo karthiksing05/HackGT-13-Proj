@@ -19,12 +19,13 @@ func (s *Store) Messages() Messages { return Messages{s} }
 
 func (m Messages) coll() *mongo.Collection { return m.s.db.Collection(CollMessages) }
 
-// Insert stores a message, assigning its id and sentAt. A message with a
+// Insert stores a message, assigning its id and sentAt (the sender's
+// business time, Store.BusinessNow). A message with a
 // ClientID the sender already used in the thread is not stored again: msg
 // becomes the earlier one and created is false.
 func (m Messages) Insert(ctx context.Context, msg *models.Message) (created bool, err error) {
 	msg.ID = NewID()
-	msg.SentAt = m.s.Now()
+	msg.SentAt = m.s.BusinessNow(ctx)
 	_, err = m.coll().InsertOne(ctx, msg)
 	if err == nil {
 		return true, nil

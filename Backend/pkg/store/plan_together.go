@@ -27,7 +27,7 @@ func (p PlanTogetherMarks) coll() *mongo.Collection { return p.s.db.Collection(C
 func (p PlanTogetherMarks) Mark(ctx context.Context, postID, userID, threadID string) (bool, error) {
 	id := models.PairID(postID, userID)
 	res, err := p.coll().UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$setOnInsert": bson.M{
-		"postId": postID, "userId": userID, "threadId": threadID, "createdAt": p.s.Now(),
+		"postId": postID, "userId": userID, "threadId": threadID, "createdAt": p.s.BusinessNow(ctx),
 	}}, options.UpdateOne().SetUpsert(true))
 	if IsDuplicate(err) {
 		return false, nil

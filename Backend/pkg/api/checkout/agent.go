@@ -60,7 +60,9 @@ func (a *Agent) Run(ctx context.Context) {
 	}
 }
 
-// Tick advances every intent whose step is due now and reports how many moved.
+// Tick advances every intent whose step is due now and reports how many
+// moved. Steps fall due by the real clock; what they stamp on the intent
+// and the ticket is in the owner's own time (a demo account's demo date).
 func (a *Agent) Tick(ctx context.Context) (int, error) {
 	now := a.d.Clock()
 	due, err := a.d.Store.CheckoutIntents().Due(ctx, now, agentBatch)
@@ -70,7 +72,7 @@ func (a *Agent) Tick(ctx context.Context) (int, error) {
 	moved := 0
 	var errs []error
 	for _, intent := range due {
-		next, ok, err := a.step(ctx, intent, now)
+		next, ok, err := a.step(a.d.ForUser(ctx, intent.UserID), intent, now)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("intent %s: %w", intent.ID, err))
 			continue

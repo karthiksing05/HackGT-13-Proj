@@ -10,6 +10,7 @@ import Foundation
 extension User {
     enum CodingKeys: String, CodingKey {
         case id, name, username, email, photoURL = "photoUrl", avatarColor, status, ageBracket, school, setupComplete, homeBase, city
+        case demoDate
     }
 
     init(from decoder: Decoder) throws {
@@ -26,6 +27,7 @@ extension User {
         setupComplete = try c.decodeIfPresent(Bool.self, forKey: .setupComplete) ?? true
         homeBase = try c.decodeIfPresent(Place.self, forKey: .homeBase)
         city = try c.decodeIfPresent(String.self, forKey: .city)
+        demoDate = try c.decodeIfPresent(String.self, forKey: .demoDate)
     }
 }
 

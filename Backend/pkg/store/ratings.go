@@ -24,7 +24,7 @@ func (r Ratings) coll() *mongo.Collection { return r.s.db.Collection(CollRatings
 // Upsert saves userID's rating of an item and returns the rating it
 // replaced (nil for a first rating).
 func (r Ratings) Upsert(ctx context.Context, rating models.Rating) (*models.Rating, error) {
-	now := r.s.Now()
+	now := r.s.BusinessNow(ctx)
 	if rating.Tags == nil {
 		rating.Tags = []string{}
 	}

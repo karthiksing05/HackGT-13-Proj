@@ -36,9 +36,11 @@ func (s *Store) CheckoutIntents() CheckoutIntents { return CheckoutIntents{s} }
 
 func (c CheckoutIntents) coll() *mongo.Collection { return c.s.db.Collection(CollCheckoutIntents) }
 
-// Insert stores a new intent, stamping createdAt and updatedAt.
+// Insert stores a new intent, stamping createdAt and updatedAt in the
+// owner's business time; nextTransitionAt, which the agent compares with
+// the real clock, stays real.
 func (c CheckoutIntents) Insert(ctx context.Context, intent *models.CheckoutIntent) error {
-	now := c.s.Now()
+	now := c.s.BusinessNow(ctx)
 	if intent.ID == "" {
 		intent.ID = NewID()
 	}
@@ -75,7 +77,7 @@ func (c CheckoutIntents) ByTicket(ctx context.Context, ticketID string) (*models
 // or awaiting approval).
 func (c CheckoutIntents) SetCard(ctx context.Context, userID, id string, card *models.PaymentMethod) (*models.CheckoutIntent, error) {
 	return c.transition(ctx, userID, id, []string{models.CheckoutPreparing, models.CheckoutAwaitingApproval}, bson.M{
-		"$set": bson.M{"paymentMethodId": card.ID, "cardBrand": card.Brand, "cardLast4": card.Last4, "updatedAt": c.s.Now()},
+		"$set": bson.M{"paymentMethodId": card.ID, "cardBrand": card.Brand, "cardLast4": card.Last4, "updatedAt": c.s.BusinessNow(ctx)},
 	})
 }
 
@@ -88,7 +90,7 @@ func (c CheckoutIntents) Approve(ctx context.Context, userID, id, ticketID, conf
 			"ticketId":         ticketID,
 			"confirmation":     confirmation,
 			"nextTransitionAt": due,
-			"updatedAt":        c.s.Now(),
+			"updatedAt":        c.s.BusinessNow(ctx),
 		},
 	})
 }
@@ -96,7 +98,7 @@ func (c CheckoutIntents) Approve(ctx context.Context, userID, id, ticketID, conf
 // Cancel drops an intent that is not paying yet.
 func (c CheckoutIntents) Cancel(ctx context.Context, userID, id string) (*models.CheckoutIntent, error) {
 	return c.transition(ctx, userID, id, []string{models.CheckoutPreparing, models.CheckoutAwaitingApproval}, bson.M{
-		"$set":   bson.M{"state": models.CheckoutCancelled, "updatedAt": c.s.Now()},
+		"$set":   bson.M{"state": models.CheckoutCancelled, "updatedAt": c.s.BusinessNow(ctx)},
 		"$unset": bson.M{"nextTransitionAt": ""},
 	})
 }
@@ -149,7 +151,7 @@ func (c CheckoutIntents) Due(ctx context.Context, now time.Time, limit int) ([]*
 // nextTransitionAt cleared) only while the intent is still in state from and
 // due at now. ok is false when a cancel or another worker got there first.
 func (c CheckoutIntents) Advance(ctx context.Context, id, from string, now time.Time, set bson.M) (*models.CheckoutIntent, bool, error) {
-	fields := bson.M{"updatedAt": c.s.Now()}
+	fields := bson.M{"updatedAt": c.s.BusinessNow(ctx)}
 	for k, v := range set {
 		fields[k] = v
 	}
