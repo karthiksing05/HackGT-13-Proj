@@ -93,14 +93,31 @@ struct ForumArea: Codable, Hashable, Identifiable {
 
     static let currentLocation = ForumArea(name: "Current location", coordinate: nil, isCurrentLocation: true)
     static let midtown = ForumArea(name: "Midtown Atlanta", coordinate: Coordinate(lat: 33.7838, lng: -84.3833))
-    /// The Area sheet's starting rows (the demo city); search finds any other place.
-    static let suggestions: [ForumArea] = [
-        .currentLocation,
+    /// The demo city's areas (the Area sheet's rows in mock mode).
+    private static let demoAreas: [ForumArea] = [
         .midtown,
         ForumArea(name: "Georgia Tech campus", coordinate: Coordinate(lat: 33.7756, lng: -84.3963)),
         ForumArea(name: "Downtown Atlanta", coordinate: Coordinate(lat: 33.7550, lng: -84.3900)),
         ForumArea(name: "Decatur", coordinate: Coordinate(lat: 33.7748, lng: -84.2963)),
     ]
+
+    /// The area around a home base, when it has a center (a name alone can't be an area).
+    static func homeBase(_ place: Place?) -> ForumArea? {
+        guard let place, let coordinate = place.coordinate else { return nil }
+        return ForumArea(name: place.name, coordinate: coordinate)
+    }
+
+    /// The Area sheet's starting rows: "Current location", the home base, then (in the demo) the
+    /// demo city's areas; search finds any other place. A live account's city isn't known beyond
+    /// its home base, so it gets no made-up neighborhoods.
+    static func suggestions(homeBase: Place?, isMock: Bool) -> [ForumArea] {
+        var rows: [ForumArea] = [.currentLocation]
+        if let home = self.homeBase(homeBase) { rows.append(home) }
+        if isMock {
+            rows += demoAreas.filter { area in !rows.contains { $0.id == area.id } }
+        }
+        return rows
+    }
 }
 
 enum ForumScope: String, Codable, CaseIterable, Identifiable {
@@ -164,6 +181,11 @@ struct ForumQuery: Codable, Hashable {
 
     static let radii = [1, 2, 5, 10]
     static let interestTags = ["Outdoors", "Food", "Art", "Music", "Active", "Games", "Shopping"]
+
+    /// Where the feed looks first: around the home base, or Midtown (the demo city) without one.
+    static func defaultArea(homeBase: Place?) -> ForumArea {
+        ForumArea.homeBase(homeBase) ?? .midtown
+    }
 }
 
 enum ForumPostVisibility: String, Codable {

@@ -1,0 +1,19 @@
+{
+  "age_bracket": "adult",
+  "avatar_color": "sage",
+  "city": "saltlight",
+  "email": "demo@sidequestz.tech",
+  "home_base": {
+    "coordinate": {
+      "lat": 31.368,
+      "lng": -81.425
+    },
+    "name": "Seaside Market Square"
+  },
+  "id": "seed-sandy",
+  "name": "Sandy Byte",
+  "school": "Saltlight Harbor College",
+  "setup_complete": true,
+  "status": "open",
+  "username": "sandybyte"
+}

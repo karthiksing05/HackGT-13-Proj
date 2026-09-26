@@ -98,11 +98,15 @@ final class AppEnvironment {
         return nil
     }
 
-    /// Test/preview environment: mock backend, no delay.
+    /// Test/preview environment: mock backend, no delay. Unlike the demo account, the preview user
+    /// has a home base, so previews and tests can show what one changes.
     static func preview() -> AppEnvironment {
         let env = AppEnvironment(mode: .mock, clock: .demo, api: MockAPIClient(clock: .demo, latencyScale: 0), auth: AuthStore(service: "preview"),
                                  socketURL: nil, forceVoiceDemo: true)
-        env.user = MockData.user()
+        var user = MockData.user()
+        user.homeBase = MockPlaces.home.place
+        user.city = "Atlanta"
+        env.user = user
         env.preferences = MockData.preferences
         return env
     }

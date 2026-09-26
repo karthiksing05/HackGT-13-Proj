@@ -73,7 +73,8 @@ struct AccountView: View {
 
 // MARK: - Header
 
-/// Avatar 84 with a 20pt status dot, "Edit photo" pill, name, "@handle · school".
+/// Avatar 84 with a 20pt status dot, "Edit photo" pill, name, "@handle · school" (the city when
+/// the account has no school).
 private struct AccountHeader: View {
     @Environment(AppEnvironment.self) private var env
     let onEditPhoto: () -> Void
@@ -107,7 +108,7 @@ private struct AccountHeader: View {
     }
 
     private var handleLine: String {
-        [env.user?.username.map { "@\($0)" }, env.user?.school].compactMap { $0 }.joined(separator: " · ")
+        [env.user?.username.map { "@\($0)" }, env.user?.school ?? env.user?.cityLabel].compactMap { $0 }.joined(separator: " · ")
     }
 }
 

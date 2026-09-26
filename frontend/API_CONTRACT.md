@@ -5,8 +5,8 @@ The iOS app is a GUI shell over this API. Every screen talks to one Swift protoc
 
 | | File | Used when |
 |---|---|---|
-| **Live** | [`Services/LiveAPIClient.swift`](SideQuestz/Services/LiveAPIClient.swift) | `SQAPIMode = live`: REST + JSON calls to your server, exactly as listed below |
-| **Mock** | [`Services/Mock/`](SideQuestz/Services/Mock/) | `SQAPIMode = mock` (the default): an in-memory stand-in with the demo data, so the app runs offline |
+| **Live** | [`Services/LiveAPIClient.swift`](SideQuestz/Services/LiveAPIClient.swift) | `SQAPIMode = live` (the default): REST + JSON calls to the server, exactly as listed below |
+| **Mock** | [`Services/Mock/`](SideQuestz/Services/Mock/) | `SQAPIMode = mock` (`-SQAPIMode mock` at launch): an in-memory stand-in with the demo data, so the app runs offline |
 
 The app contains no recommendation, AI or ranking logic. Plan generation, transit timing,
 split math, age filtering, join limits and the taste profile all come from the server. The
@@ -16,15 +16,21 @@ Treat it as a reference for the expected behavior, not as logic to keep.
 
 ## Pointing the app at your server
 
-Set these keys in [`SideQuestz/Info.plist`](SideQuestz/Info.plist), or override them at launch
-(Xcode ▸ Product ▸ Scheme ▸ Edit Scheme ▸ Run ▸ Arguments):
+The app ships pointed at the live API. Set these keys in [`SideQuestz/Info.plist`](SideQuestz/Info.plist),
+or override them at launch (Xcode ▸ Product ▸ Scheme ▸ Edit Scheme ▸ Run ▸ Arguments):
 
 | Key | Default | Launch-argument override |
 |---|---|---|
-| `SQAPIMode` | `mock` | `-SQAPIMode live` |
-| `SQAPIBaseURL` | `http://127.0.0.1:8000` | `-SQAPIBaseURL http://192.168.1.20:8000` |
-| `SQWebSocketURL` | `ws://127.0.0.1:8000/ws` | `-SQWebSocketURL ws://192.168.1.20:8000/ws` |
-| `SQMockDelay` | `5` (seconds every demo call waits, so loading states show; delete for per-call timings) | `-SQMockDelay 1` |
+| `SQAPIMode` | `live` | `-SQAPIMode mock` (the offline demo data; no server needed) |
+| `SQAPIBaseURL` | `https://api.sidequestz.tech` | `-SQAPIBaseURL http://127.0.0.1:8080` |
+| `SQWebSocketURL` | `wss://api.sidequestz.tech/ws` | `-SQWebSocketURL ws://127.0.0.1:8080/ws` |
+| `SQDemoPassword` | `$(SQ_DEMO_PASSWORD)`: the demo account's password, supplied per build (`xcodebuild … SQ_DEMO_PASSWORD='…'`); empty = no "Use the demo account" link | `-SQDemoPassword …` |
+
+Other launch arguments: `-SQSlowLoadingAfter 2` (seconds a first load shows its skeleton before the
+logo takes over; `0` = at once, a large number = never), `-SQMockLatency 0` (no artificial delay in
+mock mode), `-SQMockFail forum,plans` (those demo endpoint groups fail, to see error states), and
+`-SQRoute create/4/swap` (opens a screen at launch; these deep links need `-SQAPIMode mock`, since
+they sign in to the demo account).
 
 `127.0.0.1` reaches your Mac from the Simulator. On a real iPhone, use the Mac's LAN IP or a deployed
 HTTPS URL. Plain `http://` is allowed only for local networks (`NSAllowsLocalNetworking`).
@@ -49,11 +55,15 @@ HTTPS URL. Plain `http://` is allowed only for local networks (`NSAllowsLocalNet
 - **Lists are paginated with cursors.** Return `{"items": […], "next_cursor": "…"}` (or a bare array for a list
   that's complete). The app sends `?cursor=<next_cursor>` and follows the chain until `next_cursor` is null,
   so balances, counts and filters always see everything. Page size is up to the server.
-- **Leniency.** Optional fields may be omitted. Defaults are in
-  [`Models/Decoding.swift`](SideQuestz/Models/Decoding.swift). The Swift models in
+- **Leniency.** Optional fields may be omitted, and keys the app doesn't know are ignored. Defaults are in
+  [`Models/Decoding.swift`](SideQuestz/Models/Decoding.swift), which also still reads the planner's older
+  spellings (`name` / `duration_min` / bare `lat`, `lng` on a stop, `title` / `summary` on an option,
+  `recalculated_legs`, `arrive_time` / `depart_time` stop windows). The Swift models in
   [`Models/`](SideQuestz/Models/) are the source of truth for field names.
 - `ContractTests` checks that every model round-trips through these settings, and dumps the examples at the end
-  of this file (`TEST_RUNNER_SQ_DUMP_CONTRACT=<dir>` when running the unit tests).
+  of this file (`TEST_RUNNER_SQ_DUMP_CONTRACT=<dir>` when running the unit tests). The same payloads are
+  published in [`docs/api/examples/`](../docs/api/examples/), where the server's contract tests read them
+  ([how](../docs/api/README.md)).
 
 ## Endpoints
 
@@ -74,7 +84,7 @@ HTTPS URL. Plain `http://` is allowed only for local networks (`NSAllowsLocalNet
 ### Me, integrations, payments
 | Method | HTTP | Body / query | Response |
 |---|---|---|---|
-| `me` / `updateMe` | `GET` / `PATCH /me` | `UserPatch` (`name, username, date_of_birth, status`: `open` = open to all \| `friends_only` \| `busy`; email and password can't change here) | `User` (includes `id, avatar_color, school, setup_complete`) |
+| `me` / `updateMe` | `GET` / `PATCH /me` | `UserPatch` (`name, username, date_of_birth, status`: `open` = open to all \| `friends_only` \| `busy`; email and password can't change here) | `User` (includes `id, avatar_color, school, setup_complete`, and when the account has them `home_base: Place` and `city`). The home base is where a new plan starts and where the Forum looks first; Account shows it, and the handle line shows `school`, or `city` without one. The app can't change either yet |
 | `uploadPhoto` | `POST /me/photo` | multipart, field `photo`, `image/jpeg` | `{url}` |
 | `deletePhoto` | `DELETE /me/photo` | | 2xx |
 | `setAvatarColor` | `PATCH /me/avatar` | `{color}` (`ink`/`sage`/`clay`/`forest`/`sand`) | 2xx |
@@ -126,14 +136,33 @@ The steps for your side are under "Backend work: Facebook connector" below.
 ### Planning: the AI / recommendation stack plugs in here
 | Method | HTTP | Body | Response |
 |---|---|---|---|
-| `generatePlans` | `POST /plans/generate` | `PlanRequest` (where, when, mood text, quick picks, budget, who, ride, pace, modes) | `PlanBatch`: the first 3 ranked options + `cursor` |
+| `generatePlans` | `POST /plans/generate` | `PlanRequest` (where, when, mood text, quick picks, budget, who, ride, pace, modes; `modes` is sent sorted) | `PlanBatch`: the first 3 ranked options + `cursor`. With no options, `reason` says why: `no_candidates_fit_window`, `no_feasible_itinerary` or `invalid_request: <detail>` (each has its own sentence in Review; anything else gets the generic one) |
 | `moreOptions` | `POST /plans/generate/more` | `{cursor}` | `PlanBatch`: more options; `done: true` when out ("No more right now") |
-| `route` | `POST /plans/route` | `RouteRequest` (option id, stop order, start, end, start time, back-by, ride, modes; keep generated options by id). `stop_order` holds the option's own stop ids **or alternatives you returned for it** (a swap puts the new id in the old one's place), and a stop that's **left out was removed** | `RouteResult`: one leg per hop (start → stop 1 … last stop → end), each stop's `{start, end}`, `arrival`, `minutes_late` |
+| `route` | `POST /plans/route` | `RouteRequest` (option id, stop order, start, end, start time, back-by, ride, modes; keep generated options by id). `stop_order` holds the option's own stop ids **or alternatives you returned for it** (a swap puts the new id in the old one's place), and a stop that's **left out was removed** | `RouteResult`: one leg per hop (start → stop 1 … last stop → end), each stop's `{start, end}`, `arrival`, `minutes_late`, and `broken_at`: the index in `stop_order` of the first fixed-start stop this order reaches too late, or `-1` (the route card marks that stop "Late for a fixed start" and the header says "Some stops would be late") |
 | `stopAlternatives` | `POST /plans/alternatives` | `{option_id, stop_id, stop_order}`: the stop to replace, and the option's current order (so suggestions fit between the neighbors and never repeat a stop that's already in it) | `[PlanAlternative {stop: PlanStop, reason}]`, about 3–5, best first. `reason` is a few words on why it's similar ("Also rooftop views · 0.2 mi away"). Remember the stops you return: their ids come back in `stop_order` and `CreateItineraryRequest` |
 | `createItinerary` | `POST /itineraries` | `CreateItineraryRequest`: `option` is the option **as edited** on Review (swapped stops in their places, removed ones gone), `stop_order` its final order | `Itinerary`: shown selected on Home |
 
 Leg rule used by the demo: ≤ 0.8 mi walks; otherwise Drive / Uber / MARTA from the ride answer
-(`drive` / `cover` / `none`). The server owns the real transit times.
+(`drive` / `cover` / `none`). The server owns the real transit times. A leg's `mode` is one of `walk`,
+`marta` (any transit; the app labels it "Transit"), `rideshare`, `drive`, `uber`; `transit`, `bus`,
+`train` and `subway` are read as `marta`, and an unknown mode as `walk`.
+
+**Planner extras.** The required keys are `PlanBatch {options, cursor?, done}`, `PlanOption {id, name,
+tag, meta, stops}`, `PlanStop {id, title, subtitle, place {name, coordinate?}, duration_minutes}`,
+`RouteResult {legs, stop_times, arrival, minutes_late}`. The planner may add, and the app reads:
+
+| Shape | Optional fields the app uses |
+|---|---|
+| `PlanBatch` | `reason` (above; only with empty `options`) |
+| `PlanOption` | `late_flag` (a fixed-start stop would be reached after it starts at this pace: the card shows "Tight timing"), `total_cost_cents` (sum of the known prices) |
+| `PlanStop` | `activity_id` (the catalog activity; comes back on the saved itinerary's items), `kind` (`event` = fixed start, `place` = visit any time), `arrive_time`, `depart_time` (the planner's schedule; `POST /plans/route` re-times the order on screen), `flexible` |
+| `RouteResult` | `broken_at` (above) |
+
+Anything else the planner sends (`planner`, `run_id`, an option's `legs`, `score`, `metrics`, a stop's
+`category`, `tags`, `price_cents`, `address`, a leg's `distance_km`, a stop time's `stop_id`, …) is ignored
+by the app, but list it here before adding it: the server's contract tests reject undocumented keys in
+[`docs/api/examples/`](../docs/api/examples/) (`PlanBatch.dag`, `PlanBatch.empty`, `RouteResult.dag` show
+the extras above).
 
 "Similar" is the server's call (the ML stack's embeddings fit here). The demo suggests places of the
 same kind (views, art, food, park, games, books) that aren't already in the plan, nearest first.
@@ -245,7 +274,8 @@ The app is built against this file. Where `Backend/API_ENDPOINTS.md` says someth
   realtime events above beyond `message.new`, `POST /plans/alternatives` (Review's swap), and the Facebook endpoints (`GET`/`DELETE /integrations/facebook`,
   `POST /integrations/facebook/connect`, `POST /integrations/facebook/import`, plus the callbacks below).
 - **Different shapes:** `POST /auth/refresh` returns `{access_token, refresh_token?, expires_at?}`; sign-up also
-  takes `username` and `date_of_birth`; `GET /me` also returns `id`, `avatar_color`, `school`, `setup_complete`;
+  takes `username` and `date_of_birth`; `GET /me` also returns `id`, `avatar_color`, `school`, `setup_complete`,
+  `home_base`, `city`; plan options, stops, batches and routes carry the planner extras above;
   free posts take `until` and a location; `POST /plans/route` also takes start, end, start time and back-by;
   notes have a scope; settle-up takes the amount; lists paginate with `next_cursor`; statuses are `open` / `friends_only` / `busy`; checkout intents take `instant` (preferences hold the on/off and the limit).
 - **Only there (not used by the app yet):** the `GET /events` catalog, the host's join-request approval
@@ -336,7 +366,8 @@ joined by a dot, where the signature is HMAC-SHA256 over the payload with the ap
 ## Example payloads
 
 Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<dir>`, then
-`python3 scripts/gen_contract_examples.py <dir> API_CONTRACT.md`).
+`python3 scripts/gen_contract_examples.py <dir> API_CONTRACT.md`). The same payloads live in
+[`docs/api/examples/`](../docs/api/examples/) for the backend's contract tests.
 
 ### Auth
 
@@ -401,6 +432,31 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
   "setup_complete": true,
   "status": "open",
   "username": "jordanlee"
+}
+```
+</details>
+
+<details><summary><code>UserHomeBase</code> (GET /me for an account with a home base (the demo account))</summary>
+
+```json
+{
+  "age_bracket": "adult",
+  "avatar_color": "sage",
+  "city": "saltlight",
+  "email": "demo@sidequestz.tech",
+  "home_base": {
+    "coordinate": {
+      "lat": 31.368,
+      "lng": -81.425
+    },
+    "name": "Seaside Market Square"
+  },
+  "id": "seed-sandy",
+  "name": "Sandy Byte",
+  "school": "Saltlight Harbor College",
+  "setup_complete": true,
+  "status": "open",
+  "username": "sandybyte"
 }
 ```
 </details>
@@ -979,7 +1035,7 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
 ```
 </details>
 
-<details><summary><code>PlanBatch</code></summary>
+<details><summary><code>PlanBatch</code> (the demo planner: required keys only)</summary>
 
 ```json
 {
@@ -988,6 +1044,7 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
   "options": [
     {
       "id": "opt-a",
+      "late_flag": false,
       "meta": "~$ · 1.8 mi walking · 2 transit legs",
       "name": "Rooftop + murals",
       "stops": [
@@ -1035,6 +1092,7 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
     },
     {
       "id": "opt-b",
+      "late_flag": false,
       "meta": "~$ · 2.3 mi walking · 1 transit leg",
       "name": "Park + food hall",
       "stops": [
@@ -1082,6 +1140,7 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
     },
     {
       "id": "opt-c",
+      "late_flag": false,
       "meta": "~$$ · 1.1 mi walking · 2 transit legs",
       "name": "Downtown loop",
       "stops": [
@@ -1132,6 +1191,157 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
 ```
 </details>
 
+<details><summary><code>PlanBatch.dag</code> (the DAG planner: options with late_flag / total_cost_cents, stops with their extras)</summary>
+
+```json
+{
+  "cursor": "dag_run_7f3k_2",
+  "done": false,
+  "options": [
+    {
+      "id": "run_7f3k-0",
+      "late_flag": false,
+      "meta": "~$ · 1.8 mi walking · 2 marta legs",
+      "name": "Rooftop + murals",
+      "stops": [
+        {
+          "activity_id": "act_rooftop",
+          "arrive_time": "2026-09-25T18:24:00Z",
+          "depart_time": "2026-09-25T19:44:00Z",
+          "duration_minutes": 80,
+          "flexible": true,
+          "id": "stop_act_rooftop_0",
+          "kind": "place",
+          "place": {
+            "coordinate": {
+              "lat": 33.7727,
+              "lng": -84.3653
+            },
+            "name": "Skyline Park rooftop"
+          },
+          "subtitle": "Games + views · $",
+          "title": "Skyline Park rooftop"
+        },
+        {
+          "activity_id": "act_murals",
+          "arrive_time": "2026-09-25T19:58:00Z",
+          "depart_time": "2026-09-25T20:58:00Z",
+          "duration_minutes": 60,
+          "flexible": true,
+          "id": "stop_act_murals_1",
+          "kind": "place",
+          "place": {
+            "coordinate": {
+              "lat": 33.7535,
+              "lng": -84.363
+            },
+            "name": "Krog Street Tunnel murals"
+          },
+          "subtitle": "Street art · Free",
+          "title": "Krog Street Tunnel murals"
+        },
+        {
+          "activity_id": "act_krog",
+          "arrive_time": "2026-09-25T21:01:00Z",
+          "depart_time": "2026-09-25T21:36:00Z",
+          "duration_minutes": 35,
+          "flexible": true,
+          "id": "stop_act_krog_2",
+          "kind": "place",
+          "place": {
+            "coordinate": {
+              "lat": 33.7571,
+              "lng": -84.364
+            },
+            "name": "Krog Street Market"
+          },
+          "subtitle": "Food hall · $",
+          "title": "Krog Street Market"
+        }
+      ],
+      "tag": "Best match",
+      "total_cost_cents": 2400
+    },
+    {
+      "id": "run_7f3k-1",
+      "late_flag": true,
+      "meta": "~$$ · 1.1 mi walking · 2 marta legs",
+      "name": "Downtown loop",
+      "stops": [
+        {
+          "activity_id": "act_centennial",
+          "arrive_time": "2026-09-25T18:32:00Z",
+          "depart_time": "2026-09-25T19:32:00Z",
+          "duration_minutes": 60,
+          "flexible": true,
+          "id": "stop_act_centennial_0",
+          "kind": "place",
+          "place": {
+            "coordinate": {
+              "lat": 33.7603,
+              "lng": -84.3932
+            },
+            "name": "Centennial Olympic Park"
+          },
+          "subtitle": "Park · Free",
+          "title": "Centennial Olympic Park"
+        },
+        {
+          "activity_id": "act_skyview",
+          "arrive_time": "2026-09-25T19:35:00Z",
+          "depart_time": "2026-09-25T20:25:00Z",
+          "duration_minutes": 50,
+          "flexible": true,
+          "id": "stop_act_skyview_1",
+          "kind": "place",
+          "place": {
+            "coordinate": {
+              "lat": 33.759,
+              "lng": -84.3925
+            },
+            "name": "SkyView Ferris wheel"
+          },
+          "subtitle": "Views · $$",
+          "title": "SkyView Ferris wheel"
+        },
+        {
+          "activity_id": "act_dinner",
+          "arrive_time": "2026-09-25T21:42:00Z",
+          "depart_time": "2026-09-25T22:57:00Z",
+          "duration_minutes": 75,
+          "flexible": false,
+          "id": "stop_act_dinner_2",
+          "kind": "event",
+          "place": {
+            "coordinate": {
+              "lat": 33.7575,
+              "lng": -84.3645
+            },
+            "name": "Open group dinner (Forum)"
+          },
+          "subtitle": "Community event · $ · 5:30 PM",
+          "title": "Open group dinner (Forum)"
+        }
+      ],
+      "tag": "Meet people",
+      "total_cost_cents": 3400
+    }
+  ]
+}
+```
+</details>
+
+<details><summary><code>PlanBatch.empty</code> (no options, with the reason)</summary>
+
+```json
+{
+  "done": true,
+  "options": [],
+  "reason": "no_candidates_fit_window"
+}
+```
+</details>
+
 <details><summary><code>RouteRequest</code></summary>
 
 ```json
@@ -1172,6 +1382,7 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
 ```json
 {
   "arrival": "2026-09-25T21:57:00Z",
+  "broken_at": -1,
   "legs": [
     {
       "minutes": 14,
@@ -1191,6 +1402,49 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
     }
   ],
   "minutes_late": 0,
+  "stop_times": [
+    {
+      "end": "2026-09-25T19:44:00Z",
+      "start": "2026-09-25T18:24:00Z"
+    },
+    {
+      "end": "2026-09-25T20:58:00Z",
+      "start": "2026-09-25T19:58:00Z"
+    },
+    {
+      "end": "2026-09-25T21:36:00Z",
+      "start": "2026-09-25T21:01:00Z"
+    }
+  ]
+}
+```
+</details>
+
+<details><summary><code>RouteResult.dag</code> (an order that reaches a fixed start too late: broken_at, minutes_late)</summary>
+
+```json
+{
+  "arrival": "2026-09-25T21:57:00Z",
+  "broken_at": 1,
+  "legs": [
+    {
+      "minutes": 14,
+      "mode": "marta"
+    },
+    {
+      "minutes": 14,
+      "mode": "marta"
+    },
+    {
+      "minutes": 3,
+      "mode": "walk"
+    },
+    {
+      "minutes": 21,
+      "mode": "marta"
+    }
+  ],
+  "minutes_late": 25,
   "stop_times": [
     {
       "end": "2026-09-25T19:44:00Z",
@@ -1289,6 +1543,7 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
   "max_group_size": 6,
   "option": {
     "id": "opt-a",
+    "late_flag": false,
     "meta": "~$ · 1.8 mi walking · 2 transit legs",
     "name": "Rooftop + murals",
     "stops": [
@@ -1370,6 +1625,7 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
   },
   "route": {
     "arrival": "2026-09-25T21:57:00Z",
+    "broken_at": -1,
     "legs": [
       {
         "minutes": 14,
@@ -1727,6 +1983,30 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
 </details>
 
 ### Forum
+
+<details><summary><code>ForumQuery</code> (app side of GET /forum/posts; sent as query parameters)</summary>
+
+```json
+{
+  "area": {
+    "coordinate": {
+      "lat": 33.7838,
+      "lng": -84.3833
+    },
+    "is_current_location": false,
+    "name": "Midtown Atlanta"
+  },
+  "cost": [],
+  "open_only": false,
+  "radius_mi": 2,
+  "scope": "everyone",
+  "sort": "soonest",
+  "tags": [],
+  "type": "all",
+  "when": "any"
+}
+```
+</details>
 
 <details><summary><code>ForumPosts</code></summary>
 

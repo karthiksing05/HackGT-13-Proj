@@ -63,6 +63,7 @@ enum MockRouteEngine {
         legs.append(last)
         t = t.addingTimeInterval(TimeInterval(last.minutes * 60))
         let late = Int((t.timeIntervalSince(backBy) / 60).rounded())
-        return RouteResult(legs: legs, stopTimes: times, arrival: t, minutesLate: max(0, late))
+        // The demo's stops have no fixed starts, so no order ever breaks one (`brokenAt` stays -1).
+        return RouteResult(legs: legs, stopTimes: times, arrival: t, minutesLate: max(0, late), brokenAt: -1)
     }
 }

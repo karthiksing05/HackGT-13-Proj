@@ -21,7 +21,7 @@ enum MockPeople {
 
 /// Places used by the Create flow's suggestions, pins and the mock route engine.
 /// `mapPoint` is the place's position in the prototype's 350×220 map, which the mock route
-/// engine uses so leg times match the prototype exactly ("MARTA · 14 min", "Arrive 5:57 PM").
+/// engine uses so leg times match the prototype exactly ("Transit · 14 min", "Arrive 5:57 PM").
 struct MockPlace: Hashable {
     /// Suggestion pill text ("Current location").
     var pillName: String
@@ -249,11 +249,12 @@ enum MockData {
                 stop("opt-d", 1, "Historic Fourth Ward Park", "Park · Free", 60),
                 stop("opt-d", 2, "Taco stand on the BeltLine", "Tacos · $", 40),
             ]),
+            // Option E shows the planner's "Tight timing" chip: a fixed-start stop it would just miss.
             PlanOption(id: "opt-e", name: "Games + views", tag: "Social", meta: "~$ · 1.4 mi walking · 2 transit legs", stops: [
                 stop("opt-e", 0, "Board game café", "Games · $", 70),
                 stop("opt-e", 1, "Skyline Park rooftop", "Games + views · $", 70),
                 stop("opt-e", 2, "Krog Street Market", "Food hall · $", 40),
-            ]),
+            ], lateFlag: true),
         ],
         [
             PlanOption(id: "opt-f", name: "Gardens loop", tag: "Outdoorsy", meta: "~$$ · 2.6 mi walking · 1 transit leg", stops: [
