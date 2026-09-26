@@ -114,8 +114,9 @@ func groupTickets(ctx context.Context, d *api.Deps, viewerID string, its []*mode
 
 // View renders one itinerary for one viewer: is_host, going_count, the
 // members on group items and the viewer's own notes, travel choice and
-// rating on each item, with their ticket (or the group's, see groupTickets). pkg/api/social can use it for the
-// itinerary.updated a join sends (or call PublishUpdated).
+// rating on each item, with their ticket or the group's (groupTickets).
+// pkg/api/social can use it for the itinerary.updated a join sends (or
+// call PublishUpdated).
 func View(ctx context.Context, d *api.Deps, it *models.Itinerary, viewerID string) (contract.Itinerary, error) {
 	v, err := newViewer(ctx, d, viewerID, []*models.Itinerary{it}, true)
 	if err != nil {

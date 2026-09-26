@@ -162,6 +162,11 @@ func TestCreateValidation(t *testing.T) {
 		{"back by at the start", func(r *contract.CreateItineraryRequest) { r.Plan.BackBy = r.Plan.StartTime }, itineraries.MsgWindow},
 		{"unknown visibility", func(r *contract.CreateItineraryRequest) { r.Visibility = "everyone" }, httpx.GenericBadRequest},
 		{"group of one", func(r *contract.CreateItineraryRequest) { one := 1; r.MaxGroupSize = &one }, itineraries.MsgGroupSize},
+		{"stop ends before it starts", func(r *contract.CreateItineraryRequest) {
+			r.Route.StopTimes[1].End = contract.NewTime(r.Route.StopTimes[1].Start.Add(-time.Minute))
+		}, itineraries.MsgPlanChanged},
+		{"unknown pace", func(r *contract.CreateItineraryRequest) { r.Plan.Pace = "chill" }, httpx.GenericBadRequest},
+		{"budget out of range", func(r *contract.CreateItineraryRequest) { r.Plan.Budget = 4 }, httpx.GenericBadRequest},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

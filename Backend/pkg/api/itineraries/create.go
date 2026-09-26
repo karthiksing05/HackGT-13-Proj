@@ -64,7 +64,9 @@ func (h *H) Create(w http.ResponseWriter, r *http.Request) {
 // about each stop (activity, price, website, bookable); otherwise the
 // option's own data stands.
 func (h *H) materialize(ctx context.Context, hostID string, req contract.CreateItineraryRequest, tz *time.Location) (*models.Itinerary, error) {
-	if !req.Visibility.Valid() {
+	plan := req.Plan
+	if !req.Visibility.Valid() || !plan.Range.Valid() || !plan.Ride.Valid() || !plan.Who.Valid() || !plan.Pace.Valid() ||
+		!plan.Modes.Valid() || plan.Budget < 0 || plan.Budget > 3 {
 		return nil, httpx.BadRequest(httpx.GenericBadRequest)
 	}
 	if len(req.StopOrder) == 0 {
@@ -93,6 +95,11 @@ func (h *H) materialize(ctx context.Context, hostID string, req contract.CreateI
 	legs, times := req.Route.Legs, req.Route.StopTimes
 	if len(legs) < len(stops) || len(times) < len(stops) {
 		return nil, httpx.BadRequest(MsgPlanChanged)
+	}
+	for _, w := range times {
+		if w.End.Before(w.Start.Time) {
+			return nil, httpx.BadRequest(MsgPlanChanged)
+		}
 	}
 	for _, leg := range legs {
 		if !leg.Mode.Valid() || leg.Minutes < 0 {

@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -204,7 +205,7 @@ func TestPlacesOnRealCatalogDocs(t *testing.T) {
 		}
 		var found []contract.Place
 		word := strings.Fields(act.Name)[0]
-		srv.Do(t, "GET", fmt.Sprintf("/places/search?q=%s&near=%v,%v", word, lat, lng), nil, a).Expect(t, http.StatusOK).JSON(t, &found)
+		srv.Do(t, "GET", fmt.Sprintf("/places/search?q=%s&near=%v,%v", url.QueryEscape(word), lat, lng), nil, a).Expect(t, http.StatusOK).JSON(t, &found)
 		if len(found) == 0 || len(found) > 10 || !strings.Contains(strings.ToLower(found[0].Name), strings.ToLower(word)) {
 			t.Errorf("searching %q near %q: %v", word, act.Name, placeNames(found))
 		}
