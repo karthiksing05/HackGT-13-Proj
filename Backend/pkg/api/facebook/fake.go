@@ -22,7 +22,8 @@ type FakeGraph struct {
 	revoked   map[string]bool      // user id → Revoke was called
 	failures  map[string]error     // method → error to answer with
 	calls     []string
-	redirects []string // redirect_uri of every code exchange
+	redirects []string            // redirect_uri of every code exchange
+	hook      func(method string) // runs as each call starts (SetHook)
 }
 
 // FakeUser is what the fake Graph knows about one person.
@@ -91,6 +92,15 @@ func (f *FakeGraph) Fail(method string, err error) {
 	f.failures[method] = err
 }
 
+// SetHook runs fn with the method name as every call starts, e.g. to make
+// something happen while an import is reading Facebook. fn runs under the
+// fake's lock and must not call the fake.
+func (f *FakeGraph) SetHook(fn func(method string)) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.hook = fn
+}
+
 // Revoked reports whether Revoke ran for the person.
 func (f *FakeGraph) Revoked(fbUserID string) bool {
 	f.mu.Lock()
@@ -132,6 +142,9 @@ func TokenError() *GraphError {
 // begin records a call and returns the configured failure, if any.
 func (f *FakeGraph) begin(method string) error {
 	f.calls = append(f.calls, method)
+	if f.hook != nil {
+		f.hook(method)
+	}
 	return f.failures[method]
 }
 

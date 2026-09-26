@@ -16,6 +16,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func TestConnectionStartsDisconnected(t *testing.T) {
@@ -669,6 +671,99 @@ func TestLinkedToAnotherAccount(t *testing.T) {
 	}
 	if e.account(t, b.UserID).FBUserID != "fb-jordan" {
 		t.Fatal("link not taken over")
+	}
+}
+
+func TestRefusedLinkChangesNothing(t *testing.T) {
+	e := newEnv(t)
+	e.fake.AddUser(jordan())
+	e.fake.AddUser(facebook.FakeUser{ID: "fb-bob", Name: "Bob B."})
+	a := e.srv.Signup(t, "Jordan Lee")
+	b := e.srv.Signup(t, "Bob B.")
+	e.connect(t, a, "fb-jordan")
+	e.importNow(t, a)
+	e.connect(t, b, "fb-bob")
+	interests := e.interests(t, a.UserID)
+
+	// Jordan signs in to Facebook as Bob, who is connected to B: refused,
+	// and Jordan keeps the link and the import they had.
+	state := e.dialog(t, a, false).Query().Get("state")
+	loc := e.callback(t, url.Values{"code": {e.fake.IssueCode("fb-bob")}, "state": {state}})
+	if !strings.Contains(loc, "status=error") || !strings.Contains(loc, "another%20SideQuests%20account") {
+		t.Fatalf("refused link: %s", loc)
+	}
+	if acct := e.account(t, a.UserID); acct.FBUserID != "fb-jordan" || acct.AccessTokenEnc == "" {
+		t.Fatalf("A's link changed: %+v", acct)
+	}
+	if !e.hasImport(t, a.UserID) || !reflect.DeepEqual(e.interests(t, a.UserID), interests) || len(interests) == 0 {
+		t.Fatal("a refused link deleted A's import")
+	}
+	if e.account(t, b.UserID).FBUserID != "fb-bob" {
+		t.Fatal("B lost its link")
+	}
+}
+
+func TestImportDoesNotUndoADeletion(t *testing.T) {
+	e := newEnv(t)
+	e.fake.AddUser(jordan())
+	a := e.srv.Signup(t, "Jordan Lee")
+	e.connect(t, a, "fb-jordan")
+	// Facebook's data-deletion request lands while the import reads Facebook.
+	e.fake.SetHook(func(method string) {
+		if method == "Friends" {
+			if err := e.srv.Store.Facebook().Forget(context.Background(), a.UserID); err != nil {
+				t.Error(err)
+			}
+		}
+	})
+	res := e.srv.Do(t, "POST", "/integrations/facebook/import", nil, a)
+	if res.Status != http.StatusConflict || res.Message() != facebook.MsgConnectFirst {
+		t.Fatalf("import racing a deletion: %d %s", res.Status, res.Body)
+	}
+	if e.hasImport(t, a.UserID) || e.hasAccount(t, a.UserID) || len(e.interests(t, a.UserID)) != 0 {
+		t.Fatal("the import brought deleted data back")
+	}
+
+	// Same for Facebook's deauthorize: the token is gone, so the new read is
+	// not saved over the import the person had.
+	e.fake.SetHook(nil)
+	e.connect(t, a, "fb-jordan")
+	e.importNow(t, a)
+	e.fake.SetLikes("fb-jordan", []facebook.Like{like("x", "Just a park", "Park")})
+	e.fake.SetHook(func(method string) {
+		if method == "Friends" {
+			if _, err := e.srv.Store.Facebook().Deauthorize(context.Background(), "fb-jordan"); err != nil {
+				t.Error(err)
+			}
+		}
+	})
+	res = e.srv.Do(t, "POST", "/integrations/facebook/import", nil, a)
+	if res.Status != http.StatusConflict || res.Message() != facebook.MsgConnectFirst {
+		t.Fatalf("import racing a deauthorize: %d %s", res.Status, res.Body)
+	}
+	if stored, err := e.srv.Store.Facebook().Import(context.Background(), a.UserID); err != nil || stored.LikedPages != 21 {
+		t.Fatalf("the import after a deauthorize replaced the stored one: %+v, %v", stored, err)
+	}
+}
+
+func TestCallbackForAUserWhoIsGone(t *testing.T) {
+	e := newEnv(t)
+	e.fake.AddUser(jordan())
+	a := e.srv.Signup(t, "Jordan Lee")
+	state := e.dialog(t, a, false).Query().Get("state")
+	oid, err := bson.ObjectIDFromHex(a.UserID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.srv.Store.Collection(store.CollUsers).DeleteOne(context.Background(), bson.M{"_id": oid}); err != nil {
+		t.Fatal(err)
+	}
+	loc := e.callback(t, url.Values{"code": {e.fake.IssueCode("fb-jordan")}, "state": {state}})
+	if loc != appReturn+"?status=error&message=Facebook%20didn%27t%20connect.%20Try%20again." {
+		t.Fatalf("callback for a deleted user: %s", loc)
+	}
+	if e.hasAccount(t, a.UserID) || len(e.fake.Calls()) != 0 {
+		t.Fatal("a deleted user got a Facebook connection")
 	}
 }
 

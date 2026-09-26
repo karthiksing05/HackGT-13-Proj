@@ -90,7 +90,8 @@ func (f Facebook) MarkNeedsReconnect(ctx context.Context, userID string) error {
 }
 
 // UpdateProfile keeps the name and the granted / declined scopes an import
-// read from Facebook.
+// read from Facebook. It matches only a connection that still holds a token:
+// ErrNotFound means it was disconnected or deleted meanwhile.
 func (f Facebook) UpdateProfile(ctx context.Context, userID, name string, granted, declined []string) error {
 	if granted == nil {
 		granted = []string{}
@@ -102,7 +103,7 @@ func (f Facebook) UpdateProfile(ctx context.Context, userID, name string, grante
 	if name != "" {
 		set["name"] = name
 	}
-	res, err := f.accounts().UpdateOne(ctx, bson.M{"_id": userID}, bson.M{"$set": set})
+	res, err := f.accounts().UpdateOne(ctx, bson.M{"_id": userID, "accessTokenEnc": bson.M{"$ne": ""}}, bson.M{"$set": set})
 	if err != nil {
 		return err
 	}

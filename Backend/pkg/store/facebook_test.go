@@ -67,6 +67,9 @@ func TestFacebookAccounts(t *testing.T) {
 	if acct, _ := fb.Account(ctx, "u1"); acct.AccessTokenEnc != "" || acct.NeedsReconnect || acct.FBUserID != "fb1" {
 		t.Fatalf("after deauthorize = %+v", acct)
 	}
+	if err := fb.UpdateProfile(ctx, "u1", "After", nil, nil); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("profile update of a disconnected account: %v", err)
+	}
 	if _, err := fb.Deauthorize(ctx, "fb-unknown"); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("deauthorize unknown: %v", err)
 	}

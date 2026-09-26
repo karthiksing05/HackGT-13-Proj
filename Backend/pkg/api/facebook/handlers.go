@@ -197,8 +197,13 @@ func (h *H) Callback(w http.ResponseWriter, r *http.Request) {
 
 // link finishes a Login for userID: code → short-lived token → long-lived
 // token → who they are and what they granted → the sealed token stored. It
-// returns the sentence to show when that fails ("" on success).
+// returns the sentence to show when that fails ("" on success); a refused
+// link changes nothing.
 func (h *H) link(ctx context.Context, userID, code string) string {
+	if _, err := h.d.Store.Users().ByID(ctx, userID); err != nil {
+		log.Warn().Err(err).Str("user", userID).Msg("facebook: login finished for a user who is gone")
+		return MsgDidntConnect
+	}
 	g := h.graph()
 	gctx, cancel := context.WithTimeout(ctx, graphBudget)
 	defer cancel()
@@ -231,6 +236,17 @@ func (h *H) link(ctx context.Context, userID, code string) string {
 		log.Error().Err(err).Str("user", userID).Msg("facebook: load account")
 		return MsgDidntConnect
 	}
+	other, err := fbs.AccountByFBUserID(ctx, me.ID)
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+	case err != nil:
+		log.Error().Err(err).Msg("facebook: look up fbUserId")
+		return MsgDidntConnect
+	case other.UserID == userID:
+		other = nil
+	case other.AccessTokenEnc != "":
+		return MsgLinkedElsewhere
+	}
 	if prev != nil && prev.FBUserID != "" && prev.FBUserID != me.ID {
 		// Another Facebook account than before: the old import is not theirs now.
 		if err := h.dropImport(ctx, userID); err != nil {
@@ -238,10 +254,7 @@ func (h *H) link(ctx context.Context, userID, code string) string {
 			return MsgDidntConnect
 		}
 	}
-	if other, err := fbs.AccountByFBUserID(ctx, me.ID); err == nil && other.UserID != userID {
-		if other.AccessTokenEnc != "" {
-			return MsgLinkedElsewhere
-		}
+	if other != nil {
 		// Facebook already deauthorized that link: this sign-in takes it over,
 		// and what was imported for the other account goes with it.
 		if err := fbs.Forget(ctx, other.UserID); err != nil {
@@ -249,9 +262,6 @@ func (h *H) link(ctx context.Context, userID, code string) string {
 			return MsgDidntConnect
 		}
 		h.d.RefreshProfileAsync(other.UserID, asyncProfileTimeout)
-	} else if err != nil && !errors.Is(err, store.ErrNotFound) {
-		log.Error().Err(err).Msg("facebook: look up fbUserId")
-		return MsgDidntConnect
 	}
 
 	now := h.d.Store.Now()
@@ -366,11 +376,17 @@ func (h *H) Import(w http.ResponseWriter, r *http.Request) {
 		graphFailed(w, r, err)
 		return
 	}
-	if err := fbs.SaveImport(ctx, got.imp); err != nil {
+	// UpdateProfile only matches a connection that still has its token, so a
+	// disconnect or deletion request that landed meanwhile is not undone.
+	if err := fbs.UpdateProfile(ctx, userID, got.name, got.granted, got.declined); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			httpx.Error(w, http.StatusConflict, MsgConnectFirst)
+			return
+		}
 		api.Fail(w, r, err)
 		return
 	}
-	if err := fbs.UpdateProfile(ctx, userID, got.name, got.granted, got.declined); err != nil {
+	if err := fbs.SaveImport(ctx, got.imp); err != nil {
 		api.Fail(w, r, err)
 		return
 	}
