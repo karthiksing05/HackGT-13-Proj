@@ -1,26 +1,24 @@
 [Unit]
-Description=SideQuestz Backend Service
+Description=SideQuestz API
 After=network.target mongod.service ml.service
 Wants=ml.service
 
 [Service]
 Type=simple
+User=sidequestz
+Group=sidequestz
 WorkingDirectory=/opt/backend
+EnvironmentFile=/opt/backend/.env
 ExecStart=/opt/backend/sidequestz-server
-#Restart=always
-#RestartSec=5s
+Restart=always
+RestartSec=3
+LimitNOFILE=65536
 
-Environment=PORT=8080
-Environment=MONGO_URI=mongodb://127.0.0.1:27017
-Environment=MONGO_DB=freetime
-Environment=JWT_SECRET=JWT_SECRET
-Environment=COOKIE_SECURE=true
-Environment=ML_SERVICE_URL=http://127.0.0.1:8000
-
-# Security Hardening
+# Hardening
 NoNewPrivileges=true
 ProtectSystem=full
 ProtectHome=true
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
