@@ -1,1 +1,11 @@
 .env
+
+# macOS
+.DS_Store
+
+# Xcode: per-user settings and build output
+xcuserdata/
+DerivedData/
+*.ipa
+*.dSYM
+*.dSYM.zip
