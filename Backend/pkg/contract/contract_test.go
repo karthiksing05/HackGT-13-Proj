@@ -1,0 +1,250 @@
+package contract
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+)
+
+// examplesDir holds the dumps of the app's ContractTests (docs/api/examples),
+// the truth for every wire shape.
+const examplesDir = "../../../docs/api/examples"
+
+// examples maps each dump to a fresh pointer of the Go type it must round-trip through.
+var examples = map[string]func() any{
+	"AuthResponse":           func() any { return &AuthResponse{} },
+	"CalendarDays":           func() any { return &[]CalendarDay{} },
+	"ChatThread":             func() any { return &ChatThread{} },
+	"CheckoutIntent":         func() any { return &CheckoutIntent{} },
+	"CreateItineraryRequest": func() any { return &CreateItineraryRequest{} },
+	"FacebookConnection":     func() any { return &FacebookConnection{} },
+	"FacebookImport":         func() any { return &FacebookImport{} },
+	"ForumPosts":             func() any { return &[]ForumPost{} },
+	"FriendRequests":         func() any { return &[]FriendRequest{} },
+	"Friends":                func() any { return &[]Friend{} },
+	"GroupLedger":            func() any { return &GroupLedger{} },
+	"GroupPhotos":            func() any { return &[]GroupPhoto{} },
+	"Integrations":           func() any { return &[]Integration{} },
+	"Itinerary":              func() any { return &Itinerary{} },
+	"ItineraryItem":          func() any { return &ItineraryItem{} },
+	"ItineraryUpdate":        func() any { return &ItineraryUpdate{} },
+	"JoinResult":             func() any { return &JoinResult{} },
+	"Message":                func() any { return &Message{} },
+	"Messages":               func() any { return &[]Message{} },
+	"MyFreePost":             func() any { return &MyFreePost{} },
+	"NewExpense":             func() any { return &NewExpense{} },
+	"OutgoingFriendRequest":  func() any { return &FriendRequest{} },
+	"PastEvents":             func() any { return &[]PastEvent{} },
+	"PastInsights":           func() any { return &PastInsights{} },
+	"PaymentMethods":         func() any { return &[]PaymentMethod{} },
+	"PlanAlternatives":       func() any { return &[]PlanAlternative{} },
+	"PlanBatch":              func() any { return &PlanBatch{} },
+	"PlanRequest":            func() any { return &PlanRequest{} },
+	"Preferences":            func() any { return &Preferences{} },
+	"Rating":                 func() any { return &Rating{} },
+	"RouteRequest":           func() any { return &RouteRequest{} },
+	"RouteResult":            func() any { return &RouteResult{} },
+	"SearchResults":          func() any { return &SearchResults{} },
+	"SignupRequest":          func() any { return &SignupRequest{} },
+	"TasteProfile":           func() any { return &TasteProfile{} },
+	"Ticket":                 func() any { return &Ticket{} },
+	"TransitOptions":         func() any { return &[]TransitOption{} },
+	"User":                   func() any { return &User{} },
+	"UserPatch":              func() any { return &UserPatch{} },
+	"UserSearchResults":      func() any { return &[]UserSearchResult{} },
+}
+
+// skipped dumps are not one wire struct; each entry says why.
+var skipped = map[string]string{
+	"index":       "manifest of the examples, not a payload",
+	"ForumQuery":  "app-side query object; GET /forum/posts takes URL parameters (lat, lng, area, radius, scope, type, when, max_dist, cost, tags, open_only, sort)",
+	"NewFreePost": "app-side model; LiveAPIClient flattens it into the NewForumPost body (type, visibility, until, lat, lng, area_label, radius_mi)",
+}
+
+// canonical re-serializes JSON with sorted keys and Go's number formatting so
+// two documents compare by value.
+func canonical(t *testing.T, data []byte) string {
+	t.Helper()
+	var v any
+	if err := json.Unmarshal(data, &v); err != nil {
+		t.Fatalf("canonical: %v", err)
+	}
+	out, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("canonical: %v", err)
+	}
+	return string(out)
+}
+
+func TestExamplesRoundTrip(t *testing.T) {
+	files, err := filepath.Glob(filepath.Join(examplesDir, "*.json"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no examples in %s: %v", examplesDir, err)
+	}
+	seen := map[string]bool{}
+	for _, file := range files {
+		name := strings.TrimSuffix(filepath.Base(file), ".json")
+		seen[name] = true
+		if why, ok := skipped[name]; ok {
+			t.Logf("skip %s: %s", name, why)
+			continue
+		}
+		fresh, ok := examples[name]
+		if !ok {
+			t.Errorf("%s.json has no Go type in the examples map", name)
+			continue
+		}
+		t.Run(name, func(t *testing.T) {
+			raw, err := os.ReadFile(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			target := fresh()
+			dec := json.NewDecoder(bytes.NewReader(raw))
+			dec.DisallowUnknownFields()
+			if err := dec.Decode(target); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			encoded, err := json.Marshal(target)
+			if err != nil {
+				t.Fatalf("encode: %v", err)
+			}
+			if got, want := canonical(t, encoded), canonical(t, raw); got != want {
+				t.Errorf("round trip differs\n got: %s\nwant: %s", got, want)
+			}
+		})
+	}
+	for name := range examples {
+		if !seen[name] {
+			t.Errorf("examples map names %s but docs/api/examples/%s.json does not exist", name, name)
+		}
+	}
+}
+
+func TestTimeFormats(t *testing.T) {
+	cases := map[string]string{
+		`"2026-09-25T18:10:00Z"`:             "2026-09-25T18:10:00Z",
+		`"2026-09-25T19:00:00.123456+00:00"`: "2026-09-25T19:00:00Z",
+		`"2026-09-25T14:10:00-04:00"`:        "2026-09-25T18:10:00Z",
+		`"2026-09-25"`:                       "2026-09-25T00:00:00Z",
+	}
+	for in, want := range cases {
+		var tm Time
+		if err := json.Unmarshal([]byte(in), &tm); err != nil {
+			t.Fatalf("%s: %v", in, err)
+		}
+		out, _ := json.Marshal(tm)
+		if string(out) != `"`+want+`"` {
+			t.Errorf("%s → %s, want %s", in, out, want)
+		}
+	}
+	var tm Time
+	if err := json.Unmarshal([]byte(`"tomorrow"`), &tm); err == nil {
+		t.Error("garbage accepted")
+	}
+	var holder struct {
+		Required Time  `json:"required"`
+		Optional *Time `json:"optional,omitempty"`
+		Nullable *Time `json:"nullable"`
+	}
+	if err := json.Unmarshal([]byte(`{"required":"2026-09-25T18:10:00Z","optional":null,"nullable":null}`), &holder); err != nil {
+		t.Fatal(err)
+	}
+	out, _ := json.Marshal(holder)
+	if string(out) != `{"required":"2026-09-25T18:10:00Z","nullable":null}` {
+		t.Errorf("pointer semantics wrong: %s", out)
+	}
+	zero, _ := json.Marshal(struct {
+		T Time `json:"t"`
+	}{})
+	if string(zero) != `{"t":"0001-01-01T00:00:00Z"}` {
+		t.Errorf("zero non-pointer must still be present: %s", zero)
+	}
+	if NewTime(time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)).Std().Hour() != 12 {
+		t.Error("Std lost the value")
+	}
+}
+
+func TestKeyNormalization(t *testing.T) {
+	for in, want := range map[string]string{
+		"liveMusic": "live_music", "live_music": "live_music", "BigCrowds": "big_crowds",
+		"earlyMornings": "early_mornings", "food": "food", "perfectAfternoon": "perfect_afternoon",
+		"neverDo": "never_do", "planAround": "plan_around", "15ToForty": "15_to_forty",
+	} {
+		if got := CanonicalKey(in); got != want {
+			t.Errorf("CanonicalKey(%q) = %q, want %q", in, got, want)
+		}
+	}
+	var p Preferences
+	if err := json.Unmarshal([]byte(`{"ratings":{"liveMusic":4,"outdoors":5},"answers":{"perfectAfternoon":"walks"}}`), &p); err != nil {
+		t.Fatal(err)
+	}
+	if p.Ratings["live_music"] != 4 || p.Answers["perfect_afternoon"] != "walks" {
+		t.Errorf("keys not normalized: %+v", p)
+	}
+	if !p.Ratings.Validate() {
+		t.Error("valid ratings rejected")
+	}
+	if (Ratings{"outdoors": 6}).Validate() || (Ratings{"skiing": 3}).Validate() {
+		t.Error("invalid ratings accepted")
+	}
+	out, _ := json.Marshal(Preferences{})
+	if !strings.Contains(string(out), `"ratings":{}`) || !strings.Contains(string(out), `"answers":{}`) {
+		t.Errorf("nil maps must write {}: %s", out)
+	}
+	modes, _ := json.Marshal(PlanRequest{Modes: TravelModes{ModeWalk, ModeMarta}})
+	if !strings.Contains(string(modes), `"modes":["marta","walk"]`) {
+		t.Errorf("modes not sorted: %s", modes)
+	}
+	empty, _ := json.Marshal(PlanRequest{})
+	if !strings.Contains(string(empty), `"modes":[]`) {
+		t.Errorf("nil modes must write []: %s", empty)
+	}
+}
+
+func TestDefaultPreferencesValidate(t *testing.T) {
+	p := DefaultPreferences()
+	if err := p.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	bad := Preferences{Company: "crowd"}
+	if err := bad.Validate(); err == nil {
+		t.Fatal("bad company accepted")
+	}
+	partial := Preferences{Ratings: Ratings{"food": 3}}
+	if err := partial.Validate(); err != nil || partial.Company != CompanySmallGroup || partial.Answers == nil {
+		t.Fatalf("partial preferences not defaulted: %v %+v", err, partial)
+	}
+}
+
+func TestTimeBSON(t *testing.T) {
+	type doc struct {
+		At   Time  `bson:"at"`
+		Then *Time `bson:"then,omitempty"`
+	}
+	in := doc{At: NewTime(time.Date(2026, 9, 26, 18, 30, 0, 0, time.UTC))}
+	raw, err := bson.Marshal(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var generic bson.M
+	if err := bson.Unmarshal(raw, &generic); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := generic["at"].(bson.DateTime); !ok {
+		t.Fatalf("Time must store as a BSON datetime, got %T", generic["at"])
+	}
+	var out doc
+	if err := bson.Unmarshal(raw, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !out.At.Equal(in.At.Time) || out.Then != nil {
+		t.Fatalf("bson round trip changed the value: %+v", out)
+	}
+}
