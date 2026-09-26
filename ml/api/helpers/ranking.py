@@ -9,7 +9,12 @@ Stateless: everything needed comes in with the request, and nothing is
 fetched or stored. The scoring approach is whatever `CompatibilityModel` is
 injected, so swapping cosine for the classifier needs no change here. The
 rerank is `reranking.rerank_contexts`, run only when a Jev client is
-configured and the request carries the user's `positive_text`.
+configured and the request carries the user's `positive_text`, and bounded by
+`rerank_timeout`: a slow Jev yields the model order instead of a caller-side
+timeout with nothing.
+
+Events removed by the hard filters, `min_score` or `limit` are simply absent
+from the result; callers must not add them back.
 """
 
 import asyncio
@@ -43,6 +48,11 @@ DEFAULT_SEARCH_WEIGHT = 0.6
 # scores them all, so this bounds both latency and cost.
 DEFAULT_RERANK_TOP_K = 20
 
+# How long the rerank may take before the model order is returned instead.
+# Below the backend's rerank deadline (20 s) so it always gets an answer; Jev's
+# own SDK timeout is 60 s.
+DEFAULT_RERANK_TIMEOUT_SECONDS = 15.0
+
 # Jev's state needs a user id; the request has none, and Jev only uses it as a label.
 RERANK_USER_ID = "user"
 
@@ -61,16 +71,20 @@ class EventRankingService:
         search_weight: float = DEFAULT_SEARCH_WEIGHT,
         jev: JevClient | None = None,
         rerank_top_k: int = DEFAULT_RERANK_TOP_K,
+        rerank_timeout: float = DEFAULT_RERANK_TIMEOUT_SECONDS,
     ) -> None:
         if not 0.0 <= search_weight <= 1.0:
             raise ValueError(f"search_weight must lie in [0, 1], got {search_weight}")
         if rerank_top_k < 1:
             raise ValueError(f"rerank_top_k must be >= 1, got {rerank_top_k}")
+        if not rerank_timeout > 0:
+            raise ValueError(f"rerank_timeout must be > 0, got {rerank_timeout}")
         self.model = model
         self.filters = default_filters() if filters is None else filters
         self.search_weight = search_weight
         self.jev = jev
         self.rerank_top_k = rerank_top_k
+        self.rerank_timeout = rerank_timeout
 
     async def rank_and_rerank(
         self,
@@ -83,13 +97,19 @@ class EventRankingService:
         """Score with the model, let Jev score the model's top k, then sort and limit.
 
         Model scoring runs in a worker thread so it doesn't block the event
-        loop. The rerank never fails the request: if it is skipped or Jev
-        fails, the result is in model order with `reranked=False`.
+        loop. The rerank never fails the request: if it is skipped, Jev
+        fails or it takes longer than `rerank_timeout`, the result is in
+        model order with `reranked=False`.
         """
         scored = await asyncio.to_thread(self._scored, user, events, options, search_embedding)
         reranked = False
         if self.jev is not None and options.rerank and _has_text(user.positive_text) and scored:
-            scored, reranked = await self._rerank(user, events, scored, options, search_text)
+            try:
+                scored, reranked = await asyncio.wait_for(
+                    self._rerank(user, events, scored, options, search_text), timeout=self.rerank_timeout
+                )
+            except TimeoutError:
+                logger.warning("Jev rerank took longer than %.1fs; returning model order", self.rerank_timeout)
         return RankingOutcome(events=_limit(_sort(scored), options), reranked=reranked)
 
     def rank(

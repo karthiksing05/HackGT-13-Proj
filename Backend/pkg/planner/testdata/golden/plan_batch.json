@@ -1,0 +1,345 @@
+{
+  "options": [
+    {
+      "id": "id-0001-0",
+      "name": "Brine and Bivalve + Crow's Nest Rooftop",
+      "tag": "Best match",
+      "meta": "~$$ · 2.6 mi walking · 2 stops",
+      "stops": [
+        {
+          "id": "stop_bd670883e140022274fe9e2f_0",
+          "title": "Brine and Bivalve Oyster Bar",
+          "subtitle": "Restaurant · $$",
+          "place": {
+            "name": "Brine and Bivalve Oyster Bar",
+            "coordinate": {
+              "lat": 31.362,
+              "lng": -81.425564
+            }
+          },
+          "duration_minutes": 75,
+          "activity_id": "bd670883e140022274fe9e2f",
+          "kind": "place",
+          "category": "restaurant",
+          "tags": [
+            "indoor",
+            "food",
+            "drinks",
+            "date",
+            "21_plus",
+            "medium_energy"
+          ],
+          "arrive_time": "2026-09-26T22:30:00Z",
+          "depart_time": "2026-09-26T23:45:00Z",
+          "flexible": true,
+          "price_cents": 1800,
+          "price_known": true,
+          "address": "810 Stall St, Saltlight Harbor, GA 31994",
+          "website_url": "https://saltlight.example/brine-and-bivalve-oyster-bar",
+          "summary": "Eight kinds of local oysters on crushed ice, with half-price dozens from 3 to 5.",
+          "utility": 0.65517,
+          "order": 0
+        },
+        {
+          "id": "stop_ad4f58795ec3ba0d008af20a_1",
+          "title": "The Crow's Nest Rooftop",
+          "subtitle": "Bar · $",
+          "place": {
+            "name": "The Crow's Nest Rooftop",
+            "coordinate": {
+              "lat": 31.371952,
+              "lng": -81.41488
+            }
+          },
+          "duration_minutes": 90,
+          "activity_id": "ad4f58795ec3ba0d008af20a",
+          "kind": "place",
+          "category": "bar",
+          "tags": [
+            "outdoor",
+            "drinks",
+            "date",
+            "late_night",
+            "21_plus",
+            "splurge",
+            "low_energy"
+          ],
+          "arrive_time": "2026-09-27T00:30:00Z",
+          "depart_time": "2026-09-27T02:00:00Z",
+          "flexible": true,
+          "price_cents": 1400,
+          "price_known": true,
+          "address": "246 Marina Row, Saltlight Harbor, GA 31991",
+          "website_url": "https://saltlight.example/the-crow-s-nest-rooftop",
+          "summary": "Cocktails five stories above the marina with heat lamps and string lights.",
+          "utility": 0.56554,
+          "order": 1
+        }
+      ],
+      "summary": "2 stops · 6:30 PM–10:00 PM · 4.2 km walking",
+      "route_summary": "Walk 12 min → Walk 26 min → Walk 18 min",
+      "legs": [
+        {
+          "from_stop_id": "start",
+          "to_stop_id": "stop_bd670883e140022274fe9e2f_0",
+          "mode": "walk",
+          "minutes": 12,
+          "distance_km": 0.87
+        },
+        {
+          "from_stop_id": "stop_bd670883e140022274fe9e2f_0",
+          "to_stop_id": "stop_ad4f58795ec3ba0d008af20a_1",
+          "mode": "walk",
+          "minutes": 26,
+          "distance_km": 1.95
+        },
+        {
+          "from_stop_id": "stop_ad4f58795ec3ba0d008af20a_1",
+          "to_stop_id": "end",
+          "mode": "walk",
+          "minutes": 18,
+          "distance_km": 1.37
+        }
+      ],
+      "total_cost_cents": 3200,
+      "cost_known": true,
+      "total_duration_min": 250,
+      "depart_time": "2026-09-26T22:08:00Z",
+      "arrival_time": "2026-09-27T02:18:00Z",
+      "late_flag": false,
+      "score": 0.67696,
+      "metrics": {
+        "fit": 0.6103505864402441,
+        "coverage": 1,
+        "variety": 1,
+        "pace_fit": 0.6666666666666667,
+        "travel_share": 0.224,
+        "idle_share": 0.06333333333333334,
+        "budget_use": 0.45714285714285713,
+        "late_risk": false,
+        "stops": 2,
+        "covered_facets": [
+          "Outdoors",
+          "Food",
+          "Chill"
+        ],
+        "missing_facets": []
+      }
+    },
+    {
+      "id": "id-0001-1",
+      "name": "Pho Real Noodle + Anchor Park",
+      "tag": "Outdoors",
+      "meta": "~$ · 1.4 mi walking · 2 stops",
+      "stops": [
+        {
+          "id": "stop_ab71e6cf41394229d8b4febd_0",
+          "title": "Pho Real Noodle House",
+          "subtitle": "Restaurant · $",
+          "place": {
+            "name": "Pho Real Noodle House",
+            "coordinate": {
+              "lat": 31.37316,
+              "lng": -81.420452
+            }
+          },
+          "duration_minutes": 75,
+          "activity_id": "ab71e6cf41394229d8b4febd",
+          "kind": "place",
+          "category": "restaurant",
+          "tags": [
+            "indoor",
+            "cheap",
+            "food",
+            "solo_friendly",
+            "group",
+            "low_energy"
+          ],
+          "arrive_time": "2026-09-26T22:30:00Z",
+          "depart_time": "2026-09-26T23:45:00Z",
+          "flexible": true,
+          "price_cents": 1200,
+          "price_known": true,
+          "address": "500 Stall St, Saltlight Harbor, GA 31994",
+          "website_url": "https://saltlight.example/pho-real-noodle-house",
+          "summary": "Steaming bowls of seafood pho and crispy imperial rolls.",
+          "utility": 0.5952,
+          "order": 0
+        },
+        {
+          "id": "stop_4705c180b881f5dab4f6ff39_1",
+          "title": "Anchor Park",
+          "subtitle": "Park · Free",
+          "place": {
+            "name": "Anchor Park",
+            "coordinate": {
+              "lat": 31.374748,
+              "lng": -81.4207
+            }
+          },
+          "duration_minutes": 60,
+          "activity_id": "4705c180b881f5dab4f6ff39",
+          "kind": "place",
+          "category": "park",
+          "tags": [
+            "outdoor",
+            "free",
+            "family",
+            "group",
+            "daytime",
+            "low_energy"
+          ],
+          "arrive_time": "2026-09-27T00:00:00Z",
+          "depart_time": "2026-09-27T01:00:00Z",
+          "flexible": true,
+          "price_cents": 0,
+          "price_known": true,
+          "address": "779 Mooring St, Saltlight Harbor, GA 31991",
+          "website_url": "https://saltlight.example/anchor-park",
+          "summary": "The town green, built around a rusted 4-ton anchor.",
+          "utility": 0.56056,
+          "order": 1
+        }
+      ],
+      "summary": "2 stops · 6:30 PM–9:00 PM · 2.3 km walking",
+      "route_summary": "Walk 12 min → Walk 3 min → Walk 15 min",
+      "legs": [
+        {
+          "from_stop_id": "start",
+          "to_stop_id": "stop_ab71e6cf41394229d8b4febd_0",
+          "mode": "walk",
+          "minutes": 12,
+          "distance_km": 0.93
+        },
+        {
+          "from_stop_id": "stop_ab71e6cf41394229d8b4febd_0",
+          "to_stop_id": "stop_4705c180b881f5dab4f6ff39_1",
+          "mode": "walk",
+          "minutes": 3,
+          "distance_km": 0.23
+        },
+        {
+          "from_stop_id": "stop_4705c180b881f5dab4f6ff39_1",
+          "to_stop_id": "end",
+          "mode": "walk",
+          "minutes": 15,
+          "distance_km": 1.11
+        }
+      ],
+      "total_cost_cents": 1200,
+      "cost_known": true,
+      "total_duration_min": 187,
+      "depart_time": "2026-09-26T22:08:00Z",
+      "arrival_time": "2026-09-27T01:15:00Z",
+      "late_flag": false,
+      "score": 0.66669,
+      "metrics": {
+        "fit": 0.577878821106808,
+        "coverage": 1,
+        "variety": 1,
+        "pace_fit": 0.6666666666666667,
+        "travel_share": 0.16042780748663102,
+        "idle_share": 0.04,
+        "budget_use": 0.17142857142857143,
+        "late_risk": false,
+        "stops": 2,
+        "covered_facets": [
+          "Outdoors",
+          "Food",
+          "Chill"
+        ],
+        "missing_facets": []
+      }
+    },
+    {
+      "id": "id-0001-2",
+      "name": "Sunset Jazz",
+      "tag": "Nightlife",
+      "meta": "~$ · 1.9 mi walking · 1 stop",
+      "stops": [
+        {
+          "id": "stop_9bdbbc5e9aab712a5b769f72_0",
+          "title": "Sunset Jazz on Pier Nine",
+          "subtitle": "Live music · $ · 6:30 PM",
+          "place": {
+            "name": "Pier Nine Bandstand",
+            "coordinate": {
+              "lat": 31.376524,
+              "lng": -81.41746
+            }
+          },
+          "duration_minutes": 150,
+          "activity_id": "9bdbbc5e9aab712a5b769f72",
+          "kind": "event",
+          "category": "live_music",
+          "tags": [
+            "outdoor",
+            "cheap",
+            "music",
+            "date",
+            "drinks",
+            "low_energy"
+          ],
+          "arrive_time": "2026-09-26T22:30:00Z",
+          "depart_time": "2026-09-27T01:00:00Z",
+          "flexible": false,
+          "price_cents": 1200,
+          "price_known": true,
+          "address": "597 Mooring St, Saltlight Harbor, GA 31991",
+          "website_url": "https://saltlight.example/sunset-jazz-on-pier-nine",
+          "ticket_url": "https://saltlight.example/sunset-jazz-on-pier-nine/tickets",
+          "summary": "The Brass Barnacles quartet plays standards as the sun drops behind the moored sailboats.",
+          "utility": 0.66691,
+          "order": 0
+        }
+      ],
+      "summary": "1 stop · 6:30 PM–9:00 PM · 3.1 km walking",
+      "route_summary": "Walk 21 min → Walk 21 min",
+      "legs": [
+        {
+          "from_stop_id": "start",
+          "to_stop_id": "stop_9bdbbc5e9aab712a5b769f72_0",
+          "mode": "walk",
+          "minutes": 21,
+          "distance_km": 1.54
+        },
+        {
+          "from_stop_id": "stop_9bdbbc5e9aab712a5b769f72_0",
+          "to_stop_id": "end",
+          "mode": "walk",
+          "minutes": 21,
+          "distance_km": 1.54
+        }
+      ],
+      "total_cost_cents": 1200,
+      "cost_known": true,
+      "total_duration_min": 201,
+      "depart_time": "2026-09-26T22:00:00Z",
+      "arrival_time": "2026-09-27T01:21:00Z",
+      "late_flag": false,
+      "score": 0.623,
+      "metrics": {
+        "fit": 0.6669099131444522,
+        "coverage": 0.6666666666666666,
+        "variety": 1,
+        "pace_fit": 0.33333333333333337,
+        "travel_share": 0.208955223880597,
+        "idle_share": 0,
+        "budget_use": 0.17142857142857143,
+        "late_risk": false,
+        "stops": 1,
+        "covered_facets": [
+          "Outdoors",
+          "Chill"
+        ],
+        "missing_facets": [
+          "Food"
+        ]
+      }
+    }
+  ],
+  "cursor": "dag_id-0001_3",
+  "done": false,
+  "planner": "dag",
+  "run_id": "id-0001"
+}
