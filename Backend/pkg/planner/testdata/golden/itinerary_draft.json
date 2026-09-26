@@ -1,5 +1,5 @@
 {
-  "Title": "Sunset Jazz + Siren Song Lounge + 1 more",
+  "Title": "Seaside Market Hall + Fish Box Karaoke + 1 more",
   "Date": "2026-09-26T00:00:00-04:00",
   "Start": "2026-09-26T22:00:00Z",
   "BackBy": "2026-09-27T03:00:00Z",
@@ -25,12 +25,12 @@
     {
       "ID": "id-0002",
       "Kind": "transit",
-      "Title": "Walk to Sunset Jazz on Pier Nine",
+      "Title": "Walk to Seaside Market Hall",
       "Place": {
-        "name": "Seaside Market Square → Pier Nine Bandstand"
+        "name": "Seaside Market Square → Seaside Market Hall"
       },
-      "Start": "2026-09-26T22:09:00Z",
-      "End": "2026-09-26T22:30:00Z",
+      "Start": "2026-09-26T22:03:00Z",
+      "End": "2026-09-26T22:10:00Z",
       "Description": "Route options below. Times update live if you run late.",
       "WebsiteURL": "",
       "ImageURL": "",
@@ -43,55 +43,56 @@
       "Flexible": false,
       "Leg": {
         "Mode": "walk",
-        "Minutes": 21,
-        "DistanceKm": 1.54
+        "Minutes": 7,
+        "DistanceKm": 0.51
       },
       "StopID": "",
-      "DurationMin": 21
+      "DurationMin": 7
     },
     {
       "ID": "id-0003",
       "Kind": "sidequest",
-      "Title": "Sunset Jazz on Pier Nine",
+      "Title": "Seaside Market Hall",
       "Place": {
-        "name": "Pier Nine Bandstand",
+        "name": "Seaside Market Hall",
         "coordinate": {
-          "lat": 31.376524,
-          "lng": -81.41746
+          "lat": 31.365972,
+          "lng": -81.428348
         }
       },
-      "Start": "2026-09-26T22:30:00Z",
-      "End": "2026-09-26T23:30:00Z",
-      "Description": "The Brass Barnacles quartet plays standards as the sun drops behind the moored sailboats.",
-      "WebsiteURL": "https://saltlight.example/sunset-jazz-on-pier-nine",
+      "Start": "2026-09-26T22:10:00Z",
+      "End": "2026-09-26T23:00:00Z",
+      "Description": "The permanent market under a steel-and-glass roof: fishmongers, flower stalls, spice vendors and forty lunch counters.",
+      "WebsiteURL": "https://saltlight.example/seaside-market-hall",
       "ImageURL": "",
-      "Bookable": true,
-      "PriceCents": 1200,
+      "Bookable": false,
+      "PriceCents": 0,
       "PriceKnown": true,
-      "ActivityID": "9bdbbc5e9aab712a5b769f72",
-      "Category": "live_music",
+      "ActivityID": "62248db0069b1dc732103903",
+      "Category": "market",
       "Tags": [
-        "outdoor",
-        "cheap",
-        "music",
-        "date",
-        "drinks",
+        "indoor",
+        "food",
+        "local_favorite",
+        "touristy",
+        "daytime",
+        "family",
         "low_energy"
       ],
-      "Flexible": false,
+      "Flexible": true,
       "Leg": null,
-      "StopID": "stop_9bdbbc5e9aab712a5b769f72_0",
-      "DurationMin": 60
+      "StopID": "stop_62248db0069b1dc732103903_0",
+      "DurationMin": 50
     },
     {
       "ID": "id-0004",
       "Kind": "transit",
-      "Title": "Walk to Siren Song Lounge",
+      "Title": "Walk to Fish Box Karaoke",
       "Place": {
-        "name": "Pier Nine Bandstand → Siren Song Lounge"
+        "name": "Seaside Market Hall → Fish Box Karaoke"
       },
-      "Start": "2026-09-26T23:30:00Z",
-      "End": "2026-09-26T23:41:00Z",
+      "Start": "2026-09-26T23:00:00Z",
+      "End": "2026-09-26T23:13:00Z",
       "Description": "Route options below. Times update live if you run late.",
       "WebsiteURL": "",
       "ImageURL": "",
@@ -104,56 +105,55 @@
       "Flexible": false,
       "Leg": {
         "Mode": "walk",
-        "Minutes": 11,
-        "DistanceKm": 0.82
+        "Minutes": 13,
+        "DistanceKm": 1
       },
       "StopID": "",
-      "DurationMin": 11
+      "DurationMin": 13
     },
     {
       "ID": "id-0005",
       "Kind": "sidequest",
-      "Title": "Siren Song Lounge",
+      "Title": "Fish Box Karaoke",
       "Place": {
-        "name": "Siren Song Lounge",
+        "name": "Fish Box Karaoke",
         "coordinate": {
-          "lat": 31.37104,
-          "lng": -81.419068
+          "lat": 31.36446,
+          "lng": -81.42044
         }
       },
-      "Start": "2026-09-27T00:00:00Z",
-      "End": "2026-09-27T00:45:00Z",
-      "Description": "A speakeasy behind a fake fishmonger's freezer door.",
-      "WebsiteURL": "https://saltlight.example/siren-song-lounge",
+      "Start": "2026-09-26T23:30:00Z",
+      "End": "2026-09-27T01:00:00Z",
+      "Description": "Private karaoke rooms built from old fish-market cold boxes, plus a main stage on weekends.",
+      "WebsiteURL": "https://saltlight.example/fish-box-karaoke",
       "ImageURL": "",
       "Bookable": true,
-      "PriceCents": 1300,
+      "PriceCents": 800,
       "PriceKnown": true,
-      "ActivityID": "6a31ffa8d4ca54aa5578259f",
-      "Category": "bar",
+      "ActivityID": "1523851c2dde52cb8917a3ad",
+      "Category": "rec_venue",
       "Tags": [
         "indoor",
-        "drinks",
-        "date",
-        "late_night",
-        "21_plus",
+        "cheap",
         "music",
-        "low_energy"
+        "group",
+        "late_night",
+        "high_energy"
       ],
       "Flexible": true,
       "Leg": null,
-      "StopID": "stop_6a31ffa8d4ca54aa5578259f_1",
-      "DurationMin": 45
+      "StopID": "stop_1523851c2dde52cb8917a3ad_1",
+      "DurationMin": 90
     },
     {
       "ID": "id-0006",
       "Kind": "transit",
-      "Title": "Walk to Brine and Bivalve Oyster Bar",
+      "Title": "Walk to Anchor Park",
       "Place": {
-        "name": "Siren Song Lounge → Brine and Bivalve Oyster Bar"
+        "name": "Fish Box Karaoke → Anchor Park"
       },
-      "Start": "2026-09-27T00:45:00Z",
-      "End": "2026-09-27T01:05:00Z",
+      "Start": "2026-09-27T01:00:00Z",
+      "End": "2026-09-27T01:20:00Z",
       "Description": "Route options below. Times update live if you run late.",
       "WebsiteURL": "",
       "ImageURL": "",
@@ -167,7 +167,7 @@
       "Leg": {
         "Mode": "walk",
         "Minutes": 20,
-        "DistanceKm": 1.53
+        "DistanceKm": 1.49
       },
       "StopID": "",
       "DurationMin": 20
@@ -175,46 +175,46 @@
     {
       "ID": "id-0007",
       "Kind": "sidequest",
-      "Title": "Brine and Bivalve Oyster Bar",
+      "Title": "Anchor Park",
       "Place": {
-        "name": "Brine and Bivalve Oyster Bar",
+        "name": "Anchor Park",
         "coordinate": {
-          "lat": 31.362,
-          "lng": -81.425564
+          "lat": 31.374748,
+          "lng": -81.4207
         }
       },
       "Start": "2026-09-27T01:30:00Z",
-      "End": "2026-09-27T02:45:00Z",
-      "Description": "Eight kinds of local oysters on crushed ice, with half-price dozens from 3 to 5.",
-      "WebsiteURL": "https://saltlight.example/brine-and-bivalve-oyster-bar",
+      "End": "2026-09-27T02:00:00Z",
+      "Description": "The town green, built around a rusted 4-ton anchor.",
+      "WebsiteURL": "https://saltlight.example/anchor-park",
       "ImageURL": "",
-      "Bookable": true,
-      "PriceCents": 1800,
+      "Bookable": false,
+      "PriceCents": 0,
       "PriceKnown": true,
-      "ActivityID": "bd670883e140022274fe9e2f",
-      "Category": "restaurant",
+      "ActivityID": "4705c180b881f5dab4f6ff39",
+      "Category": "park",
       "Tags": [
-        "indoor",
-        "food",
-        "drinks",
-        "date",
-        "21_plus",
-        "medium_energy"
+        "outdoor",
+        "free",
+        "family",
+        "group",
+        "daytime",
+        "low_energy"
       ],
       "Flexible": true,
       "Leg": null,
-      "StopID": "stop_bd670883e140022274fe9e2f_2",
-      "DurationMin": 75
+      "StopID": "stop_4705c180b881f5dab4f6ff39_2",
+      "DurationMin": 30
     },
     {
       "ID": "id-0008",
       "Kind": "transit",
       "Title": "Walk to Home",
       "Place": {
-        "name": "Brine and Bivalve Oyster Bar → Home"
+        "name": "Anchor Park → Home"
       },
-      "Start": "2026-09-27T02:45:00Z",
-      "End": "2026-09-27T02:57:00Z",
+      "Start": "2026-09-27T02:00:00Z",
+      "End": "2026-09-27T02:15:00Z",
       "Description": "Route options below. Times update live if you run late.",
       "WebsiteURL": "",
       "ImageURL": "",
@@ -227,19 +227,19 @@
       "Flexible": false,
       "Leg": {
         "Mode": "walk",
-        "Minutes": 12,
-        "DistanceKm": 0.87
+        "Minutes": 15,
+        "DistanceKm": 1.11
       },
       "StopID": "",
-      "DurationMin": 12
+      "DurationMin": 15
     }
   ],
   "PlanRunID": "id-0001",
   "OptionID": "id-0001-0",
   "StopOrder": [
-    "stop_9bdbbc5e9aab712a5b769f72_0",
-    "stop_6a31ffa8d4ca54aa5578259f_1",
-    "stop_bd670883e140022274fe9e2f_2"
+    "stop_62248db0069b1dc732103903_0",
+    "stop_1523851c2dde52cb8917a3ad_1",
+    "stop_4705c180b881f5dab4f6ff39_2"
   ],
   "PoolMissing": false
 }

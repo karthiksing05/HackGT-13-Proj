@@ -1,46 +1,6 @@
 [
   {
     "stop": {
-      "id": "alt_ab71e6cf41394229d8b4febd_0",
-      "title": "Pho Real Noodle House",
-      "subtitle": "Restaurant · $",
-      "place": {
-        "name": "Pho Real Noodle House",
-        "coordinate": {
-          "lat": 31.37316,
-          "lng": -81.420452
-        }
-      },
-      "duration_minutes": 75,
-      "activity_id": "ab71e6cf41394229d8b4febd",
-      "kind": "place",
-      "category": "restaurant",
-      "tags": [
-        "indoor",
-        "cheap",
-        "food",
-        "solo_friendly",
-        "group",
-        "low_energy"
-      ],
-      "arrive_time": "2026-09-26T22:30:00Z",
-      "depart_time": "2026-09-26T23:45:00Z",
-      "flexible": true,
-      "price_cents": 1200,
-      "price_known": true,
-      "address": "500 Stall St, Saltlight Harbor, GA 31994",
-      "website_url": "https://saltlight.example/pho-real-noodle-house",
-      "summary": "Steaming bowls of seafood pho and crispy imperial rolls.",
-      "utility": 0.69612,
-      "order": 0
-    },
-    "reason": "Also good food · 0.3 mi away",
-    "fit_score": 0.69612,
-    "distance_km": 0.47,
-    "slot_shift_min": 0
-  },
-  {
-    "stop": {
       "id": "alt_fcf424a12343a90b555371a0_0",
       "title": "Harbor Ferry Loop",
       "subtitle": "Tour · $",
@@ -72,94 +32,53 @@
       "address": "546 Marina Row, Saltlight Harbor, GA 31991",
       "website_url": "https://saltlight.example/harbor-ferry-loop",
       "summary": "A 50-minute ferry loop past the lighthouse, seal rocks and the shipyard cranes.",
-      "utility": 0.58915,
+      "utility": 0.75636,
       "order": 0
     },
-    "reason": "Also sights · 0.5 mi away",
-    "fit_score": 0.58915,
-    "distance_km": 0.82,
+    "reason": "Also sights · 0.8 mi away · $",
+    "fit_score": 0.75636,
+    "distance_km": 1.31,
     "slot_shift_min": 0
   },
   {
     "stop": {
-      "id": "alt_ad4f58795ec3ba0d008af20a_0",
-      "title": "The Crow's Nest Rooftop",
-      "subtitle": "Bar · $",
+      "id": "alt_b15b7841396287309ec8106d_0",
+      "title": "Sweet Seaweed Vegan Kitchen",
+      "subtitle": "Restaurant · $",
       "place": {
-        "name": "The Crow's Nest Rooftop",
+        "name": "Sweet Seaweed Vegan Kitchen",
         "coordinate": {
-          "lat": 31.371952,
-          "lng": -81.41488
+          "lat": 31.353708,
+          "lng": -81.412964
         }
       },
-      "duration_minutes": 90,
-      "activity_id": "ad4f58795ec3ba0d008af20a",
+      "duration_minutes": 26,
+      "activity_id": "b15b7841396287309ec8106d",
       "kind": "place",
-      "category": "bar",
+      "category": "restaurant",
       "tags": [
-        "outdoor",
-        "drinks",
-        "date",
-        "late_night",
-        "21_plus",
-        "splurge",
-        "low_energy"
-      ],
-      "arrive_time": "2026-09-26T22:30:00Z",
-      "depart_time": "2026-09-27T00:00:00Z",
-      "flexible": true,
-      "price_cents": 1400,
-      "price_known": true,
-      "address": "246 Marina Row, Saltlight Harbor, GA 31991",
-      "website_url": "https://saltlight.example/the-crow-s-nest-rooftop",
-      "summary": "Cocktails five stories above the marina with heat lamps and string lights.",
-      "utility": 0.40893,
-      "order": 0
-    },
-    "reason": "Also drinks · 0.4 mi away",
-    "fit_score": 0.40893,
-    "distance_km": 0.56,
-    "slot_shift_min": 17
-  },
-  {
-    "stop": {
-      "id": "alt_4705c180b881f5dab4f6ff39_0",
-      "title": "Anchor Park",
-      "subtitle": "Park · Free",
-      "place": {
-        "name": "Anchor Park",
-        "coordinate": {
-          "lat": 31.374748,
-          "lng": -81.4207
-        }
-      },
-      "duration_minutes": 60,
-      "activity_id": "4705c180b881f5dab4f6ff39",
-      "kind": "place",
-      "category": "park",
-      "tags": [
-        "outdoor",
-        "free",
-        "family",
-        "group",
+        "indoor",
+        "cheap",
+        "food",
+        "solo_friendly",
         "daytime",
         "low_energy"
       ],
-      "arrive_time": "2026-09-26T22:30:00Z",
-      "depart_time": "2026-09-26T23:30:00Z",
+      "arrive_time": "2026-09-26T23:00:00Z",
+      "depart_time": "2026-09-26T23:26:00Z",
       "flexible": true,
-      "price_cents": 0,
+      "price_cents": 1000,
       "price_known": true,
-      "address": "779 Mooring St, Saltlight Harbor, GA 31991",
-      "website_url": "https://saltlight.example/anchor-park",
-      "summary": "The town green, built around a rusted 4-ton anchor.",
-      "utility": 0.36772,
+      "address": "709 Heron Ct, Saltlight Harbor, GA 31995",
+      "website_url": "https://saltlight.example/sweet-seaweed-vegan-kitchen",
+      "summary": "Plant-based comfort food: kelp 'crab' cakes, jackfruit po'boys and a miso caramel sundae.",
+      "utility": 0.71589,
       "order": 0
     },
-    "reason": "Also time outside · 0.2 mi away · Free",
-    "fit_score": 0.36772,
-    "distance_km": 0.37,
-    "slot_shift_min": 0
+    "reason": "Also good food · 1.2 mi away · $",
+    "fit_score": 0.71589,
+    "distance_km": 2,
+    "slot_shift_min": 30
   },
   {
     "stop": {
@@ -173,7 +92,7 @@
           "lng": -81.421732
         }
       },
-      "duration_minutes": 90,
+      "duration_minutes": 60,
       "activity_id": "27909f9bdb2cf85d038e0198",
       "kind": "place",
       "category": "bar",
@@ -188,19 +107,99 @@
         "medium_energy"
       ],
       "arrive_time": "2026-09-26T22:30:00Z",
-      "depart_time": "2026-09-27T00:00:00Z",
+      "depart_time": "2026-09-26T23:30:00Z",
       "flexible": true,
       "price_cents": 600,
       "price_known": true,
       "address": "879 Mooring St, Saltlight Harbor, GA 31991",
       "website_url": "https://saltlight.example/the-rusty-anchor",
       "summary": "A dockside pub older than the lighthouse lens.",
-      "utility": 0.28404,
+      "utility": 0.65597,
       "order": 0
     },
-    "reason": "Also drinks · 0.3 mi away",
-    "fit_score": 0.28404,
-    "distance_km": 0.48,
-    "slot_shift_min": 17
+    "reason": "Also drinks · 0.7 mi away · $",
+    "fit_score": 0.65597,
+    "distance_km": 1.11,
+    "slot_shift_min": 29
+  },
+  {
+    "stop": {
+      "id": "alt_bd670883e140022274fe9e2f_0",
+      "title": "Brine and Bivalve Oyster Bar",
+      "subtitle": "Restaurant · $$",
+      "place": {
+        "name": "Brine and Bivalve Oyster Bar",
+        "coordinate": {
+          "lat": 31.362,
+          "lng": -81.425564
+        }
+      },
+      "duration_minutes": 60,
+      "activity_id": "bd670883e140022274fe9e2f",
+      "kind": "place",
+      "category": "restaurant",
+      "tags": [
+        "indoor",
+        "food",
+        "drinks",
+        "date",
+        "21_plus",
+        "medium_energy"
+      ],
+      "arrive_time": "2026-09-26T22:30:00Z",
+      "depart_time": "2026-09-26T23:30:00Z",
+      "flexible": true,
+      "price_cents": 1800,
+      "price_known": true,
+      "address": "810 Stall St, Saltlight Harbor, GA 31994",
+      "website_url": "https://saltlight.example/brine-and-bivalve-oyster-bar",
+      "summary": "Eight kinds of local oysters on crushed ice, with half-price dozens from 3 to 5.",
+      "utility": 0.65444,
+      "order": 0
+    },
+    "reason": "Also good food · 0.3 mi away · $$",
+    "fit_score": 0.65444,
+    "distance_km": 0.51,
+    "slot_shift_min": 20
+  },
+  {
+    "stop": {
+      "id": "alt_ab71e6cf41394229d8b4febd_0",
+      "title": "Pho Real Noodle House",
+      "subtitle": "Restaurant · $",
+      "place": {
+        "name": "Pho Real Noodle House",
+        "coordinate": {
+          "lat": 31.37316,
+          "lng": -81.420452
+        }
+      },
+      "duration_minutes": 60,
+      "activity_id": "ab71e6cf41394229d8b4febd",
+      "kind": "place",
+      "category": "restaurant",
+      "tags": [
+        "indoor",
+        "cheap",
+        "food",
+        "solo_friendly",
+        "group",
+        "low_energy"
+      ],
+      "arrive_time": "2026-09-26T22:30:00Z",
+      "depart_time": "2026-09-26T23:30:00Z",
+      "flexible": true,
+      "price_cents": 1200,
+      "price_known": true,
+      "address": "500 Stall St, Saltlight Harbor, GA 31994",
+      "website_url": "https://saltlight.example/pho-real-noodle-house",
+      "summary": "Steaming bowls of seafood pho and crispy imperial rolls.",
+      "utility": 0.59833,
+      "order": 0
+    },
+    "reason": "Also good food · 0.7 mi away · $",
+    "fit_score": 0.59833,
+    "distance_km": 1.1,
+    "slot_shift_min": 27
   }
 ]
