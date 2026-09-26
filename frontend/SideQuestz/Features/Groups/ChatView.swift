@@ -330,7 +330,8 @@ struct ThreadChatView: View {
         guard !text.isEmpty, messages.value != nil else { return }
         draft = ""
         let clientId = UUID().uuidString
-        let item = ChatOutgoing(id: "local-\(clientId)", clientId: clientId, text: text, sentAt: env.clock.now,
+        // The server stamps `sent_at` with the real time, not a demo account's date: so does the bubble.
+        let item = ChatOutgoing(id: "local-\(clientId)", clientId: clientId, text: text, sentAt: env.clock.realNow,
                                 afterId: rows.last?.id)
         withMotion(Motion.arrive) { outbox.append(item) }
         deliver(item.id)

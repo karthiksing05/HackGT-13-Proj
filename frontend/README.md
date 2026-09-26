@@ -59,6 +59,7 @@ In Xcode, go to Product → Scheme → Edit Scheme → Run → **Arguments** and
 
 - **A backend on your Mac** (the local dev loop in [docs/DEPLOY.md](../docs/DEPLOY.md)): `-SQAPIBaseURL http://127.0.0.1:8080 -SQWebSocketURL ws://127.0.0.1:8080/ws -SQDemoPassword demo`. `127.0.0.1` only works in the Simulator; on a phone use the Mac's LAN IP. Plain `http://` is allowed for local networks only (`NSAllowsLocalNetworking`).
 - **The demo account** (Sandy Byte, `demo@sidequestz.tech`) is one tap away on Login, "Use the demo account", whenever the app knows the password. Give it to the build (`xcodebuild … SQ_DEMO_PASSWORD='…'`, or the `SQ_DEMO_PASSWORD` build setting of the SideQuestz target in Xcode) or to a launch (`-SQDemoPassword …`, which wins). The setting is empty in the repo, so no password is ever committed, and the offline demo never shows the link.
+- **Demo accounts run on the server's demo date.** When `GET /me` carries `demo_date`, the app's clock moves to that day at the real time of day (New York time, like the server), so "Today", the calendar and Create's default date match the demo's events. Every other account uses the real date.
 - What the server has to implement is in [API_CONTRACT.md](API_CONTRACT.md).
 
 ### Tests

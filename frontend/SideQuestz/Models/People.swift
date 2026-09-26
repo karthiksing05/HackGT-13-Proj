@@ -105,6 +105,9 @@ struct User: Codable, Identifiable, Hashable {
     /// The city the server plans in for this account ("saltlight"); shown after the handle when
     /// there's no school.
     var city: String? = nil
+    /// A demo account's date ("2026-09-27"): the server runs the account on that day at the real
+    /// time of day, and the app's clock follows (`AppClock.demoDate`). nil for everyone else.
+    var demoDate: String? = nil
 
     /// Empty when there's no name yet (never someone else's initials).
     var initials: String { Initials.from(name, fallback: "") }
