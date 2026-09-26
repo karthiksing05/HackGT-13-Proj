@@ -8,13 +8,27 @@ in the code, behaves honestly (no fake success), and is listed below.
 
 | Feature | Today | A real version needs |
 |---|---|---|
-| Agent checkout (`POST /checkout/intents`, approve, cancel) | a persisted state machine ticking every 1.5 s: preparing → awaiting approval → processing → booked, with a fake ticket and confirmation code; the instant path uses the user's limit; nothing is bought | a merchant integration per ticket source (or a browser agent with a purchase-intent protocol), a payment service provider for the charge, refund and dispute handling, real ticket delivery and a receipt page |
-| Hosted card page (`/pay/setup`) and payment methods | a server-rendered page with a "Demo card" button; test numbers `4242…`, `5454…`, `1881…` add a card record; no PAN is ever stored | a PSP's hosted elements or Apple Pay, tokenization on the PSP, PCI scope kept off our servers, webhook-driven card status |
-| Calendar connect (`/integrations/{google\|outlook}/connect`) | the "OAuth" page marks the provider connected and reads nothing; `GET /calendar/days` returns only the user's own items, never busy blocks | Google OAuth with the Calendar API free/busy scope and Microsoft Graph, token refresh, a free/busy sync into the planner's window, the "plans around it" busy blocks the design shows |
-| Password reset delivery | the 6-digit code is logged at INFO and returned in the response when `DEV_RESET_CODES=1` | a transactional email provider (with a verified sending domain) and rate limits per address |
+| Agent checkout (`POST /checkout/intents`, approve, cancel) | a state machine persisted in Mongo (so a restart picks up where it left off): preparing → awaiting approval → processing → booked, one step every `CHECKOUT_STEP_DELAY` (1.5 s), checked every 500 ms. Booked writes a demo ticket with a confirmation code and a `GET /tickets/{id}` page onto the buyer's stop, and everyone on a shared sidequest sees it. The instant path uses the user's limit. Nothing is found, filled in or paid | a merchant integration per ticket source (or a browser agent with a purchase-intent protocol), a payment service provider for the charge, refund and dispute handling, real ticket delivery and a receipt page |
+| Hosted card page (`/pay/setup`) and payment methods | a server-rendered page: "Use a demo card" adds Visa 4242, then Mastercard 5454, then Visa 1881; or a test number (4242 4242 4242 4242, 5454 5454 5454 5454, 4012 8888 8888 1881). Only the brand and last four are saved; a typed number is never stored, logged or echoed. At most 10 cards per account | a PSP's hosted elements or Apple Pay, tokenization on the PSP, PCI scope kept off our servers, webhook-driven card status |
+| Calendar connect (`/integrations/{google\|outlook}/connect`) | the page marks the calendar connected without signing in to it, says so, and reads nothing; `GET /calendar/days` returns only the user's own items, never busy blocks | Google OAuth with the Calendar API free/busy scope and Microsoft Graph, token refresh, a free/busy sync into the planner's window, the "plans around it" busy blocks the design shows |
+| Password reset delivery | the 6-digit code is written to the server log (and returned by `/auth/password/forgot` only with `DEV_RESET_CODES=1`) | a transactional email provider (with a verified sending domain) and rate limits per address |
 | Push notifications | `POST /me/devices` stores APNs tokens; nothing is sent | the Push capability on a paid Apple team, an APNs provider in Go, and choosing which realtime events also go to push when the app is closed |
 | `transit.delay` realtime event | a typed emitter exists; nothing produces it | live transit data (MARTA GTFS-realtime for Atlanta) and a job that watches saved itineraries |
-| Facebook connector | real Graph API v26.0 (login, likes, friends, deauthorize and data-deletion callbacks), but the Meta app is in development mode | see Facebook App Review below |
+| Facebook connector | real Graph API v26.0 (login, likes, friends, deauthorize and data-deletion callbacks), but the Meta app is in Development mode | see Facebook below |
+
+## Facebook: App Review and a security follow-up
+
+The Meta app is in Development mode, so only people added as testers can connect (the dashboard
+settings are in [DEPLOY.md](DEPLOY.md#facebook-meta-dashboard)). Going live needs App Review for
+`user_likes`, `user_location` and `user_friends`, business verification, a privacy policy URL, and the
+deauthorize and data-deletion callbacks (built: `POST /integrations/facebook/deauthorize`,
+`POST /integrations/facebook/data-deletion`, `GET /integrations/facebook/deletion-status`).
+
+**Bind the OAuth `state` to the browser.** Today the `state` in the Login URL is a single-use, 10-minute
+token tied to the account that asked for the URL, and the callback trusts it alone. Someone could start a
+Login from their own account and get another person to finish it, linking that person's Facebook to the
+wrong SideQuests account. The fix: send the app to a first hop on the API that sets a short-lived cookie
+bound to the `state` and then redirects to Facebook, and have the callback require the cookie.
 
 ## Crawler deployment
 
@@ -23,7 +37,9 @@ Saltlight `demo_activities` are generated. `python -m ingest crawl` (hourly even
 research and write-ups for new activities) runs on a laptop today. Deploying it means a host with the
 keys (Ticketmaster, Google Places with billing, Muse and Gemini), a systemd timer or `crawl` as a
 service, the quota counter's caps for the paid APIs, and the `ml-embed-missing` timer picking up the new
-texts. Until then the demo catalog needs its events regenerated when they pass ([DEMO.md](DEMO.md)).
+texts. Food places are left out of the Google Places type groups today, so the Atlanta catalog has no
+restaurants or cafés even though the planner can schedule them; adding a food group is part of this
+step. Until then the demo catalog needs its events regenerated when they pass ([DEMO.md](DEMO.md)).
 
 ## Routing provider
 
@@ -32,23 +48,29 @@ Travel times come from straight-line distance and fixed speeds (`Backend/pkg/tra
 `travel_matrix` with its cache and quota) or a self-hosted OSRM/Valhalla, keep the heuristic as the
 fallback, and add real transit itineraries (MARTA GTFS) so "MARTA · 14 min" means a train.
 
+## Planner
+
+- **A stop's value should grow with the visit.** Transit and anywhere days still cover 8–12 miles
+  because a short stop far away scores like a long one nearby ([PLANNER.md](PLANNER.md#measured-on-the-live-server)).
+- **Meal times** are not modelled: a restaurant can land at 3 PM.
+- **Mood parsing** is rule-based; an LLM pass could extract richer hard constraints (times, "near the
+  water") but must keep the deterministic, logged behaviour.
+- **The Jev rerank** is asynchronous and only feeds alternatives and logs; using it for the first page
+  needs a faster judge or a cached one.
+- **Recording the outcome.** `plan_runs` has an `outcome` field for what was saved, but the save path
+  (`POST /itineraries`) does not write it yet; saved itineraries carry `runId` and `optionId` instead.
+- **Retrieval at scale.** Candidates come from a Mongo filter plus in-process cosine; at a larger
+  catalog, a vector index (Atlas Vector Search or a local ANN) replaces phase B.
+
 ## Retraining on real data
 
 The classifier was trained on synthetic users and LLM-judged labels ([ml/models.md](../ml/models.md)).
-The app now logs what it needs for real labels: `plan_runs` keeps every shortlist with its scores and
-`plan_runs.outcome` records which option and stops were saved, and ratings carry stars and tags per
-stop. Next steps: export (user profile, shown candidate, chosen or rated) triples, retrain with the
-recipe in [ml/training.md](../ml/training.md), tune `SEARCH_WEIGHT` and the planner's blend on real
-searches, and cover the under-represented `Social` section. The encoder and text format stay fixed
-unless everything is re-embedded.
-
-## Facebook App Review
-
-The Meta app is in development mode, so only people added as testers can connect. Going live needs App
-Review for `user_likes`, `user_location` and `user_friends`, business verification, a privacy policy
-URL, and the deauthorize and data-deletion callbacks (built: `POST /integrations/facebook/deauthorize`,
-`POST /integrations/facebook/data-deletion`, `GET /integrations/facebook/deletion-status`). The redirect
-URI `https://api.sidequestz.tech/integrations/facebook/callback` must be whitelisted.
+The app now keeps what real labels need: `plan_runs` stores every shortlist with its scores, saved
+itineraries point back to their run and option, and ratings carry stars and tags per stop. Next steps:
+export (user profile, shown candidate, chosen or rated) triples, retrain with the recipe in
+[ml/training.md](../ml/training.md), tune `SEARCH_WEIGHT` and the planner's blend on real searches, and
+cover the under-represented `Social` section. The encoder and text format stay fixed unless everything
+is re-embedded.
 
 ## Host approval for joins
 
@@ -59,15 +81,18 @@ Forum card ("Requested · waiting on host") and the `join.update` event on decis
 
 ## Embedding providers: Vertex and Hugging Face
 
-Both remote providers are implemented and gated; both were blocked by permissions on 2026-09-26 and the
-local model serves. To turn one on:
+Both remote providers are implemented and gated, and both were refused on 2026-09-26 (the HF token as
+invalid, 401; the Vertex service account without permission, 403), so the local model serves. To turn
+one on:
 
-1. Hugging Face: issue a fine-grained token with "Make calls to Inference Providers", put it in
-   `/opt/ml/.env`, run `python -m tools.hf_probe`.
-2. Vertex: grant the service account `roles/aiplatform.user`, confirm the dedicated endpoint DNS and the
-   instance key with `python -m tools.vertex_probe`, set `VERTEX_HOST` and `VERTEX_INPUT_KEY`.
-3. Run `python -m tools.parity_check` (cosine ≥ 0.995 against the local goldens), then set
-   `EMBED_PROVIDER` or leave `auto` and restart `ml`. Undeploy the Vertex model when idle: it bills per
+1. Hugging Face: issue a new fine-grained token with "Make calls to Inference Providers" and run
+   `python -m tools.hf_probe` with it.
+2. Vertex: grant the service account Vertex AI User (`roles/aiplatform.user`), then run
+   `python -m tools.vertex_probe`, which reports the dedicated endpoint DNS and the instance key to set
+   as `VERTEX_HOST` and `VERTEX_INPUT_KEY`.
+3. Run `python -m tools.parity_check --provider hf` (or `vertex`): every cosine must be ≥ 0.995 against the
+   local goldens. Only then put the credentials into `/opt/ml/.env` and restart `ml` (`auto` uses a
+   remote provider as soon as its credentials work). Undeploy the Vertex model when idle: it bills per
    node-hour.
 
 Details in [EMBEDDINGS.md](EMBEDDINGS.md).
@@ -77,11 +102,7 @@ Details in [EMBEDDINGS.md](EMBEDDINGS.md).
 - `lock_at` and `max_group_size` on `PATCH /itineraries/{id}` (the app does not send them yet).
 - Group photos and invite links are built (P2 in the plan) but lightly exercised; the invite URL
   `https://sidequests.app/invite/<code>` needs universal links to open the app.
+- There is no website: `sidequestz.tech` has no DNS record. A landing page and the privacy policy
+  URL that Facebook's App Review asks for would live there.
 - More cities are a `dataingestion/cities/<slug>.yaml` file plus a run; the planner's city table
   (`atlanta, seattle, sf, nyc, berlin, saltlight`) grows with them.
-- Candidate retrieval is a Mongo filter plus in-process cosine; at a larger catalog, a vector index
-  (Atlas Vector Search or a local ANN) replaces phase B.
-- The Jev rerank is asynchronous and only feeds alternatives and logs; using it for the first page needs
-  a faster judge or a cached one.
-- The mood parser is rule-based; an LLM pass could extract richer hard constraints (times, "near the
-  water") but must keep the deterministic, logged behaviour.

@@ -80,7 +80,10 @@ database `freetime`):
 
 ```sh
 docker run -d --name sq-mongo -p 27017:27017 mongo:7
-# the demo catalog (100 Saltlight Harbor activities) goes into demo_activities; see docs/DATA.md
+# the demo city's 100 activities go into demo_activities (seed-demo needs them). The JSON has no texts or
+# vectors, so the demo city ranks by priors until they are copied in (docs/DATA.md, "The demo snapshot")
+docker cp dataingestion/demo/saltlight_harbor.json sq-mongo:/tmp/ && docker exec sq-mongo \
+  mongoimport --db freetime --collection demo_activities --jsonArray --file /tmp/saltlight_harbor.json
 ```
 
 **ML service** (Python 3.11+; the bundled classifier loads without any token; the embedding provider
@@ -102,8 +105,10 @@ PUBLIC_BASE_URL=http://127.0.0.1:8080 DEMO_PASSWORD=demo \
   sh -c 'go run ./cmd/sidequestz-admin seed-demo && go run .'
 ```
 
-`seed-demo` creates the demo account and its friends, plans and chats (idempotent). Then run the app
-with `-SQAPIBaseURL http://127.0.0.1:8080 -SQWebSocketURL ws://127.0.0.1:8080/ws -SQDemoPassword demo`.
+`seed-demo` creates the demo account and its friends, plans and chats (idempotent; it refuses to run
+before the demo catalog is imported). Then run the app with `-SQAPIBaseURL http://127.0.0.1:8080
+-SQWebSocketURL ws://127.0.0.1:8080/ws -SQDemoPassword demo`. `make build-native` in `Backend/` builds
+both binaries (`bin/sidequestz-server`, `bin/sidequestz-admin`) for the Mac.
 
 **Data ingestion** (Python 3.12; only needed to refresh the real catalog, keys in the root `.env`):
 
@@ -121,15 +126,21 @@ xcodebuild test -project frontend/SideQuestz.xcodeproj -scheme SideQuestz \
   -destination 'platform=iOS Simulator,name=iPhone 17e' -only-testing:SideQuestzTests
 xcodebuild test -project frontend/SideQuestz.xcodeproj -scheme SideQuestz \
   -destination 'platform=iOS Simulator,name=iPhone 17e' -only-testing:SideQuestzUITests
-# regenerate docs/api/examples from the app's ContractTests (run from frontend/)
+# opt-in: the demo account against a real server, screenshots attached to the result (it never starts a sidequest)
+TEST_RUNNER_SQ_LIVE_DEMO_PASSWORD='…' xcodebuild test -project frontend/SideQuestz.xcodeproj -scheme SideQuestz \
+  -destination 'platform=iOS Simulator,name=iPhone 17e' -only-testing:SideQuestzUITests/LiveSmokeUITests
+# regenerate docs/api/examples from the app's ContractTests (run from frontend/; see docs/api/README.md)
 cd frontend && TEST_RUNNER_SQ_DUMP_CONTRACT=/tmp/sq-contract xcodebuild test -project SideQuestz.xcodeproj \
   -scheme SideQuestz -destination 'platform=iOS Simulator,name=iPhone 17e' \
   -only-testing:SideQuestzTests/ContractTests && python3 scripts/gen_contract_examples.py /tmp/sq-contract API_CONTRACT.md
 
-# Go: unit tests plus Mongo-backed tests (they use a throwaway sq_test_* database; skipped without a server)
+# Go: unit tests plus Mongo-backed tests (throwaway sq_test_* databases; skipped without a server)
 cd Backend && go test ./...
+cd Backend && make test-db       # the whole suite against sq-mongo with -race; a missing server fails instead of skipping
+cd Backend && go test -tags integration ./pkg/planner/mongosource/   # the planner against copies of the real catalogs
+cd Backend && BASE_URL=https://api.sidequestz.tech scripts/smoke.sh   # healthz, sign-up, me, refresh rotation, logout
 
-# ML service
+# ML service (ML_TEST_LOCAL_EMBEDDER=1 and ML_TEST_HF=1 add the slow local-model and HF parity tests)
 cd ml && .venv/bin/python -m unittest discover
 
 # data ingestion (fixture tests; Mongo tests skip when Mongo is down)
@@ -141,9 +152,11 @@ python3 docs/scripts/check_links.py
 
 ## Deploy
 
-The API and the ML service run on one VPS behind Cloudflare. `cd ml && ./deploy.sh`, then
-`cd Backend && ./deploy.sh`; the ordered runbook, rollback, logs and health checks are in
-[docs/DEPLOY.md](docs/DEPLOY.md). Credentials come from the root `.env` and are never printed or uploaded.
+The API (`sidequestz.service`) and the ML service (`ml.service`) run on one VPS behind Cloudflare.
+`cd ml && ./deploy.sh`, then `cd Backend && ./deploy.sh`; the ordered runbook, rollback, logs and health
+checks are in [docs/DEPLOY.md](docs/DEPLOY.md). Credentials come from the root `.env` and are never
+printed or uploaded. There is no website: `sidequestz.tech` has no DNS record, and the API's root
+answers a JSON 404 by design.
 
 ## The demo account
 
@@ -161,11 +174,12 @@ Names only; values live in gitignored files with mode 0600 and are never committ
 
 | Where | Names | Read by |
 |---|---|---|
-| Root `.env` (a developer's Mac, gitignored) | `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PASSWORD`, `DEPLOY_REMOTE_DIR`, `DEPLOY_SERVICE`, `HF_TOKEN`, `TYPESAFE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS` (path to the gitignored `gcp-sa.json`), `DEMO_PASSWORD` | the deploy scripts, local ML tools, the seed |
-| `/opt/backend/.env` (VPS) | `APP_ENV`, `HTTP_ADDR`, `PUBLIC_BASE_URL`, `MONGO_URI`, `MONGO_DB`, `JWT_SECRET`, `ML_SERVICE_URL`, `PLANNER`, `TRUST_PROXY`, `FB_APP_ID`, `FB_APP_SECRET`, `DEMO_PASSWORD`; optional `ML_*`, `PLANNER_*`, `FB_GRAPH_VERSION`, `FB_TOKEN_KEY`, `DEMO_TZ`, `DEV_RESET_CODES`, `CHECKOUT_STEP_DELAY`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `MAX_PHOTO_BYTES`, `MAX_JSON_BYTES` | the Go API and `sidequestz-admin` |
-| `/opt/ml/.env` (VPS) | `HF_TOKEN`, `TYPESAFE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS`; optional `EMBED_*`, `HF_EMBED_*`, `HF_ROUTER_BASE`, `HF_AUTH_BACKOFF`, `VERTEX_*`, `RANKING_*`, `SEARCH_WEIGHT`, `USER_EMBEDDING_ALPHA`, `RERANK_TOP_K` | the ML service and its timer job |
+| Root `.env` (a developer's Mac, gitignored) | `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PASSWORD`, `DEPLOY_REMOTE_DIR`, `DEPLOY_SERVICE` (the API's systemd unit, `sidequestz`), `HF_TOKEN`, `TYPESAFE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS` (path to the gitignored `gcp-sa.json`), `DEMO_PASSWORD` | the deploy scripts (they read only `DEPLOY_*`), local ML tools, the seed |
+| `/opt/backend/.env` (VPS; template `Backend/.env.example`) | `APP_ENV`, `HTTP_ADDR`, `PUBLIC_BASE_URL`, `MONGO_URI`, `MONGO_DB`, `JWT_SECRET`, `ML_SERVICE_URL`, `PLANNER`, `TRUST_PROXY`, `FB_APP_ID`, `FB_APP_SECRET`, `FB_TOKEN_KEY` (set it in production), `DEMO_PASSWORD`; optional `ML_*`, `PLANNER_*`, `FB_GRAPH_VERSION`, `DEMO_TZ`, `DEV_RESET_CODES`, `CHECKOUT_STEP_DELAY`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `MAX_PHOTO_BYTES`, `MAX_JSON_BYTES` | the Go API and `sidequestz-admin` |
+| `/opt/ml/.env` (VPS) | `HF_TOKEN`, `TYPESAFE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS`; optional `EMBED_*`, `HF_EMBED_*`, `HF_ROUTER_BASE`, `HF_AUTH_BACKOFF`, `VERTEX_*`, `RANKING_*`, `SEARCH_WEIGHT`, `USER_EMBEDDING_ALPHA`, `RERANK_TOP_K`, `RERANK_TIMEOUT_SECONDS`, `LOG_LEVEL` (`ml.service` sets several of these itself) | the ML service and its timer job |
 | Root `.env`, ingestion keys (see `dataingestion/.env.example`) | `MONGODB_URI`, `MONGODB_DB`, `TICKETMASTER_API_KEY`, `GOOGLE_MAPS_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `MUSE_API_KEY`, `SERPAPI_API_KEY`, `PREDICTHQ_TOKEN`, `NPS_API_KEY`, `HF_TOKEN`, `CONTACT_EMAIL` | `python -m ingest …` (offline) |
-| Xcode | build setting `SQ_DEMO_PASSWORD` → `Info.plist` `SQDemoPassword`; `Info.plist` `SQAPIMode`, `SQAPIBaseURL`, `SQWebSocketURL`; launch arguments `-SQAPIMode`, `-SQAPIBaseURL`, `-SQWebSocketURL`, `-SQDemoPassword`, `-SQSlowLoadingAfter`, `-SQSkipIntro`, `-SQResetSession`, `-SQMockLatency`, `-SQMockFail`, `-SQVoiceDemo`, `-SQRoute` (mock mode only) | the app |
+| Xcode | build setting `SQ_DEMO_PASSWORD` → `Info.plist` `SQDemoPassword`; `Info.plist` `SQAPIMode`, `SQAPIBaseURL`, `SQWebSocketURL`; launch arguments `-SQAPIMode`, `-SQAPIBaseURL`, `-SQWebSocketURL`, `-SQDemoPassword`, `-SQSlowLoadingAfter`, `-SQSkipIntro`, `-SQResetSession`, `-SQMockLatency`, `-SQMockFail`, `-SQVoiceDemo`, `-SQRoute` (mock mode only); test-runner variables `TEST_RUNNER_SQ_DUMP_CONTRACT`, `TEST_RUNNER_SQ_LIVE_DEMO_PASSWORD`, `TEST_RUNNER_SQ_LIVE_API_URL` | the app and its tests |
+| Test runs only | `MONGO_TEST_URI`, `CI=1` (no Mongo = failure), `ML_LIVE_URL` (Go tests against a running ML service), `DISABLE_RATE_LIMITS`, `ML_TEST_LOCAL_EMBEDDER`, `ML_TEST_HF`, `ML_TEST_MONGO_URI` | `go test`, `python -m unittest` |
 
 Embedding-provider settings exist only on the ML service; the Go API never holds a provider token.
 
@@ -181,7 +195,8 @@ Embedding-provider settings exist only on the ML service; the Go API never holds
 | [docs/DATA.md](docs/DATA.md) | The `activities` schema, categories, indexes, sources, commands, the demo snapshot, quotas, attribution |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | What is simulated and what a real integration needs |
 | [docs/design/README.md](docs/design/README.md) | The detailed design notes the integration was built from |
-| [frontend/API_CONTRACT.md](frontend/API_CONTRACT.md), [docs/api/examples/](docs/api/examples/) | Every endpoint with JSON examples generated from the app's tests |
+| [frontend/API_CONTRACT.md](frontend/API_CONTRACT.md), [docs/api/README.md](docs/api/README.md), [docs/api/examples/](docs/api/examples/) | Every endpoint, the JSON examples generated from the app's tests, and how to change the contract |
+| [Backend/pkg/api/README.md](Backend/pkg/api/README.md) | The Go API's package layout and the seams a handler uses (store, realtime, planner, profiles) |
 | [ml/README.md](ml/README.md), [ml/models.md](ml/models.md), [ml/training.md](ml/training.md), [ml/dataset.md](ml/dataset.md) | The ML service API, the compatibility model card, the training recipe, the synthetic datasets |
 | [dataingestion/README.md](dataingestion/README.md), [dataingestion/DATA_COLLECTION_SPEC.md](dataingestion/DATA_COLLECTION_SPEC.md) | Running the pipeline, and the full data-collection design |
 
