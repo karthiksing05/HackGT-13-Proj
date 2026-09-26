@@ -1,0 +1,24 @@
+{
+  "$or": [
+    {
+      "price.isFree": true
+    },
+    {
+      "price.min": 0
+    },
+    {
+      "price": null,
+      "category": {
+        "$in": [
+          "community_event",
+          "garden",
+          "hike",
+          "landmark",
+          "market",
+          "park",
+          "viewpoint"
+        ]
+      }
+    }
+  ]
+}

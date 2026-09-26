@@ -9,6 +9,7 @@
 package itinerary
 
 import (
+	"Backend/pkg/models"
 	"strings"
 	"time"
 )
@@ -39,9 +40,21 @@ type Config struct {
 	DefaultUtility float64 // used when the ranker gave no score
 	PlaceWeight    float64 // places are always there; events are one-offs
 
+	// Utility, when set, replaces the score-based utility: it returns the
+	// 0..1 base utility of an activity (Tau is still subtracted), so a caller
+	// can score candidates without writing into the activities.
+	Utility func(a *models.Activity) float64
+
+	// SeriesCap is how many distinct series a solve keeps (the best by
+	// utility); paths track series in a 128-bit mask, so at most 128.
+	SeriesCap int
+
 	DefaultMaxLegKm map[string]float64 // by travel mode, when range_km is 0
 	Paces           map[string]PaceProfile
 }
+
+// Series and category masks have this many bits.
+const maxMaskBits = 128
 
 func DefaultConfig() Config {
 	return Config{
@@ -60,6 +73,8 @@ func DefaultConfig() Config {
 
 		DefaultUtility: 0.4,
 		PlaceWeight:    0.8,
+
+		SeriesCap: 96,
 
 		DefaultMaxLegKm: map[string]float64{"walk": 2, "transit": 10, "drive": 25},
 		Paces: map[string]PaceProfile{
@@ -81,4 +96,16 @@ func (c Config) Pace(name string) PaceProfile {
 		return p
 	}
 	return c.Paces["balanced"]
+}
+
+// seriesCap is SeriesCap clamped to what the mask can hold; zero means the
+// pre-config default of 64.
+func (c Config) seriesCap() int {
+	switch {
+	case c.SeriesCap <= 0:
+		return 64
+	case c.SeriesCap > maxMaskBits:
+		return maxMaskBits
+	}
+	return c.SeriesCap
 }
