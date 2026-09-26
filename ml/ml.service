@@ -1,6 +1,7 @@
 [Unit]
-Description=SideQuestz ML FastAPI Inference Service
-After=network.target
+Description=SideQuests ML service (ranking, embeddings, profile texts)
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -9,22 +10,38 @@ WorkingDirectory=/opt/ml
 ExecStart=/opt/ml/.venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8000 --workers 2
 Restart=always
 RestartSec=5s
+# Startup never waits for the model (a background warmup loads it), but a cold first start may
+# import torch slowly on a small VPS.
+TimeoutStartSec=300
 
-# Python and Ranking Model Configuration
+# Python and ranking
 Environment=PYTHONPATH=/opt/ml
 Environment=RANKING_MODEL=classifier
 Environment=RANKING_DEVICE=cpu
 Environment=USER_EMBEDDING_ALPHA=0.8
 Environment=SEARCH_WEIGHT=0.6
-Environment=RERANK_TOP_K=20
+Environment=RERANK_TOP_K=12
+Environment=RERANK_TIMEOUT_SECONDS=15
 
-# Optional: Load extra secrets / config (e.g. TYPESAFE_API_KEY, HF_TOKEN) from .env if present
+# Embeddings: auto = Vertex (after its startup probe) -> HF router -> local Qwen (README "Embedding providers")
+Environment=EMBED_PROVIDER=auto
+Environment=EMBED_CACHE_PATH=/opt/ml/.cache/embeddings.sqlite
+Environment=EMBED_LOCAL_THREADS=8
+Environment=OMP_NUM_THREADS=8
+# ProtectHome=true hides /root, so the model weights live under /opt/ml/.cache
+Environment=HF_HOME=/opt/ml/.cache
+Environment=HF_HUB_DISABLE_TELEMETRY=1
+
+# Secrets (mode 600, never deployed by deploy.sh): HF_TOKEN, TYPESAFE_API_KEY,
+# GOOGLE_APPLICATION_CREDENTIALS=/opt/ml/gcp-sa.json. Optional: without it the service embeds
+# locally and ranks without Jev.
 EnvironmentFile=-/opt/ml/.env
 
-# Security Hardening
+# Hardening
 NoNewPrivileges=true
 ProtectSystem=full
 ProtectHome=true
+ReadWritePaths=/opt/ml/.cache
 
 [Install]
 WantedBy=multi-user.target
