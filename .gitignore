@@ -31,3 +31,4 @@ __pycache__/
 *.sqlite
 .cache/
 .venv/
+dataingestion/.mongo-data/

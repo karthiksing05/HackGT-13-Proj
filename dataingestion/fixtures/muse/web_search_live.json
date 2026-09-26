@@ -1,0 +1,665 @@
+{
+ "top_logprobs": 0,
+ "temperature": 1.0,
+ "top_p": 1.0,
+ "service_tier": "auto",
+ "model": "muse-spark-1.3",
+ "reasoning": {
+  "effort": "high"
+ },
+ "background": false,
+ "tools": [
+  {
+   "type": "web_search",
+   "user_location": {
+    "type": "approximate",
+    "country": "US",
+    "city": "Atlanta",
+    "timezone": "America/New_York"
+   },
+   "search_context_size": "medium"
+  }
+ ],
+ "tool_choice": "auto",
+ "truncation": "disabled",
+ "id": "resp_6ab7e5388994b791c6f14655",
+ "object": "response",
+ "status": "completed",
+ "created_at": 1790436664.0,
+ "completed_at": 1790436702.0,
+ "error": null,
+ "incomplete_details": null,
+ "output": [
+  {
+   "type": "reasoning",
+   "id": "rs_6ab7e5388994b791c6f14655:rs_159bc572-127c-4794-a01b-18fc07ae2364",
+   "summary": [],
+   "status": "completed"
+  },
+  {
+   "type": "message",
+   "id": "rs_42d59e03-fab5-4048-9a6d-a01be1da83f5",
+   "role": "assistant",
+   "content": [
+    {
+     "type": "output_text",
+     "text": "Researching your Atlanta event \u2014 pulling facts on the band, venue, and show details.",
+     "annotations": [],
+     "logprobs": []
+    }
+   ],
+   "phase": "commentary",
+   "status": "completed"
+  },
+  {
+   "type": "web_search_call",
+   "id": "ws_call_cbc50133-dfad-428c-b67e-7a770c742330",
+   "status": "failed",
+   "action": {
+    "type": "open_page",
+    "url": "https://www.ticketmaster.com/castle-rat-summon-the-beasts-tour-atlanta-georgia-09-26-2026/event/0E0064BDBD1012AE"
+   },
+   "results": []
+  },
+  {
+   "type": "reasoning",
+   "id": "rs_6ab7e5388994b791c6f14655:rs_1ded97e3-50d9-4104-b711-29b286756da4",
+   "summary": [],
+   "status": "completed"
+  },
+  {
+   "type": "message",
+   "id": "rs_06e0a826-8894-42a9-841f-10a3bbecae01",
+   "role": "assistant",
+   "content": [
+    {
+     "type": "output_text",
+     "text": "That link didn't open directly, so I'll search for the details another way.",
+     "annotations": [],
+     "logprobs": []
+    }
+   ],
+   "phase": "commentary",
+   "status": "completed"
+  },
+  {
+   "type": "web_search_call",
+   "id": "ws_call_714f5c24-d942-4132-96f6-7833538bbc9d",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "query": "Castle Rat Summon The Beasts Tour 2026 Atlanta Masquerade Heaven"
+   },
+   "results": [
+    {
+     "type": "text_result",
+     "title": "Wraith Knight Tickets, 2026-2027 Concert Tour Dates | Ticketmaster",
+     "url": "https://www.ticketmaster.com/wraith-knight-tickets/artist/4113474",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Unto Others Tickets | 2026-27 Tour & Concert Dates | Ticketmaster UK",
+     "url": "http://www.ticketmaster.co.uk/unto-others-tickets/artist/5345469",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat Tickets, 2026-2027 Concert Tour Dates | Ticketmaster",
+     "url": "https://www.ticketmaster.com/castle-rat-tickets/artist/3068433",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat Tickets | 2026-27 Tour & Concert Information",
+     "url": "https://www.ticketmaster.de/artist/castle-rat-tickets/1212873?language=en-us",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat tickets, concerts & tour dates. Official Ticketmaster site",
+     "url": "https://www.ticketmaster.ae/artist/castle-rat-tickets/1212873",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat Tickets | 2026-27 Tour & Concert Dates | Ticketmaster AU",
+     "url": "https://www.ticketmaster.com.au/castle-rat-tickets/artist/3068433",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Wraith Knight Tickets | 2026-27 Tour & Concert Dates | Ticketmaster UK",
+     "url": "https://www.ticketmaster.co.uk/wraith-knight-tickets/artist/5664635",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Events in Atlanta This Weekend | Discover Things To Do this Weekend In Atlanta",
+     "url": "https://www.ticketmaster.com/discover/atlanta?date=thisweekend",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat Tickets & Event Dates | Ticketmaster.se",
+     "url": "https://www.ticketmaster.se/artist/castle-rat-tickets/1212873?language=en-us",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat tickets, concerts & tour dates | Ticketmaster.no",
+     "url": "https://www.ticketmaster.no/artist/castle-rat-tickets/1212873?language=en-us",
+     "snippet": ""
+    }
+   ]
+  },
+  {
+   "type": "web_search_call",
+   "id": "ws_call_057b180c-499a-4088-9abe-283524255b12",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "query": "Castle Rat band genre known for"
+   },
+   "results": [
+    {
+     "type": "text_result",
+     "title": "Castle Rat",
+     "url": "https://en.wikipedia.org/wiki/Castle_Rat",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat Share 'Cry For Me' Single From 'Into The Realm' LP",
+     "url": "https://www.broadwayworld.com/bwwmusic/article/Castle-Rat-Share-Cry-For-Me-Single-From-Into-The-Realm-LP-20240214",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "As a DnD Dungeon Master, Castle Rat is the band of my dreams",
+     "url": "https://www.wargamer.com/dnd/castle-rat",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat - Into The Realm - Vinyl LP - 2024 - US - Original | HHV",
+     "url": "https://www.hhv.de/en-UG/records/item/castle-rat-into-the-realm-1105741",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat: Into The Realm - VINYL LP",
+     "url": "https://tower.com/products/castle-rat-into-the-realm-1",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "CASTLE RAT to Release 'Into the Realm' April 12",
+     "url": "https://theobelisk.net/obelisk/2024/01/19/castle-rat-into-the-realm-release/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat - Into The Realm | Easy Street Records",
+     "url": "https://easystreetonline.com/UPC/760137149668",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat - Into The Realm | indycdandvinyl",
+     "url": "https://shop.indycdandvinyl.com/UPC/760137149668",
+     "snippet": ""
+    }
+   ]
+  },
+  {
+   "type": "web_search_call",
+   "id": "ws_call_841173c0-326e-4b8a-acd7-e7f5fec75d7a",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "query": "The Masquerade Heaven Atlanta venue capacity layout"
+   },
+   "results": [
+    {
+     "type": "text_result",
+     "title": "The Masquerade (Atlanta)",
+     "url": "https://en.wikipedia.org/wiki/The_Masquerade_(Atlanta)",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "The Masquerade  \u2013 Capture Life Through the Lens",
+     "url": "https://capturelifethroughthelens.com/2012/08/06/the-masquerade/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "the masquerade heaven capacity",
+     "url": "http://vsimoveis.com/bxldmtsi/the-masquerade-heaven-capacity",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "The Masquerade - Heaven Gigs & Tickets | What's On in Atlanta | Mosh Radar",
+     "url": "https://moshradar.com/venue/the-masquerade-heaven-324",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "The Masquerade - Heaven Events & Tickets in Atlanta, GA - Schedule & Presale Codes | BoxOfficeHero",
+     "url": "http://www.boxofficehero.com/venue/860-the-masquerade-heaven-atlanta-ga",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Karten & Veranstaltungskalender 2025 f\u00fcr The Masquerade (Heaven) \u2013 Atlanta, GA | Bandsintown",
+     "url": "https://www.bandsintown.com/de/v/10043027-the-masquerade-",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "The Masquerade (Hell Stage) Concert Tickets & Events Schedule 2026 - Atlanta, GA | JamBase",
+     "url": "https://www.jambase.com/venue/the-masquerade-hell-stage",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "The Masquerade Atlanta Guide to Shows, Tickets and Parking",
+     "url": "https://atlanta.com/articles/misc/the-masquerade-atlanta",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Obituary, The Masquerade - Heaven, Atlanta, 15 May",
+     "url": "https://allevents.in/mobile/amp-event.php?event_id=210003285298499",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Masquerade | jzimmerman9's Blog",
+     "url": "https://sites.gsu.edu/jzimmerman9/tag/masquerade/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Hell at The Masquerade",
+     "url": "https://www.bandsintown.com/v/10025613-hell-at-the-masquerade?came_from=267&utm_medium=web&utm_source=home&utm_campaign=my_venues",
+     "snippet": ""
+    }
+   ]
+  },
+  {
+   "type": "web_search_call",
+   "id": "ws_call_a4928e00-463f-45b6-ae8c-853f815b2fce",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "query": "The Masquerade Atlanta Heaven age limits doors FAQ"
+   },
+   "results": [
+    {
+     "type": "text_result",
+     "title": "Superheaven - The Masquerade",
+     "url": "http://www.masqueradeatlanta.com/events/superheaven/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "The Interrupters - The Masquerade",
+     "url": "https://www.masqueradeatlanta.com/events/the-interrupters/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "kwn - The Masquerade",
+     "url": "https://www.masqueradeatlanta.com/events/kwn-3/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Tickets, Live at The Masquerade - Heaven, Atlanta on Oct 29, 2025 | Consequence Live",
+     "url": "https://concerts.consequence.net/events/the-haunt-vip-package-at-the-masquerade-heaven-on-2025-10-29-17-00",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "My Upside Down - The Masquerade",
+     "url": "https://www.masqueradeatlanta.com/events/my-upside-down/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "James Marriott - The Masquerade",
+     "url": "https://www.masqueradeatlanta.com/events/james-marriott-2/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Insomnium & Amorphis - The Masquerade",
+     "url": "https://www.masqueradeatlanta.com/events/insomnium-amorphis/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "the masquerade heaven capacity",
+     "url": "http://vsimoveis.com/bxldmtsi/the-masquerade-heaven-capacity",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Valley - The Masquerade",
+     "url": "https://www.masqueradeatlanta.com/events/valley/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "half\u2022alive - The Masquerade",
+     "url": "https://www.masqueradeatlanta.com/events/halfalive-2/",
+     "snippet": ""
+    }
+   ]
+  },
+  {
+   "type": "web_search_call",
+   "id": "ws_call_d42c4567-66c8-4141-892a-e9152f872d01",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "query": "Castle Rat Summon the Beasts tour support Wraith Knight Unto Others"
+   },
+   "results": [
+    {
+     "type": "text_result",
+     "title": "Castle Rat Announce Fall 2026 North American Headlining Tour",
+     "url": "https://loudwire.com/castle-rat-2026-north-american-tour/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat Announce Fall 2026 North American Headlining Tour",
+     "url": "https://z94.com/ixp/366/p/castle-rat-2026-north-american-tour/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Tours | Castle Rat Announce Fall 2026 \"Summon The Beasts\" North American Headline Tour - Concert Addicts",
+     "url": "https://www.concertaddicts.com/news-articles/tours/castle-rat-announce-fall-2026-summon-the-beasts-north-american-headline-tour",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat Announce Fall 2026 North American Headlining Tour",
+     "url": "https://squatchrocks.com/ixp/366/p/castle-rat-2026-north-american-tour/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat Announce Fall 2026 North American Headlining Tour",
+     "url": "https://keyj.com/ixp/366/p/castle-rat-2026-north-american-tour/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "CASTLE RAT Announce 'Summon The Beasts' North US Tour With UNTO OTHERS",
+     "url": "https://www.metalkaoz.com/metal-news/32666-castle-rat-announce-summon-the-beasts-north-us-tour-with-unto-others",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat Tickets - Concert Tour Dates - AXS US",
+     "url": "https://www.axs.com/artists/1120114/castle-rat-tickets",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Unto Others Tickets - Concert Tour Dates - AXS AU",
+     "url": "https://www.axs.com/au/artists/1110386/unto-others-tickets",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat to \u2018Summon the Beasts\u2019 on fall 2026 U.S. headline tour",
+     "url": "https://live-metal.com/2026/06/02/castle-rat-to-summon-the-beasts-on-fall-2026-u-s-headline-tour/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat - Dallas - The Studio at The Bomb Factory - Mon, Sep 28, 2026, 07:30 PM - AXS US",
+     "url": "https://www.axs.com/events/1466245/castle-rat-tickets",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat Tour Dates 2026 / 2027 - Track Concerts, Shows and Tickets - Stereoboard",
+     "url": "https://www.stereoboard.com/castle-rat-tickets?event=expired",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Castle Rat Tour Dates 2026: \"Summon The Beasts\" North American Run Set",
+     "url": "https://loadedradio.com/castle-rat-tour-dates-2026-riley-pinkerton/",
+     "snippet": ""
+    }
+   ]
+  },
+  {
+   "type": "web_search_call",
+   "id": "ws_call_1a0d42ec-5104-4879-8aeb-bec42dfcd75e",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "query": "The Masquerade Atlanta food MASQ.com FAQ bag policy"
+   },
+   "results": [
+    {
+     "type": "text_result",
+     "title": "The Masquerade Atlanta Guide to Shows, Tickets and Parking",
+     "url": "https://atlanta.com/articles/misc/the-masquerade-atlanta",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Frequently Asked Questions About Masquerade",
+     "url": "http://masqueradenyc.com/instructions/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "PeelingFlesh w/ Snuffed On Sight, Alluvial, Corpse Pile, and Two-Piece @ The Masquerade Tickets, The Masquerade, Atlanta, 18 September 2024",
+     "url": "https://stayhappening.com/e/peelingflesh-w-snuffed-on-sight-alluvial-corpse-pile-and-two-piece-the-masquerade-E2ISWP8BL2Y",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Switchfoot - Christian Concert Alert | GodTube.com",
+     "url": "https://www.godtube.com/christian-concert-alerts/switchfoot-atlanta-ga-30303-may-2-2024/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Mae - Christian Concert Alert | GodTube.com",
+     "url": "https://www.godtube.com/christian-concert-alerts/mae-atlanta-ga-30303-dec-4-2025/",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Terms & Conditions",
+     "url": "http://www-massey-hall.substrakt.net/documents/102/Terms_and_Conditions.pdf",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Join The Masquerade Street Team!",
+     "url": "https://docs.google.com/forms/d/e/1FAIpQLSe7Dnzx1tEAX5TWz83xTxEiE0Q-TwNIsBcB0slbGUHpyXTyGA/viewform",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "THE OCEAN BLUE performing their Self-Titled and Cerulean albums | The Masquerade, Atlanta, GA | April 12, 2025",
+     "url": "https://happeningnext.com/event/the-ocean-blue-performing-their-self-titled-and-cerulean-albums-eid3a0bwe7l9d",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Lords Of Acid w/ Little Miss Nasty @ The Masquerade, The Masquerade, Atlanta, 17 June 2025",
+     "url": "https://stayhappening.com/e/lords-of-acid-w-little-miss-nasty-the-masquerade-E2ISXCY4U34",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "Young & Out Of Love Tour w/ KAYOKO, Haven Madison, Blake Proehl and Kaibrienne @ The Masquerade Tickets, The Masquerade, Atlanta, 19 November 2024",
+     "url": "https://stayhappening.com/e/young-andamp-out-of-love-tour-w-kayoko-haven-madison-blake-proehl-and-kaibrienne-the-masquerade-E2ISWXEH61M",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "UPGRADED - Catch Your Breath w/ Archers and If Not For Me @ The Masquerade, The Masquerade, Atlanta, 21 February 2025",
+     "url": "https://stayhappening.com/e/upgraded-catch-your-breath-w-archers-and-if-not-for-me-the-masquerade-E2ISX5XPB6J",
+     "snippet": ""
+    },
+    {
+     "type": "text_result",
+     "title": "156/Silence and VCTMS w/ Heavy//Hitter and Wiltwither @ The Masquerade | The Masquerade, Atlanta, GA | January 19, 2025",
+     "url": "https://happeningnext.com/event/156-silence-and-vctms-w-heavy-hitter-and-wiltwither-the-masquerade-eid3a0c3h6cin",
+     "snippet": ""
+    }
+   ]
+  },
+  {
+   "type": "reasoning",
+   "id": "rs_6ab7e5388994b791c6f14655:rs_29fde8ee-aa9a-417e-a1df-86125e27ec94",
+   "summary": [],
+   "status": "completed"
+  },
+  {
+   "type": "message",
+   "id": "rs_e8ac63e9-e424-4642-8633-5e30965820be",
+   "role": "assistant",
+   "content": [
+    {
+     "type": "output_text",
+     "text": "I've gathered initial leads on the band and venue \u2014 now I'll open the key pages to verify the specifics.",
+     "annotations": [],
+     "logprobs": []
+    }
+   ],
+   "phase": "commentary",
+   "status": "completed"
+  },
+  {
+   "type": "web_search_call",
+   "id": "ws_call_50638973-1e15-4205-bcbd-6c223c171cc1",
+   "status": "completed",
+   "action": {
+    "type": "open_page",
+    "url": "https://en.wikipedia.org/wiki/Castle_Rat"
+   },
+   "results": []
+  },
+  {
+   "type": "web_search_call",
+   "id": "ws_call_728515c0-a0c9-45f4-ab94-b7c3b8e057d4",
+   "status": "completed",
+   "action": {
+    "type": "open_page",
+    "url": "https://en.wikipedia.org/wiki/The_Masquerade_(Atlanta)"
+   },
+   "results": []
+  },
+  {
+   "type": "web_search_call",
+   "id": "ws_call_c486dd80-5605-4e11-858b-ab619693dfa1",
+   "status": "failed",
+   "action": {
+    "type": "open_page",
+    "url": "https://loudwire.com/castle-rat-fall-2026-north-american-tour/"
+   },
+   "results": []
+  },
+  {
+   "type": "reasoning",
+   "id": "rs_6ab7e5388994b791c6f14655:rs_e80d379d-7c58-40a7-ada8-d0e425eadec9",
+   "summary": [],
+   "status": "completed"
+  },
+  {
+   "type": "message",
+   "id": "msg_eb907f6d-7d0d-47c9-8174-fde77765221e",
+   "role": "assistant",
+   "content": [
+    {
+     "type": "output_text",
+     "text": "- Live-music concert \u201cCastle Rat: Summon The Beasts Tour 2026\u201d in Atlanta on Saturday, Sept. 26, 2026 at 6:30 PM at The Masquerade \u2013 Heaven\n- Headliner Castle Rat is an American doom metal band formed in Brooklyn, New York, in 2019, described as \u201cmedieval fantasy doom metal\u201d blending traditional doom and heavy metal with theatrical live performances\n- Show format includes theatrical performances with elaborate costumes, choreographed battle scenes, and on-stage character \u201cThe Rat Reaperess\u201d, with the band led by vocalist/rhythm guitarist Riley Pinkerton (\u201cThe Rat Queen\u201d) and known for debut album *Into the Realm* (2024)\n- Tour support is listed as goth rockers Unto Others and cinematic dungeon synth entity Wraith Knight, on a North American run beginning Sept. 23 in Baltimore and concluding Oct. 21 in New York\n- Venue is a mid-sized concert venue located in Kenny\u2019s Alley, the lowest level of Underground Atlanta\n- Listed address is 50 Lower Alabama St SW, Atlanta, Georgia, in Underground Atlanta\n- Heaven capacity is listed as 1,450, compared with 650 (Hell), 300 (Purgatory) and 250 (Altar)\n- Venue programming is mostly alternative styles such as indie rock, metal, punk rock, rockabilly and electronic, ranging from local to internationally known acts",
+     "annotations": [
+      {
+       "type": "url_citation",
+       "url": "https://en.wikipedia.org/wiki/Castle_Rat",
+       "start_index": 140,
+       "end_index": 351,
+       "title": "Castle Rat - Wikipedia"
+      },
+      {
+       "type": "url_citation",
+       "url": "https://en.wikipedia.org/wiki/Castle_Rat",
+       "start_index": 352,
+       "end_index": 495,
+       "title": "Castle Rat - Wikipedia"
+      },
+      {
+       "type": "url_citation",
+       "url": "https://en.wikipedia.org/wiki/Castle_Rat",
+       "start_index": 495,
+       "end_index": 627,
+       "title": "Castle Rat - Wikipedia"
+      },
+      {
+       "type": "url_citation",
+       "url": "https://en.wikipedia.org/wiki/The_Masquerade_(Atlanta)",
+       "start_index": 822,
+       "end_index": 924,
+       "title": "The Masquerade (Atlanta) - Wikipedia"
+      },
+      {
+       "type": "url_citation",
+       "url": "https://en.wikipedia.org/wiki/The_Masquerade_(Atlanta)",
+       "start_index": 925,
+       "end_index": 1009,
+       "title": "The Masquerade (Atlanta) - Wikipedia"
+      },
+      {
+       "type": "url_citation",
+       "url": "https://en.wikipedia.org/wiki/The_Masquerade_(Atlanta)",
+       "start_index": 1010,
+       "end_index": 1105,
+       "title": "The Masquerade (Atlanta) - Wikipedia"
+      },
+      {
+       "type": "url_citation",
+       "url": "https://en.wikipedia.org/wiki/The_Masquerade_(Atlanta)",
+       "start_index": 1106,
+       "end_index": 1268,
+       "title": "The Masquerade (Atlanta) - Wikipedia"
+      }
+     ],
+     "logprobs": []
+    }
+   ],
+   "status": "completed"
+  }
+ ],
+ "instructions": null,
+ "usage": {
+  "input_tokens": 37441,
+  "input_tokens_details": {
+   "cached_tokens": 17092
+  },
+  "output_tokens": 4011,
+  "output_tokens_details": {
+   "reasoning_tokens": 2861
+  },
+  "total_tokens": 41452
+ },
+ "parallel_tool_calls": true,
+ "store": true
+}

@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = ["live: hits a real API over the network"]

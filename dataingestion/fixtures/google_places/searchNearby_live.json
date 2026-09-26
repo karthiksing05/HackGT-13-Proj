@@ -1,0 +1,366 @@
+{
+ "places": [
+  {
+   "id": "ChIJvywBCvvi9IgRNUtflKWhy_c",
+   "types": [
+    "park",
+    "tourist_attraction",
+    "sports_activity_location",
+    "point_of_interest",
+    "establishment"
+   ],
+   "formattedAddress": "4400 Herschel Rd, College Park, GA 30337",
+   "addressComponents": [
+    {
+     "longText": "4400",
+     "shortText": "4400",
+     "types": [
+      "street_number"
+     ],
+     "languageCode": "en"
+    },
+    {
+     "longText": "Herschel Road",
+     "shortText": "Herschel Rd",
+     "types": [
+      "route"
+     ],
+     "languageCode": "en"
+    },
+    {
+     "longText": "College Park",
+     "shortText": "College Park",
+     "types": [
+      "locality",
+      "political"
+     ],
+     "languageCode": "en"
+    },
+    {
+     "longText": "Fulton County",
+     "shortText": "Fulton County",
+     "types": [
+      "administrative_area_level_2",
+      "political"
+     ],
+     "languageCode": "en"
+    },
+    {
+     "longText": "Georgia",
+     "shortText": "GA",
+     "types": [
+      "administrative_area_level_1",
+      "political"
+     ],
+     "languageCode": "en"
+    },
+    {
+     "longText": "United States",
+     "shortText": "US",
+     "types": [
+      "country",
+      "political"
+     ],
+     "languageCode": "en"
+    },
+    {
+     "longText": "30337",
+     "shortText": "30337",
+     "types": [
+      "postal_code"
+     ],
+     "languageCode": "en"
+    }
+   ],
+   "location": {
+    "latitude": 33.6350798,
+    "longitude": -84.47179679999999
+   },
+   "rating": 4.5,
+   "googleMapsUri": "https://maps.google.com/?cid=17855542880171412277&g_mp=Cilnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaE5lYXJieRACGAQgAA",
+   "websiteUri": "http://www.collegeparkrca.com/",
+   "regularOpeningHours": {
+    "openNow": false,
+    "periods": [
+     {
+      "open": {
+       "day": 0,
+       "hour": 6,
+       "minute": 0
+      },
+      "close": {
+       "day": 0,
+       "hour": 21,
+       "minute": 0
+      }
+     },
+     {
+      "open": {
+       "day": 1,
+       "hour": 6,
+       "minute": 0
+      },
+      "close": {
+       "day": 1,
+       "hour": 21,
+       "minute": 0
+      }
+     },
+     {
+      "open": {
+       "day": 2,
+       "hour": 6,
+       "minute": 0
+      },
+      "close": {
+       "day": 2,
+       "hour": 21,
+       "minute": 0
+      }
+     },
+     {
+      "open": {
+       "day": 3,
+       "hour": 6,
+       "minute": 0
+      },
+      "close": {
+       "day": 3,
+       "hour": 21,
+       "minute": 0
+      }
+     },
+     {
+      "open": {
+       "day": 4,
+       "hour": 6,
+       "minute": 0
+      },
+      "close": {
+       "day": 4,
+       "hour": 21,
+       "minute": 0
+      }
+     },
+     {
+      "open": {
+       "day": 5,
+       "hour": 6,
+       "minute": 0
+      },
+      "close": {
+       "day": 5,
+       "hour": 21,
+       "minute": 0
+      }
+     },
+     {
+      "open": {
+       "day": 6,
+       "hour": 6,
+       "minute": 0
+      },
+      "close": {
+       "day": 6,
+       "hour": 21,
+       "minute": 0
+      }
+     }
+    ],
+    "weekdayDescriptions": [
+     "Monday: 6:00\u202fAM\u2009\u2013\u20099:00\u202fPM",
+     "Tuesday: 6:00\u202fAM\u2009\u2013\u20099:00\u202fPM",
+     "Wednesday: 6:00\u202fAM\u2009\u2013\u20099:00\u202fPM",
+     "Thursday: 6:00\u202fAM\u2009\u2013\u20099:00\u202fPM",
+     "Friday: 6:00\u202fAM\u2009\u2013\u20099:00\u202fPM",
+     "Saturday: 6:00\u202fAM\u2009\u2013\u20099:00\u202fPM",
+     "Sunday: 6:00\u202fAM\u2009\u2013\u20099:00\u202fPM"
+    ],
+    "nextOpenTime": "2026-09-26T10:00:00Z"
+   },
+   "businessStatus": "OPERATIONAL",
+   "userRatingCount": 728,
+   "displayName": {
+    "text": "Charles E. Phillips Esquire Park",
+    "languageCode": "en"
+   },
+   "primaryType": "park"
+  },
+  {
+   "id": "ChIJx50n38jj9IgR5lF-ZPP7tW0",
+   "types": [
+    "art_studio",
+    "art_gallery",
+    "clothing_store",
+    "store",
+    "service",
+    "point_of_interest",
+    "establishment"
+   ],
+   "formattedAddress": "4843 Old National Hwy, College Park, GA 30337",
+   "addressComponents": [
+    {
+     "longText": "4843",
+     "shortText": "4843",
+     "types": [
+      "street_number"
+     ],
+     "languageCode": "en"
+    },
+    {
+     "longText": "Old National Highway",
+     "shortText": "Old National Hwy",
+     "types": [
+      "route"
+     ],
+     "languageCode": "en"
+    },
+    {
+     "longText": "College Park",
+     "shortText": "College Park",
+     "types": [
+      "locality",
+      "political"
+     ],
+     "languageCode": "en"
+    },
+    {
+     "longText": "Fulton County",
+     "shortText": "Fulton County",
+     "types": [
+      "administrative_area_level_2",
+      "political"
+     ],
+     "languageCode": "en"
+    },
+    {
+     "longText": "Georgia",
+     "shortText": "GA",
+     "types": [
+      "administrative_area_level_1",
+      "political"
+     ],
+     "languageCode": "en"
+    },
+    {
+     "longText": "United States",
+     "shortText": "US",
+     "types": [
+      "country",
+      "political"
+     ],
+     "languageCode": "en"
+    },
+    {
+     "longText": "30337",
+     "shortText": "30337",
+     "types": [
+      "postal_code"
+     ],
+     "languageCode": "en"
+    }
+   ],
+   "location": {
+    "latitude": 33.6238165,
+    "longitude": -84.4767495
+   },
+   "rating": 5,
+   "googleMapsUri": "https://maps.google.com/?cid=7905501743700398566&g_mp=Cilnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaE5lYXJieRACGAQgAA",
+   "websiteUri": "https://instagram.com/creativecustoms_of_atl?igshid=MTA2NmI2NXJvYmwxeQ==",
+   "regularOpeningHours": {
+    "openNow": false,
+    "periods": [
+     {
+      "open": {
+       "day": 0,
+       "hour": 12,
+       "minute": 0
+      },
+      "close": {
+       "day": 0,
+       "hour": 18,
+       "minute": 0
+      }
+     },
+     {
+      "open": {
+       "day": 1,
+       "hour": 11,
+       "minute": 0
+      },
+      "close": {
+       "day": 1,
+       "hour": 19,
+       "minute": 0
+      }
+     },
+     {
+      "open": {
+       "day": 3,
+       "hour": 11,
+       "minute": 0
+      },
+      "close": {
+       "day": 3,
+       "hour": 19,
+       "minute": 0
+      }
+     },
+     {
+      "open": {
+       "day": 4,
+       "hour": 11,
+       "minute": 0
+      },
+      "close": {
+       "day": 4,
+       "hour": 19,
+       "minute": 0
+      }
+     },
+     {
+      "open": {
+       "day": 5,
+       "hour": 11,
+       "minute": 0
+      },
+      "close": {
+       "day": 5,
+       "hour": 20,
+       "minute": 0
+      }
+     },
+     {
+      "open": {
+       "day": 6,
+       "hour": 11,
+       "minute": 0
+      },
+      "close": {
+       "day": 6,
+       "hour": 20,
+       "minute": 0
+      }
+     }
+    ],
+    "weekdayDescriptions": [
+     "Monday: 11:00\u202fAM\u2009\u2013\u20097:00\u202fPM",
+     "Tuesday: Closed",
+     "Wednesday: 11:00\u202fAM\u2009\u2013\u20097:00\u202fPM",
+     "Thursday: 11:00\u202fAM\u2009\u2013\u20097:00\u202fPM",
+     "Friday: 11:00\u202fAM\u2009\u2013\u20098:00\u202fPM",
+     "Saturday: 11:00\u202fAM\u2009\u2013\u20098:00\u202fPM",
+     "Sunday: 12:00\u2009\u2013\u20096:00\u202fPM"
+    ],
+    "nextOpenTime": "2026-09-26T15:00:00Z"
+   },
+   "businessStatus": "OPERATIONAL",
+   "userRatingCount": 12,
+   "displayName": {
+    "text": "Creative Customs of Atlanta (Airbrush Of Atlanta)",
+    "languageCode": "en"
+   },
+   "primaryType": "service"
+  }
+ ]
+}

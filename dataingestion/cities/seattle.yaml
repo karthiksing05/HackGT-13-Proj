@@ -1,0 +1,36 @@
+slug: seattle
+name: Seattle
+country_code: US              # ISO 3166-1 alpha-2
+default_region: WA            # fallback for address.region
+language: en                  # SerpApi hl, Places languageCode
+timezone: America/Los_Angeles
+currency: USD                 # prices stored in local currency; no FX conversion
+price_tiers: [0, 15, 40, 80]  # upper bounds for tiers 0-3; above the last = tier 4
+center: { lat: 47.6062, lng: -122.3321 }   # downtown Seattle
+bbox: { south: 47.48, west: -122.44, north: 47.75, east: -122.10 }   # Seattle city + Bellevue; ~25.5 km W-E x ~30 km S-N
+hikes_radius_km: 60
+elevation_dataset: ned10m     # OpenTopoData; ned10m is US-only
+neighborhoods: [Capitol Hill, Ballard, Fremont, Pioneer Square, Belltown, University District, Georgetown]
+demo:                         # used by `blurb --top` and the acceptance checks
+  start: { lat: null, lng: null }   # fill in from a map
+  window_local: ["Sun 13:00", "Sun 17:00"]
+query_terms:
+  places: [rooftop bars, live music venues, board game cafe, escape room, things to do]
+  events: [concerts, comedy, free events, art exhibitions, markets, nightlife, trivia night, workshops]
+ticketmaster: { radius_km: 30 }
+resident_advisor:                                    # area_id verified via ra.co/graphql area(areaUrlName: "seattle", countryUrlCode: "us") -> id 46
+  area_id: 46
+  referer: https://ra.co/events/us/seattle
+adapters:
+  ticketmaster: true
+  google_places: true         # needs billing
+  osm_places: false
+  serpapi_events: false
+  web_calendar: false
+  resident_advisor: true
+  eventbrite: false
+  osm_trails: true            # Overpass + OpenTopoData, both free
+  google_typical_time: false
+  predicthq: false
+  nps: false
+  fsq_os: false

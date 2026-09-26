@@ -1,0 +1,10 @@
+httpx
+tenacity
+pydantic>=2
+pymongo
+typer
+pyyaml
+python-dotenv
+pytest
+google-genai
+shapely

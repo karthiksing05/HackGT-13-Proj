@@ -1,0 +1,6 @@
+# Web calendars (§4.4). URLs are copied from a browser, never guessed.
+# - id: beltline
+#   url: https://...
+#   enabled: true
+#   notes: ""
+[]

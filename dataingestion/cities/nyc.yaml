@@ -1,0 +1,37 @@
+slug: nyc
+name: New York
+country_code: US              # ISO 3166-1 alpha-2
+default_region: NY            # fallback for address.region; bbox clips a sliver of NJ (Jersey City/Hoboken)
+language: en                  # SerpApi hl, Places languageCode
+timezone: America/New_York
+currency: USD                 # prices stored in local currency; no FX conversion
+price_tiers: [0, 15, 40, 80]  # upper bounds for tiers 0-3; above the last = tier 4
+center: { lat: 40.7359, lng: -73.9911 }   # Union Square, between Midtown and Lower Manhattan
+bbox: { south: 40.60, west: -74.03, north: 40.88, east: -73.75 }   # ~31 km N-S x ~24 km E-W; Manhattan + north/central Brooklyn + western Queens
+hikes_radius_km: 40
+elevation_dataset: ned10m     # OpenTopoData; ned10m is US-only
+neighborhoods: [Lower East Side, East Village, Williamsburg, Midtown, Chelsea, Harlem, Bushwick]
+demo:                         # used by `blurb --top` and the acceptance checks
+  start: { lat: null, lng: null }   # fill in from a map
+  window_local: ["Sun 13:00", "Sun 17:00"]
+query_terms:
+  places: [rooftop bars, live music venues, board game cafe, escape room, things to do]
+  events: [concerts, comedy, free events, art exhibitions, markets, nightlife, trivia night, workshops]
+ticketmaster: { radius_km: 25 }
+resident_advisor:                                    # §5.5; area_id verified via ra.co/graphql area(areaUrlName: "newyorkcity", countryUrlCode: "us") -> id 8, "New York City"
+  area_id: 8
+  referer: https://ra.co/events/us/newyorkcity
+nps_park_codes: []
+adapters:
+  ticketmaster: true
+  google_places: true         # needs billing (§5.2)
+  osm_places: false           # fallback when Google billing is off (§5.2)
+  serpapi_events: false
+  web_calendar: false
+  resident_advisor: true
+  eventbrite: false
+  osm_trails: true            # §5.10; Overpass + OpenTopoData, both free
+  google_typical_time: false
+  predicthq: false
+  nps: false
+  fsq_os: false
