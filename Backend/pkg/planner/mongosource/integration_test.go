@@ -377,8 +377,12 @@ func newPlanner(store *mongosource.Store, clock planner.Clock, user *planner.Use
 		}
 		return math.Max(0, math.Min(1, 0.5+0.5*s))
 	}}
-	return planner.New(cfg, planner.Deps{Source: store, Embeddings: store, Lookup: store, Pools: store, Scorer: scorer,
+	p, err := planner.New(cfg, planner.Deps{Source: store, Embeddings: store, Lookup: store, Pools: store, Scorer: scorer,
 		Travel: travel.Heuristic{}, Clock: clock})
+	if err != nil {
+		panic(err)
+	}
+	return p
 }
 
 // TestGenerateSurvivesARestart: a run generated through one Store is paged,

@@ -13,9 +13,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Deps are the planner's collaborators. Scorer and Search may be nil (the
-// priors path); Travel defaults to the heuristic; Clock to the system
-// clock; NewID to UUID v7.
+// Deps are the planner's collaborators. Source, Embeddings and Pools are
+// required (mongosource.Store provides all three, plus Lookup, which save
+// and ResolveStop use for stops the pool no longer has). Scorer and Search
+// may be nil: planning then takes the priors path, and plan_runs says so.
+// Travel defaults to the heuristic, Clock to the system clock, NewID to
+// UUID v7.
 type Deps struct {
 	Source     CandidateSource
 	Embeddings EmbeddingSource
@@ -46,8 +49,18 @@ type Planner struct {
 	Background func(func())
 }
 
-// New wires a planner. Missing collaborators get honest defaults.
-func New(cfg Config, d Deps) *Planner {
+// New wires a planner. It refuses to start without a candidate source, an
+// embedding source or a pool store: a silent stand-in would plan without
+// vectors or lose pools on restart.
+func New(cfg Config, d Deps) (*Planner, error) {
+	switch {
+	case d.Source == nil:
+		return nil, errors.New("planner: a CandidateSource is required")
+	case d.Embeddings == nil:
+		return nil, errors.New("planner: an EmbeddingSource is required")
+	case d.Pools == nil:
+		return nil, errors.New("planner: a PoolStore is required")
+	}
 	p := &Planner{Cfg: cfg, Source: d.Source, Embeddings: d.Embeddings, Lookup: d.Lookup, Scorer: d.Scorer,
 		Search: d.Search, Pools: d.Pools, Travel: d.Travel, Clock: d.Clock, NewID: d.NewID}
 	if p.Travel == nil {
@@ -59,9 +72,6 @@ func New(cfg Config, d Deps) *Planner {
 	if p.NewID == nil {
 		p.NewID = NewID
 	}
-	if p.Pools == nil {
-		p.Pools = NewMemPoolStore(p.Clock)
-	}
 	if p.Cfg.Itinerary.Paces == nil {
 		p.Cfg.Itinerary = itinerary.DefaultConfig()
 	}
@@ -69,7 +79,7 @@ func New(cfg Config, d Deps) *Planner {
 	if p.Cfg.SearchTimeout <= 0 {
 		p.Cfg.SearchTimeout = 5 * time.Second
 	}
-	return p
+	return p, nil
 }
 
 // NewID is a UUID v7 (time-ordered) string.

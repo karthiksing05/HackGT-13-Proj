@@ -224,11 +224,15 @@ func newTestPlanner(acts []models.Activity, cfg Config) *testPlanner {
 	pools := NewMemPoolStore(clock)
 	counter := 0
 	tp := &testPlanner{source: src, scorer: scorer, search: search, pools: pools, clock: clock}
-	tp.Planner = New(cfg, Deps{
+	pl, err := New(cfg, Deps{
 		Source: src, Embeddings: src, Lookup: src, Scorer: scorer, Search: search, Pools: pools,
 		Travel: travel.Heuristic{}, Clock: clock,
 		NewID: func() string { counter++; return fmt.Sprintf("id-%04d", counter) },
 	})
+	if err != nil {
+		panic(err) // the fakes above are all set
+	}
+	tp.Planner = pl
 	tp.Planner.Background = func(f func()) { tp.jobs = append(tp.jobs, f) }
 	return tp
 }
