@@ -18,12 +18,17 @@ class CosineCompatibilityModel(CompatibilityModel):
     """
 
     name = "cosine"
+    version = "cosine-v1"
 
     def __init__(self, negative_weight: float = DEFAULT_NEGATIVE_WEIGHT, require_same_version: bool = True) -> None:
         super().__init__(require_same_version=require_same_version)
         if negative_weight < 0:
             raise ValueError(f"negative_weight must be >= 0, got {negative_weight}")
         self.negative_weight = negative_weight
+
+    @property
+    def score_range(self) -> tuple[float, float]:
+        return (-1.0 - self.negative_weight, 1.0 + self.negative_weight)
 
     def _score_batch(self, user_embedding: UserEmbedding, event_embeddings: list[Embedding]) -> list[ScoringResult]:
         events = np.stack([e.vector for e in event_embeddings])

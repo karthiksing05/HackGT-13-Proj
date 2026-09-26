@@ -15,12 +15,22 @@ class CompatibilityModel(ABC):
     The user side is a `UserEmbedding` (positive signal plus optional negative
     signal); models are free to ignore the negative part.
 
+    Class attributes describe the model to callers such as the ranking API:
+    `version` identifies the scoring implementation (e.g. "cosine-v1"; not to
+    be confused with an embedding's `model_version`, which names the encoder),
+    `embedding_dim` is the dimension the model requires (None accepts any), and
+    `score_range` bounds the scores it returns (None when unbounded).
+
     Args:
         require_same_version: If True (the default), user and event embeddings
             must share a `model_version`. Set False for models that are
             intentionally fed embeddings from different encoders (e.g. separate
             user/event towers), and override `validate` to check what matters.
     """
+
+    version: str = "unversioned"
+    embedding_dim: int | None = None
+    score_range: tuple[float, float] | None = None
 
     def __init__(self, require_same_version: bool = True) -> None:
         self.require_same_version = require_same_version
@@ -42,6 +52,10 @@ class CompatibilityModel(ABC):
         Only the positive embedding is checked; `UserEmbedding` already
         guarantees the negative one matches it.
         """
+        if self.embedding_dim is not None and user_embedding.dimension != self.embedding_dim:
+            raise IncompatibleEmbeddingsError(
+                f"model expects dimension {self.embedding_dim}, user embedding has {user_embedding.dimension}"
+            )
         if user_embedding.dimension != event_embedding.dimension:
             raise IncompatibleEmbeddingsError(
                 f"dimension mismatch: user={user_embedding.dimension}, "

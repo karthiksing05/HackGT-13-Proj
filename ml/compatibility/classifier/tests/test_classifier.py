@@ -9,8 +9,10 @@ import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
+from compatibility import CosineCompatibilityModel, Embedding, IncompatibleEmbeddingsError, UserEmbedding
 from compatibility.classifier import (
     MODEL_VARIANTS,
+    ClassifierCompatibilityModel,
     ClassifierConfig,
     CompatibilityClassifier,
     EarlyStopping,
@@ -646,6 +648,52 @@ class MetricTests(unittest.TestCase):
         self.assertAlmostEqual(result["precision@1"], 0.5)  # a ranks correctly, b does not
         self.assertAlmostEqual(result["recall@1"], 0.5)
         self.assertAlmostEqual(result["ndcg@1"], 0.5)
+
+
+class CompatibilityModelAdapterTests(unittest.TestCase):
+    """`ClassifierCompatibilityModel`: the classifier behind the `CompatibilityModel` interface."""
+
+    def setUp(self):
+        g = torch.Generator().manual_seed(0)
+        pos, neg, *events = torch.randn(6, DIM, generator=g).numpy()
+        self.user = UserEmbedding(positive=Embedding(pos, "v"), negative=Embedding(neg, "v"))
+        self.events = [Embedding(e, "v", source_id=f"e{i}") for i, e in enumerate(events)]
+
+    def test_untrained_residual_model_matches_cosine_model(self):
+        # Zero-initialized correction + alpha=1 -> exactly the cosine baseline.
+        config = small_config(architecture="late_fusion", use_residual_baseline=True, negative_weight=0.5)
+        model = ClassifierCompatibilityModel(CompatibilityClassifier.from_config(config))
+        expected = CosineCompatibilityModel(negative_weight=0.5).score_many(self.user, self.events)
+        scores = [r.score for r in model.score_many(self.user, self.events)]
+        np.testing.assert_allclose(scores, [r.score for r in expected], atol=1e-5)
+        self.assertEqual(model.version, "classifier-v1")
+        self.assertIsNone(model.score_range)
+
+    def test_missing_negative_is_zero_vector(self):
+        config = small_config(architecture="late_fusion", use_residual_baseline=True)
+        model = ClassifierCompatibilityModel(CompatibilityClassifier.from_config(config))
+        results = model.score_many(UserEmbedding(positive=self.user.positive), self.events)
+        for result in results:
+            self.assertEqual(result.metadata["component_scores"]["negative"], 0.0)
+            self.assertAlmostEqual(result.score, result.metadata["component_scores"]["positive"], places=5)
+
+    def test_from_bce_checkpoint_returns_probabilities(self):
+        config = small_config(loss="bce")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = save_checkpoint(
+                Path(tmp) / "model.pt", CompatibilityClassifier.from_config(config), config, epoch=0, val_loss=0.0
+            )
+            model = ClassifierCompatibilityModel.from_checkpoint(path, version="classifier-v2")
+        self.assertEqual((model.version, model.embedding_dim, model.score_range), ("classifier-v2", DIM, (0.0, 1.0)))
+        for result in model.score_many(self.user, self.events):
+            self.assertTrue(0.0 <= result.score <= 1.0)
+            self.assertAlmostEqual(result.score, 1 / (1 + math.exp(-result.metadata["component_scores"]["raw"])), places=5)
+
+    def test_rejects_wrong_dimension(self):
+        model = ClassifierCompatibilityModel(CompatibilityClassifier.from_config(small_config()))
+        user = UserEmbedding(positive=Embedding(np.ones(DIM + 1), "v"))
+        with self.assertRaisesRegex(IncompatibleEmbeddingsError, f"expects dimension {DIM}"):
+            model.score_many(user, [Embedding(np.ones(DIM + 1), "v")])
 
 
 if __name__ == "__main__":

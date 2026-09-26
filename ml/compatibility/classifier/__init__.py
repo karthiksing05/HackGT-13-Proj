@@ -20,6 +20,7 @@ from .features import (
     interaction_feature_dim,
 )
 from .model import CompatibilityClassifier, FlatMLP, LateFusionMLP, ScoreComponents
+from .scorer import ClassifierCompatibilityModel
 from .train import (
     EarlyStopping,
     TrainingHistory,
@@ -33,6 +34,7 @@ from .train import (
 
 __all__ = [
     "MODEL_VARIANTS",
+    "ClassifierCompatibilityModel",
     "ClassifierConfig",
     "CompatibilityClassifier",
     "EarlyStopping",
