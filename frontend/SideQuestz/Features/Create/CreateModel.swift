@@ -7,14 +7,16 @@ enum CreatePin: Hashable {
 }
 
 /// A suggestion pill under the Where search field. The first one is "Current location" when the
-/// phone can say where it is.
+/// phone can say where it is, then "Home base" when the account has one.
 enum CreateSuggestion: Identifiable, Hashable {
     case currentLocation
+    case homeBase(Place)
     case place(Place)
 
     var id: String {
         switch self {
         case .currentLocation: "current-location"
+        case .homeBase: "home-base"
         case .place(let place): "place-\(place.name)"
         }
     }
@@ -22,6 +24,7 @@ enum CreateSuggestion: Identifiable, Hashable {
     var label: String {
         switch self {
         case .currentLocation: "Current location"
+        case .homeBase: "Home base"
         case .place(let place): place.name
         }
     }
@@ -61,9 +64,11 @@ struct CreateStopRemoval: Equatable {
     let slot: Int
 }
 
-/// "Recalculating transit…" / "Transit times updated" above the route card.
+/// "Recalculating transit…" / "Transit times updated" / "Some stops would be late" above the route card.
 enum CreateTransitStatus: Equatable {
     case idle, recalculating, updated
+    /// The timing came back with a fixed start this order misses (`RouteResult.brokenAt`).
+    case updatedLate
 }
 
 /// Everything the Create flow collects and shows. All data comes from `env.api` (and
@@ -183,6 +188,8 @@ final class CreateFlowModel {
     // MARK: Review
 
     private(set) var options: Loadable<[PlanOption]> = .loading
+    /// Why the last batch had no options, when the server said (Review shows its message).
+    private(set) var emptyReason: PlanEmptyReason?
     private(set) var selectedOptionId: String?
     private(set) var cursor: String?
     private(set) var noMoreOptions = false
@@ -299,16 +306,20 @@ final class CreateFlowModel {
 
     // MARK: - Where
 
-    /// Default pins: start where the phone is (the demo: Tech Square) and end at the first other
-    /// place the API suggests for an empty search (the demo: Home), or where you start when it
-    /// suggests none. A pin that's already set (Home's search sets the end) is kept. Without a
-    /// location the start stays empty and the Where step asks for one. The location and the
-    /// suggestions are asked for at the same time; each pin fills in as its answer arrives.
+    /// Default pins: start at the home base when the account has one, else where the phone is (the
+    /// demo: Tech Square), and end at the first other place the API suggests for an empty search
+    /// (the demo: Home), or where you start when it suggests none. A pin that's already set (Home's
+    /// search sets the end) is kept. Without a home base or a location the start stays empty and
+    /// the Where step asks for one. The location is asked for either way (it's the "Current
+    /// location" pill), at the same time as the suggestions; each pin fills in as its answer arrives.
     func loadDefaultPlacesIfNeeded() async {
         if let defaultsTask { return await defaultsTask.value }
+        // The home base is known already: the start shows at once, before the phone answers.
+        let home = env.user?.homeBase
+        if start == nil, let home { start = home }
         let task = Task {
             let suggestionsCall: Task<[Place], Never>? = end == nil && !endSameAsStart
-                ? Task { await env.places.suggestions(for: "", near: nil, limit: 3) }
+                ? Task { await env.places.suggestions(for: "", near: home?.coordinate, limit: 3) }
                 : nil
             let here = await currentLocation()
             if start == nil { start = here }
@@ -316,7 +327,8 @@ final class CreateFlowModel {
                 let places = await suggestionsCall.value
                 // The user may have picked while this loaded.
                 if end == nil, !endSameAsStart {
-                    if let other = places.first(where: { $0.name != here?.name }) { end = other } else { endSameAsStart = true }
+                    let taken = [start?.name, here?.name].compactMap { $0 }
+                    if let other = places.first(where: { !taken.contains($0.name) }) { end = other } else { endSameAsStart = true }
                 }
             }
             placesLoaded = true
@@ -369,24 +381,29 @@ final class CreateFlowModel {
         defer { if generation == suggestionGeneration { searchingPlaces = false } }
 
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Near the pin being set, else the other pin, else the phone.
+        // Near the pin being set, else the other pin, else the phone, else the home base.
         let (editing, other) = editingPin == .end ? (end, start) : (start, end)
-        let near = editing?.coordinate ?? other?.coordinate ?? currentPlace?.coordinate
+        let home = env.user?.homeBase
+        let near = editing?.coordinate ?? other?.coordinate ?? currentPlace?.coordinate ?? home?.coordinate
         var results = await env.places.suggestions(for: query, near: near, limit: 5)
         // A newer search (the next keystroke) replaced this one: don't flash its stale results.
         guard generation == suggestionGeneration, !Task.isCancelled else { return }
         // Results never wait for the location: the pill joins when it's known (the step reloads
-        // the pills then).
+        // the pills then). The fixed pills stand for their places, so those aren't listed twice.
         let current = currentPlace
-        if let current { results.removeAll { $0.name == current.name } }
+        let covered = [current?.name, home?.name].compactMap { $0 }
+        results.removeAll { covered.contains($0.name) }
         var pills: [CreateSuggestion] = []
-        if let current, query.isEmpty || "current location".localizedCaseInsensitiveContains(query)
-            || current.name.localizedCaseInsensitiveContains(query) {
-            pills.append(.currentLocation)
-        }
+        if let current, Self.pillMatches(query, label: "Current location", place: current) { pills.append(.currentLocation) }
+        if let home, Self.pillMatches(query, label: "Home base", place: home) { pills.append(.homeBase(home)) }
         pills += results.map { .place($0) }
         suggestions = Array(pills.prefix(4))
         suggestionsLoaded = true
+    }
+
+    /// A fixed pill shows for an empty search, or when its label or its place matches the search.
+    private static func pillMatches(_ query: String, label: String, place: Place) -> Bool {
+        query.isEmpty || label.localizedCaseInsensitiveContains(query) || place.name.localizedCaseInsensitiveContains(query)
     }
 
     func pick(_ suggestion: CreateSuggestion) async {
@@ -395,6 +412,7 @@ final class CreateFlowModel {
         case .currentLocation:
             guard let current = currentPlace else { return }
             place = current
+        case .homeBase(let home): place = home
         case .place(let p): place = p
         }
         setPlace(place, for: editingPin)
@@ -535,6 +553,7 @@ final class CreateFlowModel {
         let generation = generateGeneration
         lastRequest = request
         options = .loading
+        emptyReason = nil
         selectedOptionId = nil
         routes = [:]
         editedOptions = [:]
@@ -551,6 +570,7 @@ final class CreateFlowModel {
             let batch = try await env.api.generatePlans(request)
             guard generation == generateGeneration else { return }
             options = .loaded(batch.options)
+            emptyReason = batch.reason
             cursor = batch.cursor
             noMoreOptions = batch.done || batch.cursor == nil
             for option in batch.options { routes[option.id] = CreateRouteState(order: option.stops.map(\.id)) }
@@ -752,7 +772,14 @@ final class CreateFlowModel {
         case .success(let result):
             latest.result = result
             latest.resultOrder = order
-            if optionId == selectedOptionId, minimumSeconds > 0 { transitStatus = .updated }
+            if optionId == selectedOptionId {
+                // A fixed start this order misses is said at once; "updated" only after a change.
+                if result.brokenAt >= 0 {
+                    transitStatus = .updatedLate
+                } else if minimumSeconds > 0 {
+                    transitStatus = .updated
+                }
+            }
         case .failure(let error):
             latest.error = Self.message(for: error)
             if optionId == selectedOptionId { transitStatus = .idle }

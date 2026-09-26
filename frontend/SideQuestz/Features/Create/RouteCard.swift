@@ -12,17 +12,19 @@ struct CreateRouteRow: Identifiable, Equatable {
     var stopId: String?
     var title: String
     var subtitle: String?
-    /// B row in red: "Arrive 6:45 PM · 15 min past 6:30 PM".
+    /// B row in red: "Arrive 6:45 PM · 15 min past 6:30 PM". A stop in red: this order reaches its
+    /// fixed start too late ("Late for a fixed start · 8:40 PM–9:40 PM · Live music · $$").
     var isLate = false
     /// Waiting on the server's timing: legs read "Updating transit…", stop times "…".
     var isPending = false
 
     /// Builds the rows for an option in its current order. While the timing is stale (first load,
     /// mid-drag, or waiting for `POST /plans/route`) legs read "Updating transit…", stop times "…"
-    /// and B "Back by 6:30 PM".
+    /// and B "Back by 6:30 PM". The stop at the result's `brokenAt` is marked late.
     static func rows(stops: [PlanStop], state: CreateRouteState, startName: String, endName: String,
                      startTime: Date, backBy: Date, format: TimeFormat) -> [CreateRouteRow] {
         let result = state.isStale ? nil : state.result
+        let brokenAt = result?.brokenAt ?? -1
         func leg(_ index: Int) -> CreateRouteRow {
             guard let result, result.legs.indices.contains(index) else {
                 return CreateRouteRow(id: "leg-\(index)", kind: .leg, title: "Updating transit…", isPending: true)
@@ -41,9 +43,10 @@ struct CreateRouteRow: Identifiable, Equatable {
             } else {
                 time = nil
             }
+            let late = index == brokenAt
+            let subtitle = (late ? "Late for a fixed start · " : "") + "\(time ?? "…") · \(stop.subtitle)"
             rows.append(CreateRouteRow(id: "stop-\(stop.id)", kind: .stop(number: index + 1), stopId: stop.id,
-                                       title: stop.title, subtitle: "\(time ?? "…") · \(stop.subtitle)",
-                                       isPending: time == nil))
+                                       title: stop.title, subtitle: subtitle, isLate: late, isPending: time == nil))
         }
         rows.append(leg(stops.count))
 

@@ -99,9 +99,22 @@ struct User: Codable, Identifiable, Hashable {
     var school: String?
     /// False until Profile setup is finished; signing in then resumes setup instead of Home.
     var setupComplete: Bool = true
+    /// Where plans start by default (Create › Where) and where the Forum looks first. Set by the
+    /// server (the demo account lives at Seaside Market Square); nil when it has none.
+    var homeBase: Place? = nil
+    /// The city the server plans in for this account ("saltlight"); shown after the handle when
+    /// there's no school.
+    var city: String? = nil
 
     /// Empty when there's no name yet (never someone else's initials).
     var initials: String { Initials.from(name, fallback: "") }
+
+    /// `city` for display: a catalog key comes all lowercase ("saltlight" → "Saltlight"); a name
+    /// with its own casing ("Atlanta, GA") stays as it is. nil when empty.
+    var cityLabel: String? {
+        guard let city = city?.trimmingCharacters(in: .whitespaces), !city.isEmpty else { return nil }
+        return city == city.lowercased() ? city.capitalized : city
+    }
 }
 
 /// A lightweight reference to another person (avatars, stacks, chat senders, split members).

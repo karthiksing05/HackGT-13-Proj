@@ -71,8 +71,8 @@ final class AccountMeModel {
     }
 }
 
-/// Account › Me: taste profile, connected services, payments, rated past sidequests, sign out.
-/// No stats row and no app-color option (GUI_PLAN.md §7.10).
+/// Account › Me: taste profile, home base (when the account has one), connected services,
+/// payments, rated past sidequests, sign out. No stats row and no app-color option (GUI_PLAN.md §7.10).
 ///
 /// First load: each card shows a skeleton of its own rows, then the rows arrive (taste bars grow
 /// from zero, one after another). Calendars connect and disconnect from the Connected card, which
@@ -114,6 +114,11 @@ struct AccountMeSection: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionTitle("Taste profile")
             tasteCard
+
+            if let home = env.user?.homeBase {
+                sectionTitle("Home base")
+                homeBaseCard(home)
+            }
 
             sectionTitle("Connected")
             connectionsCard
@@ -207,6 +212,35 @@ struct AccountMeSection: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.white, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
         .padding(.horizontal, Metrics.side)
+    }
+
+    // MARK: Home base
+
+    /// Where plans start and the Forum looks first (set by the server): a pin, the place, and the
+    /// city it plans in. Nothing to tap; there's no way to move it from the app yet.
+    private func homeBaseCard(_ home: Place) -> some View {
+        HStack(spacing: 12) {
+            SocialGlyph(kind: .pin, size: 20, lineWidth: 2)
+                .foregroundStyle(Theme.sageInk)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(home.name)
+                    .sqFont(15, .semibold)
+                    .foregroundStyle(Theme.ink)
+                    .authLineHeight(1.35, size: 15)
+                if let city = env.user?.cityLabel {
+                    Text(city)
+                        .sqFont(12)
+                        .foregroundStyle(Theme.text3)
+                        .authLineHeight(1.35, size: 12)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 13)
+        .padding(.horizontal, 14)
+        .background(.white, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        .padding(.horizontal, Metrics.side)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: Connected
