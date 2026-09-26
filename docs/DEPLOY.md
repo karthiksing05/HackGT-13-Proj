@@ -77,7 +77,7 @@ DEMO_PASSWORD=<the demo account's password>
 `FB_TOKEN_KEY` (64 hex characters) seals the stored Facebook tokens. Set it in production: without it
 the key is derived from `JWT_SECRET`, so rotating the JWT secret would also make every stored Facebook
 token unreadable. Optional: `ML_*` timeouts, `PLANNER_*` knobs ([PLANNER.md](PLANNER.md)),
-`FB_GRAPH_VERSION` (`v26.0`), `DEMO_TZ` (`America/New_York`), `DEV_RESET_CODES` (`0`),
+`FB_GRAPH_VERSION` (`v26.0`), `DEMO_DATE` (unset; production `2026-09-27`: demo-catalog accounts live on that date at the real time of day), `DEMO_TZ` (`America/New_York`), `DEV_RESET_CODES` (`0`),
 `CHECKOUT_STEP_DELAY` (`1500ms`), `ACCESS_TOKEN_TTL` (`1h`), `REFRESH_TOKEN_TTL` (`720h`),
 `MAX_PHOTO_BYTES` (2 MB), `MAX_JSON_BYTES` (1 MB). `PORT` is accepted in place of `HTTP_ADDR`.
 
