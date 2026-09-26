@@ -85,7 +85,10 @@ func registerEndpoints(r *mux.Router, prefix string) {
 	r.HandleFunc(p("/calendar/feed/{token}"), handlers.ServeICSFeed).Methods("GET")
 	r.HandleFunc(p("/calendar/{token:[a-zA-Z0-9_-]{16,64}(?:\\.ics)?}"), handlers.ServeICSFeed).Methods("GET")
 
-	// ---------------- PLACES & EVENTS CATALOG ----------------
+	// ---------------- ACTIVITIES, PLACES & EVENTS CATALOG ----------------
+	r.HandleFunc(p("/activities"), handlers.ListActivities).Methods("GET")
+	r.HandleFunc(p("/activities/search"), handlers.SearchActivities).Methods("GET")
+	r.HandleFunc(p("/activities/{id}"), handlers.GetActivityDetail).Methods("GET")
 	r.HandleFunc(p("/places/search"), handlers.SearchPlaces).Methods("GET")
 	r.HandleFunc(p("/places/reverse"), handlers.ReverseGeocode).Methods("GET")
 	r.HandleFunc(p("/events"), handlers.ListEvents).Methods("GET")

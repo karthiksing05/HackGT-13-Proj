@@ -710,3 +710,92 @@ func TestHelloWorldBrowserEndpoint(t *testing.T) {
 		t.Fatalf("expected BEGIN:VCALENDAR in raw_ics, got: %s", demoResp.RawICS)
 	}
 }
+
+func TestActivitiesFreetimeCatalog(t *testing.T) {
+	r := setupTestServer()
+
+	// 1. List activities
+	req, _ := http.NewRequest("GET", "/activities", nil)
+	resp := executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on /activities, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var listResp struct {
+		Items []struct {
+			ID       string `json:"_id"`
+			Kind     string `json:"kind"`
+			City     string `json:"city"`
+			Name     string `json:"name"`
+			Category string `json:"category"`
+			Location struct {
+				Type        string    `json:"type"`
+				Coordinates []float64 `json:"coordinates"`
+			} `json:"location"`
+			WeeklyHours []struct {
+				Open  int `json:"open"`
+				Close int `json:"close"`
+			} `json:"weeklyHours"`
+			Trail *struct {
+				LengthKm float64 `json:"lengthKm"`
+				Loop     bool    `json:"loop"`
+			} `json:"trail"`
+		} `json:"items"`
+		Total int `json:"total"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &listResp); err != nil {
+		t.Fatalf("failed to decode /activities response: %v", err)
+	}
+	if len(listResp.Items) == 0 {
+		t.Fatalf("expected activities in /activities response")
+	}
+
+	// 2. Search activities for Homestead
+	req, _ = http.NewRequest("GET", "/activities/search?q=Homestead", nil)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on /activities/search, got %d", resp.Code)
+	}
+	var searchResp struct {
+		Activities []struct {
+			ID   string `json:"_id"`
+			Name string `json:"name"`
+			Kind string `json:"kind"`
+		} `json:"activities"`
+		Count int `json:"count"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &searchResp); err != nil {
+		t.Fatalf("failed to decode /activities/search response: %v", err)
+	}
+	if searchResp.Count == 0 || len(searchResp.Activities) == 0 {
+		t.Fatalf("expected Homestead Trail in search results")
+	}
+
+	trailID := searchResp.Activities[0].ID
+
+	// 3. Get single activity detail by ID
+	req, _ = http.NewRequest("GET", fmt.Sprintf("/activities/%s", trailID), nil)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on /activities/%s, got %d", trailID, resp.Code)
+	}
+	var detailResp struct {
+		ID       string `json:"_id"`
+		Kind     string `json:"kind"`
+		Name     string `json:"name"`
+		Category string `json:"category"`
+		Trail    *struct {
+			LengthKm float64 `json:"lengthKm"`
+			Loop     bool    `json:"loop"`
+		} `json:"trail"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &detailResp); err != nil {
+		t.Fatalf("failed to decode activity detail: %v", err)
+	}
+	if detailResp.Name != "Homestead Trail" {
+		t.Fatalf("expected Homestead Trail, got %s", detailResp.Name)
+	}
+	if detailResp.Trail == nil || !detailResp.Trail.Loop {
+		t.Fatalf("expected trail info with loop=true for Homestead Trail")
+	}
+}

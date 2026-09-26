@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // Store provides data access layer for SideQuestz
@@ -21,6 +22,7 @@ type Store struct {
 	resets         map[string]*models.PasswordResetRecord
 	places         []models.Place
 	events         []models.Event
+	activities     []models.Activity
 	itineraries    map[string]*models.Itinerary
 	ratings        map[string]*models.Rating
 	checkouts      map[string]*models.CheckoutIntent
@@ -542,11 +544,15 @@ func (s *Store) GenerateUserICS(userID string) (string, error) {
 			descParts = append(descParts, fmt.Sprintf("Group size: %d members", len(it.Members)))
 		}
 
-		location := "Atlanta, GA"
+		location := ""
 		if len(it.Items) > 0 {
 			location = it.Items[0].LocationName
 			if it.Items[0].Address != "" {
-				location = fmt.Sprintf("%s, %s", it.Items[0].LocationName, it.Items[0].Address)
+				if location != "" {
+					location = fmt.Sprintf("%s, %s", location, it.Items[0].Address)
+				} else {
+					location = it.Items[0].Address
+				}
 			}
 			descParts = append(descParts, "\nStops:")
 			for idx, item := range it.Items {
@@ -594,20 +600,150 @@ func (s *Store) GenerateUserICS(userID string) (string, error) {
 	return util.BuildICSCalendar(calName, events), nil
 }
 
-// ---------------- PLACES & EVENTS ----------------
+// ---------------- ACTIVITIES, PLACES & EVENTS ----------------
 
-func (s *Store) SearchPlaces(q, near string) []models.Place {
+func (s *Store) SearchActivities(q, near, kind string) []models.Activity {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("activities")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+
+			filter := bson.M{}
+			if kind != "" {
+				filter["kind"] = kind
+			}
+			if q != "" {
+				filter["$or"] = []bson.M{
+					{"name": bson.M{"$regex": q, "$options": "i"}},
+					{"category": bson.M{"$regex": q, "$options": "i"}},
+					{"tags": bson.M{"$elemMatch": bson.M{"$regex": q, "$options": "i"}}},
+				}
+			}
+			opts := options.Find().SetLimit(50)
+			cur, err := col.Find(ctx, filter, opts)
+			if err == nil {
+				var results []models.Activity
+				if err := cur.All(ctx, &results); err == nil && len(results) > 0 {
+					return results
+				}
+			}
+		}
+	}
+
 	q = strings.ToLower(q)
-	var matches []models.Place
-	for _, p := range s.places {
-		if q == "" || strings.Contains(strings.ToLower(p.Name), q) || strings.Contains(strings.ToLower(p.Category), q) {
-			matches = append(matches, p)
+	var matches []models.Activity
+	for _, a := range s.activities {
+		if kind != "" && a.Kind != kind {
+			continue
+		}
+		if q == "" || strings.Contains(strings.ToLower(a.Name), q) || strings.Contains(strings.ToLower(a.Category), q) {
+			matches = append(matches, a)
 		}
 	}
 	return matches
 }
 
+func (s *Store) SearchPlaces(q, near string) []models.Place {
+	activities := s.SearchActivities(q, near, "place")
+	var places []models.Place
+	for _, a := range activities {
+		lat := 0.0
+		lng := 0.0
+		if len(a.Location.Coordinates) >= 2 {
+			lng = a.Location.Coordinates[0]
+			lat = a.Location.Coordinates[1]
+		}
+		addr := ""
+		if a.Address != nil && a.Address.Formatted != nil {
+			addr = *a.Address.Formatted
+		} else if a.Address != nil && a.Address.Street != nil {
+			addr = *a.Address.Street
+		}
+		chip := ""
+		if a.Description != nil {
+			chip = *a.Description
+		}
+		places = append(places, models.Place{
+			ID:             a.ID.Hex(),
+			Name:           a.Name,
+			Address:        addr,
+			Lat:            lat,
+			Lng:            lng,
+			Category:       a.Category,
+			SuggestionChip: chip,
+			Tags:           a.Tags,
+		})
+	}
+	if len(places) == 0 {
+		q = strings.ToLower(q)
+		for _, p := range s.places {
+			if q == "" || strings.Contains(strings.ToLower(p.Name), q) || strings.Contains(strings.ToLower(p.Category), q) {
+				places = append(places, p)
+			}
+		}
+	}
+	return places
+}
+
 func (s *Store) ReverseGeocode(lat, lng float64) *models.Place {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("activities")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+
+			filter := bson.M{
+				"location": bson.M{
+					"$near": bson.M{
+						"$geometry": bson.M{
+							"type":        "Point",
+							"coordinates": []float64{lng, lat},
+						},
+						"$maxDistance": 5000,
+					},
+				},
+			}
+			var act models.Activity
+			if err := col.FindOne(ctx, filter).Decode(&act); err == nil {
+				addr := ""
+				if act.Address != nil && act.Address.Formatted != nil && *act.Address.Formatted != "" {
+					addr = *act.Address.Formatted
+				} else if act.Address != nil && act.Address.Street != nil && *act.Address.Street != "" {
+					var addrParts []string
+					addrParts = append(addrParts, *act.Address.Street)
+					if act.Address.Locality != nil && *act.Address.Locality != "" {
+						addrParts = append(addrParts, *act.Address.Locality)
+					}
+					if act.Address.Region != nil && *act.Address.Region != "" {
+						addrParts = append(addrParts, *act.Address.Region)
+					}
+					addr = strings.Join(addrParts, ", ")
+				} else if act.City != "" {
+					addr = fmt.Sprintf("%.4f, %.4f, %s", lat, lng, strings.Title(act.City))
+				} else {
+					addr = fmt.Sprintf("%.4f, %.4f", lat, lng)
+				}
+
+				actLat := lat
+				actLng := lng
+				if len(act.Location.Coordinates) >= 2 {
+					actLng = act.Location.Coordinates[0]
+					actLat = act.Location.Coordinates[1]
+				}
+				return &models.Place{
+					ID:       act.ID.Hex(),
+					Name:     act.Name,
+					Address:  addr,
+					Lat:      actLat,
+					Lng:      actLng,
+					Category: act.Category,
+					Tags:     act.Tags,
+				}
+			}
+		}
+	}
+
 	var closest models.Place
 	minDist := math.MaxFloat64
 	for _, p := range s.places {
@@ -623,19 +759,69 @@ func (s *Store) ReverseGeocode(lat, lng float64) *models.Place {
 	return &models.Place{
 		ID:       util.GenerateID(),
 		Name:     fmt.Sprintf("Dropped Pin (%.4f, %.4f)", lat, lng),
-		Address:  fmt.Sprintf("%.4f, %.4f, Atlanta, GA", lat, lng),
+		Address:  fmt.Sprintf("%.4f, %.4f", lat, lng),
 		Lat:      lat,
 		Lng:      lng,
 		Category: "landmark",
 	}
 }
 
-func (s *Store) ListEvents(near string, radius float64, tags []string, maxPrice int64, userAgeBracket string, cursor string, limit int) ([]models.Event, string, bool) {
-	var filtered []models.Event
+func (s *Store) ListActivities(kind, near string, radius float64, tags []string, maxPrice int64, userAgeBracket string, cursor string, limit int) ([]models.Activity, string, bool) {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("activities")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
 
-	for _, e := range s.events {
-		// Age filtering based on event name/tags and user ageBracket ("13_17", "18_20", "21_plus")
-		eventNameLower := strings.ToLower(e.Name)
+			filter := bson.M{}
+			if kind != "" {
+				filter["kind"] = kind
+			}
+			if len(tags) > 0 {
+				filter["tags"] = bson.M{"$in": tags}
+			}
+			if maxPrice > 0 {
+				filter["price.cents"] = bson.M{"$lte": maxPrice}
+			}
+			if userAgeBracket == "13_17" {
+				filter["name"] = bson.M{"$not": bson.M{"$regex": "(18\\+|21\\+)", "$options": "i"}}
+			} else if userAgeBracket == "18_20" {
+				filter["name"] = bson.M{"$not": bson.M{"$regex": "21\\+", "$options": "i"}}
+			}
+			if cursor != "" {
+				if decoded, err := util.DecodeCursor(cursor); err == nil {
+					if objID, err := bson.ObjectIDFromHex(decoded); err == nil {
+						filter["_id"] = bson.M{"$gt": objID}
+					}
+				}
+			}
+
+			opts := options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}).SetLimit(int64(limit + 1))
+			cur, err := col.Find(ctx, filter, opts)
+			if err == nil {
+				var items []models.Activity
+				if err := cur.All(ctx, &items); err == nil && len(items) > 0 {
+					hasMore := false
+					if len(items) > limit {
+						hasMore = true
+						items = items[:limit]
+					}
+					var nextCursor string
+					if hasMore && len(items) > 0 {
+						nextCursor = util.EncodeCursor(items[len(items)-1].ID.Hex())
+					}
+					return items, nextCursor, hasMore
+				}
+			}
+		}
+	}
+
+	var filtered []models.Activity
+	for _, a := range s.activities {
+		if kind != "" && a.Kind != kind {
+			continue
+		}
+		eventNameLower := strings.ToLower(a.Name)
 		is21Plus := strings.Contains(eventNameLower, "21+")
 		is18Plus := strings.Contains(eventNameLower, "18+") || is21Plus
 
@@ -646,15 +832,15 @@ func (s *Store) ListEvents(near string, radius float64, tags []string, maxPrice 
 			continue
 		}
 
-		if maxPrice > 0 && e.Price != nil && e.Price.Cents > maxPrice {
+		if maxPrice > 0 && a.Price != nil && a.Price.Cents > maxPrice {
 			continue
 		}
 
 		if len(tags) > 0 {
 			tagMatched := false
 			for _, t := range tags {
-				for _, et := range e.Tags {
-					if strings.EqualFold(t, et) {
+				for _, at := range a.Tags {
+					if strings.EqualFold(t, at) {
 						tagMatched = true
 						break
 					}
@@ -665,14 +851,14 @@ func (s *Store) ListEvents(near string, radius float64, tags []string, maxPrice 
 			}
 		}
 
-		filtered = append(filtered, e)
+		filtered = append(filtered, a)
 	}
 
 	startIdx := 0
 	if cursor != "" {
 		if decoded, err := util.DecodeCursor(cursor); err == nil {
-			for i, e := range filtered {
-				if e.ID.Hex() == decoded {
+			for i, a := range filtered {
+				if a.ID.Hex() == decoded {
 					startIdx = i + 1
 					break
 				}
@@ -688,7 +874,7 @@ func (s *Store) ListEvents(near string, radius float64, tags []string, maxPrice 
 		endIdx = len(filtered)
 	}
 
-	var page []models.Event
+	var page []models.Activity
 	if startIdx < len(filtered) {
 		page = filtered[startIdx:endIdx]
 	}
@@ -701,33 +887,79 @@ func (s *Store) ListEvents(near string, radius float64, tags []string, maxPrice 
 	return page, nextCursor, hasMore
 }
 
-func (s *Store) GetEventByID(idStr string) (*models.Event, error) {
+func (s *Store) ListEvents(near string, radius float64, tags []string, maxPrice int64, userAgeBracket string, cursor string, limit int) ([]models.Event, string, bool) {
+	return s.ListActivities("event", near, radius, tags, maxPrice, userAgeBracket, cursor, limit)
+}
+
+func (s *Store) GetActivityByID(idStr string) (*models.Activity, error) {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("activities")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			var act models.Activity
+			if objID, err := bson.ObjectIDFromHex(idStr); err == nil {
+				if err := col.FindOne(ctx, bson.M{"_id": objID}).Decode(&act); err == nil {
+					return &act, nil
+				}
+			}
+			if err := col.FindOne(ctx, bson.M{"_id": idStr}).Decode(&act); err == nil {
+				return &act, nil
+			}
+		}
+	}
+
+	for _, a := range s.activities {
+		if a.ID.Hex() == idStr {
+			return &a, nil
+		}
+	}
 	for _, e := range s.events {
 		if e.ID.Hex() == idStr {
 			return &e, nil
 		}
 	}
-	return nil, errors.New("event not found")
+	return nil, errors.New("activity not found")
+}
+
+func (s *Store) GetEventByID(idStr string) (*models.Event, error) {
+	return s.GetActivityByID(idStr)
 }
 
 // ---------------- ITINERARIES ----------------
 
 func (s *Store) CreateItinerary(itin *models.Itinerary) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.itineraries[itin.ID] = itin
+	s.mu.Unlock()
+
 	if datastore.IsConnected() {
 		col := datastore.GetCollection("itineraries")
 		if col != nil {
 			ctx, cancel := datastore.GetCtx()
 			defer cancel()
-			_, _ = col.InsertOne(ctx, itin)
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": itin.ID}, itin, options.Replace().SetUpsert(true))
 		}
 	}
 	return nil
 }
 
 func (s *Store) GetItinerary(id string) (*models.Itinerary, error) {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("itineraries")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			var itin models.Itinerary
+			if err := col.FindOne(ctx, bson.M{"_id": id}).Decode(&itin); err == nil {
+				s.mu.Lock()
+				s.itineraries[itin.ID] = &itin
+				s.mu.Unlock()
+				return &itin, nil
+			}
+		}
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if it, ok := s.itineraries[id]; ok {
@@ -737,6 +969,39 @@ func (s *Store) GetItinerary(id string) (*models.Itinerary, error) {
 }
 
 func (s *Store) ListActiveItineraries(userID string, cursor string, limit int) ([]*models.Itinerary, string, bool) {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("itineraries")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+
+			filter := bson.M{"status": "active"}
+			if cursor != "" {
+				if decoded, err := util.DecodeCursor(cursor); err == nil {
+					filter["_id"] = bson.M{"$gt": decoded}
+				}
+			}
+
+			opts := options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}).SetLimit(int64(limit + 1))
+			cur, err := col.Find(ctx, filter, opts)
+			if err == nil {
+				var items []*models.Itinerary
+				if err := cur.All(ctx, &items); err == nil && len(items) > 0 {
+					hasMore := false
+					if len(items) > limit {
+						hasMore = true
+						items = items[:limit]
+					}
+					var nextCursor string
+					if hasMore && len(items) > 0 {
+						nextCursor = util.EncodeCursor(items[len(items)-1].ID)
+					}
+					return items, nextCursor, hasMore
+				}
+			}
+		}
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -782,15 +1047,33 @@ func (s *Store) ListActiveItineraries(userID string, cursor string, limit int) (
 func (s *Store) UpdateItinerary(it *models.Itinerary) error {
 	it.UpdatedAt = time.Now().UTC()
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.itineraries[it.ID] = it
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("itineraries")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": it.ID}, it, options.Replace().SetUpsert(true))
+		}
+	}
 	return nil
 }
 
 func (s *Store) DeleteItinerary(id string) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	delete(s.itineraries, id)
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("itineraries")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.DeleteOne(ctx, bson.M{"_id": id})
+		}
+	}
 	return nil
 }
 
@@ -798,11 +1081,20 @@ func (s *Store) DeleteItinerary(id string) error {
 
 func (s *Store) SaveRating(r *models.Rating) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.ratings[r.ItemID] = r
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("ratings")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": r.ItemID}, r, options.Replace().SetUpsert(true))
+		}
+	}
 
 	// Update user learned taste (0..1 tag weights and ratingCount)
-	if u, ok := s.users[r.UserID]; ok {
+	if u, err := s.GetUserByID(r.UserID); err == nil {
 		u.Taste.RatingCount++
 		if u.Taste.Tags == nil {
 			u.Taste.Tags = make(map[string]float64)
@@ -818,39 +1110,144 @@ func (s *Store) SaveRating(r *models.Rating) error {
 			newScore := math.Max(0.0, math.Min(1.0, curr+scoreDelta))
 			u.Taste.Tags[t] = math.Round(newScore*100) / 100
 		}
+		_ = s.UpdateUser(u)
 	}
 	return nil
 }
 
 func (s *Store) ListPastEvents(userID string, unratedOnly bool) []*models.PastEvent {
+	// 1. Gather all ratings by this user (from DB and memory)
+	userRatings := make(map[string]*models.Rating)
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("ratings")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			cur, err := col.Find(ctx, bson.M{"userId": userID})
+			if err == nil {
+				var rList []*models.Rating
+				_ = cur.All(ctx, &rList)
+				for _, r := range rList {
+					userRatings[r.ItemID] = r
+				}
+			}
+		}
+	}
 	s.mu.RLock()
-	defer s.mu.RUnlock()
+	for k, v := range s.ratings {
+		if v.UserID == userID {
+			userRatings[k] = v
+		}
+	}
+	s.mu.RUnlock()
 
-	now := time.Now()
-	events := []*models.PastEvent{
-		{
-			ItemID:       "item_past_1",
-			EventID:      "evt_1",
-			UserID:       userID,
-			Title:        "High Museum of Art — Jazz Night",
-			Date:         now.AddDate(0, 0, -2),
-			PhotoURL:     ptrString("https://images.unsplash.com/photo-1518998053901-5348d3961a04"),
-			LocationName: "High Museum of Art, Midtown",
-		},
-		{
-			ItemID:       "item_past_2",
-			EventID:      "evt_2",
-			UserID:       userID,
-			Title:        "Ponce City Market Food Tour",
-			Date:         now.AddDate(0, 0, -5),
-			PhotoURL:     ptrString("https://images.unsplash.com/photo-1555396273-367ea4eb4db5"),
-			LocationName: "Ponce City Market",
-		},
+	var events []*models.PastEvent
+	seenItemIDs := make(map[string]bool)
+
+	// 2. Query user's past itineraries from DB (and memory fallback)
+	now := time.Now().UTC()
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("itineraries")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			filter := bson.M{
+				"$or": []bson.M{
+					{"hostUserId": userID},
+					{"members.userId": userID},
+				},
+			}
+			cur, err := col.Find(ctx, filter)
+			if err == nil {
+				var itins []*models.Itinerary
+				_ = cur.All(ctx, &itins)
+				for _, it := range itins {
+					for _, item := range it.Items {
+						if !seenItemIDs[item.ID] && (item.ArriveTime.Before(now) || it.Status == "completed") {
+							seenItemIDs[item.ID] = true
+							events = append(events, &models.PastEvent{
+								ItemID:       item.ID,
+								EventID:      item.ID,
+								UserID:       userID,
+								Title:        item.Title,
+								Date:         item.ArriveTime,
+								LocationName: item.LocationName,
+							})
+						}
+					}
+				}
+			}
+		}
 	}
 
+	// Also check in-memory itineraries for any past items
+	s.mu.RLock()
+	for _, it := range s.itineraries {
+		isUserInItin := it.HostUserID == userID
+		if !isUserInItin {
+			for _, m := range it.Members {
+				if m.UserID == userID {
+					isUserInItin = true
+					break
+				}
+			}
+		}
+		if isUserInItin {
+			for _, item := range it.Items {
+				if !seenItemIDs[item.ID] && (item.ArriveTime.Before(now) || it.Status == "completed") {
+					seenItemIDs[item.ID] = true
+					events = append(events, &models.PastEvent{
+						ItemID:       item.ID,
+						EventID:      item.ID,
+						UserID:       userID,
+						Title:        item.Title,
+						Date:         item.ArriveTime,
+						LocationName: item.LocationName,
+					})
+				}
+			}
+		}
+	}
+	s.mu.RUnlock()
+
+	// 3. If no itinerary events exist yet, retrieve past events from the database activities catalog
+	if len(events) == 0 && datastore.IsConnected() {
+		col := datastore.GetCollection("activities")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			opts := options.Find().SetLimit(10).SetSort(bson.D{{Key: "_id", Value: -1}})
+			cur, err := col.Find(ctx, bson.M{}, opts)
+			if err == nil {
+				var acts []models.Activity
+				_ = cur.All(ctx, &acts)
+				for _, act := range acts {
+					loc := act.Name
+					if act.VenueName != nil && *act.VenueName != "" {
+						loc = fmt.Sprintf("%s, %s", act.Name, *act.VenueName)
+					}
+					eventDate := act.CreatedAt
+					if act.Start != nil {
+						eventDate = *act.Start
+					}
+					events = append(events, &models.PastEvent{
+						ItemID:       act.ID.Hex(),
+						EventID:      act.ID.Hex(),
+						UserID:       userID,
+						Title:        act.Name,
+						Date:         eventDate,
+						PhotoURL:     act.ImageURL,
+						LocationName: loc,
+					})
+				}
+			}
+		}
+	}
+
+	// 4. Attach ratings and filter unrated if requested
 	var results []*models.PastEvent
 	for _, pe := range events {
-		if r, ok := s.ratings[pe.ItemID]; ok {
+		if r, ok := userRatings[pe.ItemID]; ok {
 			pe.Rated = true
 			pe.Rating = r
 		}
@@ -866,11 +1263,35 @@ func (s *Store) ListPastEvents(userID string, unratedOnly bool) []*models.PastEv
 
 func (s *Store) CreateCheckoutIntent(ci *models.CheckoutIntent) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.checkouts[ci.ID] = ci
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("checkout_intents")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": ci.ID}, ci, options.Replace().SetUpsert(true))
+		}
+	}
 }
 
 func (s *Store) GetCheckoutIntent(id string) (*models.CheckoutIntent, error) {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("checkout_intents")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			var ci models.CheckoutIntent
+			if err := col.FindOne(ctx, bson.M{"_id": id}).Decode(&ci); err == nil {
+				s.mu.Lock()
+				s.checkouts[ci.ID] = &ci
+				s.mu.Unlock()
+				return &ci, nil
+			}
+		}
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if ci, ok := s.checkouts[id]; ok {
@@ -880,15 +1301,62 @@ func (s *Store) GetCheckoutIntent(id string) (*models.CheckoutIntent, error) {
 }
 
 func (s *Store) UpdateCheckoutIntent(ci *models.CheckoutIntent) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	ci.UpdatedAt = time.Now().UTC()
+	s.mu.Lock()
 	s.checkouts[ci.ID] = ci
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("checkout_intents")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": ci.ID}, ci, options.Replace().SetUpsert(true))
+		}
+	}
 }
 
 // ---------------- FORUM & JOIN REQUESTS ----------------
 
 func (s *Store) ListForumPosts(cursor string, limit int, tags []string, openOnly bool) ([]*models.ForumPost, string, bool) {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("forum_posts")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+
+			filter := bson.M{}
+			if openOnly {
+				filter["openOnly"] = true
+			}
+			if len(tags) > 0 {
+				filter["tags"] = bson.M{"$in": tags}
+			}
+			if cursor != "" {
+				if decoded, err := util.DecodeCursor(cursor); err == nil {
+					filter["_id"] = bson.M{"$gt": decoded}
+				}
+			}
+			opts := options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}).SetLimit(int64(limit + 1))
+			cur, err := col.Find(ctx, filter, opts)
+			if err == nil {
+				var posts []*models.ForumPost
+				if err := cur.All(ctx, &posts); err == nil && len(posts) > 0 {
+					hasMore := false
+					if len(posts) > limit {
+						hasMore = true
+						posts = posts[:limit]
+					}
+					var nextCursor string
+					if hasMore && len(posts) > 0 {
+						nextCursor = util.EncodeCursor(posts[len(posts)-1].ID)
+					}
+					return posts, nextCursor, hasMore
+				}
+			}
+		}
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -934,38 +1402,107 @@ func (s *Store) ListForumPosts(cursor string, limit int, tags []string, openOnly
 
 func (s *Store) CreateForumPost(p *models.ForumPost) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.posts[p.ID] = p
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("forum_posts")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": p.ID}, p, options.Replace().SetUpsert(true))
+		}
+	}
 }
 
 func (s *Store) DeleteForumPost(id string) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	delete(s.posts, id)
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("forum_posts")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.DeleteOne(ctx, bson.M{"_id": id})
+		}
+	}
 	return nil
 }
 
 func (s *Store) CreateJoinRequest(jr *models.JoinRequest) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.joinReqs[jr.ID] = jr
 	if p, ok := s.posts[jr.PostID]; ok {
 		p.JoinRequestsCount++
+	}
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("join_requests")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": jr.ID}, jr, options.Replace().SetUpsert(true))
+		}
+		if jr.PostID != "" {
+			pCol := datastore.GetCollection("forum_posts")
+			if pCol != nil {
+				ctx, cancel := datastore.GetCtx()
+				defer cancel()
+				_, _ = pCol.UpdateOne(ctx, bson.M{"_id": jr.PostID}, bson.M{"$inc": bson.M{"joinRequestsCount": 1}})
+			}
+		}
 	}
 }
 
 func (s *Store) DeleteJoinRequest(id string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	var postID string
 	if jr, ok := s.joinReqs[id]; ok {
+		postID = jr.PostID
 		if p, pok := s.posts[jr.PostID]; pok && p.JoinRequestsCount > 0 {
 			p.JoinRequestsCount--
 		}
 		delete(s.joinReqs, id)
 	}
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("join_requests")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.DeleteOne(ctx, bson.M{"_id": id})
+		}
+		if postID != "" {
+			pCol := datastore.GetCollection("forum_posts")
+			if pCol != nil {
+				ctx, cancel := datastore.GetCtx()
+				defer cancel()
+				_, _ = pCol.UpdateOne(ctx, bson.M{"_id": postID}, bson.M{"$inc": bson.M{"joinRequestsCount": -1}})
+			}
+		}
+	}
 }
 
 func (s *Store) ListJoinRequestsForItinerary(itinID string) []*models.JoinRequest {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("join_requests")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			cur, err := col.Find(ctx, bson.M{"itineraryId": itinID})
+			if err == nil {
+				var list []*models.JoinRequest
+				if err := cur.All(ctx, &list); err == nil && len(list) > 0 {
+					return list
+				}
+			}
+		}
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	var list []*models.JoinRequest
@@ -978,6 +1515,18 @@ func (s *Store) ListJoinRequestsForItinerary(itinID string) []*models.JoinReques
 }
 
 func (s *Store) GetJoinRequest(id string) (*models.JoinRequest, error) {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("join_requests")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			var jr models.JoinRequest
+			if err := col.FindOne(ctx, bson.M{"_id": id}).Decode(&jr); err == nil {
+				return &jr, nil
+			}
+		}
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if jr, ok := s.joinReqs[id]; ok {
@@ -989,6 +1538,21 @@ func (s *Store) GetJoinRequest(id string) (*models.JoinRequest, error) {
 // ---------------- THREADS & MESSAGES ----------------
 
 func (s *Store) ListThreads(userID string) []*models.Thread {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("threads")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			cur, err := col.Find(ctx, bson.M{"participantIds": userID}, options.Find().SetSort(bson.D{{Key: "updatedAt", Value: -1}}))
+			if err == nil {
+				var list []*models.Thread
+				if err := cur.All(ctx, &list); err == nil && len(list) > 0 {
+					return list
+				}
+			}
+		}
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	var list []*models.Thread
@@ -1004,6 +1568,18 @@ func (s *Store) ListThreads(userID string) []*models.Thread {
 }
 
 func (s *Store) GetThread(id string) (*models.Thread, error) {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("threads")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			var t models.Thread
+			if err := col.FindOne(ctx, bson.M{"_id": id}).Decode(&t); err == nil {
+				return &t, nil
+			}
+		}
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if t, ok := s.threads[id]; ok {
@@ -1014,11 +1590,36 @@ func (s *Store) GetThread(id string) (*models.Thread, error) {
 
 func (s *Store) CreateThread(t *models.Thread) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.threads[t.ID] = t
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("threads")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": t.ID}, t, options.Replace().SetUpsert(true))
+		}
+	}
 }
 
 func (s *Store) ListMessages(threadID string, before string, limit int) []*models.Message {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("messages")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			opts := options.Find().SetSort(bson.D{{Key: "createdAt", Value: 1}}).SetLimit(int64(limit))
+			cur, err := col.Find(ctx, bson.M{"threadId": threadID}, opts)
+			if err == nil {
+				var msgs []*models.Message
+				if err := cur.All(ctx, &msgs); err == nil && len(msgs) > 0 {
+					return msgs
+				}
+			}
+		}
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	msgs := s.messages[threadID]
@@ -1033,17 +1634,47 @@ func (s *Store) ListMessages(threadID string, before string, limit int) []*model
 
 func (s *Store) AddMessage(m *models.Message) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.messages[m.ThreadID] = append(s.messages[m.ThreadID], m)
 	if t, ok := s.threads[m.ThreadID]; ok {
 		t.LastMessage = m
 		t.UpdatedAt = m.CreatedAt
+	}
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("messages")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": m.ID}, m, options.Replace().SetUpsert(true))
+		}
+		tCol := datastore.GetCollection("threads")
+		if tCol != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = tCol.UpdateOne(ctx, bson.M{"_id": m.ThreadID}, bson.M{"$set": bson.M{"lastMessage": m, "updatedAt": m.CreatedAt}})
+		}
 	}
 }
 
 // ---------------- GROUP ALBUM ----------------
 
 func (s *Store) ListGroupPhotos(groupID string) []*models.GroupPhoto {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("group_photos")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			cur, err := col.Find(ctx, bson.M{"groupId": groupID}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+			if err == nil {
+				var photos []*models.GroupPhoto
+				if err := cur.All(ctx, &photos); err == nil && len(photos) > 0 {
+					return photos
+				}
+			}
+		}
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.photos[groupID]
@@ -1051,13 +1682,21 @@ func (s *Store) ListGroupPhotos(groupID string) []*models.GroupPhoto {
 
 func (s *Store) AddGroupPhoto(p *models.GroupPhoto) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.photos[p.GroupID] = append(s.photos[p.GroupID], p)
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("group_photos")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": p.ID}, p, options.Replace().SetUpsert(true))
+		}
+	}
 }
 
 func (s *Store) DeleteGroupPhoto(groupID, photoID string) bool {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	list := s.photos[groupID]
 	var updated []*models.GroupPhoto
 	found := false
@@ -1069,12 +1708,40 @@ func (s *Store) DeleteGroupPhoto(groupID, photoID string) bool {
 		updated = append(updated, p)
 	}
 	s.photos[groupID] = updated
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("group_photos")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			res, err := col.DeleteOne(ctx, bson.M{"_id": photoID})
+			if err == nil && res.DeletedCount > 0 {
+				found = true
+			}
+		}
+	}
 	return found
 }
 
 // ---------------- EXPENSES & SPLITS ----------------
 
 func (s *Store) ListExpenses(groupID string) []*models.Expense {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("expenses")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			cur, err := col.Find(ctx, bson.M{"groupId": groupID}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+			if err == nil {
+				var list []*models.Expense
+				if err := cur.All(ctx, &list); err == nil && len(list) > 0 {
+					return list
+				}
+			}
+		}
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.expenses[groupID]
@@ -1082,13 +1749,21 @@ func (s *Store) ListExpenses(groupID string) []*models.Expense {
 
 func (s *Store) AddExpense(e *models.Expense) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.expenses[e.GroupID] = append(s.expenses[e.GroupID], e)
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("expenses")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": e.ID}, e, options.Replace().SetUpsert(true))
+		}
+	}
 }
 
 func (s *Store) DeleteExpense(groupID, expenseID string) bool {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	list := s.expenses[groupID]
 	var updated []*models.Expense
 	found := false
@@ -1100,14 +1775,25 @@ func (s *Store) DeleteExpense(groupID, expenseID string) bool {
 		updated = append(updated, ex)
 	}
 	s.expenses[groupID] = updated
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("expenses")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			res, err := col.DeleteOne(ctx, bson.M{"_id": expenseID})
+			if err == nil && res.DeletedCount > 0 {
+				found = true
+			}
+		}
+	}
 	return found
 }
 
 func (s *Store) CalculateBalances(groupID string) []models.NetBalance {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	expenses := s.ListExpenses(groupID)
 
-	expenses := s.expenses[groupID]
 	net := make(map[string]int64)
 	names := make(map[string]string)
 
@@ -1188,9 +1874,6 @@ func (s *Store) CalculateBalances(groupID string) []models.NetBalance {
 // ---------------- FRIENDS & INVITES ----------------
 
 func (s *Store) ListFriends(userID string) []*models.UserSummary {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	u, err := s.GetUserByID(userID)
 	if err != nil || len(u.FriendIDs) == 0 {
 		return []*models.UserSummary{}
@@ -1198,7 +1881,7 @@ func (s *Store) ListFriends(userID string) []*models.UserSummary {
 
 	var list []*models.UserSummary
 	for _, fid := range u.FriendIDs {
-		if fu, ok := s.users[fid.Hex()]; ok {
+		if fu, err := s.GetUserByID(fid.Hex()); err == nil {
 			list = append(list, &models.UserSummary{
 				ID:          fu.ID.Hex(),
 				Name:        fu.Name,
@@ -1262,9 +1945,6 @@ func (s *Store) RemoveFriend(userAID, userBID string) {
 }
 
 func (s *Store) CreateFriendRequest(fromID, toID string) (*models.FriendRequest, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	req := &models.FriendRequest{
 		ID:         util.GenerateID(),
 		FromUserID: fromID,
@@ -1272,18 +1952,73 @@ func (s *Store) CreateFriendRequest(fromID, toID string) (*models.FriendRequest,
 		Status:     "pending",
 		CreatedAt:  time.Now().UTC(),
 	}
+
+	s.mu.Lock()
 	s.requests[req.ID] = req
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("friend_requests")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": req.ID}, req, options.Replace().SetUpsert(true))
+		}
+	}
 	return req, nil
 }
 
 func (s *Store) ListFriendRequests(userID string) []*models.FriendRequest {
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("friend_requests")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			filter := bson.M{
+				"$or": []bson.M{
+					{"toUserId": userID},
+					{"fromUserId": userID},
+				},
+				"status": "pending",
+			}
+			cur, err := col.Find(ctx, filter)
+			if err == nil {
+				var list []*models.FriendRequest
+				if err := cur.All(ctx, &list); err == nil && len(list) > 0 {
+					for _, r := range list {
+						if fromU, err := s.GetUserByID(r.FromUserID); err == nil {
+							r.FromUser = &models.UserSummary{
+								ID:          fromU.ID.Hex(),
+								Name:        fromU.Name,
+								Username:    fromU.Username,
+								PhotoURL:    fromU.PhotoURL,
+								Status:      fromU.Status,
+								AvatarColor: fromU.AvatarColor,
+							}
+						}
+						if toU, err := s.GetUserByID(r.ToUserID); err == nil {
+							r.ToUser = &models.UserSummary{
+								ID:          toU.ID.Hex(),
+								Name:        toU.Name,
+								Username:    toU.Username,
+								PhotoURL:    toU.PhotoURL,
+								Status:      toU.Status,
+								AvatarColor: toU.AvatarColor,
+							}
+						}
+					}
+					return list
+				}
+			}
+		}
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
 	var list []*models.FriendRequest
 	for _, r := range s.requests {
 		if (r.ToUserID == userID || r.FromUserID == userID) && r.Status == "pending" {
-			if fromU, ok := s.users[r.FromUserID]; ok {
+			if fromU, err := s.GetUserByID(r.FromUserID); err == nil {
 				r.FromUser = &models.UserSummary{
 					ID:          fromU.ID.Hex(),
 					Name:        fromU.Name,
@@ -1293,7 +2028,7 @@ func (s *Store) ListFriendRequests(userID string) []*models.FriendRequest {
 					AvatarColor: fromU.AvatarColor,
 				}
 			}
-			if toU, ok := s.users[r.ToUserID]; ok {
+			if toU, err := s.GetUserByID(r.ToUserID); err == nil {
 				r.ToUser = &models.UserSummary{
 					ID:          toU.ID.Hex(),
 					Name:        toU.Name,
@@ -1311,13 +2046,31 @@ func (s *Store) ListFriendRequests(userID string) []*models.FriendRequest {
 
 func (s *Store) UpdateFriendRequestStatus(id string, status string) (*models.FriendRequest, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	r, ok := s.requests[id]
-	if !ok {
+	if ok {
+		r.Status = status
+	}
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("friend_requests")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			var dbR models.FriendRequest
+			if err := col.FindOne(ctx, bson.M{"_id": id}).Decode(&dbR); err == nil {
+				dbR.Status = status
+				_, _ = col.ReplaceOne(ctx, bson.M{"_id": id}, &dbR)
+				r = &dbR
+				ok = true
+			}
+		}
+	}
+
+	if !ok || r == nil {
 		return nil, errors.New("request not found")
 	}
-	r.Status = status
+
 	if status == "accepted" {
 		go s.AddFriend(r.FromUserID, r.ToUserID)
 	}
@@ -1325,9 +2078,6 @@ func (s *Store) UpdateFriendRequestStatus(id string, status string) (*models.Fri
 }
 
 func (s *Store) CreateInvite(creatorID string) *models.InviteLink {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	code := util.GenerateID()[:8]
 	invite := &models.InviteLink{
 		ID:            util.GenerateID(),
@@ -1337,82 +2087,131 @@ func (s *Store) CreateInvite(creatorID string) *models.InviteLink {
 		CreatedAt:     time.Now().UTC(),
 		ExpiresAt:     time.Now().Add(7 * 24 * time.Hour),
 	}
+
+	s.mu.Lock()
 	s.invites[code] = invite
+	s.mu.Unlock()
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("invites")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			defer cancel()
+			_, _ = col.ReplaceOne(ctx, bson.M{"_id": invite.ID}, invite, options.Replace().SetUpsert(true))
+		}
+	}
 	return invite
 }
 
-// ---------------- SEED CATALOG (MATCHING EXACT EVENT SCHEMA) ----------------
+// ---------------- SEED CATALOG (MATCHING EXACT FREETIME ACTIVITY SCHEMA) ----------------
 
 func (s *Store) seedDefaultCatalog() {
-	s.places = []models.Place{
-		{
-			ID:             "place_1",
-			Name:           "Piedmont Park",
-			Address:        "1320 Monroe Dr NE, Atlanta, GA 30306",
-			Lat:            33.7879,
-			Lng:            -84.3733,
-			Category:       "park",
-			SuggestionChip: "Great for walks & picnics",
-			Tags:           []string{"nature", "outdoors", "chill", "free"},
-		},
-		{
-			ID:             "place_2",
-			Name:           "Ponce City Market",
-			Address:        "675 Ponce De Leon Ave NE, Atlanta, GA 30308",
-			Lat:            33.7724,
-			Lng:            -84.3656,
-			Category:       "food_hall",
-			SuggestionChip: "Rooftop games & top food hall",
-			Tags:           []string{"foodie", "shopping", "views", "drinks"},
-		},
-		{
-			ID:             "place_3",
-			Name:           "High Museum of Art",
-			Address:        "1280 Peachtree St NE, Atlanta, GA 30309",
-			Lat:            33.7904,
-			Lng:            -84.3853,
-			Category:       "museum",
-			SuggestionChip: "Midtown cultural gem",
-			Tags:           []string{"arts", "culture", "indoor"},
-		},
-		{
-			ID:             "place_4",
-			Name:           "Atlanta BeltLine Eastside Trail",
-			Address:        "10th St NE & Monroe Dr NE, Atlanta, GA 30306",
-			Lat:            33.7820,
-			Lng:            -84.3680,
-			Category:       "trail",
-			SuggestionChip: "Biking, murals, and food spots",
-			Tags:           []string{"outdoors", "murals", "fitness", "chill"},
-		},
-	}
-
 	now := time.Now().UTC()
 	start1 := now.Add(24 * time.Hour)
 	start2 := now.Add(48 * time.Hour)
 	expires1 := start1.Add(8 * time.Hour)
 	expires2 := start2.Add(8 * time.Hour)
 
-	// Seed exact events from schema
+	idTrail, _ := bson.ObjectIDFromHex("6ab744a2926eaaa573c258af")
+	idPark, _ := bson.ObjectIDFromHex("6ab7466f3d255134cf271a75")
 	id1, _ := bson.ObjectIDFromHex("6ab72395aa01f0e712679d9b")
 	id2, _ := bson.ObjectIDFromHex("6ab72395aa01f0e712679d9c")
 
-	s.events = []models.Event{
+	s.activities = []models.Activity{
 		{
-			ID:             id1,
-			Kind:           "event",
+			ID:             idTrail,
+			Kind:           "place",
 			City:           "atlanta",
-			Name:           "camoufly (18+ Event)",
+			Name:           "Homestead Trail",
 			Summary:        nil,
-			Description:    nil,
-			Category:       "other",
-			SourceCategory: nil,
-			Tags:           []string{"music", "nightlife", "electronic"},
+			Description:    ptrString("Loop trail, 4.6 km. About 119 m of climbing."),
+			Category:       "hike",
+			SourceCategory: ptrString("osm route relation"),
+			Tags:           []string{"outdoors", "hiking", "loop"},
 			Location: models.GeoJSONPoint{
 				Type:        "Point",
-				Coordinates: []float64{-84.375397, 33.744301}, // lng FIRST
+				Coordinates: []float64{-84.7055856, 34.1572623},
 			},
-			Address: models.EventAddress{
+			VenueName: ptrString("Red Top Mountain State Park"),
+			Timezone:  "America/New_York",
+			WeeklyHours: []models.WeeklyHourRange{
+				{Open: 360, Close: 1080},
+				{Open: 1800, Close: 2520},
+				{Open: 3240, Close: 3960},
+				{Open: 4680, Close: 5400},
+				{Open: 6120, Close: 6840},
+				{Open: 7560, Close: 8280},
+				{Open: 9000, Close: 9720},
+			},
+			HoursSource: ptrString("default"),
+			Duration: &models.ActivityDuration{
+				MedianMin: 58.7,
+				Sigma:     0.25,
+				P75Min:    69.5,
+				Source:    "trail_model",
+			},
+			Trail: &models.TrailInfo{
+				LengthKm: 4.56,
+				AscentM:  119,
+				DescentM: 122,
+				Loop:     true,
+				Geometry: models.GeoJSONLineString{
+					Type: "LineString",
+					Coordinates: [][]float64{
+						{-84.70559, 34.15726},
+						{-84.70574, 34.15755},
+						{-84.7063, 34.15761},
+					},
+				},
+			},
+			URL:        ptrString("https://www.openstreetmap.org/relation/15949504"),
+			SourceKeys: []string{"osm:relation/15949504"},
+			Sources: []models.ActivitySource{
+				{
+					Name:      "osm_trails",
+					ID:        "relation/15949504",
+					URL:       "https://www.openstreetmap.org/relation/15949504",
+					FetchedAt: now,
+				},
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		{
+			ID:          idPark,
+			Kind:        "place",
+			City:        "atlanta",
+			Name:        "Piedmont Park",
+			Description: ptrString("Great for walks & picnics"),
+			Category:    "park",
+			Tags:        []string{"nature", "outdoors", "chill", "free"},
+			Location: models.GeoJSONPoint{
+				Type:        "Point",
+				Coordinates: []float64{-84.3733, 33.7879},
+			},
+			Address: &models.ActivityAddress{
+				Formatted:   ptrString("1320 Monroe Dr NE, Atlanta, GA 30306"),
+				Street:      ptrString("1320 Monroe Dr NE"),
+				Locality:    ptrString("Atlanta"),
+				Region:      ptrString("GA"),
+				PostalCode:  ptrString("30306"),
+				CountryCode: ptrString("US"),
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		{
+			ID:       id1,
+			Kind:     "event",
+			City:     "atlanta",
+			Name:     "camoufly (18+ Event)",
+			Category: "other",
+			Tags:     []string{"music", "nightlife", "electronic"},
+			Location: models.GeoJSONPoint{
+				Type:        "Point",
+				Coordinates: []float64{-84.375397, 33.744301},
+			},
+			Address: &models.ActivityAddress{
 				Street:      ptrString("181 Ralph David Abernathy Blvd"),
 				Locality:    ptrString("Atlanta"),
 				Region:      ptrString("GA"),
@@ -1420,55 +2219,40 @@ func (s *Store) seedDefaultCatalog() {
 				CountryCode: ptrString("US"),
 			},
 			VenueName:  ptrString("Wish Lounge at Believe Music Hall"),
-			Start:      start1,
-			End:        nil,
-			Attendance: "fixed_start",
+			Start:      &start1,
+			Attendance: ptrString("fixed_start"),
 			Timezone:   "America/New_York",
-			Duration: &models.EventDuration{
+			Duration: &models.ActivityDuration{
 				MedianMin: 60.0,
 				Sigma:     0.5,
 				P75Min:    84.0,
 				Source:    "category_prior",
 			},
-			Price: &models.EventPrice{
+			Price: &models.ActivityPrice{
 				Tier:     2,
 				Cents:    2500,
 				Currency: "USD",
 				IsFree:   false,
 			},
-			URL:       "https://www.ticketmaster.com/event/Z7r9jZ1A7JoPd",
-			TicketURL: "https://www.ticketmaster.com/event/Z7r9jZ1A7JoPd",
-			ImageURL:  "https://s1.ticketm.net/dam/c/f51/ee785ed6-f806-4195-98f4-69f67e09df51_106201_TABLET_LANDSCAPE_LARGE_16_9.jpg",
-			SourceKeys: []string{
-				"ticketmaster:Z7r9jZ1A7JoPd",
-			},
-			Sources: []models.EventSource{
-				{
-					Name:      "ticketmaster",
-					ID:        "Z7r9jZ1A7JoPd",
-					URL:       "https://www.ticketmaster.com/event/Z7r9jZ1A7JoPd",
-					FetchedAt: now,
-				},
-			},
+			URL:       ptrString("https://www.ticketmaster.com/event/Z7r9jZ1A7JoPd"),
+			TicketURL: ptrString("https://www.ticketmaster.com/event/Z7r9jZ1A7JoPd"),
+			ImageURL:  ptrString("https://s1.ticketm.net/dam/c/f51/ee785ed6-f806-4195-98f4-69f67e09df51_106201_TABLET_LANDSCAPE_LARGE_16_9.jpg"),
 			ExpiresAt: &expires1,
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
 		{
-			ID:             id2,
-			Kind:           "event",
-			City:           "atlanta",
-			Name:           "Collect-A-Con",
-			Summary:        nil,
-			Description:    nil,
-			Category:       "other",
-			SourceCategory: nil,
-			Tags:           []string{"expo", "collectibles", "pop_culture"},
+			ID:       id2,
+			Kind:     "event",
+			City:     "atlanta",
+			Name:     "Collect-A-Con",
+			Category: "other",
+			Tags:     []string{"expo", "collectibles", "pop_culture"},
 			Location: models.GeoJSONPoint{
 				Type:        "Point",
-				Coordinates: []float64{-84.398201, 33.758301}, // lng FIRST
+				Coordinates: []float64{-84.398201, 33.758301},
 			},
-			Address: models.EventAddress{
+			Address: &models.ActivityAddress{
 				Street:      ptrString("Georgia World Congress Center"),
 				Locality:    ptrString("Atlanta"),
 				Region:      ptrString("GA"),
@@ -1476,39 +2260,63 @@ func (s *Store) seedDefaultCatalog() {
 				CountryCode: ptrString("US"),
 			},
 			VenueName:  ptrString("Georgia World Congress Center"),
-			Start:      start2,
-			End:        nil,
-			Attendance: "fixed_start",
+			Start:      &start2,
+			Attendance: ptrString("fixed_start"),
 			Timezone:   "America/New_York",
-			Duration: &models.EventDuration{
+			Duration: &models.ActivityDuration{
 				MedianMin: 180.0,
 				Sigma:     0.5,
 				P75Min:    240.0,
 				Source:    "category_prior",
 			},
-			Price: &models.EventPrice{
+			Price: &models.ActivityPrice{
 				Tier:     2,
 				Cents:    3000,
 				Currency: "USD",
 				IsFree:   false,
 			},
-			URL:       "https://collect-a-con.com/atlanta",
-			TicketURL: "https://collect-a-con.com/atlanta",
-			ImageURL:  "https://images.unsplash.com/photo-1563089145-599997674d42?w=800",
-			SourceKeys: []string{
-				"collectacon:atlanta",
-			},
-			Sources: []models.EventSource{
-				{
-					Name:      "collectacon",
-					ID:        "atlanta",
-					URL:       "https://collect-a-con.com/atlanta",
-					FetchedAt: now,
-				},
-			},
+			URL:       ptrString("https://collect-a-con.com/atlanta"),
+			TicketURL: ptrString("https://collect-a-con.com/atlanta"),
+			ImageURL:  ptrString("https://images.unsplash.com/photo-1563089145-599997674d42?w=800"),
 			ExpiresAt: &expires2,
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
+	}
+
+	// Sync places and events slices for compatibility
+	s.places = nil
+	s.events = nil
+	for _, a := range s.activities {
+		if a.Kind == "event" {
+			s.events = append(s.events, a)
+		} else {
+			addr := ""
+			if a.Address != nil && a.Address.Formatted != nil {
+				addr = *a.Address.Formatted
+			} else if a.Address != nil && a.Address.Street != nil {
+				addr = *a.Address.Street
+			}
+			chip := ""
+			if a.Description != nil {
+				chip = *a.Description
+			}
+			lat := 0.0
+			lng := 0.0
+			if len(a.Location.Coordinates) >= 2 {
+				lng = a.Location.Coordinates[0]
+				lat = a.Location.Coordinates[1]
+			}
+			s.places = append(s.places, models.Place{
+				ID:             a.ID.Hex(),
+				Name:           a.Name,
+				Address:        addr,
+				Lat:            lat,
+				Lng:            lng,
+				Category:       a.Category,
+				SuggestionChip: chip,
+				Tags:           a.Tags,
+			})
+		}
 	}
 }

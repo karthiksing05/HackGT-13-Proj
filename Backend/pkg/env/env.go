@@ -8,7 +8,7 @@ func GetDB() string {
 	if db := os.Getenv("MONGO_DB"); db != "" {
 		return db
 	}
-	return "hackgt"
+	return "freetime"
 }
 
 func GetMongoURI() string {

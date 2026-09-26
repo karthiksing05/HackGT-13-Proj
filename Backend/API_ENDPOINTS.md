@@ -40,11 +40,14 @@ Rule of thumb: the server owns anything that must be correct for everyone — eq
 - GET /calendar/export.ics — authenticated direct `.ics` download of active sidequests, stops, and schedules
 - GET /calendar/days?from=&to= — merged view per day: busy blocks (free/busy only), sidequests, group events, plus the user's `calendar_link` subscription object
 
-## Places + events catalog
+## Activities, Places & Events Catalog (Freetime Database)
+- GET /activities?kind=&near=&radius=&from=&to=&tags=&price=&age_ok= — full activities catalog (places & events from `freetime.activities`)
+- GET /activities/search?q=&near=&kind= — search activities, places, and trails
+- GET /activities/{id} — activity details (including RFC 5545 times, trail geometry, weekly hours, duration model)
 - GET /places/search?q=&near= — search for start/end pins and suggestion chips
-- GET /places/reverse?lat=&lng= — label for a dropped pin
-- GET /events?near=&radius=&from=&to=&tags=&price=&age_ok= — scraped event catalog
-- GET /events/{id} — details, website URL, ticket availability
+- GET /places/reverse?lat=&lng= — 2dsphere reverse geocoding to nearest place / dropped pin
+- GET /events?near=&radius=&from=&to=&tags=&price=&age_ok= — filtered events catalog
+- GET /events/{id} — event details, website URL, ticket availability
 
 ## Planning (Create flow)
 - POST /plans/generate — start + end location, date, start time, back-by time, range, ride choice (+ open seats), mood text, tags, budget, who's coming, pace, travel modes → first 3 options + cursor
