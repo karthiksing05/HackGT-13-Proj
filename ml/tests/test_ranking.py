@@ -1,4 +1,6 @@
+import asyncio
 import math
+import time
 import unittest
 from datetime import datetime, timedelta, timezone
 
@@ -338,6 +340,42 @@ class RerankTests(unittest.TestCase):
     def test_top_k_must_be_positive(self):
         with self.assertRaises(ValueError):
             EventRankingService(CosineCompatibilityModel(), filters=[], rerank_top_k=0)
+
+    def test_slow_jev_returns_model_order_within_the_timeout(self):
+        requests = []
+
+        async def slow_jev(request):
+            requests.append(request)
+            await asyncio.sleep(5)
+            return {"answers": {"event_c": {"type": "score", "score": 4.0}}}
+
+        service = EventRankingService(CosineCompatibilityModel(), filters=[], jev=slow_jev, rerank_timeout=0.05)
+        started = time.monotonic()
+        with self.assertLogs("api.helpers.ranking", level="WARNING"):
+            response = TestClient(create_app(service)).post(
+                "/v1/events/rank", json={"user": self.USER, "events": self.EVENTS}
+            )
+        self.assertLess(time.monotonic() - started, 2.0)
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertFalse(body["reranked"])
+        self.assertEqual(self.ids(body), ["a", "b", "c", "d"])
+        self.assertEqual(len(requests), 1)
+
+    def test_rerank_timeout_must_be_positive(self):
+        for timeout in (0, -1.0):
+            with self.subTest(timeout=timeout), self.assertRaises(ValueError):
+                EventRankingService(CosineCompatibilityModel(), filters=[], rerank_timeout=timeout)
+
+    def test_dropped_events_are_absent_not_appended(self):
+        # A hard filter (the backend's constraints, sent again) removes "pricey"; it must not
+        # come back at the end of the list.
+        service = EventRankingService(CosineCompatibilityModel(), filters=[MaxPriceFilter()], jev=recording_jev({"a": 1.0}))
+        events = [*self.EVENTS, event("pricey", [1.0, 0.0, 0.0], price=99.0, description="Interests:\n- opera")]
+        response = TestClient(create_app(service)).post(
+            "/v1/events/rank", json={"user": {**self.USER, "max_price": 20}, "events": events}
+        )
+        self.assertNotIn("pricey", self.ids(response.json()))
 
 
 class FilterTests(unittest.TestCase):

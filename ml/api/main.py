@@ -14,6 +14,7 @@ Ranking:
     TYPESAFE_API_KEY       enables the Jev rerank in /v1/events/rank (unset: model order only);
                            TYPESAFE_DEFAULT_MODEL / TYPESAFE_BASE_URL are read by the SDK
     RERANK_TOP_K           how many of the best model-ranked events Jev scores (default 20; 12 in ml.service)
+    RERANK_TIMEOUT_SECONDS how long the Jev rerank may take before the model order is returned (default 15)
 
 Embedding (`embedding.EmbeddingSettings.from_env`; see README "Embedding providers"):
     EMBED_PROVIDER         auto (default) | vertex | hf | local
@@ -41,7 +42,12 @@ from .checkpoints import DEFAULT_CHECKPOINT, resolve_checkpoint
 from .helpers.embedding import EmbeddingService
 from .helpers.health import HealthState
 from .helpers.profile import ProfileService
-from .helpers.ranking import DEFAULT_RERANK_TOP_K, DEFAULT_SEARCH_WEIGHT, EventRankingService
+from .helpers.ranking import (
+    DEFAULT_RERANK_TIMEOUT_SECONDS,
+    DEFAULT_RERANK_TOP_K,
+    DEFAULT_SEARCH_WEIGHT,
+    EventRankingService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +113,7 @@ _ranking = EventRankingService(
     search_weight=float(os.environ.get("SEARCH_WEIGHT", DEFAULT_SEARCH_WEIGHT)),
     jev=load_jev(),
     rerank_top_k=int(os.environ.get("RERANK_TOP_K", DEFAULT_RERANK_TOP_K)),
+    rerank_timeout=float(os.environ.get("RERANK_TIMEOUT_SECONDS", DEFAULT_RERANK_TIMEOUT_SECONDS)),
 )
 app = create_app(
     _ranking,
