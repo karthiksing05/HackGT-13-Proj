@@ -29,6 +29,16 @@ def user_to_context(user: User) -> UserContext:
     return UserContext(user_id=user.id, description=description)
 
 
+def user_dislikes_description(user: User) -> str | None:
+    """Text describing what the user wants to avoid, or None if there is no negative signal.
+
+    Kept separate from `user_to_context` so it can be embedded on its own.
+    """
+    if not user.dislikes:
+        return None
+    return _bullets("Dislikes", user.dislikes)
+
+
 def event_to_context(event: Event) -> EventContext:
     fields: list[tuple[str, str]] = [
         ("Name", event.name),

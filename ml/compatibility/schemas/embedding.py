@@ -61,3 +61,41 @@ class Embedding:
         if norm == 0:
             raise EmbeddingError("cannot normalize a zero vector")
         return cls(vector=vector / norm, model_version=model_version, normalized=True, **kwargs)
+
+
+@dataclass(frozen=True)
+class UserEmbedding:
+    """A user's positive-signal embedding plus an optional negative-signal one.
+
+    `positive` captures what the user is drawn to and `negative` what they want
+    to avoid; `negative` is None when there is no negative signal. Both must
+    come from the same embedding space so they can be compared to one event.
+    """
+
+    positive: Embedding
+    negative: Embedding | None = None
+
+    def __post_init__(self) -> None:
+        if self.negative is None:
+            return
+        if self.negative.dimension != self.positive.dimension:
+            raise IncompatibleEmbeddingsError(
+                f"negative dimension {self.negative.dimension} != positive dimension {self.positive.dimension}"
+            )
+        if self.negative.model_version != self.positive.model_version:
+            raise IncompatibleEmbeddingsError(
+                f"negative model_version {self.negative.model_version!r} != "
+                f"positive model_version {self.positive.model_version!r}"
+            )
+
+    @property
+    def model_version(self) -> str:
+        return self.positive.model_version
+
+    @property
+    def dimension(self) -> int:
+        return self.positive.dimension
+
+    @property
+    def source_id(self) -> str | None:
+        return self.positive.source_id

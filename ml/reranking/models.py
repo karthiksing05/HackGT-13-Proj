@@ -18,6 +18,7 @@ class User:
     id: str
     name: str
     interests: list[str] = field(default_factory=list)
+    dislikes: list[str] = field(default_factory=list)  # negative signal, e.g. "crowds", "EDM"
     preferred_environment: str | None = None  # e.g. "social", "quiet", "outdoor"
     budget: float | None = None  # max price the user usually wants to pay
 

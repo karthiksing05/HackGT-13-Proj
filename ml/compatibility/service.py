@@ -26,7 +26,11 @@ class CompatibilityService:
         return self.compatibility_model.score(self.user_encoder.encode(user), self.event_encoder.encode(event))
 
     def score_events(self, user: User, events: list[Event]) -> list[ScoringResult]:
-        """Score each event for `user`. Results are in the same order as `events`."""
+        """Score each event for `user`. Results are in the same order as `events`.
+
+        The user is encoded once (positive and negative signal together) and
+        compared against every event.
+        """
         if not events:
             return []
         user_embedding = self.user_encoder.encode(user)

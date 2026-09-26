@@ -7,7 +7,7 @@ separate towers, ...) can change without touching callers.
 
 from .encoders import Encoder, EventEncoder, TextEventEncoder, TextUserEncoder, UserEncoder
 from .models import CompatibilityModel, CosineCompatibilityModel
-from .schemas import Embedding, EmbeddingError, IncompatibleEmbeddingsError, ScoringResult
+from .schemas import Embedding, EmbeddingError, IncompatibleEmbeddingsError, ScoringResult, UserEmbedding
 from .service import CompatibilityService
 
 __all__ = [
@@ -22,5 +22,6 @@ __all__ = [
     "ScoringResult",
     "TextEventEncoder",
     "TextUserEncoder",
+    "UserEmbedding",
     "UserEncoder",
 ]
