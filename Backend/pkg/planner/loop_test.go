@@ -29,19 +29,23 @@ func hasIssue(issues []IssueLog, kind, facet string) bool {
 }
 
 func TestLoopExpandsForAnUncoveredFacet(t *testing.T) {
+	// Every food stop is hidden but one, which only an expansion query can
+	// find: the market hall (a market covers Food), open until 19:00 on
+	// Saturdays and a good match for Sandy (0.78 with the fake classifier;
+	// a food stop below the bar would be found but, rightly, never used).
 	food, _ := FacetByName("Food")
 	visible, covering := splitByFacet(saltlight(t), food)
-	var pho models.Activity
+	var hall models.Activity
 	for _, a := range covering {
-		if a.ID.Hex() == "ab71e6cf41394229d8b4febd" { // Pho Real Noodle House, open 10:30–21:30
-			pho = a
+		if a.ID.Hex() == "62248db0069b1dc732103903" { // Seaside Market Hall
+			hall = a
 		}
 	}
-	if pho.Name == "" {
-		t.Fatal("fixture changed: Pho Real Noodle House missing")
+	if hall.Name == "" {
+		t.Fatal("fixture changed: Seaside Market Hall missing")
 	}
 	tp := newTestPlanner(visible, testConfig())
-	tp.source.Hidden = []models.Activity{pho} // only an expansion query can find it
+	tp.source.Hidden = []models.Activity{hall}
 	o := defaultReq()
 	o.tags = []string{"Food"}
 	batch, spec := tp.generate(t, sandy(), o)
@@ -67,8 +71,8 @@ func TestLoopExpandsForAnUncoveredFacet(t *testing.T) {
 		t.Errorf("round 1 boosts %v", run.Rounds[1].Boosts)
 	}
 	for _, e := range run.Shortlist {
-		if e.ID == pho.ID.Hex() && (e.Source != "expand:uncovered_facet:Food" || e.Round != 1) {
-			t.Errorf("pho logged as %s round %d", e.Source, e.Round)
+		if e.ID == hall.ID.Hex() && (e.Source != "expand:uncovered_facet:Food" || e.Round != 1) {
+			t.Errorf("the market hall logged as %s round %d", e.Source, e.Round)
 		}
 	}
 	covered := false
@@ -82,13 +86,13 @@ func TestLoopExpandsForAnUncoveredFacet(t *testing.T) {
 	}
 	uses := false
 	for _, opt := range tp.allOptions(t, sandy(), batch) {
-		assertGuarantees(t, spec, opt, catalogByID(append(visible, pho)))
+		assertGuarantees(t, spec, opt, catalogByID(append(visible, hall)))
 		for _, s := range opt.Stops {
-			uses = uses || s.ActivityID == pho.ID.Hex()
+			uses = uses || s.ActivityID == hall.ID.Hex()
 		}
 	}
 	if !uses {
-		t.Error("no option uses the restaurant the expansion found")
+		t.Error("no option uses the food stop the expansion found")
 	}
 	for i := 1; i < len(run.Rounds); i++ {
 		if run.Rounds[i].Top3Sum < run.Rounds[i-1].Top3Sum {
@@ -114,7 +118,7 @@ func TestLoopStopRules(t *testing.T) {
 	t.Run("converged", func(t *testing.T) {
 		tp := newTestPlanner(saltlight(t), testConfig())
 		o := defaultReq()
-		o.tags, o.backBy = []string{"Food"}, localAt(22, 0)
+		o.tags, o.backBy = []string{"Outdoors"}, localAt(20, 0)
 		batch, _ := tp.generate(t, sandy(), o)
 		run := tp.run(t, batch.RunID)
 		if len(run.Rounds) != 1 || run.Rounds[0].Stop != "converged" || len(run.Rounds[0].Issues) != 0 {

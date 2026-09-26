@@ -54,6 +54,9 @@ func (f *FakeSource) FindCandidates(ctx context.Context, q CandidateQuery) ([]mo
 		if !MatchesQuery(&a, &q) {
 			continue
 		}
+		// Like the store's projection: vectors and texts come later, and
+		// only for the survivors (FetchEmbeddings, FetchTexts).
+		a.Embedding, a.EmbeddingText = nil, nil
 		if a.Kind == "event" {
 			events = append(events, a)
 		} else {
@@ -130,8 +133,8 @@ func (f *FakeSource) FetchEmbeddings(ctx context.Context, catalog string, ids []
 	return out, nil
 }
 
-// FetchTexts returns each activity's embedding text, else its name (the
-// fixtures carry no texts).
+// FetchTexts returns each activity's embedding text, else its name
+// (synthetic activities carry no text).
 func (f *FakeSource) FetchTexts(ctx context.Context, catalog string, ids []string) (map[string]string, error) {
 	if f.Err != nil {
 		return nil, f.Err
