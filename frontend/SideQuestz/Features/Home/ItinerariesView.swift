@@ -1,11 +1,11 @@
 import SwiftUI
 
 /// Home › Itineraries (GUI_PLAN.md §7.5a): the "past events to rate" card, the itinerary cards,
-/// and the swipeable timeline carousel.
+/// and the swipeable timeline carousel (blocks running late say so, from `transit.delay`).
 ///
 /// Motion: a skeleton while the first load runs, then cards and timeline blocks arrive one after
 /// another; switching itineraries slides the header title and the active page dot; a plan you just
-/// made pops its card; new or removed itineraries animate in and out.
+/// made (or picked in search) pops its card; new or removed itineraries animate in and out.
 struct HomeItinerariesView: View {
     @Bindable var store: HomeStore
     /// Full width of the Home screen (cards are this minus the 20pt side padding on each side).
@@ -13,10 +13,17 @@ struct HomeItinerariesView: View {
     let openBlock: (ItineraryItem, Itinerary) -> Void
     let retry: () -> Void
 
+    @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Cards and blocks arrive one after another only when they replace the skeleton.
     @State private var arrival = HomeArrivalWindow()
+    /// The sidequest being edited (Edit sidequest sheet).
+    @State private var editing: Itinerary?
+    /// Delete / leave waiting for confirmation.
+    @State private var confirming: HomeSidequestRemoval?
+    /// A delete or leave the server refused (the sidequest is back in the list).
+    @State private var removalError: HomeRemovalError?
     /// The page the header showed last, so a new title slides in from the side you swiped toward.
     @State private var headerIndex = 0
 
@@ -35,7 +42,7 @@ struct HomeItinerariesView: View {
                     .padding(.top, 12)
                     .homeTransition(.homeDrop)
             }
-            SectionHeader(title: "Active itineraries")
+            SectionHeader(title: "Active sidequests")
                 .padding(.horizontal, Metrics.side)
                 .padding(.top, 20)
                 .padding(.bottom, 10)
@@ -48,27 +55,86 @@ struct HomeItinerariesView: View {
             .sqRefreshing(store.awaitsNewItinerary && store.itineraries.value != nil)
         }
         .onAppear { arrival.begin(loading: store.itineraries.isLoading) }
-        .onChange(of: store.itineraries.phase) { _, phase in arrival.update(phase) }
+        .onChange(of: store.itineraries.phase) { _, phase in
+            arrival.update(phase)
+            openRequestedEditor()
+        }
+        .onChange(of: store.editRequest, initial: true) { openRequestedEditor() }
+        .sqSheet(item: $editing, style: SQSheetStyle(height: .fromTop(60))) { itinerary in
+            HomeEditSidequestSheet(itinerary: itinerary, close: { editing = nil }, saved: { updated in
+                store.apply(updated)
+                editing = nil
+                // The calendar and the "to rate" card may show these stops too.
+                Task { await store.refresh(env) }
+            }, delete: {
+                editing = nil
+                remove(.delete(itinerary))
+            })
+        }
+        .confirmationDialog(confirming?.title ?? "", isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }),
+                            titleVisibility: .visible, presenting: confirming) { removal in
+            Button(removal.actionLabel, role: .destructive) { remove(removal) }
+        } message: { removal in
+            Text(removal.message)
+        }
+        .alert(removalError?.title ?? "", isPresented: Binding(get: { removalError != nil }, set: { if !$0 { removalError = nil } }),
+               presenting: removalError) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { error in
+            Text(error.message)
+        }
+    }
+
+    // MARK: Edit / delete / leave
+
+    /// "•••" menu and the card's long-press menu: the host edits or deletes; someone who joined leaves.
+    @ViewBuilder
+    private func menuItems(_ itinerary: Itinerary) -> some View {
+        if itinerary.isHost {
+            Button { editing = itinerary } label: { Label("Edit sidequest", systemImage: "pencil") }
+            Button(role: .destructive) { confirming = .delete(itinerary) } label: { Label("Delete sidequest", systemImage: "trash") }
+        } else {
+            Button(role: .destructive) { confirming = .leave(itinerary) } label: {
+                Label("Leave sidequest", systemImage: "rectangle.portrait.and.arrow.right")
+            }
+        }
+    }
+
+    /// `home/edit/<id>` once the sidequests have loaded.
+    private func openRequestedEditor() {
+        guard let id = store.editRequest, let list = store.itineraries.value else { return }
+        store.editRequest = nil
+        editing = list.first { $0.id == id } ?? list.first
+    }
+
+    /// Takes the sidequest off Home right away; puts it back if the server says no.
+    private func remove(_ removal: HomeSidequestRemoval) {
+        confirming = nil
+        guard let removed = store.remove(removal.itinerary.id) else { return }
+        Task {
+            do {
+                switch removal {
+                case .delete(let itinerary): try await env.api.deleteItinerary(id: itinerary.id)
+                case .leave(let itinerary): try await env.api.leaveItinerary(id: itinerary.id)
+                }
+                await store.refresh(env)
+            } catch {
+                store.restore(removed.itinerary, at: removed.index)
+                removalError = HomeRemovalError(removal: removal, error: error)
+            }
+        }
     }
 
     @ViewBuilder
     private func content(_ list: [Itinerary]) -> some View {
         cardsRow(list)
         if list.isEmpty {
-            EmptyStateView(message: "No active itineraries yet. Plan one and its timeline shows up here.")
+            EmptyStateView(message: "No active sidequests yet. Plan one and its timeline shows up here.")
                 .transition(.opacity)
         } else {
             timelineHeader(list)
             carousel(list)
-            Text("Swipe to switch itineraries · tap a block to open it")
-                .sqFont(12, relativeTo: .caption)
-                .foregroundStyle(Theme.text3)
-                .homeLine(12)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, Metrics.side)
-                .padding(.top, 6)
-                .padding(.bottom, 24)
+            Color.clear.frame(height: 24)
         }
     }
 
@@ -129,6 +195,7 @@ struct HomeItinerariesView: View {
                                           highlight: store.cardHighlights[itinerary.id]) {
                             select(itinerary.id)
                         }
+                        .contextMenu { menuItems(itinerary) }
                         .homeArrival(index, enabled: arrives)
                         .sqTransition(.pop)
                         .id(itinerary.id)
@@ -205,6 +272,21 @@ struct HomeItinerariesView: View {
             Spacer(minLength: 0)
             HomePageDots(count: list.count, index: index)
                 .alignmentGuide(.firstTextBaseline) { $0[.bottom] }
+            Menu {
+                menuItems(itinerary)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Theme.sageInk)
+                    .frame(width: 30, height: 30)
+                    .background(.white, in: Circle())
+                    .contentShape(Circle().inset(by: -7))
+            }
+            // Centered on the title's letters, without making the row taller.
+            .padding(.vertical, -8)
+            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 6 }
+            .accessibilityLabel("Sidequest options")
+            .accessibilityIdentifier("sidequest.options")
         }
         .padding(.horizontal, Metrics.side)
         .padding(.top, 20)
@@ -218,7 +300,7 @@ struct HomeItinerariesView: View {
         return ScrollView(.horizontal) {
             HStack(alignment: .top, spacing: 12) {
                 ForEach(list) { itinerary in
-                    HomeTimelineCard(itinerary: itinerary, arrives: arrives) { openBlock($0, itinerary) }
+                    HomeTimelineCard(itinerary: itinerary, late: store.delays(in: itinerary.id), arrives: arrives) { openBlock($0, itinerary) }
                         .frame(width: max(0, pageWidth - 2 * Metrics.side))
                         .sqTransition(.pop)
                         .id(itinerary.id)
@@ -257,7 +339,7 @@ private struct HomePageDots: View {
                 .animation(reduceMotion ? Motion.reduced : Motion.arrive, value: index)
         }
         .accessibilityElement()
-        .accessibilityLabel("Itinerary \(index + 1) of \(count)")
+        .accessibilityLabel("Sidequest \(index + 1) of \(count)")
     }
 }
 
@@ -366,4 +448,58 @@ private struct HomeCardPopModifier: ViewModifier {
             }
         }
     }
+}
+
+/// Delete (host) or leave (joined) a sidequest, waiting for confirmation.
+enum HomeSidequestRemoval: Identifiable {
+    case delete(Itinerary)
+    case leave(Itinerary)
+
+    var id: String { itinerary.id }
+
+    var itinerary: Itinerary {
+        switch self {
+        case .delete(let itinerary), .leave(let itinerary): itinerary
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .delete: "Delete this sidequest?"
+        case .leave: "Leave this sidequest?"
+        }
+    }
+
+    var actionLabel: String {
+        switch self {
+        case .delete: "Delete sidequest"
+        case .leave: "Leave sidequest"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .delete(let itinerary):
+            itinerary.goingCount > 1 ? "Everyone who joined loses it too. This can't be undone." : "This can't be undone."
+        case .leave:
+            "You'll leave the plan and its group chat."
+        }
+    }
+}
+
+/// A delete or leave the server refused.
+struct HomeRemovalError: Identifiable {
+    let removal: HomeSidequestRemoval
+    let error: any Error
+
+    var id: String { removal.id }
+
+    var title: String {
+        switch removal {
+        case .delete: "Couldn't delete this sidequest"
+        case .leave: "Couldn't leave this sidequest"
+        }
+    }
+
+    var message: String { (error as? LocalizedError)?.errorDescription ?? "Something went wrong. Try again." }
 }

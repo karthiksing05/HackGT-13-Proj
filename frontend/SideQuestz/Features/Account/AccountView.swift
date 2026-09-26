@@ -45,20 +45,29 @@ struct AccountView: View {
         .sqPullToRefresh()
         .background(Theme.cream.ignoresSafeArea())
         .sqSheet(isPresented: $showPhoto) {
-            PhotoSheet(initials: env.user?.initials ?? "JL", color: avatarColor) { showPhoto = false }
+            PhotoSheet(initials: env.user?.initials ?? "", color: avatarColor) { showPhoto = false }
         }
         .task { await openLaunchRoute() }
+        // New friend requests and friends' status lines arrive live, whichever segment is showing.
+        .task { await friends.listen(env) }
     }
 
     private var avatarColor: Binding<AvatarColor> {
         Binding(get: { env.user?.avatarColor ?? .ink }, set: { env.user?.avatarColor = $0 })
     }
 
-    /// `-SQRoute account/photo` opens the Photo sheet (the router already picked the segment).
+    /// `-SQRoute account/photo` opens the Photo sheet, `account/facebook` the Facebook sheet (the
+    /// router already picked the segment).
     private func openLaunchRoute() async {
-        guard let parts = router.consumeLaunch("account"), parts.first == "photo" else { return }
+        guard let parts = router.consumeLaunch("account"), let sheet = parts.first, ["photo", "facebook"].contains(sheet) else { return }
         try? await Task.sleep(nanoseconds: 350_000_000)
-        showPhoto = true
+        if sheet == "photo" {
+            showPhoto = true
+        } else {
+            // The demo starts disconnected: connect first so the sheet shows an import.
+            if env.isMock, !me.facebook.isConnected { await me.facebook.connect(env) }
+            me.showsFacebook = true
+        }
     }
 }
 
@@ -104,7 +113,9 @@ private struct AccountHeader: View {
 
 // MARK: - Your status
 
-/// Open / Online / Not free (selected: white + 2pt ring in the dot color) and what it means.
+/// Open to all / Friends only / Busy (selected: white + 2pt ring in the dot color) and what it means.
+/// Labels, colors and descriptions come from `PresenceStatus`; each pill is as wide as its label
+/// plus an equal share of the spare room (stacked when the text is too large for one row).
 ///
 /// Optimistic: a tap moves the ring (it slides over) and updates the text at once; the ring stays
 /// faint until the server confirms, and snaps back with a short note if it doesn't.
@@ -129,7 +140,7 @@ private struct AccountStatusCard: View {
                 .foregroundStyle(Theme.text3)
                 .authLineHeight(1.35, size: 12)
                 .accessibilityAddTraits(.isHeader)
-            HStack(spacing: 8) {
+            AccountStatusPillsLayout(spacing: 8) {
                 ForEach(PresenceStatus.allCases) { status in
                     button(status)
                 }
@@ -139,6 +150,7 @@ private struct AccountStatusCard: View {
                 .foregroundStyle(Theme.text2)
                 .authLineHeight(1.35, size: 13)
                 .fixedSize(horizontal: false, vertical: true)
+                .contentTransition(.opacity)
             if let errorText {
                 AuthErrorText(message: errorText)
                     .sqTransition(.rise)
@@ -163,10 +175,11 @@ private struct AccountStatusCard: View {
                     .sqFont(14, .semibold)
                     .foregroundStyle(Theme.ink)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .minimumScaleFactor(0.8)
             }
+            .padding(.horizontal, 10)
             .frame(maxWidth: .infinity)
-            .frame(height: 40)
+            .frame(minHeight: 40)
             .background(selected ? Color.white : Theme.cream, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
                 if selected {
@@ -214,6 +227,71 @@ private struct AccountStatusCard: View {
                     pending = nil
                     errorText = "Couldn't update your status. Try again."
                 }
+            }
+        }
+    }
+}
+
+/// The three status pills in one row: each gets its natural width (dot, label, 10pt padding) plus an
+/// equal share of what's left, so the padding looks even whatever the labels say. When they don't
+/// fit they squeeze a little (up to 8%: the labels scale down), and past that they stack full width.
+private struct AccountStatusPillsLayout: Layout {
+    var spacing: CGFloat
+
+    private enum Arrangement {
+        case row([CGFloat])
+        case column
+    }
+
+    private func arrangement(width: CGFloat?, subviews: Subviews) -> Arrangement {
+        let ideals = subviews.map { $0.sizeThatFits(.unspecified).width }
+        guard let width, !ideals.isEmpty else { return .row(ideals) }
+        let gaps = spacing * CGFloat(ideals.count - 1)
+        let natural = ideals.reduce(0, +)
+        let room = width - gaps
+        if natural <= room {
+            let extra = (room - natural) / CGFloat(ideals.count)
+            return .row(ideals.map { $0 + extra })
+        }
+        if natural * 0.92 <= room {
+            return .row(ideals.map { $0 * room / natural })
+        }
+        return .column
+    }
+
+    private func rowHeight(_ subviews: Subviews, widths: [CGFloat]) -> CGFloat {
+        zip(subviews, widths).map { $0.sizeThatFits(ProposedViewSize(width: $1, height: nil)).height }.max() ?? 0
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        switch arrangement(width: proposal.width, subviews: subviews) {
+        case .row(let widths):
+            let total = widths.reduce(0, +) + spacing * CGFloat(max(0, widths.count - 1))
+            return CGSize(width: proposal.width ?? total, height: rowHeight(subviews, widths: widths))
+        case .column:
+            let width = proposal.width ?? 0
+            let heights = subviews.map { $0.sizeThatFits(ProposedViewSize(width: width, height: nil)).height }
+            return CGSize(width: width, height: heights.reduce(0, +) + spacing * CGFloat(max(0, heights.count - 1)))
+        }
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        switch arrangement(width: bounds.width, subviews: subviews) {
+        case .row(let widths):
+            let height = rowHeight(subviews, widths: widths)
+            var x = bounds.minX
+            for (subview, width) in zip(subviews, widths) {
+                subview.place(at: CGPoint(x: x, y: bounds.minY), anchor: .topLeading,
+                              proposal: ProposedViewSize(width: width, height: height))
+                x += width + spacing
+            }
+        case .column:
+            var y = bounds.minY
+            for subview in subviews {
+                let size = subview.sizeThatFits(ProposedViewSize(width: bounds.width, height: nil))
+                subview.place(at: CGPoint(x: bounds.minX, y: y), anchor: .topLeading,
+                              proposal: ProposedViewSize(width: bounds.width, height: size.height))
+                y += size.height + spacing
             }
         }
     }

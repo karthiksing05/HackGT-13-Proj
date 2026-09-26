@@ -2,16 +2,27 @@ import Observation
 import SwiftUI
 import UIKit
 
-/// Account › Friends data. Owned by `AccountView` so it survives Me ⇄ Friends switches.
+/// Account › Friends data. Owned by `AccountView` so it survives Me ⇄ Friends switches, and kept
+/// current by realtime events (`friend.request`, `friend.status`) while the app runs.
 @Observable
 final class AccountFriendsModel {
     var friends: Loadable<[Friend]> = .loading
+    /// Requests people sent you (accept or decline).
     var requests: Loadable<[FriendRequest]> = .loading
-    /// People you sent a request to (shown as "Requested").
-    var requested: Set<String> = []
-    /// Requests accepted on this screen that the server hasn't confirmed yet: they already show in
-    /// the friends list ("Adding…") and no longer under Requests.
+    /// Requests you sent that are still open ("Requested", tap to withdraw): the ones the server
+    /// lists as `outgoing`, plus ones sent from this screen that no list has shown yet.
+    var sent: [FriendRequest] = []
+    /// Sent from this screen and not in a server list yet. Once listed, the server's list decides
+    /// (a request the other person declined then drops off).
+    var sentUnlisted: Set<String> = []
+    /// Requests accepted here that the server hasn't confirmed yet: they already show in the
+    /// friends list ("Adding…") and no longer under Requests.
     var accepting: [FriendRequest] = []
+    /// Requests declined or withdrawn here, until the server confirms (a reload meanwhile must not
+    /// bring them back).
+    var dropping: Set<String> = []
+    /// Friends being removed here (person ids), for the same reason.
+    var removing: Set<String> = []
 
     /// Loads (or quietly reloads) friends and requests; keeps what's on screen if a refresh fails.
     func reload(_ env: AppEnvironment) async {
@@ -19,27 +30,99 @@ final class AccountFriendsModel {
         async let requestsResult = Loadable.run { try await env.api.friendRequests() }
         let (f, r) = await (friendsResult, requestsResult)
         withMotion(Motion.arrive) {
-            if f.value != nil || friends.value == nil { friends = f }
-            if var list = r.value {
+            if var list = f.value {
+                list.removeAll { removing.contains($0.id) }
+                friends = .loaded(list)
+            } else if friends.value == nil {
+                friends = f
+            }
+            if let all = r.value {
+                let open = all.filter { !dropping.contains($0.id) }
                 // Still being accepted here: keep it out of Requests.
-                list.removeAll { request in accepting.contains { $0.id == request.id } }
-                requests = .loaded(list)
+                requests = .loaded(open.filter { request in
+                    !request.outgoing && !accepting.contains { $0.id == request.id }
+                })
+                let listed = open.filter(\.outgoing)
+                sentUnlisted.subtract(listed.map(\.id))
+                sent = listed + sent.filter { request in
+                    sentUnlisted.contains(request.id) && !listed.contains { $0.id == request.id }
+                }
             } else if requests.value == nil {
                 requests = r
             }
-            // Confirmed friends replace their "Adding…" rows.
+            // Confirmed friends replace their "Adding…" rows, and requests they accepted are done.
             if let ids = friends.value.map({ Set($0.map(\.person.id)) }) {
                 accepting.removeAll { ids.contains($0.person.id) }
+                sent.removeAll { ids.contains($0.person.id) }
             }
         }
     }
+
+    // MARK: Realtime
+
+    /// Applies `friend.request` and `friend.status` events for as long as the caller's task runs.
+    func listen(_ env: AppEnvironment) async {
+        for await event in env.realtime.subscribe() {
+            switch event {
+            case .friendRequest(let request):
+                receive(request)
+            case .friendStatus(let userId, let statusLine):
+                updateStatus(of: userId, to: statusLine)
+            default:
+                break
+            }
+        }
+    }
+
+    /// A new request rises into Requests (or, sent from another device, joins yours).
+    private func receive(_ request: FriendRequest) {
+        guard !isFriend(request.person.id), !dropping.contains(request.id) else { return }
+        withMotion(Motion.arrive) {
+            if request.outgoing {
+                // Sent from another of your devices.
+                if !sent.contains(where: { $0.id == request.id }) {
+                    sent.append(request)
+                    sentUnlisted.insert(request.id)
+                }
+            } else if case .loaded(var list) = requests, !list.contains(where: { $0.id == request.id }) {
+                // Still loading: the list on its way includes it.
+                list.insert(request, at: 0)
+                requests = .loaded(list)
+            }
+        }
+    }
+
+    /// The friend's status line changes in place.
+    private func updateStatus(of userId: String, to statusLine: String) {
+        guard case .loaded(var list) = friends, let index = list.firstIndex(where: { $0.id == userId }),
+              list[index].statusLine != statusLine else { return }
+        withMotion {
+            list[index].statusLine = statusLine
+            friends = .loaded(list)
+        }
+    }
+
+    // MARK: Lookups
+
+    func isFriend(_ personId: String) -> Bool {
+        friends.value?.contains { $0.id == personId } == true || accepting.contains { $0.person.id == personId }
+    }
+
+    func incomingRequest(from personId: String) -> FriendRequest? {
+        requests.value?.first { $0.person.id == personId }
+    }
+
+    func sentRequest(to personId: String) -> FriendRequest? {
+        sent.first { $0.person.id == personId }
+    }
 }
 
-/// Account › Friends: find people + invite, friend requests, your friends (tap to message).
+/// Account › Friends: find people + invite, friend requests (yours and theirs), your friends.
 ///
-/// First load: skeleton rows, then the friends arrive one after another. Accepting a request is
-/// optimistic (the request slides out, the person rises into the list as "Adding…" until the
-/// server confirms, and goes back if it fails). Search results update in place, animated.
+/// First load: skeleton rows, then the friends arrive one after another. Everything you do here is
+/// optimistic (accepting, declining, adding, withdrawing a request, removing a friend): the rows
+/// change at once, stay faint while the server confirms, and go back with a short note if it
+/// doesn't. Search results say how each person relates to you and update in place.
 struct FriendsView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
@@ -47,16 +130,17 @@ struct FriendsView: View {
 
     @State private var query = ""
     /// nil while the search box is empty.
-    @State private var results: Loadable<[PersonRef]>?
+    @State private var results: Loadable<[UserSearchResult]>?
     /// A newer search is running while the old results stay on screen.
     @State private var searching = false
-    /// Friend requests waiting for the server (shown as a faint "Requested").
+    /// Friend requests on their way to the server (person ids): a faint "Requested" meanwhile.
     @State private var sending: Set<String> = []
     /// The person whose DM is opening.
     @State private var messaging: String?
     @State private var inviting = false
     @State private var invite: AccountInviteLink?
     @State private var actionError: String?
+    @State private var confirming: AccountFriendsConfirm?
     /// Rows arrive one after another when the list first loads while this view exists.
     @State private var animateRows: Bool
 
@@ -103,6 +187,12 @@ struct FriendsView: View {
                 .presentationDetents([.medium, .large])
                 .ignoresSafeArea()
         }
+        .confirmationDialog(confirming?.title ?? "", isPresented: confirmShown, titleVisibility: .visible,
+                            presenting: confirming) { item in
+            Button(item.actionLabel, role: .destructive) { perform(item) }
+        } message: { item in
+            if let message = item.message { Text(message) }
+        }
     }
 
     // MARK: Search + invite
@@ -136,7 +226,7 @@ struct FriendsView: View {
         }
     }
 
-    @ViewBuilder private func searchResults(_ state: Loadable<[PersonRef]>) -> some View {
+    @ViewBuilder private func searchResults(_ state: Loadable<[UserSearchResult]>) -> some View {
         SetupCard {
             AuthLoadable(state: state, minHeight: 88, shimmers: onScreen, retry: { Task { await search() } }) {
                 AccountPeopleSkeleton(count: 2, trailing: .pill)
@@ -146,9 +236,9 @@ struct FriendsView: View {
                         EmptyStateView(message: "No one found. Try their name or @handle.", minHeight: 72)
                             .transition(.opacity)
                     } else {
-                        ForEach(Array(people.enumerated()), id: \.element.id) { index, person in
+                        ForEach(Array(people.enumerated()), id: \.element.id) { index, result in
                             if index > 0 { RowDivider() }
-                            resultRow(person)
+                            resultRow(result)
                                 .sqTransition(.rise)
                         }
                     }
@@ -160,23 +250,46 @@ struct FriendsView: View {
         .padding(.horizontal, Metrics.side)
     }
 
-    private func resultRow(_ person: PersonRef) -> some View {
-        let isFriend = model.friends.value?.contains { $0.person.id == person.id } ?? false
+    /// Name (and @handle) plus what you can do: message a friend, withdraw your request, answer
+    /// theirs, or add them.
+    private func resultRow(_ result: UserSearchResult) -> some View {
+        let person = result.person
+        let (relation, requestId) = relation(of: result)
         return HStack(spacing: 12) {
             Avatar(person: person, size: 40, fontSize: 14)
                 .accessibilityHidden(true)
-            Text(person.name)
-                .sqFont(15, .semibold)
-                .foregroundStyle(Theme.ink)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(person.name)
+                    .sqFont(15, .semibold)
+                    .foregroundStyle(Theme.ink)
+                    .authLineHeight(1.35, size: 15)
+                if let handle = person.username, !handle.isEmpty {
+                    Text("@\(handle)")
+                        .sqFont(12)
+                        .foregroundStyle(Theme.text3)
+                        .authLineHeight(1.35, size: 12)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            // One slot: the states cross-fade in place.
             ZStack(alignment: .trailing) {
-                if isFriend {
+                switch relation {
+                case .friend:
+                    let adding = model.accepting.contains { $0.person.id == person.id }
                     messageButton(person)
+                        .disabled(adding)
+                        .opacity(adding ? 0.45 : 1)
                         .transition(.opacity)
-                } else if model.requested.contains(person.id) {
-                    requestedChip(pending: sending.contains(person.id))
+                case .outgoing:
+                    requestedButton(person: person, requestId: requestId)
                         .sqTransition(.pop)
-                } else {
+                case .incoming:
+                    if let requestId {
+                        answerButtons(requestId: requestId, person: person)
+                            .transition(.opacity)
+                    }
+                case .none:
                     Button {
                         sendRequest(to: person)
                     } label: {
@@ -193,59 +306,111 @@ struct FriendsView: View {
         .padding(.horizontal, 14)
     }
 
-    /// "✓ Requested" — faint while the request is on its way, then the check draws in.
-    private func requestedChip(pending: Bool) -> some View {
-        HStack(spacing: 5) {
-            if !pending {
-                AnimatedCheck(lineWidth: 2.8, delay: 0.1)
-                    .frame(width: 12, height: 12)
-                    .transition(.opacity)
+    /// What this screen knows now wins over what the search returned (it may be older).
+    private func relation(of result: UserSearchResult) -> (FriendRelation, String?) {
+        let id = result.person.id
+        if model.isFriend(id) { return (.friend, nil) }
+        if let request = model.incomingRequest(from: id) { return (.incoming, request.id) }
+        if let request = model.sentRequest(to: id) { return (.outgoing, request.id) }
+        if sending.contains(id) { return (.outgoing, nil) }
+        return (result.relation, result.requestId)
+    }
+
+    /// "✓ Requested": faint while the request is on its way, then the check draws in. Tap to
+    /// withdraw it (after confirming).
+    private func requestedButton(person: PersonRef, requestId: String?) -> some View {
+        let pending = requestId == nil
+        return Button {
+            if let requestId { confirming = .withdraw(requestId: requestId, person: person) }
+        } label: {
+            HStack(spacing: 5) {
+                if !pending {
+                    AnimatedCheck(lineWidth: 2.8, delay: 0.1)
+                        .frame(width: 12, height: 12)
+                        .transition(.opacity)
+                }
+                Text("Requested")
             }
-            Text("Requested")
+            .sqFont(14, .semibold)
+            .foregroundStyle(Theme.success)
+            .padding(.horizontal, 12)
+            .frame(height: 34)
+            .background(Theme.successBg, in: Capsule())
+            .opacity(pending ? 0.6 : 1)
+            .frame(minHeight: Metrics.minTouch)
+            .contentShape(Rectangle())
         }
-        .sqFont(14, .semibold)
-        .foregroundStyle(Theme.success)
-        .padding(.horizontal, 12)
-        .frame(height: 34)
-        .background(Theme.successBg, in: Capsule())
-        .opacity(pending ? 0.6 : 1)
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.sqPressable)
+        .authHitHeight(34)
+        .disabled(pending)
+        .authMotion(Motion.quick, value: pending)
+        .accessibilityLabel("Requested")
         .accessibilityValue(pending ? "Sending" : "")
+        .accessibilityHint(pending ? "" : "Double-tap to withdraw your request to \(person.name)")
+    }
+
+    /// Decline (a small ×) and Accept, for a request someone sent you.
+    private func answerButtons(requestId: String, person: PersonRef) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                decline(requestId: requestId, person: person)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.text2)
+                    .frame(width: 34, height: 34)
+                    .background(Theme.cream, in: Circle())
+                    .frame(width: Metrics.minTouch, height: Metrics.minTouch)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.sqPressable)
+            .padding(.horizontal, -5)
+            .accessibilityLabel("Decline \(person.name)")
+            Button {
+                accept(requestId: requestId, person: person)
+            } label: {
+                Text("Accept")
+            }
+            .buttonStyle(.sqPill(fill: Theme.sage, foreground: Theme.ink, horizontalPadding: 12))
+            .authHitHeight(34)
+            .accessibilityLabel("Accept \(person.name)")
+        }
     }
 
     // MARK: Requests
 
+    /// Theirs first (they need an answer), then yours.
+    private var requestRows: [AccountRequestRow] {
+        (model.requests.value ?? []).map(AccountRequestRow.incoming) + model.sent.map(AccountRequestRow.sent)
+    }
+
     @ViewBuilder private var requestsSection: some View {
-        switch model.requests {
-        case .loaded(let list) where !list.isEmpty:
+        let rows = requestRows
+        let failure: String? = if case .failed(let message) = model.requests { message } else { nil }
+        if !rows.isEmpty || failure != nil {
             VStack(alignment: .leading, spacing: 0) {
                 eyebrow("REQUESTS")
                 SetupCard {
-                    ForEach(Array(list.enumerated()), id: \.element.id) { index, request in
+                    if let failure {
+                        ErrorStateView(message: failure, minHeight: 96) { Task { await model.reload(env) } }
+                            .transition(.opacity)
+                        if !rows.isEmpty { RowDivider() }
+                    }
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                         if index > 0 { RowDivider() }
-                        requestRow(request)
+                        requestRow(row)
                             .sqTransition(.rise)
                     }
                 }
                 .padding(.horizontal, Metrics.side)
             }
             .transition(.opacity)
-        case .failed(let message):
-            VStack(alignment: .leading, spacing: 0) {
-                eyebrow("REQUESTS")
-                SetupCard {
-                    ErrorStateView(message: message, minHeight: 96) { Task { await model.reload(env) } }
-                }
-                .padding(.horizontal, Metrics.side)
-            }
-            .transition(.opacity)
-        default:
-            EmptyView()
         }
     }
 
-    private func requestRow(_ request: FriendRequest) -> some View {
-        HStack(spacing: 12) {
+    private func requestRow(_ row: AccountRequestRow) -> some View {
+        let request = row.request
+        return HStack(spacing: 12) {
             Avatar(person: request.person, size: 40, fontSize: 14)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
@@ -253,21 +418,22 @@ struct FriendsView: View {
                     .sqFont(15, .semibold)
                     .foregroundStyle(Theme.ink)
                     .authLineHeight(1.35, size: 15)
-                Text(request.note)
-                    .sqFont(12)
-                    .foregroundStyle(Theme.text3)
-                    .authLineHeight(1.35, size: 12)
+                if !request.note.isEmpty {
+                    Text(request.note)
+                        .sqFont(12)
+                        .foregroundStyle(Theme.text3)
+                        .authLineHeight(1.35, size: 12)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
-            Button {
-                accept(request)
-            } label: {
-                Text("Accept")
+            switch row {
+            case .incoming:
+                answerButtons(requestId: request.id, person: request.person)
+            case .sent:
+                requestedButton(person: request.person, requestId: request.id)
             }
-            .buttonStyle(.sqPill(fill: Theme.sage, foreground: Theme.ink, horizontalPadding: 12))
-            .authHitHeight(34)
-            .accessibilityLabel("Accept \(request.person.name)")
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
@@ -312,15 +478,18 @@ struct FriendsView: View {
         .padding(.horizontal, Metrics.side)
     }
 
+    /// Photo (or initials) with the activity dot, name, live status line, message button. Long-press
+    /// for Message / Remove friend.
     private func friendRow(_ row: AccountFriendRow) -> some View {
         let adding = row.isAdding
+        let person = row.person
         return HStack(spacing: 12) {
-            Avatar(initials: row.person.initials, fill: row.person.color, size: 40, fontSize: 14,
+            Avatar(initials: person.initials, fill: person.color, size: 40, fontSize: 14, imageURL: person.photoURL,
                    statusColor: row.dotColor, statusSize: 12, statusBorder: .white, statusBorderWidth: 2,
                    statusOffset: 1)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
-                Text(row.person.name)
+                Text(person.name)
                     .sqFont(15, .semibold)
                     .foregroundStyle(Theme.ink)
                     .authLineHeight(1.35, size: 15)
@@ -328,15 +497,29 @@ struct FriendsView: View {
                     .sqFont(12)
                     .foregroundStyle(Theme.text3)
                     .authLineHeight(1.35, size: 12)
+                    .contentTransition(.opacity)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
-            messageButton(row.person)
+            messageButton(person)
                 .disabled(adding)
                 .opacity(adding ? 0.45 : 1)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
+        .background(.white)
+        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        .contextMenu {
+            if !adding {
+                Button { message(person) } label: { Label("Message", systemImage: "bubble.left") }
+                Button(role: .destructive) { confirming = .remove(person) } label: {
+                    Label("Remove friend", systemImage: "person.badge.minus")
+                }
+            }
+        }
+        .accessibilityAction(named: "Remove friend") {
+            if !adding { confirming = .remove(person) }
+        }
     }
 
     /// 40pt `sageTint` circle with a sageInk bubble → DM thread (dots while it opens).
@@ -376,7 +559,11 @@ struct FriendsView: View {
             .padding(.horizontal, Metrics.side)
     }
 
-    // MARK: Actions
+    private var confirmShown: Binding<Bool> {
+        Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } })
+    }
+
+    // MARK: Search
 
     private func search() async {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
@@ -399,55 +586,174 @@ struct FriendsView: View {
         guard !Task.isCancelled else { return }
         // Rows that still match stay put, new ones rise in, the rest fade out.
         withMotion(Motion.arrive) {
-            results = found.value.map { .loaded($0.filter { $0.id != env.user?.id }) } ?? found
+            results = found.value.map { .loaded($0.filter { $0.person.id != env.user?.id }) } ?? found
             searching = false
+        }
+    }
+
+    /// Keeps a search row in step with something done elsewhere on this screen.
+    private func setRelation(_ personId: String, _ relation: FriendRelation, requestId: String?) {
+        guard case .loaded(var list) = results, let index = list.firstIndex(where: { $0.person.id == personId }) else { return }
+        list[index].relation = relation
+        list[index].requestId = requestId
+        results = .loaded(list)
+    }
+
+    // MARK: Actions
+
+    private func perform(_ item: AccountFriendsConfirm) {
+        switch item {
+        case .remove(let person): removeFriend(person)
+        case .withdraw(let requestId, let person): withdraw(requestId: requestId, person: person)
         }
     }
 
     /// Optimistic: the request leaves Requests and the person joins your friends as "Adding…" right
     /// away; the server's list replaces it, or it all goes back with a note if accepting fails.
-    private func accept(_ request: FriendRequest) {
-        guard case .loaded(let list) = model.requests, let index = list.firstIndex(of: request) else { return }
+    private func accept(requestId: String, person: PersonRef) {
+        let list = model.requests.value ?? []
+        let index = list.firstIndex { $0.id == requestId }
+        let request = index.map { list[$0] } ?? FriendRequest(id: requestId, person: person, note: "")
         withMotion(Motion.arrive) {
-            var remaining = list
-            remaining.remove(at: index)
-            model.requests = .loaded(remaining)
+            if let index {
+                var remaining = list
+                remaining.remove(at: index)
+                model.requests = .loaded(remaining)
+            }
             model.accepting.insert(request, at: 0)
+            setRelation(person.id, .friend, requestId: nil)
             actionError = nil
         }
         Task {
             do {
-                try await env.api.acceptFriendRequest(id: request.id)
+                try await env.api.acceptFriendRequest(id: requestId)
                 await model.reload(env)
             } catch {
                 withMotion(Motion.arrive) {
-                    model.accepting.removeAll { $0.id == request.id }
-                    if case .loaded(var current) = model.requests, !current.contains(request) {
-                        current.insert(request, at: min(index, current.count))
-                        model.requests = .loaded(current)
-                    }
+                    model.accepting.removeAll { $0.id == requestId }
+                    restore(request, at: index)
+                    setRelation(person.id, .incoming, requestId: requestId)
                     actionError = authMessage(for: error, fallback: "Couldn't accept the request. Try again.")
                 }
             }
         }
     }
 
-    /// Optimistic: "Requested" shows at once (faint until the server confirms, then its check draws).
-    private func sendRequest(to person: PersonRef) {
-        withMotion(Motion.quick) {
-            model.requested.insert(person.id)
-            sending.insert(person.id)
+    /// Optimistic: the request slides out; it comes back with a note if the server says no.
+    private func decline(requestId: String, person: PersonRef) {
+        let list = model.requests.value ?? []
+        let index = list.firstIndex { $0.id == requestId }
+        let request = index.map { list[$0] }
+        withMotion(Motion.arrive) {
+            if let index {
+                var remaining = list
+                remaining.remove(at: index)
+                model.requests = .loaded(remaining)
+            }
+            model.dropping.insert(requestId)
+            setRelation(person.id, .none, requestId: nil)
             actionError = nil
         }
         Task {
             do {
-                try await env.api.sendFriendRequest(userId: person.id)
-                withMotion(Motion.quick) { _ = sending.remove(person.id) }
+                try await env.api.declineFriendRequest(id: requestId)
+                model.dropping.remove(requestId)
+            } catch {
+                withMotion(Motion.arrive) {
+                    model.dropping.remove(requestId)
+                    if let request { restore(request, at: index) }
+                    setRelation(person.id, .incoming, requestId: requestId)
+                    actionError = authMessage(for: error, fallback: "Couldn't decline the request. Try again.")
+                }
+            }
+        }
+    }
+
+    private func restore(_ request: FriendRequest, at index: Int?) {
+        guard let index, case .loaded(var current) = model.requests, !current.contains(where: { $0.id == request.id }) else { return }
+        current.insert(request, at: min(index, current.count))
+        model.requests = .loaded(current)
+    }
+
+    /// Optimistic: "Requested" shows at once (faint until the server returns the request, then its
+    /// check draws in); the request also joins yours under Requests, where it can be withdrawn.
+    private func sendRequest(to person: PersonRef) {
+        withMotion(Motion.quick) {
+            _ = sending.insert(person.id)
+            actionError = nil
+        }
+        Task {
+            do {
+                let request = try await env.api.sendFriendRequest(userId: person.id)
+                withMotion(Motion.arrive) {
+                    sending.remove(person.id)
+                    if !model.sent.contains(where: { $0.id == request.id }) {
+                        model.sent.append(request)
+                        model.sentUnlisted.insert(request.id)
+                    }
+                    setRelation(person.id, .outgoing, requestId: request.id)
+                }
             } catch {
                 withMotion {
-                    model.requested.remove(person.id)
                     sending.remove(person.id)
                     actionError = authMessage(for: error, fallback: "Couldn't send the request. Try again.")
+                }
+            }
+        }
+    }
+
+    /// Optimistic: your request disappears (and "Add" comes back in search); it returns with a note
+    /// if the server says no.
+    private func withdraw(requestId: String, person: PersonRef) {
+        let index = model.sent.firstIndex { $0.id == requestId }
+        let request = index.map { model.sent[$0] }
+        withMotion(Motion.arrive) {
+            if let index { model.sent.remove(at: index) }
+            model.dropping.insert(requestId)
+            setRelation(person.id, .none, requestId: nil)
+            actionError = nil
+        }
+        Task {
+            do {
+                try await env.api.cancelFriendRequest(id: requestId)
+                model.dropping.remove(requestId)
+                model.sentUnlisted.remove(requestId)
+            } catch {
+                withMotion(Motion.arrive) {
+                    model.dropping.remove(requestId)
+                    if let request, let index, !model.sent.contains(where: { $0.id == requestId }) {
+                        model.sent.insert(request, at: min(index, model.sent.count))
+                    }
+                    setRelation(person.id, .outgoing, requestId: requestId)
+                    actionError = authMessage(for: error, fallback: "Couldn't withdraw the request. Try again.")
+                }
+            }
+        }
+    }
+
+    /// Optimistic: the row fades out of your friends; it comes back with a note if the server says no.
+    private func removeFriend(_ person: PersonRef) {
+        guard case .loaded(var list) = model.friends, let index = list.firstIndex(where: { $0.id == person.id }) else { return }
+        let friend = list.remove(at: index)
+        withMotion(Motion.arrive) {
+            model.friends = .loaded(list)
+            model.removing.insert(person.id)
+            setRelation(person.id, .none, requestId: nil)
+            actionError = nil
+        }
+        Task {
+            do {
+                try await env.api.removeFriend(id: person.id)
+                model.removing.remove(person.id)
+            } catch {
+                withMotion(Motion.arrive) {
+                    model.removing.remove(person.id)
+                    if case .loaded(var current) = model.friends, !current.contains(where: { $0.id == person.id }) {
+                        current.insert(friend, at: min(index, current.count))
+                        model.friends = .loaded(current)
+                    }
+                    setRelation(person.id, .friend, requestId: nil)
+                    actionError = authMessage(for: error, fallback: "Couldn't remove \(person.firstName). Try again.")
                 }
             }
         }
@@ -461,7 +767,7 @@ struct FriendsView: View {
         Task {
             do {
                 let thread = try await env.api.startDM(userId: person.id)
-                router.openThread(thread.id)
+                router.openThread(thread.id, isGroup: false)
                 messaging = nil
             } catch {
                 withMotion {
@@ -490,6 +796,47 @@ struct FriendsView: View {
             }
         }
     }
+}
+
+/// A destructive Friends action waiting for confirmation.
+private enum AccountFriendsConfirm {
+    case remove(PersonRef)
+    case withdraw(requestId: String, person: PersonRef)
+
+    var title: String {
+        switch self {
+        case .remove(let person): "Remove \(person.name) from your friends?"
+        case .withdraw(_, let person): "Withdraw your friend request to \(person.name)?"
+        }
+    }
+
+    var actionLabel: String {
+        switch self {
+        case .remove: "Remove friend"
+        case .withdraw: "Withdraw request"
+        }
+    }
+
+    var message: String? {
+        switch self {
+        case .remove: "You can add them again anytime."
+        case .withdraw: nil
+        }
+    }
+}
+
+/// A row of the Requests card: someone asking you, or your own request.
+private enum AccountRequestRow: Identifiable {
+    case incoming(FriendRequest)
+    case sent(FriendRequest)
+
+    var request: FriendRequest {
+        switch self {
+        case .incoming(let request), .sent(let request): request
+        }
+    }
+
+    var id: String { request.id }
 }
 
 /// A row of the friends list: a confirmed friend, or one being accepted right now.

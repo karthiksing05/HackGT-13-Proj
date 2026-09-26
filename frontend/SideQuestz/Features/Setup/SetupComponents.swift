@@ -1,17 +1,34 @@
 import SwiftUI
 
-/// Step title (Mono 28 ExtraBold) + 15pt `text2` subtitle. Both sit in the step's 12pt column.
+/// Step title (Mono 28 ExtraBold) + an optional 15pt `text2` subtitle. Both sit in the step's
+/// 12pt column.
 struct SetupHeading: View {
     let title: String
-    let subtitle: String
+    var subtitle: String? = nil
 
     var body: some View {
         AuthStepTitle(text: title)
-        Text(subtitle)
-            .sqFont(15)
-            .foregroundStyle(Theme.text2)
-            .authLineHeight(1.35, size: 15)
-            .fixedSize(horizontal: false, vertical: true)
+        if let subtitle {
+            Text(subtitle)
+                .sqFont(15)
+                .foregroundStyle(Theme.text2)
+                .authLineHeight(1.35, size: 15)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// Stands in for the initials before a name is typed: a person glyph in the initials color.
+struct SetupPersonGlyph: View {
+    /// The avatar's diameter.
+    let size: CGFloat
+    let color: Color
+
+    var body: some View {
+        Image(systemName: "person.fill")
+            .font(.system(size: size * 0.42))
+            .foregroundStyle(color)
+            .accessibilityHidden(true)
     }
 }
 

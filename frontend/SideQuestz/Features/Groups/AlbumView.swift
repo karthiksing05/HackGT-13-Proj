@@ -3,11 +3,13 @@ import SwiftUI
 import UIKit
 
 /// Thread › Album (GUI_PLAN.md §7.9): the shared photo album. "Add photos" opens the system
-/// PhotosPicker (multiple) and uploads each as a JPEG (`POST /groups/{id}/photos`).
+/// PhotosPicker (multiple) and uploads each as a JPEG (`POST /groups/{id}/photos`). Tapping a photo
+/// opens it full screen (`AlbumPhotoViewer`: swipe, Save, Share, and Delete for your own photos).
 ///
 /// Loading: a grid of placeholder tiles, then the photos arrive one after another. Uploads are
 /// optimistic: every picked photo gets a tile right away (veiled, with loading dots) that becomes
 /// the real photo once the server has it; a failed upload's tile fades away and a note says why.
+/// Photos other people add (`photo.added` over the socket) pop in at the top.
 struct GroupAlbumView: View {
     let groupId: String
     /// nil while the thread is still loading (the header shows placeholder bars).
@@ -32,6 +34,8 @@ struct GroupAlbumView: View {
     @State private var initialIds: Set<String> = []
     @State private var picks: [PhotosPickerItem] = []
     @State private var uploadError: String?
+    /// The photo open full screen.
+    @State private var viewing: AlbumViewerRequest?
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
     private var uploading: Bool { !uploads.isEmpty }
@@ -47,9 +51,6 @@ struct GroupAlbumView: View {
                         .sqTransition(.rise)
                 }
                 grid
-                Text("Everyone in the group can add and save photos.")
-                    .socialText(12)
-                    .foregroundStyle(Theme.text3)
             }
             .padding(.horizontal, 16)
             .padding(.top, 15)
@@ -58,12 +59,33 @@ struct GroupAlbumView: View {
         .scrollIndicators(.hidden)
         .sqPullToRefresh()
         .task { await load() }
+        .task { await listenForPhotos() }
         .sqReloadable("thread.\(groupId).album") { await reload() }
         .onChange(of: picks) { _, items in
             guard !items.isEmpty else { return }
             picks = []
             upload(items.map { item in { try? await item.loadTransferable(type: Data.self) } })
         }
+        .fullScreenCover(item: $viewing) { request in
+            AlbumPhotoViewer(groupId: groupId, photos: photos.value ?? [], startId: request.photoId,
+                             previews: viewerPreviews, canDelete: isMine, onDeleted: photoDeleted,
+                             close: { viewing = nil })
+        }
+    }
+
+    /// Pictures picked on this device, by the server id of the photo they became.
+    private var viewerPreviews: [String: UIImage] {
+        var result: [String: UIImage] = [:]
+        for (photoId, uploadId) in localIds {
+            if let preview = previews[uploadId] { result[photoId] = preview }
+        }
+        return result
+    }
+
+    /// Photos you added: the server says so, or you uploaded it from here.
+    private func isMine(_ photo: GroupPhoto) -> Bool {
+        if let uploader = photo.uploaderId, let me = env.user?.id { return uploader == me }
+        return localIds[photo.id] != nil
     }
 
     private var header: some View {
@@ -142,7 +164,7 @@ struct GroupAlbumView: View {
                 } else {
                     LazyVGrid(columns: columns, spacing: 4) {
                         ForEach(Array(tiles.enumerated()), id: \.element.id) { index, tile in
-                            AlbumTile(tile: tile)
+                            tileButton(tile)
                                 .modifier(SocialFirstArrival(index: index,
                                                              staggered: arrivalDeadline.map { Date() < $0 } ?? false))
                                 // Uploads and photos added since pop in.
@@ -155,6 +177,21 @@ struct GroupAlbumView: View {
             }
         }
         .animation(Motion.standard, value: photos.phase)
+    }
+
+    /// A posted photo opens full screen; a photo still going up isn't tappable yet.
+    @ViewBuilder private func tileButton(_ tile: AlbumTileModel) -> some View {
+        if let photo = tile.photo {
+            Button {
+                viewing = AlbumViewerRequest(photoId: photo.id)
+            } label: {
+                AlbumTile(tile: tile)
+            }
+            .buttonStyle(.sqPressable)
+            .accessibilityHint("Opens the photo")
+        } else {
+            AlbumTile(tile: tile)
+        }
     }
 
     // MARK: Loading
@@ -247,6 +284,39 @@ struct GroupAlbumView: View {
             previews[uploadId] = nil
         }
     }
+
+    // MARK: Delete + realtime
+
+    /// Deleted in the viewer (the server already removed it): its tile fades out.
+    private func photoDeleted(_ photoId: String) {
+        withMotion {
+            if var list = photos.value {
+                list.removeAll { $0.id == photoId }
+                photos = .loaded(list)
+            }
+        }
+        Task { await onPhotosChanged() }
+    }
+
+    /// `photo.added`: someone else's photo pops in at the top. Your own uploads come back through
+    /// their upload call instead, so their echo is skipped while they're going up.
+    private func listenForPhotos() async {
+        for await event in env.realtime.subscribe() {
+            guard case .photoAdded(let id, let photo) = event, id == groupId else { continue }
+            if photo.uploaderId != nil, photo.uploaderId == env.user?.id, !uploads.isEmpty { continue }
+            guard var list = photos.value, localIds[photo.id] == nil,
+                  !list.contains(where: { $0.id == photo.id }) else { continue }
+            list.insert(photo, at: 0)
+            withMotion(Motion.arrive) { photos = .loaded(list) }
+            Task { await onPhotosChanged() }
+        }
+    }
+}
+
+/// One full-screen viewing, starting at a photo.
+private struct AlbumViewerRequest: Identifiable {
+    let id = UUID()
+    let photoId: String
 }
 
 /// One tile: an album photo, or a photo still going up (then `photo` is nil).

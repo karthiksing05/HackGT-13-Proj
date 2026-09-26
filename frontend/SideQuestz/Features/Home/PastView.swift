@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// Home › Past (GUI_PLAN.md §7.5c): events you went to, grouped by day. Tap one to rate it.
+/// Home › Past (GUI_PLAN.md §7.5c): "What you like" (what your best-rated sidequests have in
+/// common, from the server), then the events you went to, grouped by day. Tap one to rate it.
 ///
-/// Motion: skeleton rows while the first load runs, then the rows arrive one after another; when a
-/// rating is saved the row's "Rate" pill shrinks away and its stars fill in with a bounce.
+/// Motion: skeletons while the first load runs, then the insight tiles and the rows arrive one
+/// after another; when a rating is saved the row's "Rate" pill shrinks away and its stars fill in
+/// with a bounce, and the insights refresh in place.
 struct HomePastView: View {
     let store: HomeStore
     let rate: (PastEvent) -> Void
@@ -11,6 +13,7 @@ struct HomePastView: View {
     @Environment(AppEnvironment.self) private var env
     /// Rows arrive one after another only when they replace the skeleton.
     @State private var arrival = HomeArrivalWindow()
+    @State private var insightsArrival = HomeArrivalWindow()
 
     init(store: HomeStore, rate: @escaping (PastEvent) -> Void, retry: @escaping () -> Void) {
         self.store = store
@@ -20,13 +23,13 @@ struct HomePastView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Events you went to. Tap one to rate it. Ratings update your taste profile.")
-                .sqFont(13, relativeTo: .footnote)
-                .foregroundStyle(Theme.text3)
-                .homeLine(13)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, Metrics.side)
-                .padding(.top, 14)
+            // Optional: left out when it can't load.
+            if store.insights.phase != .failed {
+                HomeInsightsCard(state: store.insights, arrives: insightsArrival.isOpen)
+                    .padding(.horizontal, Metrics.side)
+                    .padding(.top, 14)
+                    .transition(.opacity)
+            }
             HomeLoadable(state: store.past, retry: retry) {
                 HomePastSkeleton()
             } content: { events in
@@ -41,8 +44,12 @@ struct HomePastView: View {
             }
             Color.clear.frame(height: 24)
         }
-        .onAppear { arrival.begin(loading: store.past.isLoading) }
+        .onAppear {
+            arrival.begin(loading: store.past.isLoading)
+            insightsArrival.begin(loading: store.insights.isLoading)
+        }
         .onChange(of: store.past.phase) { _, phase in arrival.update(phase) }
+        .onChange(of: store.insights.phase) { _, phase in insightsArrival.update(phase) }
     }
 
     private struct DayGroup {

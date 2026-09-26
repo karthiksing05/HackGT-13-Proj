@@ -454,6 +454,7 @@
 				INFOPLIST_FILE = SideQuestz/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SideQuests;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take a profile photo or add photos to a group album.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save group album photos to your library.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Start a sidequest from where you are right now.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Describe what you're in the mood for by voice.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Turns what you say into text for your plans.";
@@ -490,6 +491,7 @@
 				INFOPLIST_FILE = SideQuestz/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SideQuests;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take a profile photo or add photos to a group album.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save group album photos to your library.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Start a sidequest from where you are right now.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Describe what you're in the mood for by voice.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Turns what you say into text for your plans.";

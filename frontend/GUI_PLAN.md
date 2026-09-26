@@ -15,7 +15,7 @@ Read this whole prompt before writing code. Then read the reference artifact (se
   - `project/Brand.dc.html` — brand board: logo mark, variants, palette with roles, type samples, UI samples, and a 4-frame storyboard of the opening animation.
   - `project/canvas.json` — lists every artboard. Each gallery artboard is a one-line file that mounts `Main` at a fixed state. Its `dc-import` attributes tell you which state it shows (for example `screen="create" step="4"`).
 - Gallery artboards (file → what it shows):
-  - Core loop: `Login`, `Home` (itineraries), `Detail` (event sheet), `Calendar`, `CreateWhere`, `CreateWhen`, `CreateVibe`, `CreateReview`, `CreateMore`, `HomePast`, `RatePast`
+  - Core loop: `Login`, `Home` (sidequests), `Detail` (event sheet), `Calendar`, `CreateWhere`, `CreateWhen`, `CreateVibe`, `CreateReview`, `CreateMore`, `HomePast`, `RatePast`
   - Social + account: `Forum`, `ForumLocation`, `ForumFilter`, `Groups`, `GroupChat`, `GroupAlbum`, `GroupSplits`, `AddExpense`, `Profile`, `Friends`, `DirectMessage`
   - Setup + recovery: `SetupBasics`, `SetupConnect`, `SetupLikes`, `SetupMoney`, `SetupMore`, `ForgotEmail`, `ForgotCode`, `ForgotNew`, `ForgotDone`
   - Brand: `Brand`, `Splash`
@@ -29,7 +29,7 @@ Read this whole prompt before writing code. Then read the reference artifact (se
 
 ## 2. What the app is
 
-**Pitch:** You have time to kill (a gap between classes, a delayed flight, a free afternoon) but finding something good to do takes too long. SideQuests plans it for you. Tell it where you are, where you need to end up and by when, and what you're in the mood for (typed or by voice). It builds a timed itinerary with transit between stops that gets you back on time. You can go solo, go with friends, or open the plan so nearby people can join.
+**Pitch:** You have time to kill (a gap between classes, a delayed flight, a free afternoon) but finding something good to do takes too long. SideQuests plans it for you. Tell it where you are, where you need to end up and by when, and what you're in the mood for (typed or by voice). It builds a timed sidequest with transit between stops that gets you back on time. You can go solo, go with friends, or open the plan so nearby people can join.
 
 **Audience:** college students and solo travelers with flexible time. "Type-B fun, planned Type-A."
 
@@ -37,7 +37,7 @@ Read this whole prompt before writing code. Then read the reference artifact (se
 
 **Core loop:**
 1. Plan: + → Where → When → Vibe → Review
-2. Pick one of the proposed itineraries and adjust it (reorder stops by dragging; transit re-times itself)
+2. Pick one of the proposed sidequests and adjust it (reorder stops by dragging, press and hold a stop to swap it for something similar or remove it; transit re-times itself)
 3. Go: timeline on Home, event details, in-app website, agent ticket checkout
 4. Share (Forum, Groups, chat, album, split costs)
 5. Rate what you did, which improves future suggestions
@@ -121,12 +121,12 @@ Add `Color(hex:)` and a `Theme` namespace with these names.
 | `largeTitle` | JetBrains Mono | 32 / ExtraBold | −1 | Tab screen titles ("Your SideQuests", "Forum", "Groups") |
 | `setupTitle` | JetBrains Mono | 28 / ExtraBold | −0.8 | Setup + forgot-password step titles |
 | `stepTitle` | JetBrains Mono | 26 / ExtraBold | −0.4 | Create step titles |
-| `section` | JetBrains Mono | 19 / Bold | −0.4 | Section headers ("Active itineraries", "Taste profile") |
+| `section` | JetBrains Mono | 19 / Bold | −0.4 | Section headers ("Active sidequests", "Taste profile") |
 | `wordmark` | JetBrains Mono | 40–52 / ExtraBold | −2 | "Side" in sage + "Quests" in ink |
 | `sheetTitle` | SF | 26 / Bold (event sheet), 20–22 / Bold (other sheets) | 0 | Sheet titles |
 | `eyebrow` | SF | 13 / Semibold, UPPERCASE | +0.4 | "FRIDAY, SEPTEMBER 25", "QUICK PICKS", "HOW FAR WILL YOU GO IN BETWEEN?" |
 | `body` | SF | 15 / Regular, line spacing ≈ 1.35× | 0 | Default |
-| `bodyStrong` | SF | 15–16 / Semibold | 0 | Row titles, card titles (16–17 Bold for itinerary/option titles) |
+| `bodyStrong` | SF | 15–16 / Semibold | 0 | Row titles, card titles (16–17 Bold for sidequest/option titles) |
 | `button` | SF | 17 / Semibold (primary), 14–15 / Semibold (small) | 0 | Buttons |
 | `caption` | SF | 12–13 / Regular | 0 | Meta lines, helper text |
 | `micro` | SF | 10–11 / Semibold | 0 | Tab labels, hour labels, avatar initials in stacks |
@@ -186,7 +186,7 @@ struct LogoMark: View {
 
 ## 6. Opening animation (every cold launch)
 
-- Plays **every time the app starts cold** (not when it returns from the background), then goes to Login (or Home if signed in).
+- Plays **every time the app starts cold** (not when it returns from the background), then goes to Login (or Home if signed in). The app plays the timings below 1.3× faster (about 2.7 s in all).
 - Background cream. Centered stack: mark (132pt), 22pt gap, wordmark (40pt) with the tagline under it (15pt `text3`, "Turn waiting into wandering.").
 - Timeline (seconds from appear):
   1. **0.08 Rise + spin:** the mark starts at `offset(y: +560)`, `rotationEffect(-540°)`, `scale 0.55`, `opacity 0`. It animates to 0 / 0° / 1 / 1 over **1.1s** with ease-out (`cubic-bezier(0.22, 1, 0.36, 1)`, or `.spring(response: 1.0, dampingFraction: 0.85)`). Opacity uses 0.25s.
@@ -254,7 +254,13 @@ All copy below is final. Keep it word for word, including sentence case and the 
   2. **"Connect your calendar"** "We only read when you're busy or free, so we can plan around your schedule and spot gaps."
      - Rows for **Google Calendar** and **Outlook Calendar**: 40pt tile with a calendar icon, name, sub "Not connected" / "Connected · reading free/busy only", and a pill "Connect" (sage) / "✓ Connected" (success tint).
      - Note box: "We never post to your calendar or read event details without asking. You can disconnect anytime in Account."
+     - Below: "FILL IN YOUR LIKES" and a **Facebook** row in the same style: a 40pt tile with Facebook's "f" in its blue (`#0866FF` on `#E7F0FF`), sub "Not connected" / "48 liked Pages", and the same Connect / ✓ Connected pill.
+       - Caption: "Reads Pages you like and your city. Never posts."
+       - Connect opens Facebook's page (through the server). The import then **fills the likes you haven't rated** on step 3.
+       - Tapping "Connected" disconnects and takes back the ratings it filled that you haven't changed.
+       - Closing Facebook's page changes nothing, silently.
   3. **"What do you enjoy?"** "Rate each from 1 (not for me) to 5 (love it). Skip any you're not sure about."
+     - After a Facebook import, a sage-tint note under the heading: "Filled in from Facebook. Change anything."
      - One card, one row per type: Outdoors & parks, Food & drinks, Museums & art, Live music, Nightlife, Sports & games, Shopping & markets, Big crowds, Early mornings, Long walks.
      - Each row shows the name + value label on the right ("4 · Like it" in sageInk, or "Not rated"), then a 5-column grid of 36pt buttons 1–5.
        - Selected: sage fill, ink text. Numbers below the selected one: `sageTint`. Others: cream. Tapping the selected number again clears the row.
@@ -278,23 +284,23 @@ All copy below is final. Keep it word for word, including sentence case and the 
 - Header:
   - Eyebrow with today's date ("FRIDAY, SEPTEMBER 25") and the large title **"Your SideQuests"**.
   - Right side: the user's avatar (44) with status dot. Tapping it opens Account.
-- Segmented control (3): **Itineraries | Calendar | Past**.
+- Segmented control (3): **Sidequests | Calendar | Past**. (User-facing copy never says "itinerary"; the code and API keep `Itinerary`.)
 
-**7.5a Itineraries**
+**7.5a Sidequests**
 - If there are unrated past events, show a white card button at the top:
   - 40pt `sageTint` tile with a star.
   - "N past events to rate" / "Ratings tune what we suggest next".
   - "Rate" link → switches to Past.
-- Section "Active itineraries". A horizontal row of **itinerary cards**:
+- Section "Active sidequests". A horizontal row of **sidequest cards**:
   - 212pt wide, white, radius 16. Selected ring 2pt sage; others 1pt `line`.
   - Content: title 16 Bold, "Today · 1–8 PM" 13 `text3`, a row of 6pt color bars (one per block, colored by kind), "3 stops · 3 going" 13 Semibold.
   - The row ends with a dashed "+ New sidequest" tile, 120 wide.
-- Header row: selected itinerary title (section style) + page dots (7pt; active sage, others `#C3C7BD`).
+- Header row: selected sidequest title (section style) + page dots (7pt; active sage, others `#C3C7BD`).
 - **Swipeable timeline carousel:**
-  - One card per itinerary, 350 wide, 12pt gaps, snaps per card (`.scrollTargetBehavior(.viewAligned)`, 20pt content margins).
-  - Swiping changes the selected itinerary card; tapping a card scrolls to its timeline.
+  - One card per sidequest, 350 wide, 12pt gaps, snaps per card (`.scrollTargetBehavior(.viewAligned)`, 20pt content margins).
+  - Swiping changes the selected sidequest card; tapping a card scrolls to its timeline.
 - **Timeline card** (white, radius 16, height ~480):
-  - Hours from the itinerary's first to last hour (demo 1–8 PM).
+  - Hours from the sidequest's first to last hour (demo 1–8 PM).
   - **64pt per hour**, top inset 14.
   - Hour labels in a 46pt right-aligned column, 11pt `text3`, with 1pt `line` rules.
   - **Blocks:** left 62, right 12, radius 10, 1pt border, 2pt gap between blocks. Tall blocks (≥50pt) show the title (14 Semibold) and "2:30–4:00 PM · Sidequest" (12, 85%). Short blocks show one line: "Title · time" (12 Semibold).
@@ -305,7 +311,7 @@ All copy below is final. Keep it word for word, including sentence case and the 
     - Group: clay tint/border/text, plus an **avatar stack** (22pt) and "3 going · 1 interested"
   - **"Now" line:** 2pt sage with a 10pt sage dot, starting at x=56.
   - Tapping a block opens the **Event sheet** (7.6).
-- Footer hint: "Swipe to switch itineraries · tap a block to open it" (12 `text3`, centered).
+- Footer hint: "Swipe to switch sidequests · tap a block to open it" (12 `text3`, centered).
 
 **7.5b Calendar**
 - Day chip strip, horizontally scrollable, starting at Today (demo: Fri 25 → Sun Oct 4).
@@ -358,7 +364,7 @@ All copy below is final. Keep it word for word, including sentence case and the 
   - Cream receipt: "1 × {title} $…", "Fees", "Total" (bold, top rule).
   - Card row: navy `#1A1F71` "VISA" badge, "•••• 4242", "Change".
   - **Approve purchase** (ink). "The agent can't spend anything until you approve."
-  - Success: 64pt green check, "Booked", "Your ticket is saved to this itinerary. The group sees it too.", **Done** (sage).
+  - Success: 64pt green check, "Booked", "Your ticket is saved to this sidequest. The group sees it too.", **Done** (sage).
   - API: `POST /checkout/intents` → `…/approve`.
 
 ### 7.7 Create flow (+ button, full screen)
@@ -372,12 +378,12 @@ All copy below is final. Keep it word for word, including sentence case and the 
 **Where**
 - **"Where do you start and end?"**
 - White card with 2 rows:
-  - **A** (the logo's ring pin, `RouteMarker(.start)`, 26pt) "Start" / "Tech Square (current location)".
-  - **B** (the logo's diamond quest marker, `RouteMarker(.end)`) "End · where you need to be by the end time" / "Home · North Ave Apts" (or "Same as start").
+  - **A** (the logo's diamond quest marker, `RouteMarker(.start)`, 26pt) "Start" / "Tech Square (current location)".
+  - **B** (the logo's ring pin, `RouteMarker(.end)`) "End · where you need to be by the end time" / "Home · North Ave Apts" (or "Same as start").
   - The active row is tinted with an "Editing" label.
   - "End where I start" toggle.
 - Search field ("Search for your start/end location") + up to 4 suggestion pills (MKLocalSearch results; the first is "Current location").
-- **Map** (350×220, radius 16): tap to drop the active pin. Pin A is the logo's ring and pin B its diamond (`RouteMarker(…, onMap: true)`, 28pt, white halo and shadow). Bottom-left chip: "Tap the map to drop the Start/End pin". **No line between A and B.**
+- **Map** (350×220, radius 16): press and hold (0.45 s) to drop the active pin, like Apple Maps; panning never drops one. Pin A is the logo's diamond and pin B its ring (`RouteMarker(…, onMap: true)`, 28pt, white halo and shadow). Bottom-left chip: "Press and hold to drop the Start/End pin". **No line between A and B.**
 - "HOW FAR WILL YOU GO IN BETWEEN?": Walkable ≤ 15 min / Transit ≤ 30 min / Anywhere (3 cards; selected sage).
 - "CAN YOU PROVIDE A RIDE THIS TIME?" (asked for **every** sidequest):
   - **I can drive** (Own car), **I'll cover rides** (Uber / Lyft), **No ride** (Walk + transit).
@@ -413,24 +419,29 @@ All copy below is final. Keep it word for word, including sentence case and the 
     - Tapping it shows "Finding more…" / "Checking what fits your window", then appends 2 options and selects the first new one.
     - When there are none left: "No more right now" / "Try changing filters in More options" (grey icon).
     - The summary count updates. API: `POST /plans/generate/more`.
-- Above the route: "Drag ☰ to reorder stops" (with the two-line glyph) on the left, and a status on the right: "Recalculating transit…" (grey), then "Transit times updated" (green).
+- Above the route: "Drag ☰ to reorder · hold a stop to swap" (with the two-line glyph) on the left, and a status on the right: "Recalculating transit…" (grey), then "Transit times updated" (green). While a status shows, the hint shortens to "Drag ☰ to reorder".
 - **Route card** (white, radius 16). Vertical rail on the left (2pt `lineStrong` line):
-  - **A** point row: the ring marker, start place, "Leave 2:10 PM".
+  - **A** point row: the diamond marker, start place, "Leave 2:10 PM".
   - Leg rows: hollow 8pt blue ring, "MARTA · 14 min" (13 Medium, transit blue).
-  - **Stop** rows: 20pt sage circle with an ink number, title 16 Semibold, "2:24 PM–3:44 PM · Games + views · $", and the **drag handle** on the right. No Swap button.
-  - **B** point row: the diamond marker, end place, "Arrive 5:57 PM · back by 6:30 PM ✓", or in red "Arrive 6:45 PM · 15 min past 6:30 PM".
+  - **Stop** rows: 20pt sage circle with an ink number, title 16 Semibold, "2:24 PM–3:44 PM · Games + views · $", and the **drag handle** on the right. No visible Swap button: swapping lives in the press-and-hold menu.
+  - **B** point row: the ring marker, end place, "Arrive 5:57 PM · back by 6:30 PM ✓", or in red "Arrive 6:45 PM · 15 min past 6:30 PM".
 - **Drag to reorder:**
   - Drag the handle. The lifted row gets a white fill, shadow `0 8 24 rgba(0,0,0,.18)` and a 2pt sage ring.
   - Rows swap live when the finger passes a neighbor's midpoint. VoiceOver/keyboard: an adjustable action moves the stop up or down.
   - On drop: every leg shows "Updating transit…" for ~0.9s while calling `POST /plans/route`. Then leg modes and minutes, stop times and arrival all update. The option card's stop list follows the new order.
   - Leg mode rule: ≤0.8 mi walks; otherwise Drive / Uber / MARTA from the ride answer.
+- **Swap or remove a stop:** press and hold a stop's text (the ☰ handle stays for dragging). The menu has **Swap for something similar** and **Remove stop** (red; disabled when it's the only stop). VoiceOver gets both as actions.
+  - **Swap sheet** (white): "Swap Krog Street Tunnel murals" / "Similar spots for 3:58 PM–4:58 PM", round ×. A cream card of alternatives from `POST /plans/alternatives`: title (15 Semibold), "Street art · Free", a sageInk reason ("Also art to see · 0.9 mi away") and a sage **Swap** pill. It shows shimmering rows while loading, "Try again" on failure, and "Nothing similar nearby right now." when empty.
+  - Picking one closes the sheet. The new stop takes the old one's place with a brief sage tint, and the route re-times like after a drop.
+  - **Remove:** the stop leaves and the route re-times. A white row above the route reads "Removed Krog Street Market · **Undo**" for 5 s.
+  - The option card's stop list follows every change, and "Start this sidequest" saves the option as edited.
 - **"More options"** row (white, 50 tall: sliders icon, "More options", "Check your settings", chevron) → a cream sheet, "More options" / "Check everything before you start" with a Done pill:
   - Rows with an **Edit** pill that jumps to the step: Start, End, Date, Time window ("2:10 PM – back by 6:30 PM"), Mood, Budget, Who's coming, Ride ("Driving · 3 open seats").
   - "GETTING AROUND" multi toggles: Walk / MARTA / Rideshare.
   - "PACE": Relaxed / Balanced / Packed.
   - If shared, "GROUP": Lock joining at 1:30 PM, Max group size 6.
   - "Regenerate options with these settings" (outlined sage).
-- "Start this sidequest" → `POST /itineraries` → Home, with the new itinerary selected.
+- "Start this sidequest" → `POST /itineraries` → Home, with the new sidequest selected.
 
 ### 7.8 Forum
 - Title **"Forum"**. Area pill (white, 34 tall): pin icon + "Midtown Atlanta · 2 mi" + chevron → **Area sheet**:
@@ -501,6 +512,16 @@ All copy below is final. Keep it word for word, including sentence case and the 
 - **Me:**
   - "Taste profile" bars (label 84pt column + 8pt bar in sage: Outdoors, Food, Art, Social, Nightlife) + "Starts from your setup answers, then learns from your ratings. Each new sidequest mixes this with the mood you describe." + "Redo setup questions" pill (→ setup step 3).
   - "Connected" rows: Google Calendar · Connected, Location · While planning, Visa •••• 4242 · Agent checkout on, Voice input · On.
+    - **Facebook** row: status "Connected" (green), "Connect", or "Reconnect" when Facebook wants a new sign-in (sageInk, like the other actions).
+      - Not connected: tapping connects (Facebook's page, then the import) and opens the Facebook sheet.
+      - Otherwise tapping opens the sheet.
+    - **Facebook sheet:**
+      - Header: "f" tile, "Facebook", "Connected as Jordan Lee · updated Sep 25".
+      - **SUGGESTED LIKES:** only the ratings the import would change ("Live music · Not rated → 5 · Love it"), then **Use these**, which saves them and turns into "✓ Your likes are updated.". If nothing differs: "Your likes already match what we found."
+      - **WHAT WE FOUND:** interest chips + "From 48 Pages you like · Atlanta, Georgia".
+      - **FRIENDS ON SIDEQUESTS:** avatar, name, and Add → "Requested", or Accept for someone who already sent you a request.
+      - If a permission was turned off: "You didn't share Pages you like." + "Share them" (asks again).
+      - Footer: **Refresh** (reads Facebook again) and **Disconnect** (confirms first: "We'll delete what we imported. Your likes stay as they are.").
   - "Past sidequests" + "See all & rate" (→ Home › Past), with rows showing 14pt stars.
   - Sign out (white, red text).
   - **No stats row and no app-color option.**
@@ -579,7 +600,7 @@ REST + JSON, bearer token (except `/auth/*`), money in cents, ISO 8601 dates wit
 
 Set the demo in **Atlanta, Friday Sep 25**, with user **Jordan Lee (@jordanlee, JL)**. Copy the exact sample data from `renderVals()` in `project/Main.dc.html`. Key pieces:
 
-- **Itinerary "Free Friday afternoon" · Today · 1–8 PM · 3 going:**
+- **Sidequest "Free Friday afternoon" · Today · 1–8 PM · 3 going:**
   - CS 3510 lecture 1:00–1:50 (busy)
   - Transit to Ponce City Market 2:00–2:25
   - **Skyline Park rooftop** 2:30–4:00 (bookable)
@@ -625,7 +646,7 @@ Set the demo in **Atlanta, Friday Sep 25**, with user **Jordan Lee (@jordanlee, 
 - Drag-to-reorder and drag-to-plan need non-drag alternatives: `accessibilityAdjustableAction` for stops, and "+ Plan" for calendar windows.
 - Reduce Motion: no spin or slide; use crossfades.
 - Haptics: light selection on chips, segments and stars; medium on drop; success on booking, expense added and password updated.
-- Empty, loading and error states for every network call. Loading: a small logo with the S drawing in on a loop. Error: a short sentence + "Try again".
+- Empty, loading and error states for every network call. Loading: a small logo whose S draws from the diamond to the circle, holds a beat, then erases the same way, on a smooth loop. Error: a short sentence + "Try again".
 - Keyboard: Return advances through fields; forms scroll the focused field above the keyboard.
 
 ---
@@ -635,7 +656,7 @@ Set the demo in **Atlanta, Friday Sep 25**, with user **Jordan Lee (@jordanlee, 
 1. Design system (colors, fonts, metrics, all components), LogoMark + wordmark, preview gallery.
 2. Splash animation → Login → Forgot password (4) → Profile setup (5) + Photo sheet. Mock auth.
 3. Main shell: custom tab bar, raised +, routing, full-screen flows.
-4. Home: itineraries (cards + swipe timelines + event sheet + browser + checkout), Calendar (chips, day pager, press and hold to plan), Past + rate sheet.
+4. Home: sidequests (cards + swipe timelines + event sheet + browser + checkout), Calendar (chips, day pager, press and hold to plan), Past + rate sheet.
 5. Create: Where (map + pins + ride), When, Vibe (voice), Review (options, load more, drag reorder + re-time, More options).
 6. Forum (+ area and filter sheets), Groups (chat, album, splits, add expense), DMs, Account (status, Me, Friends).
 7. Swap in `LiveAPIClient` screen by screen, then add the WebSocket.

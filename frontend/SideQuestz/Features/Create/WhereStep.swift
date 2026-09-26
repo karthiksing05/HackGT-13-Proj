@@ -7,14 +7,23 @@ import SwiftUI
 /// Loading: until the default places arrive the pin rows and the suggestion pills shimmer; later
 /// searches keep the pills and show three dots in the search field. Picks and map taps drop the
 /// pin with a spring; the place names cross-fade.
+///
+/// When the phone can't say where it is, nothing is assumed: there's no "Current location" pill,
+/// a line says so above the search field, and the cursor goes to the search.
 struct CreateWhereStep: View {
     @Bindable var model: CreateFlowModel
     var focus: FocusState<CreateField?>.Binding
+
+    private static let locationHint = "Couldn't get your location. Search for your start."
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             CreateStepTitle("Where do you start and end?")
             pinCard
+            if model.needsStartSearch {
+                CreateWrapText(text: Self.locationHint, size: 13, color: Theme.text2)
+                    .sqTransition(.rise)
+            }
             SearchField(text: $model.search,
                         placeholder: model.editingPin == .end ? "Search for your end location" : "Search for your start location",
                         accessibilityLabel: "Search a place")
@@ -30,7 +39,10 @@ struct CreateWhereStep: View {
                     }
                 }
                 .animation(Motion.quick, value: model.searchingPlaces)
-            suggestionPills
+            // No row at all when there's nothing to suggest, so the spacing stays even.
+            if !model.suggestionsLoaded || !model.suggestions.isEmpty {
+                suggestionPills
+            }
             CreateMapCard(model: model)
             CreateEyebrow(text: "HOW FAR WILL YOU GO IN BETWEEN?", topMargin: 6)
             CreateChoiceCards(options: TravelRange.allCases.map { ($0, $0.label, $0.sublabel) }, selection: model.range) { range in
@@ -44,14 +56,18 @@ struct CreateWhereStep: View {
                 CreateSeatPicker(seats: $model.openSeats)
                     .sqTransition(.rise)
             }
-            CreateCrossfade(value: model.ride) {
-                CreateWrapText(text: model.ride.note, size: 13, color: Theme.text2)
-            }
         }
         // New results pop in and everything below eases to the pills' new height.
         .animation(Motion.standard, value: model.suggestions)
         .animation(Motion.standard, value: model.suggestionsLoaded)
-        .task(id: SuggestionKey(search: model.search, pin: model.editingPin)) {
+        .animation(Motion.standard, value: model.needsStartSearch)
+        .onChange(of: model.needsStartSearch, initial: true) { _, needsStart in
+            guard needsStart else { return }
+            focus.wrappedValue = .search
+            AccessibilityNotification.Announcement(Self.locationHint).post()
+        }
+        // The pills reload when the location answers ("Current location" joins them).
+        .task(id: SuggestionKey(search: model.search, pin: model.editingPin, located: model.locationResolved)) {
             if !model.search.isEmpty {
                 try? await Task.sleep(nanoseconds: 250_000_000)
                 guard !Task.isCancelled else { return }
@@ -63,6 +79,7 @@ struct CreateWhereStep: View {
     private struct SuggestionKey: Hashable {
         var search: String
         var pin: CreatePin
+        var located: Bool
     }
 
     // MARK: Pins
@@ -93,8 +110,8 @@ struct CreateWhereStep: View {
         let active = model.editingPin == pin
         let place = isStart ? model.start : model.end
         let placeText: String? = if !isStart && model.endSameAsStart { "Same as start" } else { place?.name }
-        let loading = placeText == nil && !model.placesLoaded
-        let label = isStart ? "Start" : "End · where you need to be by the end time"
+        let loading = placeText == nil && !(isStart ? model.startDefaultLoaded : model.placesLoaded)
+        let label = isStart ? "Start" : "End"
         return Button {
             focus.wrappedValue = nil
             withMotion(Motion.quick) { model.selectPin(pin) }
@@ -103,7 +120,7 @@ struct CreateWhereStep: View {
                 RouteMarker(kind: isStart ? .start : .end, size: 26)
                 VStack(alignment: .leading, spacing: 0) {
                     CreateWrapText(text: label, size: 12, textStyle: .caption1, color: Theme.text3)
-                    Text(placeText ?? (model.placesLoaded ? (isStart ? "Search for your start location" : "Search for your end location") : " "))
+                    Text(placeText ?? (loading ? " " : "Not set"))
                         .sqFont(15, .semibold)
                         .foregroundStyle(placeText == nil ? Theme.text3 : Theme.ink)
                         .createLine(15)
@@ -206,13 +223,13 @@ private struct CreateSuggestionSkeleton: View {
 
 // MARK: - Map
 
-/// 220pt MapKit map (full content width, radius 16). Tap drops the pin being edited; pins are the
-/// logo's markers (start = ring, end = diamond). No line between them.
+/// 220pt MapKit map (full content width, radius 16). Press and hold drops the pin being edited (like
+/// Apple Maps); pins are the logo's markers (start = diamond, end = ring). No line between them.
 ///
-/// The tap is a `SpatialTapGesture` recognized *alongside* MapKit's own pan/zoom recognizers: on a
-/// device a real tap moves a few points, and an exclusive tap gesture loses it to MapKit. A pan
-/// still moves the map (it moves too far to count as a tap). A pin that lands somewhere new drops
-/// in with a spring; tapping also gives a light haptic.
+/// The gestures run *alongside* MapKit's own pan/zoom recognizers (an exclusive gesture loses real
+/// touches to MapKit): a zero-distance drag tracks where the finger is, and a long press drops the
+/// pin there once it holds still for 0.45 s. Moving more than 12pt cancels it, so panning never
+/// drops a pin. A pin that lands somewhere new drops in with a spring and a medium haptic.
 private struct CreateMapCard: View {
     let model: CreateFlowModel
 
@@ -221,13 +238,20 @@ private struct CreateMapCard: View {
     /// Pin positions that have already landed, so a pin only drops when it lands somewhere new
     /// (not every time the map is rebuilt, e.g. coming back to this step).
     @State private var landedPins: Set<String>
-    /// Bumped by every tap that drops a pin (light haptic).
-    @State private var taps = 0
+    /// Bumped by every press-and-hold that drops a pin (medium haptic).
+    @State private var drops = 0
+    /// Where the finger is while it's down, for the press-and-hold drop.
+    @State private var touchLocation: CGPoint?
 
     init(model: CreateFlowModel) {
         self.model = model
-        let shown = [model.start?.coordinate, model.endSameAsStart ? nil : model.end?.coordinate].compactMap { $0 }
+        let shown = Self.pinCoordinates(model)
         _landedPins = State(initialValue: Set(shown.map(Self.key)))
+        // Pins that are already set (coming back to this step, or an end from Home's search) are
+        // in view from the start.
+        let region = Self.region(showing: shown, from: PlaceSearch.defaultRegion) ?? PlaceSearch.defaultRegion
+        _camera = State(initialValue: .region(region))
+        _visibleRegion = State(initialValue: region)
     }
 
     var body: some View {
@@ -249,11 +273,18 @@ private struct CreateMapCard: View {
             .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll, showsTraffic: false))
             .mapControls {}
             .safeAreaPadding(.bottom, 34)
-            .simultaneousGesture(SpatialTapGesture(coordinateSpace: .local).onEnded { value in
-                guard let coordinate = proxy.convert(value.location, from: .local) else { return }
-                taps += 1
-                model.dropPin(at: Coordinate(lat: coordinate.latitude, lng: coordinate.longitude))
-            })
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                    .onChanged { touchLocation = $0.location }
+                    .onEnded { _ in touchLocation = nil }
+            )
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.45, maximumDistance: 12).onEnded { _ in
+                    guard let location = touchLocation, let coordinate = proxy.convert(location, from: .local) else { return }
+                    drops += 1
+                    model.dropPin(at: Coordinate(lat: coordinate.latitude, lng: coordinate.longitude))
+                }
+            )
             .onMapCameraChange(frequency: .onEnd) { context in
                 visibleRegion = context.region
             }
@@ -263,7 +294,7 @@ private struct CreateMapCard: View {
         .background(Theme.mapBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(alignment: .bottomLeading) {
-            Text(model.editingPin == .end ? "Tap the map to drop the End pin" : "Tap the map to drop the Start pin")
+            Text(model.editingPin == .end ? "Press and hold to drop the End pin" : "Press and hold to drop the Start pin")
                 .sqFont(12, .semibold)
                 .foregroundStyle(Theme.ink)
                 .createLine(12)
@@ -277,8 +308,13 @@ private struct CreateMapCard: View {
                 .animation(Motion.standard, value: model.editingPin)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(model.editingPin == .end ? "Map: tap to drop the end pin" : "Map: tap to drop the start pin")
-        .sensoryFeedback(.impact(weight: .light), trigger: taps)
+        .accessibilityLabel(model.editingPin == .end ? "Map: press and hold to drop the end pin" : "Map: press and hold to drop the start pin")
+        .accessibilityAction(named: model.editingPin == .end ? "Drop the end pin at the map's center" : "Drop the start pin at the map's center") {
+            let center = (visibleRegion ?? PlaceSearch.defaultRegion).center
+            drops += 1
+            model.dropPin(at: Coordinate(lat: center.latitude, lng: center.longitude))
+        }
+        .sensoryFeedback(.impact(weight: .medium), trigger: drops)
         .onChange(of: model.start) { revealPins() }
         .onChange(of: model.end) { revealPins() }
     }
@@ -298,22 +334,30 @@ private struct CreateMapCard: View {
 
     /// When a searched place lands outside the visible map, move the camera to show both pins.
     private func revealPins() {
-        let coordinates = [model.start?.coordinate, model.endSameAsStart ? nil : model.end?.coordinate].compactMap { $0 }
-        guard !coordinates.isEmpty else { return }
-        let region = visibleRegion ?? PlaceSearch.defaultRegion
+        guard let fitted = Self.region(showing: Self.pinCoordinates(model), from: visibleRegion ?? PlaceSearch.defaultRegion) else { return }
+        withMotion(Motion.gentle) { camera = .region(fitted) }
+    }
+
+    private static func pinCoordinates(_ model: CreateFlowModel) -> [Coordinate] {
+        [model.start?.coordinate, model.endSameAsStart ? nil : model.end?.coordinate].compactMap { $0 }
+    }
+
+    /// A region that shows every coordinate with some margin, or nil when `region` already does
+    /// (or there's nothing to show).
+    private static func region(showing coordinates: [Coordinate], from region: MKCoordinateRegion) -> MKCoordinateRegion? {
+        guard !coordinates.isEmpty else { return nil }
         let inset = 0.12
         let allVisible = coordinates.allSatisfy { c in
             abs(c.lat - region.center.latitude) <= region.span.latitudeDelta * (0.5 - inset)
                 && abs(c.lng - region.center.longitude) <= region.span.longitudeDelta * (0.5 - inset)
         }
-        guard !allVisible else { return }
+        guard !allVisible else { return nil }
         let lats = coordinates.map(\.lat), lngs = coordinates.map(\.lng)
-        guard let minLat = lats.min(), let maxLat = lats.max(), let minLng = lngs.min(), let maxLng = lngs.max() else { return }
-        let fitted = MKCoordinateRegion(
+        guard let minLat = lats.min(), let maxLat = lats.max(), let minLng = lngs.min(), let maxLng = lngs.max() else { return nil }
+        return MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLng + maxLng) / 2),
             span: MKCoordinateSpan(latitudeDelta: max(0.02, (maxLat - minLat) * 1.8), longitudeDelta: max(0.03, (maxLng - minLng) * 1.8))
         )
-        withMotion(Motion.gentle) { camera = .region(fitted) }
     }
 }
 

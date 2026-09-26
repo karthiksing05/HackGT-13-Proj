@@ -44,7 +44,8 @@ final class PlaceSearch {
         if let near {
             request.region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: near.lat, longitude: near.lng),
                                                 span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1))
-        } else {
+        } else if isMock {
+            // The demo lives in Midtown. Live searches without a coordinate aren't biased anywhere.
             request.region = Self.defaultRegion
         }
         guard let response = try? await MKLocalSearch(request: request).start() else { return [] }
@@ -67,10 +68,15 @@ final class PlaceSearch {
 }
 
 /// One-shot current location. Mock mode returns Tech Square (the demo's "current location").
+///
+/// Requests that overlap share one fix: everyone waiting gets the same answer. The first request
+/// asks for permission if it was never asked, and a fix that doesn't come within 15 s counts as none.
 final class LocationService: NSObject, CLLocationManagerDelegate {
     private let isMock: Bool
     private let manager = CLLocationManager()
-    private var continuation: CheckedContinuation<Coordinate?, Never>?
+    /// Everyone waiting for the fix in flight.
+    private var waiters: [CheckedContinuation<Coordinate?, Never>] = []
+    private var timeout: Task<Void, Never>?
 
     init(isMock: Bool) {
         self.isMock = isMock
@@ -79,17 +85,57 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
     }
 
-    func currentLocation() async -> Place {
+    /// nil when the phone can't or won't say (no permission, no fix): screens then ask the user to
+    /// pick a place instead of guessing one. The demo is always at Tech Square.
+    func currentLocation() async -> Place? {
         if isMock { return MockPlaces.techSquare.place }
-        guard let coordinate = await requestCoordinate() else { return MockPlaces.techSquare.place }
+        guard let coordinate = await requestCoordinate() else { return nil }
         return Place(name: "Current location", coordinate: coordinate)
     }
 
     private func requestCoordinate() async -> Coordinate? {
-        if manager.authorizationStatus == .notDetermined { manager.requestWhenInUseAuthorization() }
+        switch manager.authorizationStatus {
+        case .denied, .restricted: return nil
+        default: break
+        }
         return await withCheckedContinuation { continuation in
-            self.continuation = continuation
-            manager.requestLocation()
+            waiters.append(continuation)
+            // A fix is already on its way: this caller gets it too.
+            guard waiters.count == 1 else { return }
+            if manager.authorizationStatus == .notDetermined {
+                // The fix is requested once the person answers (`locationManagerDidChangeAuthorization`).
+                manager.requestWhenInUseAuthorization()
+            } else {
+                manager.requestLocation()
+            }
+            timeout = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(15))
+                guard !Task.isCancelled else { return }
+                self?.finish(nil)
+            }
+        }
+    }
+
+    /// Answers everyone waiting.
+    private func finish(_ coordinate: Coordinate?) {
+        timeout?.cancel()
+        timeout = nil
+        let waiting = waiters
+        waiters = []
+        for waiter in waiting { waiter.resume(returning: coordinate) }
+    }
+
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                guard !self.waiters.isEmpty else { return }
+                switch status {
+                case .authorizedWhenInUse, .authorizedAlways: self.manager.requestLocation()
+                case .denied, .restricted: self.finish(nil)
+                default: break // still waiting for the answer
+                }
+            }
         }
     }
 
@@ -97,8 +143,7 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         let c = locations.last?.coordinate
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
-                self.continuation?.resume(returning: c.map { Coordinate(lat: $0.latitude, lng: $0.longitude) })
-                self.continuation = nil
+                self.finish(c.map { Coordinate(lat: $0.latitude, lng: $0.longitude) })
             }
         }
     }
@@ -106,8 +151,7 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: any Error) {
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
-                self.continuation?.resume(returning: nil)
-                self.continuation = nil
+                self.finish(nil)
             }
         }
     }

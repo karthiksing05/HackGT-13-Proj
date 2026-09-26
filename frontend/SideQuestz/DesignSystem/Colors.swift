@@ -84,9 +84,10 @@ enum Theme {
     static let successBannerText = Color(hex: 0x14532D)
 
     // Presence status dots
-    static let statusOpen = Color(hex: 0x16A34A)
-    static let statusOnline = Color(hex: 0x1D4ED8)
-    static let statusNotFree = Color(hex: 0x858D87)
+    /// Status: open to all (bright green), friends only (light green), busy (grey).
+    static let statusOpen = Color(hex: 0x22C55E)
+    static let statusFriends = Color(hex: 0x86EFAC)
+    static let statusBusy = Color(hex: 0x9CA3AF)
 
     // Misc
     static let visaNavy = Color(hex: 0x1A1F71)

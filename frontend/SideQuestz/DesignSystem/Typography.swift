@@ -60,7 +60,7 @@ extension View {
         font(.mono(26, .extraBold, relativeTo: .title)).tracking(-0.4).foregroundStyle(Theme.ink)
     }
 
-    /// 19 / Bold, tracking −0.4. Section headers ("Active itineraries", "Taste profile").
+    /// 19 / Bold, tracking −0.4. Section headers ("Active sidequests", "Taste profile").
     func sectionStyle() -> some View {
         font(.mono(19, .bold, relativeTo: .title3)).tracking(-0.4).foregroundStyle(Theme.ink)
     }
@@ -80,6 +80,14 @@ extension View {
     /// 12–13 / Regular, `text3`.
     func captionStyle(_ size: CGFloat = 12, color: Color = Theme.text3) -> some View {
         sqFont(size, relativeTo: .caption).foregroundStyle(color)
+    }
+}
+
+extension Text {
+    /// The brand name in its two tones inside other text, like the wordmark:
+    /// `Text.brand(prefix: "Your ")` → "Your " + "Side" (sage) + "Quests" (the surrounding color).
+    static func brand(prefix: String = "", suffix: String = "") -> Text {
+        Text(prefix) + Text("Side").foregroundStyle(Theme.sage) + Text("Quests") + Text(suffix)
     }
 }
 

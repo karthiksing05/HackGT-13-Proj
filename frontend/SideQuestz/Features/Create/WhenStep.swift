@@ -55,12 +55,13 @@ struct CreateWhenStep: View {
 
     // MARK: Summary
 
-    /// Wraps like the prototype; the times roll to their new values.
+    /// "Leave Tech Square at 2:10 PM, back at Home by 6:30 PM." Wraps like the prototype; the times
+    /// roll to their new values.
     private var summary: some View {
         let format = env.format
         let startName = model.start?.name ?? "your start"
         let endName = model.endPlace?.name ?? "your end"
-        let text = "Leave \(startName) at \(format.time(model.startTime)). We plan backwards so you're at \(endName) by \(format.time(model.backBy))."
+        let text = "Leave \(startName) at \(format.time(model.startTime)), back at \(endName) by \(format.time(model.backBy))."
         return HStack(alignment: .top, spacing: 10) {
             CreatePinGlyph(size: 18)
                 .foregroundStyle(Theme.sageInk)

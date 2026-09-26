@@ -2,7 +2,8 @@ import SwiftUI
 import UIKit
 
 /// Home › Calendar (GUI_PLAN.md §7.5b): day chips from Today, swipeable day panels (6 AM–11 PM),
-/// and press and hold on empty time to plan a window. "+ Plan" is the non-gesture alternative.
+/// and press and hold on empty time to plan a window. "+ Plan" is the non-gesture alternative. The
+/// press-and-hold hint under the days shows until you've made a window once.
 ///
 /// Motion: a skeleton day while the first load runs, then chips and blocks arrive one after
 /// another; the planning window grows out of the press point, springs to each 15-minute step and
@@ -17,6 +18,8 @@ struct HomeCalendarView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Chips and blocks arrive one after another only when they replace the skeleton.
     @State private var arrival = HomeArrivalWindow()
+    /// Set once a window has been made by press and hold (the gesture is found; the hint goes).
+    @AppStorage(HomeDayPanel.holdHintKey) private var madeWindow = false
 
     init(store: HomeStore, pageWidth: CGFloat, openItem: @escaping (CalendarItem) -> Void, retry: @escaping () -> Void) {
         self.store = store
@@ -31,15 +34,20 @@ struct HomeCalendarView: View {
         } content: { days in
             chips(days)
             pager(days)
-            Text("Press and hold on empty time to plan a sidequest · swipe for more days")
-                .sqFont(12, relativeTo: .caption)
-                .foregroundStyle(Theme.text3)
-                .homeLine(12)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, Metrics.side)
-                .padding(.top, 6)
-                .padding(.bottom, 24)
+            ZStack(alignment: .top) {
+                if !madeWindow {
+                    Text("Press and hold on empty time to plan a sidequest")
+                        .sqFont(12, relativeTo: .caption)
+                        .foregroundStyle(Theme.text3)
+                        .homeLine(12)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, Metrics.side)
+                        .padding(.top, 6)
+                        .transition(.opacity)
+                }
+            }
+            .padding(.bottom, 24)
         }
         .onAppear { arrival.begin(loading: store.days.isLoading) }
         .onChange(of: store.days.phase) { _, phase in arrival.update(phase) }
@@ -175,11 +183,15 @@ struct HomeDayPanel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Bumped when a press and hold starts a window (medium haptic).
     @State private var holds = 0
+    /// A window has been made by press and hold before (the Calendar's hint is no longer needed).
+    @AppStorage(HomeDayPanel.holdHintKey) private var madeWindow = false
     /// What the finger on the timeline is doing, if anything.
     @State private var gesture: HomeWindowGesture?
     /// Where a new window grows from: the press point, relative to the box's layout frame.
     @State private var growAnchor = UnitPoint.center
 
+    /// UserDefaults key: the user has made a window by press and hold at least once.
+    static let holdHintKey = "home.calendar.madeWindow"
     static let hourHeight: CGFloat = 30
     static let topInset: CGFloat = 10
     static let timelineHeight: CGFloat = 530
@@ -515,7 +527,10 @@ struct HomeDayPanel: View {
         gesture = nil
         guard var selection = currentSelection, selection.isAdjusting else { return }
         selection.isAdjusting = false
-        withMotion(Motion.arrive) { store.planSelection = selection }
+        withMotion(Motion.arrive) {
+            store.planSelection = selection
+            madeWindow = true
+        }
     }
 
     private func clearSelection() {

@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// Splits › "+ Add an expense" (GUI_PLAN.md §7.9). Equal split only. "Check the split" previews
-/// the server's math on the client (`SplitMath`) so it always adds up to the cent; saving posts the
-/// expense and the server's result is what the Splits tab shows.
+/// the server's math on the client (`SplitMath`) so it always adds up to the cent ("Split equally ·
+/// $13.33 each" on its first line); saving posts the expense and the server's result is what the
+/// Splits tab shows.
 ///
 /// Motion: the preview's amounts roll as you type, people slide in and out of the split, and the
 /// "Add $…" button shows loading dots while the server saves.
@@ -93,18 +94,12 @@ struct AddExpenseSheet: View {
                     }
                 }
             }
-            howItsSplit
             checkCard
             if !shownErrors.isEmpty {
                 ErrorBox(messages: shownErrors)
                     .sqTransition(.rise)
             }
             saveButton
-            Text("Everyone in the group gets a notification with the split.")
-                .socialText(12)
-                .foregroundStyle(Theme.text3)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
         }
         .onChange(of: amount) { _, newValue in
             let cleaned = Self.sanitizedAmount(newValue)
@@ -178,26 +173,6 @@ struct AddExpenseSheet: View {
             .accessibilityAddTraits(.isHeader)
     }
 
-    private var howItsSplit: some View {
-        let count = splitMembers.count
-        return HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("How it's split").socialText(12).foregroundStyle(Theme.text3)
-                Text("Equally").socialText(15, .semibold).foregroundStyle(Theme.ink)
-            }
-            Spacer(minLength: 0)
-            Text("Total ÷ \(count) \(count == 1 ? "person" : "people")")
-                .socialText(13)
-                .foregroundStyle(Theme.text3)
-                .sqNumeric()
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .animation(Motion.quick, value: count)
-        .accessibilityElement(children: .combine)
-    }
-
     // MARK: Check the split
 
     private var checkCard: some View {
@@ -212,9 +187,11 @@ struct AddExpenseSheet: View {
                     .tracking(0.4)
                     .foregroundStyle(Theme.text3)
                 Spacer(minLength: 8)
-                Text(!people.isEmpty && cents > 0 ? "\(Money.format(cents / people.count)) each" : "—")
+                Text(!people.isEmpty && cents > 0 ? "Split equally · \(Money.format(cents / people.count)) each" : "Split equally")
                     .socialText(13, .semibold)
                     .foregroundStyle(Theme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .sqNumeric()
             }
             ForEach(Array(people.enumerated()), id: \.element.id) { index, person in

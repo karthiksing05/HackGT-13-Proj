@@ -39,8 +39,17 @@ struct ForumPost: Codable, Identifiable, Hashable {
     var goingCount: Int
     var interestedCount: Int
     var postedMinutesAgo: Int
-    var joinRequested: Bool = false
+    /// Where you stand on this open plan (requested, in, full, closed).
+    var joinStatus: JoinStatus = .none
     var planTogetherSent: Bool = false
+    /// The plan's group chat, once you're in (`join_status: joined`).
+    var threadId: String? = nil
+
+    /// Shortcut for the button: asked (or already in).
+    var joinRequested: Bool {
+        get { joinStatus == .requested || joinStatus == .joined }
+        set { joinStatus = newValue ? .requested : .none }
+    }
 
     /// "2 of 6 spots left"
     var spotsLabel: String? {
@@ -53,6 +62,45 @@ struct ForumPost: Codable, Identifiable, Hashable {
         return Double(capacity - spotsLeft) / Double(capacity)
     }
     var peopleLine: String { "\(goingCount) going · \(interestedCount) interested" }
+}
+
+/// Your place in an open plan. `joined` = the host (or auto-accept) let you in: the plan is on Home
+/// and its group chat exists.
+enum JoinStatus: String, Codable, Hashable {
+    case none, requested, joined, full, closed
+
+    init(from decoder: Decoder) throws {
+        self = JoinStatus(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .none
+    }
+}
+
+/// `POST /forum/posts/{id}/join` (and the `join.update` event).
+struct JoinResult: Codable, Hashable {
+    var status: JoinStatus
+    /// Set when you're in: the plan on Home and its group thread.
+    var itineraryId: String?
+    var threadId: String?
+}
+
+/// Where the Forum looks: a named place with a center. "Current location" gets its coordinate
+/// from the device right before the feed loads.
+struct ForumArea: Codable, Hashable, Identifiable {
+    var name: String
+    var coordinate: Coordinate?
+    var isCurrentLocation = false
+
+    var id: String { isCurrentLocation ? "current-location" : name }
+
+    static let currentLocation = ForumArea(name: "Current location", coordinate: nil, isCurrentLocation: true)
+    static let midtown = ForumArea(name: "Midtown Atlanta", coordinate: Coordinate(lat: 33.7838, lng: -84.3833))
+    /// The Area sheet's starting rows (the demo city); search finds any other place.
+    static let suggestions: [ForumArea] = [
+        .currentLocation,
+        .midtown,
+        ForumArea(name: "Georgia Tech campus", coordinate: Coordinate(lat: 33.7756, lng: -84.3963)),
+        ForumArea(name: "Downtown Atlanta", coordinate: Coordinate(lat: 33.7550, lng: -84.3900)),
+        ForumArea(name: "Decatur", coordinate: Coordinate(lat: 33.7748, lng: -84.2963)),
+    ]
 }
 
 enum ForumScope: String, Codable, CaseIterable, Identifiable {
@@ -95,7 +143,7 @@ enum ForumWhen: String, Codable, CaseIterable, Identifiable {
 
 /// GET /forum/posts query (sort + filters). Defaults = no filters.
 struct ForumQuery: Codable, Hashable {
-    var area: String = "Midtown Atlanta"
+    var area: ForumArea = .midtown
     var radiusMi: Int = 2
     var scope: ForumScope = .everyone
     var type: ForumTypeFilter = .all
@@ -114,15 +162,6 @@ struct ForumQuery: Codable, Hashable {
     }
     var hasFiltersOrSort: Bool { filterCount > 0 || sort != .soonest }
 
-    static let areas = ["Current location", "Midtown Atlanta", "Georgia Tech campus", "Downtown Atlanta", "Decatur"]
-    /// Center of each area (sent as lat/lng with the feed query; drawn in the area map).
-    static let areaCenters: [String: Coordinate] = [
-        "Current location": Coordinate(lat: 33.7766, lng: -84.3890),
-        "Midtown Atlanta": Coordinate(lat: 33.7838, lng: -84.3833),
-        "Georgia Tech campus": Coordinate(lat: 33.7756, lng: -84.3963),
-        "Downtown Atlanta": Coordinate(lat: 33.7550, lng: -84.3900),
-        "Decatur": Coordinate(lat: 33.7748, lng: -84.2963),
-    ]
     static let radii = [1, 2, 5, 10]
     static let interestTags = ["Outdoors", "Food", "Art", "Music", "Active", "Games", "Shopping"]
 }
@@ -131,12 +170,27 @@ enum ForumPostVisibility: String, Codable {
     case friends, everyone
 }
 
-/// Your own "I'm free" post (Forum › "Bored right now?").
+/// Your own "I'm free" post (Forum › "Bored right now?"), from `GET /forum/posts/mine`.
 struct MyFreePost: Codable, Hashable, Identifiable {
     let id: String
     var visibility: ForumPostVisibility
     /// "Free until 6:30 PM near Tech Square"
     var text: String
+    /// When it comes down on its own.
+    var until: Date?
+    /// Who can see it: everyone within `radiusMi` of `areaLabel` (or your friends).
+    var areaLabel: String?
+    var radiusMi: Int?
+}
+
+/// `POST /forum/posts` with `type: free_now`.
+struct NewFreePost: Codable, Hashable {
+    var visibility: ForumPostVisibility
+    /// nil = the server picks (end of your free window).
+    var until: Date?
+    /// Where you are: the area the post is visible around.
+    var area: ForumArea?
+    var radiusMi: Int?
 }
 
 // MARK: - Threads (group chats + DMs)
@@ -160,17 +214,24 @@ struct ChatThread: Codable, Identifiable, Hashable {
     var albumSubtitle: String?
 }
 
+/// Messages come oldest first; `GET …/messages?before=<message id>` pages back in time.
 struct Message: Codable, Identifiable, Hashable {
     let id: String
     var senderId: String
     var senderName: String
     var text: String
     var sentAt: Date
+    /// Echo of the id the sender's device made up, so a retried send isn't posted twice and the
+    /// socket echo can confirm the pending bubble.
+    var clientId: String?
 }
 
 struct GroupPhoto: Codable, Identifiable, Hashable {
     let id: String
     var byName: String
+    /// Who added it (you can delete your own).
+    var uploaderId: String?
+    var createdAt: Date?
     var url: URL?
     /// Mock placeholder tile color ("#DDD3F3").
     var placeholderHex: String?
@@ -188,6 +249,9 @@ struct Expense: Codable, Identifiable, Hashable {
     var splitAmong: [String]
     /// Server-computed shares, same order as `splitAmong`.
     var shares: [Int]
+    /// Who added it (you can delete your own). Older servers leave it out; the app then treats
+    /// the payer as the one who added it.
+    var createdBy: String? = nil
 }
 
 /// + = they owe you, − = you owe them.
@@ -214,11 +278,26 @@ struct GroupLedger: Codable, Hashable {
 
 // MARK: - Realtime
 
+/// `WS /ws` events (see API_CONTRACT.md › Realtime for the JSON of each).
 enum RealtimeEvent: Hashable {
     case messageNew(threadId: String, message: Message)
+    /// A thread was created or changed (members, last message, unread count).
+    case threadUpdated(ChatThread)
+    /// Read on another device.
+    case threadRead(threadId: String)
+    /// Someone asked to join your open plan.
     case joinRequest(postId: String, from: PersonRef)
+    /// Your request to join was answered.
+    case joinUpdate(postId: String, result: JoinResult)
     case friendStatus(userId: String, statusLine: String)
+    case friendRequest(FriendRequest)
     case forumUpdate
     case checkoutStatus(intentId: String, state: CheckoutState)
     case transitDelay(itineraryId: String, itemId: String, minutes: Int)
+    /// A plan you're on changed (the host edited it, someone joined, it was re-timed).
+    case itineraryUpdated(Itinerary)
+    /// A plan you're on was deleted, or you were removed from it.
+    case itineraryRemoved(id: String)
+    case expenseAdded(groupId: String, expense: Expense)
+    case photoAdded(groupId: String, photo: GroupPhoto)
 }

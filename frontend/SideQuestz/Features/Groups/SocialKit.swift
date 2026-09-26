@@ -50,6 +50,42 @@ struct SocialTag: View {
     }
 }
 
+/// Section label on the cream background: 13 Semibold, tracked, `text3` ("MESSAGES",
+/// "EXPENSES · SPLIT EQUALLY").
+struct SocialSectionLabel: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .socialText(13, .semibold)
+            .tracking(0.4)
+            .foregroundStyle(Theme.text3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// Unread count on a thread row: a `sageInk` capsule with white bold digits ("3", "99+").
+/// The count rolls when it changes; VoiceOver reads "3 unread".
+struct SocialUnreadBadge: View {
+    let count: Int
+
+    var body: some View {
+        Text(count > 99 ? "99+" : "\(count)")
+            .sqFont(12, .bold)
+            .monospacedDigit()
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 6)
+            .frame(minWidth: 20, minHeight: 20)
+            .background(Theme.sageInk, in: Capsule())
+            .sqNumeric()
+            .accessibilityElement()
+            .accessibilityLabel("\(count) unread")
+    }
+}
+
 // MARK: - Chip styles
 
 extension ChipStyle {
@@ -239,4 +275,23 @@ extension Error {
     var socialMessage: String {
         (self as? LocalizedError)?.errorDescription ?? "Something went wrong."
     }
+
+    /// `409`: what the screen showed is out of date (the server's sentence, when it sent one).
+    var socialConflictMessage: String? {
+        guard let error = self as? APIError, case .server(let status, let message) = error, status == 409 else { return nil }
+        return message ?? "That changed while you were looking. Check the new details and try again."
+    }
+}
+
+// MARK: - Sharing
+
+/// The system share sheet (`UIActivityViewController`) for photos and links.
+struct SocialShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }

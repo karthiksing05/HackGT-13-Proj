@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Create › Review ("Pick a sidequest"): option cards + "Load more options", the timed route for
-/// the selected option (drag ☰ to reorder; the server re-times it), and "More options".
+/// the selected option (drag ☰ to reorder; hold a stop to swap or remove it; the server re-times
+/// it), and "More options".
 ///
 /// Loading and motion: while the planner works (as long as `POST /plans/generate` takes), ghost
 /// option cards sit where the real ones will land, over the drawing logo and status lines; then
@@ -36,8 +37,9 @@ struct CreateReviewStep: View {
                     }
                     .padding(.top, 12)
                     .transition(.opacity)
-                case .loaded(let options):
-                    loaded(options)
+                case .loaded:
+                    // As edited here: swapped stops in their slots, removed ones gone.
+                    loaded(model.optionList)
                         .transition(.opacity)
                 }
             }
@@ -60,11 +62,11 @@ struct CreateReviewStep: View {
         }
     }
 
-    /// "Fri, Sep 25 · 2:10 PM–6:30 PM · 3 options · drag stops to reorder" (the count rolls).
+    /// "Fri, Sep 25 · 2:10 PM–6:30 PM · 3 options" (the count rolls).
     private var summary: String {
         let window = "\(env.format.shortDate(model.date)) · \(env.format.fullRange(model.startTime, model.backBy))"
         guard let count = model.options.value?.count, count > 0 else { return window }
-        return "\(window) · \(count) option\(count == 1 ? "" : "s") · drag stops to reorder"
+        return "\(window) · \(count) option\(count == 1 ? "" : "s")"
     }
 
     /// Honest, generic steps of what the planner does; they stay true with the real backend.
@@ -74,9 +76,11 @@ struct CreateReviewStep: View {
                 "Timing transit between stops…", "Ranking by what you like…"]
     }
 
-    /// "Tech Square (current location)" → "Tech Square"; a dropped pin → "your start".
+    /// "Tech Square (current location)" → "Tech Square"; the phone's location → "you"; a dropped
+    /// pin → "your start".
     private static func shortName(_ name: String) -> String {
         if name == "Dropped pin" { return "your start" }
+        if name == "Current location" { return "you" }
         return name.components(separatedBy: " (").first ?? name
     }
 
@@ -90,6 +94,15 @@ struct CreateReviewStep: View {
                 if let option = model.selectedOption {
                     routeHeader
                         .sqAppear(2)
+                    if let removal = model.lastRemoval, removal.optionId == option.id {
+                        CreateUndoRow(removal: removal) {
+                            withMotion { model.undoRemoval() }
+                        } dismiss: {
+                            withMotion { model.dismissRemoval(removal) }
+                        }
+                        .padding(.top, 8)
+                        .sqTransition(.rise)
+                    }
                     CreateRouteCard(model: model, option: option)
                         .padding(.top, 8)
                         .sqAppear(3)
@@ -113,13 +126,17 @@ struct CreateReviewStep: View {
                 Text("Drag")
                 DragHandleGlyph(width: 8.2, gap: 3.5, lineWidth: 1.4)
                     .frame(width: 14, height: 14)
-                Text("to reorder stops")
+                // The hold hint steps aside while a transit status needs the room.
+                Text(shownStatus == .idle ? "to reorder · hold a stop to swap" : "to reorder")
+                    .contentTransition(.opacity)
             }
             .sqFont(13)
             .foregroundStyle(Theme.text3)
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
             .createLine(13)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Drag to reorder stops")
+            .accessibilityLabel("Drag to reorder stops. Press and hold a stop to swap or remove it.")
             Spacer(minLength: 0)
             ZStack(alignment: .trailing) {
                 switch shownStatus {
@@ -160,9 +177,6 @@ struct CreateReviewStep: View {
                     .sqFont(15, .semibold)
                     .foregroundStyle(Theme.ink)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text("Check your settings")
-                    .sqFont(13, .medium)
-                    .foregroundStyle(Theme.text3)
                 CreateChevron(direction: .right, size: 16)
                     .foregroundStyle(Theme.mutedStar)
             }
@@ -174,15 +188,16 @@ struct CreateReviewStep: View {
         }
         .buttonStyle(.sqPressable)
         .padding(.top, 12)
-        .accessibilityLabel("More options. Check your settings")
+        .accessibilityLabel("More options")
     }
 }
 
 // MARK: - Plan loader
 
 /// Plan generation takes as long as the planner does (5 s in the demo). Ghost option cards
-/// shimmer where the real ones will land; under them the logo draws on a loop over status lines
-/// that stay true whatever the backend is doing. VoiceOver reads "Loading" and the current line.
+/// shimmer where the real ones will land; under them the logo draws and erases its S on a loop
+/// over status lines that stay true whatever the backend is doing. VoiceOver reads "Loading" and
+/// the current line.
 private struct CreatePlanLoader: View {
     let lines: [String]
 
@@ -382,7 +397,8 @@ private struct CreateOptionCard: View {
 // MARK: - Load more
 
 /// Dashed 150pt tile at the end of the options row. While the next batch loads its icon becomes
-/// three dots and the text cross-fades to "Finding more…".
+/// three dots and the text cross-fades to "Finding more…". How many more the server has isn't
+/// known, so the tile never promises a number.
 private struct CreateLoadMoreTile: View {
     enum Phase: Equatable {
         case idle, loading, done
@@ -410,8 +426,11 @@ private struct CreateLoadMoreTile: View {
                 CreateCrossfade(value: title) {
                     CreateWrapText(text: title, face: .system(.semibold), size: 14, alignment: .center)
                 }
-                CreateCrossfade(value: subtitle) {
-                    CreateWrapText(text: subtitle, size: 12, textStyle: .caption1, color: Theme.text3, alignment: .center)
+                if let subtitle {
+                    CreateCrossfade(value: subtitle) {
+                        CreateWrapText(text: subtitle, size: 12, textStyle: .caption1, color: Theme.text3, alignment: .center)
+                    }
+                    .transition(.opacity)
                 }
             }
             .accessibilityHidden(true)
@@ -427,7 +446,7 @@ private struct CreateLoadMoreTile: View {
         .buttonStyle(.sqPressable)
         .disabled(state == .loading || state == .done)
         .accessibilityLabel(state == .done ? "No more options right now" : title)
-        .accessibilityHint(subtitle)
+        .accessibilityHint(subtitle ?? "")
         .accessibilityValue(state == .loading ? "Loading" : "")
         .animation(Motion.standard, value: state)
     }
@@ -441,12 +460,50 @@ private struct CreateLoadMoreTile: View {
         }
     }
 
-    private var subtitle: String {
+    /// Only when there's something to say beyond the title.
+    private var subtitle: String? {
         switch state {
-        case .idle: "2 more that fit your window"
-        case .loading: "Checking what fits your window"
+        case .idle, .loading: nil
         case .done: "Try changing filters in More options"
         case .failed(let message): message
+        }
+    }
+}
+
+// MARK: - Undo a removal
+
+/// "Removed Krog Street Market · Undo" above the route, for a few seconds after a removal.
+private struct CreateUndoRow: View {
+    let removal: CreateStopRemoval
+    let undo: () -> Void
+    let dismiss: () -> Void
+
+    private static let seconds = 5.0
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text("Removed \(removal.stop.title)")
+                .sqFont(14)
+                .foregroundStyle(Theme.text2)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button("Undo", action: undo)
+                .buttonStyle(.sqLink(size: 14))
+                .frame(minHeight: Metrics.minTouch)
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 8)
+        .frame(minHeight: 44)
+        .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .onAppear {
+            AccessibilityNotification.Announcement("Removed \(removal.stop.title)").post()
+        }
+        .task(id: removal) {
+            try? await Task.sleep(for: .seconds(Self.seconds))
+            guard !Task.isCancelled else { return }
+            dismiss()
         }
     }
 }

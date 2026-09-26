@@ -21,11 +21,19 @@ final class MockAPIClient: APIClient {
     private var taste = MockData.taste
     private var connected: [CalendarProvider: Bool] = [.google: true, .outlook: false]
     private var cards = [PaymentMethod(id: "pm-4242", brand: "Visa", last4: "4242", isDefault: true)]
+    /// Facebook starts disconnected so the connect flow can be shown.
+    private var facebook = FacebookConnection(connected: false)
     private var itins = MockData.itineraries()
     private var days = MockData.calendarDays()
     private var past = MockData.pastEvents()
     private var notes: [String: String] = [:]
+    private var notesScopes: [String: NotesScope] = [:]
+    private var transitChoices: [String: TravelMode] = [:]
+    private var tickets: [String: Ticket] = [:]
     private var itemRatings: [String: Rating] = [:]
+    private var sentRequests: [FriendRequest] = []
+    /// Realtime events the demo "server" sends (checkout finishing), when an environment is attached.
+    var realtime: RealtimeHub?
     private var intents: [String: CheckoutIntent] = [:]
     private var posts = MockData.forumPosts()
     private var myPost: MyFreePost?
@@ -38,6 +46,8 @@ final class MockAPIClient: APIClient {
     private var requests = MockData.friendRequests()
     private var batchesServed = 0
     private var options: [String: PlanOption] = [:]
+    /// Stops suggested as alternatives (Review › Swap), so routes and new sidequests can use them.
+    private var suggestedStops: [String: PlanStop] = [:]
     private var idCounter = 0
 
     /// Extra people behind the group chips ("12 people" for a 4-member split).
@@ -84,17 +94,23 @@ final class MockAPIClient: APIClient {
                                sentAt: clock.addingMinutes(-minutesAgo, to: clock.now))
             }
             photosByGroup[id] = (0..<seed.photoCount).map { i in
-                GroupPhoto(id: nextId("ph"), byName: seed.photoBy[i % seed.photoBy.count], url: nil,
-                           placeholderHex: MockData.photoColors[i % MockData.photoColors.count], imageData: nil)
+                let by = seed.photoBy[i % seed.photoBy.count]
+                // Who added it, so your own photos can be deleted.
+                let uploader = by == "You" ? me.id : MockPeople.all.first { $0.firstName == by }?.id
+                return GroupPhoto(id: nextId("ph"), byName: by, uploaderId: uploader, url: nil,
+                                  placeholderHex: MockData.photoColors[i % MockData.photoColors.count], imageData: nil)
             }
             let memberIds = seed.thread.members.map(\.id)
             expensesByGroup[id] = seed.expenses.map { e in
                 Expense(id: nextId("ex"), what: e.what, amountCents: e.cents, payerId: e.payer.id, splitAmong: memberIds,
-                        shares: SplitMath.equalShares(totalCents: e.cents, count: memberIds.count))
+                        shares: SplitMath.equalShares(totalCents: e.cents, count: memberIds.count), createdBy: e.payer.id)
             }
         }
         for friend in friendList { seedDM(with: friend.person, subtitle: friend.statusLine) }
         for id in groupOrder { refreshGroupSummary(id) }
+        // A little unread news, so the badges show in the demo.
+        if let group = groupOrder.first { threadsById[group]?.unread = 2 }
+        threadsById[dmId(for: MockPeople.maya)]?.unread = 1
     }
 
     private func dmId(for person: PersonRef) -> String { "dm-\(person.firstName.lowercased())" }
@@ -150,9 +166,12 @@ final class MockAPIClient: APIClient {
         if let dob = request.dateOfBirth {
             user.ageBracket = Validation.ageBracket(age: Validation.age(birthDate: dob, on: clock.now, calendar: clock.calendar))
         }
-        // A brand-new account has no calendar connected and no saved card yet (Setup steps 2 and 4).
+        // A brand-new account has no calendar connected and no saved card yet (Setup steps 2 and 4),
+        // and hasn't finished setup (saving preferences finishes it).
         connected = [.google: false, .outlook: false]
         cards = []
+        facebook = FacebookConnection(connected: false)
+        user.setupComplete = false
         return AuthResponse(user: user, tokens: mockTokens())
     }
 
@@ -224,6 +243,7 @@ final class MockAPIClient: APIClient {
     func savePreferences(_ preferences: Preferences) async throws {
         try await simulate("me", 300)
         prefs = preferences
+        user.setupComplete = true
     }
 
     func tasteProfile() async throws -> TasteProfile {
@@ -232,6 +252,7 @@ final class MockAPIClient: APIClient {
     }
 
     func registerDevice(pushToken: String) async throws {}
+    func unregisterDevice(pushToken: String) async throws {}
 
     // MARK: - Integrations + payments
 
@@ -260,10 +281,18 @@ final class MockAPIClient: APIClient {
         return cards
     }
 
+    /// The demo has no hosted card page; the app adds a demo card with `addPaymentMethod` instead.
+    func paymentSetupURL() async throws -> URL {
+        try await simulate("me", 200)
+        return URL(string: "https://pay.sidequests.app/setup/demo")!
+    }
+
     func addPaymentMethod(token: String) async throws -> PaymentMethod {
         try await simulate("me", 500)
-        let card = PaymentMethod(id: "pm-4242", brand: "Visa", last4: "4242", isDefault: true)
-        cards = [card]
+        let demoCards = [("Visa", "4242"), ("Mastercard", "5454"), ("Visa", "1881")]
+        let (brand, last4) = demoCards[min(cards.count, demoCards.count - 1)]
+        let card = PaymentMethod(id: "pm-\(last4)-\(cards.count)", brand: brand, last4: last4, isDefault: cards.isEmpty)
+        cards.append(card)
         return card
     }
 
@@ -272,12 +301,65 @@ final class MockAPIClient: APIClient {
         cards.removeAll { $0.id == id }
     }
 
+    // MARK: - Facebook (Graph API)
+
+    func facebookConnection() async throws -> FacebookConnection {
+        try await simulate("facebook", 150)
+        var current = facebook
+        // Friends you've added since the import show as requested/friends, like a server would.
+        if let people = facebook.lastImport?.friendsOnApp {
+            current.lastImport?.friendsOnApp = people.map { searchResult(for: $0.person) }
+        }
+        return current
+    }
+
+    /// The demo has no Facebook page to open: asking for the dialog connects the demo account.
+    func facebookConnectURL(rerequest: Bool) async throws -> URL {
+        try await simulate("facebook", 200)
+        facebook.connected = true
+        facebook.needsReconnect = false
+        facebook.name = user.name
+        facebook.declinedScopes = []
+        return URL(string: "https://www.facebook.com/dialog/oauth?client_id=demo")!
+    }
+
+    /// What a server might suggest from 48 liked Pages (hiking clubs, indie venues, food halls…).
+    /// Four ratings differ from the demo's saved ones, so Account shows changes to review.
+    func importFacebook() async throws -> FacebookImport {
+        try await simulate("facebook", 900)
+        guard facebook.connected else { throw APIError.server(status: 409, message: "Connect Facebook first.") }
+        let result = FacebookImport(importedAt: clock.now, likedPages: 48,
+                                    suggestedRatings: [.outdoors: 5, .food: 5, .liveMusic: 5, .museums: 3, .sports: 3,
+                                                       .nightlife: 2, .longWalks: 4],
+                                    interests: ["Hiking", "Indie rock", "Coffee", "Street food", "Board games"],
+                                    homeArea: "Atlanta, Georgia",
+                                    friendsOnApp: [MockPeople.priya, MockPeople.chris].map(searchResult(for:)))
+        facebook.lastImport = result
+        return result
+    }
+
+    func disconnectFacebook() async throws {
+        try await simulate("facebook", 300)
+        facebook = FacebookConnection(connected: false)
+    }
+
     // MARK: - Calendar / places / events
 
     func calendarDays(from: Date, to: Date) async throws -> [CalendarDay] {
         try await simulate("calendar")
         let lo = clock.startOfDay(from), hi = clock.startOfDay(to)
-        return days.filter { $0.date >= lo && $0.date <= hi }
+        // Blocks that are stops of a plan say which one, like the real server.
+        var owner: [String: String] = [:]
+        for itin in itins { for item in itin.items { owner[item.id] = itin.id } }
+        return days.filter { $0.date >= lo && $0.date <= hi }.map { day in
+            var day = day
+            day.items = day.items.map { item in
+                var item = item
+                item.itineraryId = owner[item.id]
+                return item
+            }
+            return day
+        }
     }
 
     func searchPlaces(query: String, near: Coordinate?) async throws -> [Place] {
@@ -296,10 +378,8 @@ final class MockAPIClient: APIClient {
     func eventDetail(id: String) async throws -> ItineraryItem {
         try await simulate("events", 120)
         for itin in itins {
-            if var item = itin.items.first(where: { $0.id == id }) {
-                item.notes = notes[id] ?? item.notes
-                item.rating = itemRatings[id] ?? item.rating
-                return item
+            if let item = itin.items.first(where: { $0.id == id }) {
+                return withSavedDetails(item)
             }
         }
         for day in days {
@@ -312,10 +392,24 @@ final class MockAPIClient: APIClient {
                 description: extra?.note ?? "From your Google Calendar.",
                 people: entry.people, interested: entry.interested,
                 extraGoing: MockData.calendarExtraGoing[id] ?? 0,
-                notes: notes[id], rating: itemRatings[id]
+                notes: notes[id], notesScope: notesScopes[id], rating: itemRatings[id], transitMode: transitChoices[id], ticket: tickets[id]
             )
         }
         throw APIError.notFound
+    }
+
+    func search(query: String) async throws -> SearchResults {
+        try await simulate("search", 250)
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return SearchResults() }
+        let sidequests = itins.filter { itin in
+            itin.title.lowercased().contains(q) || itin.items.contains { $0.kind != .transit && $0.title.lowercased().contains(q) }
+        }.map(withSavedDetails)
+        let places = MockPlaces.suggestions
+            .filter { $0.pillName.lowercased().contains(q) || $0.label.lowercased().contains(q) }
+            .map(\.place)
+        let found = posts.filter { ($0.title ?? $0.text ?? "").lowercased().contains(q) || $0.author.name.lowercased().contains(q) }
+        return SearchResults(sidequests: sidequests, people: matchingPeople(q), places: Array(places.prefix(5)), posts: found)
     }
 
     // MARK: - Planning
@@ -341,12 +435,28 @@ final class MockAPIClient: APIClient {
 
     func route(_ request: RouteRequest) async throws -> RouteResult {
         try await simulate("plans", 250)
-        guard let option = options[request.optionId] ?? (MockData.firstOptions + MockData.moreOptionBatches.flatMap { $0 }).first(where: { $0.id == request.optionId }) else {
-            throw APIError.notFound
-        }
-        let ordered = request.stopOrder.compactMap { id in option.stops.first { $0.id == id } }
+        guard let option = planOption(request.optionId) else { throw APIError.notFound }
+        // The option's own stops or suggested alternatives, in the order asked (left out = removed).
+        let known = option.stops + suggestedStops.values
+        let ordered = request.stopOrder.compactMap { id in known.first { $0.id == id } }
         return MockRouteEngine.route(stops: ordered.isEmpty ? option.stops : ordered, start: request.start, end: request.end,
                                      startTime: request.startTime, backBy: request.backBy, ride: request.ride)
+    }
+
+    /// Same kind of place, not already in the plan, nearest first (see `MockAlternatives`).
+    func stopAlternatives(optionId: String, stopId: String, stopOrder: [String]) async throws -> [PlanAlternative] {
+        try await simulate("plans", 600)
+        guard let option = planOption(optionId) else { throw APIError.notFound }
+        let known = option.stops + suggestedStops.values
+        guard let stop = known.first(where: { $0.id == stopId }) else { throw APIError.notFound }
+        let inPlan = Set(stopOrder.compactMap { id in known.first { $0.id == id }?.title })
+        let found = MockAlternatives.alternatives(for: stop, excluding: inPlan)
+        for alternative in found { suggestedStops[alternative.stop.id] = alternative.stop }
+        return found
+    }
+
+    private func planOption(_ id: String) -> PlanOption? {
+        options[id] ?? (MockData.firstOptions + MockData.moreOptionBatches.flatMap { $0 }).first { $0.id == id }
     }
 
     func createItinerary(_ request: CreateItineraryRequest) async throws -> Itinerary {
@@ -388,32 +498,152 @@ final class MockAPIClient: APIClient {
 
     func activeItineraries() async throws -> [Itinerary] {
         try await simulate("itineraries")
-        return itins.map { itin in
-            var copy = itin
-            copy.items = itin.items.map { item in
-                var i = item
-                i.notes = notes[item.id] ?? item.notes
-                i.rating = itemRatings[item.id] ?? item.rating
-                return i
-            }
-            return copy
-        }
+        return itins.map(withSavedDetails)
     }
 
     func itinerary(id: String) async throws -> Itinerary {
         try await simulate("itineraries", 120)
         guard let itin = itins.first(where: { $0.id == id }) else { throw APIError.notFound }
-        return itin
+        return withSavedDetails(itin)
+    }
+
+    /// Notes, ratings, travel choices and tickets are stored per item; fold them into what we return.
+    private func withSavedDetails(_ itin: Itinerary) -> Itinerary {
+        var copy = itin
+        copy.items = itin.items.map(withSavedDetails)
+        return copy
+    }
+
+    private func withSavedDetails(_ item: ItineraryItem) -> ItineraryItem {
+        var i = item
+        i.notes = notes[item.id] ?? item.notes
+        i.notesScope = notesScopes[item.id] ?? item.notesScope
+        i.rating = itemRatings[item.id] ?? item.rating
+        i.transitMode = transitChoices[item.id] ?? item.transitMode
+        i.ticket = tickets[item.id] ?? item.ticket
+        return i
+    }
+
+    func updateItinerary(id: String, _ update: ItineraryUpdate) async throws -> Itinerary {
+        try await simulate("itineraries", 400)
+        guard let index = itins.firstIndex(where: { $0.id == id }) else { throw APIError.notFound }
+        var itin = itins[index]
+        guard itin.isHost else { throw APIError.validation("Only the host can edit this sidequest.") }
+        if let title = update.title?.trimmingCharacters(in: .whitespacesAndNewlines) {
+            guard !title.isEmpty else { throw APIError.validation("Give your sidequest a name.") }
+            itin.title = title
+        }
+        if let visibility = update.visibility { itin.visibility = visibility }
+
+        let oldStops = Set(itin.items.filter(Self.isStop).map(\.id))
+        if let date = update.date {
+            // A different day: move the plan there. Its calendar blocks belonged to the old day.
+            let days = clock.calendar.dateComponents([.day], from: clock.startOfDay(itin.date), to: clock.startOfDay(date)).day ?? 0
+            if days != 0 {
+                func shift(_ d: Date) -> Date { clock.calendar.date(byAdding: .day, value: days, to: d) ?? d }
+                itin.date = clock.startOfDay(date)
+                itin.start = shift(itin.start)
+                itin.backBy = shift(itin.backBy)
+                itin.items = itin.items.filter { $0.kind != .busy }.map { item in
+                    var moved = item
+                    moved.start = shift(item.start)
+                    moved.end = shift(item.end)
+                    return moved
+                }
+            }
+        }
+        if let start = update.start { itin.start = start }
+        if let backBy = update.backBy { itin.backBy = backBy }
+        if let order = update.stopOrder {
+            let kept = order.filter(oldStops.contains)
+            guard !kept.isEmpty else { throw APIError.validation("A sidequest needs at least one stop.") }
+        }
+        if update.date != nil || update.start != nil || update.backBy != nil || update.stopOrder != nil {
+            itin.items = retimed(itin, stopOrder: update.stopOrder)
+        }
+        itins[index] = itin
+        syncCalendar(for: itin, previousStops: oldStops)
+        return withSavedDetails(itin)
     }
 
     func deleteItinerary(id: String) async throws {
         try await simulate("itineraries", 200)
+        guard let itin = itins.first(where: { $0.id == id }) else { throw APIError.notFound }
+        guard itin.isHost else { throw APIError.validation("You joined this sidequest, so you can leave it but not delete it.") }
+        itins.removeAll { $0.id == id }
+        let stops = Set(itin.items.filter(Self.isStop).map(\.id))
+        for index in days.indices { days[index].items.removeAll { stops.contains($0.id) } }
+    }
+
+    func leaveItinerary(id: String) async throws {
+        try await simulate("itineraries", 200)
+        guard let itin = itins.first(where: { $0.id == id }) else { throw APIError.notFound }
+        guard !itin.isHost else { throw APIError.validation("You host this sidequest. Delete it instead.") }
         itins.removeAll { $0.id == id }
     }
 
-    func updateItemNotes(itineraryId: String?, itemId: String, notes text: String) async throws {
+    nonisolated private static func isStop(_ item: ItineraryItem) -> Bool { item.kind == .sidequest || item.kind == .group }
+
+    /// The mock server's re-timing after an edit: stops keep their length and run back to back from
+    /// the start, each after a 15-minute walk, stepping around calendar (busy) blocks.
+    private func retimed(_ itin: Itinerary, stopOrder: [String]?) -> [ItineraryItem] {
+        let stops = itin.items.filter(Self.isStop)
+        let ordered = (stopOrder ?? stops.map(\.id)).compactMap { id in stops.first { $0.id == id } }
+        let busy = itin.items.filter { $0.kind == .busy }
+        var items = busy
+        var cursor = itin.start
+        var from = itin.startPlace.name
+        for stop in ordered {
+            let length = stop.end.timeIntervalSince(stop.start)
+            var legStart = cursor
+            while let clash = busy.first(where: { $0.start < clock.addingMinutes(15, to: legStart).addingTimeInterval(length) && $0.end > legStart }) {
+                legStart = clash.end
+            }
+            let arrive = clock.addingMinutes(15, to: legStart)
+            let to = stop.place?.name ?? stop.title
+            items.append(ItineraryItem(id: "leg-\(stop.id)", kind: .transit, title: "Walk to \(stop.title)",
+                                       place: Place(name: "\(from) → \(to)"), start: legStart, end: arrive,
+                                       description: MockData.walkNote))
+            var moved = stop
+            moved.start = arrive
+            moved.end = arrive.addingTimeInterval(length)
+            items.append(moved)
+            cursor = moved.end
+            from = to
+        }
+        return items.sorted { $0.start < $1.start }
+    }
+
+    /// Keeps the calendar's copies of a plan's stops in step with the plan (times and day; the
+    /// calendar keeps its own short titles).
+    private func syncCalendar(for itin: Itinerary, previousStops: Set<String>) {
+        let stops = itin.items.filter(Self.isStop)
+        let current = Set(stops.map(\.id))
+        for index in days.indices {
+            days[index].items.removeAll { previousStops.contains($0.id) && !current.contains($0.id) }
+        }
+        for stop in stops {
+            guard let dayIndex = days.firstIndex(where: { $0.id == clock.dayKey(stop.start) }) else { continue }
+            for index in days.indices where index != dayIndex { days[index].items.removeAll { $0.id == stop.id } }
+            if let i = days[dayIndex].items.firstIndex(where: { $0.id == stop.id }) {
+                days[dayIndex].items[i].start = stop.start
+                days[dayIndex].items[i].end = stop.end
+            } else if previousStops.contains(stop.id) {
+                days[dayIndex].items.append(CalendarItem(id: stop.id, kind: stop.kind, title: stop.title, start: stop.start, end: stop.end))
+            }
+            days[dayIndex].items.sort { $0.start < $1.start }
+        }
+    }
+
+    func updateItemNotes(itineraryId: String?, itemId: String, notes text: String, scope: NotesScope?) async throws {
         try await simulate("itineraries", 150)
         notes[itemId] = text
+        if let scope { notesScopes[itemId] = scope }
+    }
+
+    func selectTransit(itineraryId: String?, itemId: String, mode: TravelMode) async throws {
+        try await simulate("itineraries", 150)
+        transitChoices[itemId] = mode
     }
 
     func transitOptions(itineraryId: String?, itemId: String) async throws -> [TransitOption] {
@@ -429,6 +659,51 @@ final class MockAPIClient: APIClient {
         return unratedOnly ? all.filter { $0.rating == nil } : all
     }
 
+    /// The demo server's version of the insight job: what the sidequests you rated 4–5 stars share.
+    func pastInsights() async throws -> PastInsights {
+        try await simulate("past", 400)
+        let liked = past.filter { ($0.rating?.stars ?? 0) >= 4 }
+        guard !liked.isEmpty else {
+            return PastInsights(headline: "Rate a few sidequests and we'll show what your favorites have in common.")
+        }
+        func mostCommon(_ values: [String]) -> (value: String, count: Int) {
+            let counts = Dictionary(values.map { ($0, 1) }, uniquingKeysWith: +)
+            let best = counts.max { $0.value < $1.value || ($0.value == $1.value && $0.key > $1.key) }
+            return (best?.key ?? "", best?.value ?? 0)
+        }
+        func timeOfDay(_ date: Date) -> String {
+            switch clock.calendar.component(.hour, from: date) {
+            case ..<12: "Mornings"
+            case 12..<17: "Afternoons"
+            default: "Evenings"
+            }
+        }
+        let n = liked.count
+        let of = { (count: Int) in "\(count) of your \(n) favorite\(n == 1 ? "" : "s")" }
+        let time = mostCommon(liked.map { timeOfDay($0.date) })
+        let company = mostCommon(liked.map { $0.company == "solo" ? "On your own" : "With friends" })
+        let area = mostCommon(liked.map(\.place))
+        let best = liked.max { ($0.rating?.stars ?? 0) < ($1.rating?.stars ?? 0) }
+        let tags = mostCommonTags(liked.compactMap(\.rating).flatMap(\.tags))
+        let who = company.value == "On your own" ? "on your own" : "with friends"
+        return PastInsights(
+            headline: "You like \(time.value.lowercased().dropLast()) sidequests \(who).",
+            highlights: [
+                PastInsight(id: "time", title: "Favorite time", value: time.value, detail: of(time.count), symbol: "moon.stars"),
+                PastInsight(id: "company", title: "Company", value: company.value, detail: of(company.count), symbol: "person.2"),
+                PastInsight(id: "area", title: "Favorite area", value: area.value, detail: of(area.count), symbol: "mappin.and.ellipse"),
+                PastInsight(id: "best", title: "Top rated", value: best?.title ?? "", detail: best.map { "\($0.rating?.stars ?? 0) stars" }, symbol: "star"),
+            ],
+            topTags: tags,
+            basedOn: past.filter { $0.rating != nil }.count
+        )
+    }
+
+    private func mostCommonTags(_ tags: [String]) -> [String] {
+        let counts = Dictionary(tags.map { ($0, 1) }, uniquingKeysWith: +)
+        return counts.sorted { $0.value > $1.value || ($0.value == $1.value && $0.key < $1.key) }.map(\.key)
+    }
+
     func rate(itemId: String, rating: Rating) async throws {
         try await simulate("past", 250)
         if let index = past.firstIndex(where: { $0.id == itemId }) {
@@ -440,13 +715,41 @@ final class MockAPIClient: APIClient {
 
     // MARK: - Checkout
 
-    func createCheckoutIntent(itemId: String, quantity: Int) async throws -> CheckoutIntent {
+    func createCheckoutIntent(itemId: String, quantity: Int, paymentMethodId: String?, instant: Bool) async throws -> CheckoutIntent {
         try await simulate("checkout", 600)
         let item = try? await eventDetail(id: itemId)
-        let intent = CheckoutIntent(id: nextId("ci"), itemId: itemId, itemTitle: item?.title ?? "Tickets",
-                                    steps: MockData.checkoutSteps, subtotalCents: item?.priceCents, feesCents: nil, totalCents: nil,
-                                    cardBrand: "Visa", cardLast4: "4242", state: .awaitingApproval)
+        let card = cards.first { $0.id == paymentMethodId } ?? cards.first { $0.isDefault } ?? cards.first
+        var intent = CheckoutIntent(id: nextId("ci"), itemId: itemId, itemTitle: item?.title ?? "Tickets",
+                                    steps: MockData.checkoutSteps, subtotalCents: item?.priceCents.map { $0 * quantity },
+                                    feesCents: nil, totalCents: nil,
+                                    cardBrand: card?.brand ?? "", cardLast4: card?.last4 ?? "", state: .awaitingApproval,
+                                    quantity: quantity, paymentMethodId: card?.id)
+        if card == nil {
+            intent.state = .failed
+            intent.failureReason = "Add a card in Account first."
+        } else if instant, prefs.instantCheckout, let total = intent.subtotalCents, total <= prefs.instantCheckoutLimitCents {
+            // Instant checkout: within the limit, the agent pays without asking.
+            intent.instant = true
+            intent.state = .processing
+            intent.steps = intent.steps.map { step in
+                step.done ? step : CheckoutStep(text: "Paying instantly (within your limit)", done: false)
+            }
+            intents[intent.id] = intent
+            scheduleCheckoutFinish(intent.id)
+            return intent
+        }
         intents[intent.id] = intent
+        return intent
+    }
+
+    func updateCheckoutIntent(id: String, paymentMethodId: String) async throws -> CheckoutIntent {
+        try await simulate("checkout", 200)
+        guard var intent = intents[id] else { throw APIError.notFound }
+        guard let card = cards.first(where: { $0.id == paymentMethodId }) else { throw APIError.notFound }
+        intent.paymentMethodId = card.id
+        intent.cardBrand = card.brand
+        intent.cardLast4 = card.last4
+        intents[id] = intent
         return intent
     }
 
@@ -456,13 +759,34 @@ final class MockAPIClient: APIClient {
         return intent
     }
 
+    /// Paying takes a moment: the intent comes back `processing`, then turns `booked` (a
+    /// `checkout.status` event, and `checkoutIntent(id:)` from then on).
     func approveCheckout(id: String) async throws -> CheckoutIntent {
         try await simulate("checkout", 900)
         guard var intent = intents[id] else { throw APIError.notFound }
+        guard intent.state == .awaitingApproval else { throw APIError.validation("This checkout already finished.") }
+        intent.state = .processing
+        intents[id] = intent
+        scheduleCheckoutFinish(id)
+        return intent
+    }
+
+    private func scheduleCheckoutFinish(_ id: String) {
+        let delay = fixedDelay.map { $0 * latencyScale } ?? 1.2 * latencyScale
+        Task { [weak self] in
+            if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
+            self?.finishCheckout(id)
+        }
+    }
+
+    private func finishCheckout(_ id: String) {
+        guard var intent = intents[id], intent.state == .processing else { return }
         intent.state = .booked
         intent.steps = intent.steps.map { CheckoutStep(text: $0.text, done: true) }
         intents[id] = intent
-        return intent
+        tickets[intent.itemId] = Ticket(id: nextId("tk"), quantity: intent.quantity, totalCents: intent.totalCents ?? intent.subtotalCents,
+                                        confirmation: "SQ-\(String(intent.id.hashValue, radix: 36).suffix(5).uppercased())")
+        realtime?.publish(.checkoutStatus(intentId: id, state: .booked))
     }
 
     func cancelCheckout(id: String) async throws {
@@ -512,11 +836,14 @@ final class MockAPIClient: APIClient {
         return myPost
     }
 
-    func postFreeNow(visibility: ForumPostVisibility) async throws -> MyFreePost {
+    func postFreeNow(_ post: NewFreePost) async throws -> MyFreePost {
         try await simulate("forum", 300)
-        let post = MyFreePost(id: "mine", visibility: visibility, text: "Free until 6:30 PM near Tech Square")
-        myPost = post
-        return post
+        let until = post.until ?? clock.date(2026, 9, 25, 18, 30)
+        let near = post.area?.isCurrentLocation == false ? post.area?.name : "Tech Square"
+        let mine = MyFreePost(id: "mine", visibility: post.visibility, text: "Free until \(format.time(until)) near \(near ?? "Tech Square")",
+                              until: until, areaLabel: post.area?.name ?? ForumArea.midtown.name, radiusMi: post.radiusMi ?? 2)
+        myPost = mine
+        return mine
     }
 
     func deleteForumPost(id: String) async throws {
@@ -524,16 +851,19 @@ final class MockAPIClient: APIClient {
         if id == myPost?.id { myPost = nil }
     }
 
-    func requestToJoin(postId: String) async throws {
+    /// The demo host approves by hand, so a request stays `requested` (a full plan says so).
+    func requestToJoin(postId: String) async throws -> JoinResult {
         try await simulate("forum", 300)
         guard let index = posts.firstIndex(where: { $0.id == postId }) else { throw APIError.notFound }
-        posts[index].joinRequested = true
+        if posts[index].spotsLeft == 0 { return JoinResult(status: .full) }
+        posts[index].joinStatus = .requested
+        return JoinResult(status: .requested)
     }
 
     func cancelJoinRequest(postId: String) async throws {
         try await simulate("forum", 200)
         guard let index = posts.firstIndex(where: { $0.id == postId }) else { throw APIError.notFound }
-        posts[index].joinRequested = false
+        posts[index].joinStatus = .none
     }
 
     func planTogether(postId: String) async throws -> ChatThread {
@@ -556,7 +886,9 @@ final class MockAPIClient: APIClient {
     func threads() async throws -> [ChatThread] {
         try await simulate("threads")
         let groups = groupOrder.compactMap { threadsById[$0] }
-        let dms = threadsById.values.filter { !$0.isGroup }.sorted { $0.title < $1.title }
+        // Most recent first, like the server.
+        let latest = { (thread: ChatThread) in self.messagesByThread[thread.id]?.last?.sentAt ?? .distantPast }
+        let dms = threadsById.values.filter { !$0.isGroup }.sorted { latest($0) > latest($1) }
         return groups + dms
     }
 
@@ -569,17 +901,31 @@ final class MockAPIClient: APIClient {
     func messages(threadId: String, before: String?) async throws -> [Message] {
         try await simulate("threads", 150)
         guard threadsById[threadId] != nil else { throw APIError.notFound }
-        return messagesByThread[threadId] ?? []
+        // Pages of 30, oldest first; `before` asks for the page older than that message.
+        let all = messagesByThread[threadId] ?? []
+        var end = all.count
+        if let before {
+            guard let index = all.firstIndex(where: { $0.id == before }) else { return [] }
+            end = index
+        }
+        return Array(all[max(0, end - 30)..<end])
     }
 
-    func sendMessage(threadId: String, text: String) async throws -> Message {
+    func sendMessage(threadId: String, text: String, clientId: String?) async throws -> Message {
         try await simulate("threads", 150)
         guard threadsById[threadId] != nil else { throw APIError.notFound }
-        let message = Message(id: nextId("m"), senderId: me.id, senderName: "You", text: text, sentAt: clock.now)
+        // A retry with the same client id returns the message that already went out.
+        if let clientId, let sent = messagesByThread[threadId]?.first(where: { $0.clientId == clientId }) { return sent }
+        let message = Message(id: nextId("m"), senderId: me.id, senderName: "You", text: text, sentAt: clock.now, clientId: clientId)
         messagesByThread[threadId, default: []].append(message)
         threadsById[threadId]?.lastMessage = "You: \(text)"
         threadsById[threadId]?.lastTime = format.time(clock.now)
         return message
+    }
+
+    func markThreadRead(id: String) async throws {
+        try await simulate("threads", 100)
+        threadsById[id]?.unread = 0
     }
 
     func startDM(userId: String) async throws -> ChatThread {
@@ -600,7 +946,8 @@ final class MockAPIClient: APIClient {
 
     func uploadGroupPhoto(groupId: String, jpegData: Data) async throws -> GroupPhoto {
         try await simulate("album", 500)
-        let photo = GroupPhoto(id: nextId("ph"), byName: "You", url: nil, placeholderHex: nil, imageData: jpegData)
+        let photo = GroupPhoto(id: nextId("ph"), byName: "You", uploaderId: me.id, createdAt: clock.now, url: nil,
+                               placeholderHex: nil, imageData: jpegData)
         photosByGroup[groupId, default: []].insert(photo, at: 0)
         refreshGroupSummary(groupId)
         return photo
@@ -630,7 +977,8 @@ final class MockAPIClient: APIClient {
         guard !expense.splitAmong.isEmpty else { throw APIError.validation("Pick at least one person to split with.") }
         let saved = Expense(id: nextId("ex"), what: what, amountCents: expense.amountCents, payerId: expense.payerId,
                             splitAmong: expense.splitAmong,
-                            shares: SplitMath.equalShares(totalCents: expense.amountCents, count: expense.splitAmong.count))
+                            shares: SplitMath.equalShares(totalCents: expense.amountCents, count: expense.splitAmong.count),
+                            createdBy: me.id)
         expensesByGroup[groupId, default: []].append(saved)
         refreshGroupSummary(groupId)
         return saved
@@ -642,15 +990,22 @@ final class MockAPIClient: APIClient {
         refreshGroupSummary(groupId)
     }
 
-    func settleUp(groupId: String) async throws {
+    func settleUp(groupId: String, amountCents: Int, paymentMethodId: String?) async throws {
         try await simulate("splits", 900)
         guard let thread = threadsById[groupId] else { throw APIError.notFound }
-        // Record a settling payment from you to everyone you owe.
         let balances = SplitMath.balances(expenses: expensesByGroup[groupId] ?? [], me: me.id, members: thread.members.map(\.id))
+        let owed = balances.filter { $0.netCents < 0 }.reduce(0) { $0 - $1.netCents }
+        guard amountCents == owed else {
+            throw APIError.server(status: 409, message: "The balance changed. Check the new amount and try again.")
+        }
+        guard let card = cards.first(where: { $0.id == paymentMethodId }) ?? cards.first(where: \.isDefault) ?? cards.first else {
+            throw APIError.validation("Add a card in Account first.")
+        }
+        // Record a settling payment from you to everyone you owe.
         for balance in balances where balance.netCents < 0 {
             expensesByGroup[groupId, default: []].append(
-                Expense(id: nextId("ex"), what: "Settled up with Visa", amountCents: -balance.netCents, payerId: me.id,
-                        splitAmong: [balance.userId], shares: [-balance.netCents]))
+                Expense(id: nextId("ex"), what: "Settled up with \(card.brand) •••• \(card.last4)", amountCents: -balance.netCents, payerId: me.id,
+                        splitAmong: [balance.userId], shares: [-balance.netCents], createdBy: me.id))
         }
         refreshGroupSummary(groupId)
     }
@@ -662,19 +1017,50 @@ final class MockAPIClient: APIClient {
         return friendList
     }
 
-    func searchUsers(query: String) async throws -> [PersonRef] {
+    func searchUsers(query: String) async throws -> [UserSearchResult] {
         try await simulate("friends", 150)
+        return matchingPeople(query)
+    }
+
+    private func matchingPeople(_ query: String) -> [UserSearchResult] {
         let q = query.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "@ "))
         guard !q.isEmpty else { return [] }
-        return MockPeople.all.filter { $0.id != me.id && $0.name.lowercased().contains(q) }
+        return MockPeople.all
+            .filter { $0.id != me.id && ($0.name.lowercased().contains(q) || ($0.username ?? $0.name.lowercased().replacingOccurrences(of: " ", with: "")).contains(q)) }
+            .map(searchResult(for:))
     }
 
+    /// How `person` relates to you right now (search rows, Facebook friends on SideQuests).
+    private func searchResult(for person: PersonRef) -> UserSearchResult {
+        if friendList.contains(where: { $0.person.id == person.id }) { return UserSearchResult(person: person, relation: .friend) }
+        if let request = requests.first(where: { $0.person.id == person.id }) {
+            return UserSearchResult(person: person, relation: .incoming, requestId: request.id)
+        }
+        if let request = sentRequests.first(where: { $0.person.id == person.id }) {
+            return UserSearchResult(person: person, relation: .outgoing, requestId: request.id)
+        }
+        return UserSearchResult(person: person)
+    }
+
+    /// Incoming requests, plus the ones you sent (`outgoing: true`), like the contract says.
     func friendRequests() async throws -> [FriendRequest] {
         try await simulate("friends", 120)
-        return requests
+        return requests + sentRequests
     }
 
-    func sendFriendRequest(userId: String) async throws { try await simulate("friends", 200) }
+    func sendFriendRequest(userId: String) async throws -> FriendRequest {
+        try await simulate("friends", 200)
+        guard let person = MockPeople.all.first(where: { $0.id == userId }) else { throw APIError.notFound }
+        if let existing = sentRequests.first(where: { $0.person.id == userId }) { return existing }
+        let request = FriendRequest(id: nextId("fr"), person: person, note: "Requested just now", outgoing: true)
+        sentRequests.append(request)
+        return request
+    }
+
+    func cancelFriendRequest(id: String) async throws {
+        try await simulate("friends", 150)
+        sentRequests.removeAll { $0.id == id }
+    }
 
     func acceptFriendRequest(id: String) async throws {
         try await simulate("friends", 250)
@@ -697,5 +1083,19 @@ final class MockAPIClient: APIClient {
     func createInvite() async throws -> URL {
         try await simulate("friends", 200)
         return URL(string: "https://sidequests.app/invite/\(user.username ?? "jordanlee")")!
+    }
+
+    /// Demo invites use the inviter's handle as the code ("sam" → Sam).
+    func acceptInvite(code: String) async throws -> Friend {
+        try await simulate("friends", 250)
+        let handle = code.lowercased()
+        guard let person = MockPeople.all.first(where: { $0.id != me.id && ($0.username ?? $0.firstName.lowercased()) == handle }) else {
+            throw APIError.validation("That invite link didn't work. Ask for a new one.")
+        }
+        if let existing = friendList.first(where: { $0.person.id == person.id }) { return existing }
+        let friend = Friend(person: person, statusLine: "Just added", activity: .new)
+        friendList.insert(friend, at: 0)
+        seedDM(with: person, subtitle: "Just added")
+        return friend
     }
 }

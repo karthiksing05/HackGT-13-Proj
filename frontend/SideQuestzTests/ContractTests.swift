@@ -40,18 +40,25 @@ struct ContractTests {
         try roundTrip(AuthResponse(user: user, tokens: AuthTokens(accessToken: "eyJ…", refreshToken: "r1", expiresAt: clock.now)), "AuthResponse")
         try roundTrip(SignupRequest(name: "Jordan Lee", email: "jordan@gatech.edu", password: "wander2026", username: "jordanlee",
                                     dateOfBirth: clock.date(2004, 5, 2)), "SignupRequest")
-        try roundTrip(UserPatch(name: nil, username: nil, dateOfBirth: nil, status: .notFree), "UserPatch")
+        try roundTrip(UserPatch(name: nil, username: nil, dateOfBirth: nil, status: .busy), "UserPatch")
         try roundTrip(MockData.preferences, "Preferences")
         try roundTrip(MockData.taste, "TasteProfile")
         try roundTrip(try await api.integrations(), "Integrations")
         try roundTrip(try await api.paymentMethods(), "PaymentMethods")
+        _ = try await api.facebookConnectURL(rerequest: false)
+        try roundTrip(try await api.importFacebook(), "FacebookImport")
+        try roundTrip(try await api.facebookConnection(), "FacebookConnection")
 
         let itineraries = try await api.activeItineraries()
         try roundTrip(itineraries[0], "Itinerary")
+        try roundTrip(ItineraryUpdate(title: "Rooftop evening", start: clock.date(2026, 9, 25, 15, 0), backBy: clock.date(2026, 9, 25, 19, 0),
+                                      visibility: .open, stopOrder: ["a5", "a3", "a6"]), "ItineraryUpdate")
         try roundTrip(try await api.eventDetail(id: "a6"), "ItineraryItem")
         try roundTrip(try await api.transitOptions(itineraryId: "itin-fri", itemId: "a3"), "TransitOptions")
         try roundTrip(try await api.calendarDays(from: clock.now, to: clock.now), "CalendarDays")
         try roundTrip(Array(try await api.pastEvents(unratedOnly: false).prefix(2)), "PastEvents")
+        try roundTrip(try await api.pastInsights(), "PastInsights")
+        try roundTrip(try await api.search(query: "krog"), "SearchResults")
         try roundTrip(Rating(stars: 4, tags: ["Great people"], note: "great music, but the line was long"), "Rating")
 
         let request = PlanRequest(start: MockPlaces.techSquare.place, end: MockPlaces.home.place, date: clock.now,
@@ -68,6 +75,8 @@ struct ContractTests {
         try roundTrip(routeRequest, "RouteRequest")
         let route = try await api.route(routeRequest)
         try roundTrip(route, "RouteResult")
+        try roundTrip(try await api.stopAlternatives(optionId: option.id, stopId: option.stops[1].id,
+                                                     stopOrder: option.stops.map(\.id)), "PlanAlternatives")
         try roundTrip(CreateItineraryRequest(plan: request, option: option, stopOrder: option.stops.map(\.id), route: route,
                                              visibility: .friends, lockAt: clock.date(2026, 9, 25, 13, 30), maxGroupSize: 6), "CreateItineraryRequest")
 
@@ -86,6 +95,13 @@ struct ContractTests {
                                  splitAmong: [MockPeople.me.id, MockPeople.maya.id, MockPeople.dev.id]), "NewExpense")
         try roundTrip(try await api.friends(), "Friends")
         try roundTrip(try await api.friendRequests(), "FriendRequests")
+        try roundTrip(try await api.searchUsers(query: "a"), "UserSearchResults")
+        try roundTrip(try await api.sendFriendRequest(userId: MockPeople.sam.id), "OutgoingFriendRequest")
+        try roundTrip(JoinResult(status: .joined, itineraryId: "itin-42", threadId: "g42"), "JoinResult")
+        try roundTrip(NewFreePost(visibility: .everyone, until: clock.date(2026, 9, 25, 18, 30), area: ForumArea.midtown, radiusMi: 2), "NewFreePost")
+        try roundTrip(ForumQuery(), "ForumQuery")
+        try roundTrip(Ticket(id: "tk-1", quantity: 2, totalCents: 2400, confirmation: "SQ-4F7K2", url: URL(string: "https://tickets.example/SQ-4F7K2")), "Ticket")
+        try roundTrip(Message(id: "m-9", senderId: MockPeople.me.id, senderName: "You", text: "omw", sentAt: clock.now, clientId: "c-5A1B"), "Message")
     }
 
     @Test func liveDecodingToleratesMissingOptionalFields() throws {

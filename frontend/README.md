@@ -43,11 +43,11 @@ In Xcode, go to Product → Scheme → Edit Scheme → Run → **Arguments** and
 
 | Argument | What it does |
 | --- | --- |
-| `-SQRoute home/calendar` | Opens straight to a screen, signed in. Also: `login`, `forgot/2`, `setup/3`, `home`, `home/past`, `home/sheet/a3`, `home/rate/x1`, `create/1`…`create/4`, `create/4/more`, `forum`, `forum/filter`, `groups`, `thread/g1/splits`, `thread/dm-maya`, `account/friends`, `gallery` (the design-system gallery) |
+| `-SQRoute home/calendar` | Opens straight to a screen, signed in. Also: `login`, `forgot/2`, `setup/3`, `home`, `home/past`, `home/sheet/a3`, `home/rate/x1`, `home/edit/itin-fri` (Edit sidequest), `create/1`…`create/4`, `create/4/more`, `create/4/swap` (the swap sheet for stop 2), `forum`, `forum/filter`, `groups`, `thread/g1/splits`, `thread/dm-maya`, `account/friends`, `account/facebook` (connects the demo Facebook and opens its sheet), `gallery` (the design-system gallery) |
 | `-SQSkipIntro YES` | Skips the opening animation, which otherwise plays on every cold launch |
 | `-SQMockDelay 1` | Seconds each demo call waits (Info.plist `SQMockDelay`, 5 for now, so loading animations show). Delete the Info.plist key for realistic per-call timings |
 | `-SQMockLatency 0` | Removes the demo backend's fake network delay |
-| `-SQMockFail forum,itineraries` | Makes those demo endpoints fail, to see error states |
+| `-SQMockFail forum,itineraries` | Makes those demo endpoints fail, to see error states (also `facebook`, `me`, `friends`, `splits`, `album`, …) |
 | `-SQVoiceDemo YES` | Voice buttons return sample transcripts instead of using the mic |
 | `-SQAPIMode live` | Uses your real backend (details in [API_CONTRACT.md](API_CONTRACT.md#pointing-the-app-at-your-server)) |
 
@@ -55,20 +55,33 @@ In Xcode, go to Product → Scheme → Edit Scheme → Run → **Arguments** and
 
 Press **⌘U** to run both suites (about 3 minutes, most of it the UI tests).
 
-- **Unit tests** (`SideQuestzTests`, a few seconds) check that the equal-split preview always adds up to the total, to the cent; that reordering stops re-times the route and flags lateness, matching the prototype's numbers; the validation copy; time formatting; the demo backend's forum filters; and that every model round-trips through the API's JSON format.
-- **UI tests** (`SideQuestzUITests`) run seven flows on the demo backend:
+- **Unit tests** (`SideQuestzTests`, a few seconds) check that the equal-split preview always adds up to the total, to the cent; that reordering stops re-times the route and flags lateness, matching the prototype's numbers; the validation copy; time formatting; the demo backend's forum filters, sidequest edits and stop alternatives (same kind, never already in the plan); how the app reads Facebook's sign-in result and merges suggested likes (never replacing one you picked in Setup); and that every model round-trips through the API's JSON format.
+- **UI tests** (`SideQuestzUITests`) run twelve flows on the demo backend:
   - create an account through all five Setup steps;
   - reset a password and sign in with it;
   - plan and start a sidequest;
+  - rename a sidequest, and delete one;
   - drag a stop to re-time the route;
+  - swap a stop for something similar, remove one and undo;
   - press and hold on the calendar to plan a window;
   - "Plan together" into a DM;
-  - add a $40 expense split three ways.
+  - add a $40 expense split three ways;
+  - connect Facebook in Setup and see step 3 filled in;
+  - review Facebook's suggestions in Account and save them.
 
   Tab bar buttons have the accessibility identifiers `tab.home`, `tab.forum`, `tab.plan`, `tab.groups` and `tab.account`.
 
 To run one suite from Terminal, pass `-only-testing:SideQuestzTests` (or `SideQuestzUITests`) to
 `xcodebuild test -project SideQuestz.xcodeproj -scheme SideQuestz -destination 'platform=iOS Simulator,name=iPhone 17e'`.
+
+### Facebook
+
+People can connect Facebook in Setup (step 2, "Fill in your likes") or later in Account › Connected. The import
+suggests ratings for "What do you enjoy?" from the Pages they like. The demo backend connects instantly, with no
+Facebook page, and returns sample suggestions (48 Pages, two friends on SideQuests). In live mode your server
+runs Facebook Login and the Graph API. The steps are in
+[API_CONTRACT.md › Backend work: Facebook connector](API_CONTRACT.md#backend-work-facebook-connector).
+There's no Facebook SDK in the app.
 
 ## Hooking up the backend
 

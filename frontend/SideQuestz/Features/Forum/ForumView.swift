@@ -2,7 +2,13 @@ import SwiftUI
 
 /// Forum tab (GUI_PLAN.md §7.8): area pill, Everyone nearby | Friends, "Bored right now?",
 /// All / Open plans / Free now + Sort & filter, and the feed. Everything comes from `env.api`
-/// (`GET /forum/posts` does the filtering and sorting).
+/// (`GET /forum/posts` does the filtering and sorting around the area's center; "Current location"
+/// is resolved on the device before the feed loads).
+///
+/// "I'm free" posts go up around the current area and radius, and the live card describes who
+/// sees it from the post itself. Joining an open plan shows where you stand (requested, in, full,
+/// closed); `join.update` from the socket moves a card along, `forum.update` refreshes the feed and
+/// your post.
 ///
 /// Loading: shimmering post cards on the first load, then the posts arrive one after another.
 /// A new scope, type, area, sort or filter keeps the current list on screen (dimmed, with a loading
@@ -36,6 +42,10 @@ struct ForumView: View {
     @State private var postErrors: [String: String] = [:]
     /// DM thread for each free-now post after "Plan together" (post id → thread id).
     @State private var dmThreadIds: [String: String] = [:]
+    /// Group chat of each plan you got into (post id → thread id), from the join result.
+    @State private var joinThreadIds: [String: String] = [:]
+    /// Why the feed isn't showing "Current location" (the device didn't give a location).
+    @State private var areaNote: String?
     @State private var showArea = false
     @State private var showFilter = false
 
@@ -48,6 +58,13 @@ struct ForumView: View {
                 areaPill
                     .padding(.horizontal, Metrics.side)
                     .padding(.bottom, 6)
+                if let areaNote {
+                    Text(areaNote)
+                        .socialText(12)
+                        .foregroundStyle(Theme.dangerText)
+                        .padding(.horizontal, Metrics.side)
+                        .sqTransition(.rise)
+                }
                 SQSegmentedControl(selection: $query.scope,
                                    options: ForumScope.allCases.map { (value: $0, label: $0.label) },
                                    accessibilityLabel: "Who you see")
@@ -73,10 +90,12 @@ struct ForumView: View {
         .background(Theme.cream.ignoresSafeArea())
         .task(id: query) { await loadPosts() }
         .task { await loadMyPost() }
+        // A free post comes down on its own at `until`: check back then.
+        .task(id: myPost.value??.until) { await refreshWhenPostEnds() }
         .task { await applyLaunchRoute() }
         .task { await listenForUpdates() }
         .sqReloadable("forum") { await reload() }
-        .sqSheet(isPresented: $showArea) {
+        .sqSheet(isPresented: $showArea, style: SQSheetStyle(height: .fitted(max: 760))) {
             ForumAreaSheet(area: $query.area, radiusMi: $query.radiusMi) { showArea = false }
         }
         .sqSheet(isPresented: $showFilter) {
@@ -89,6 +108,11 @@ struct ForumView: View {
         .onChange(of: query) { _, newQuery in
             if !showFilter { pendingQuery = newQuery }
         }
+        // The note about a location that couldn't be found goes once you pick an area again.
+        .onChange(of: showArea) { _, shown in
+            if shown, areaNote != nil { withMotion(Motion.quick) { areaNote = nil } }
+        }
+        .animation(Motion.standard, value: areaNote)
     }
 
     // MARK: Header
@@ -99,7 +123,7 @@ struct ForumView: View {
         } label: {
             HStack(spacing: 6) {
                 SocialGlyph(kind: .pin, size: 16, lineWidth: 2).foregroundStyle(Theme.sageInk)
-                Text("\(query.area) · \(query.radiusMi) mi")
+                Text("\(query.area.name) · \(query.radiusMi) mi")
                     .sqFont(14, .semibold)
                     .foregroundStyle(Theme.ink)
                     .lineLimit(1)
@@ -114,7 +138,7 @@ struct ForumView: View {
             .animation(Motion.standard, value: query.radiusMi)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Forum area: \(query.area), \(query.radiusMi) mile\(query.radiusMi == 1 ? "" : "s")")
+        .accessibilityLabel("Forum area: \(query.area.name), \(query.radiusMi) mile\(query.radiusMi == 1 ? "" : "s")")
         .accessibilityHint("Changes where posts come from")
     }
 
@@ -224,10 +248,15 @@ struct ForumView: View {
         }
     }
 
+    /// Who sees the post, from the post itself (where and how far it was posted), not the filter.
     private func visibilityLine(_ post: MyFreePost) -> String {
-        switch post.visibility {
-        case .friends: "Visible to your friends only"
-        case .everyone: "Visible to everyone within \(query.radiusMi) mi of \(query.area)"
+        guard post.visibility == .everyone else { return "Visible to your friends only" }
+        let place = post.areaLabel.map { $0 == ForumArea.currentLocation.name ? "you" : $0 }
+        switch (post.radiusMi, place) {
+        case let (radius?, place?): return "Visible to everyone within \(radius) mi of \(place)"
+        case let (nil, place?): return "Visible to everyone near \(place)"
+        case let (radius?, nil): return "Visible to everyone within \(radius) mi"
+        case (nil, nil): return "Visible to everyone nearby"
         }
     }
 
@@ -346,6 +375,11 @@ struct ForumView: View {
 
     /// Runs for every query. The first load shows the skeleton; later ones keep the list on screen.
     private func loadPosts() async {
+        // "Current location" needs the device's coordinate first (the Area sheet normally has it).
+        if query.area.isCurrentLocation, query.area.coordinate == nil {
+            await resolveCurrentLocation()
+            return
+        }
         let request = query
         if posts.value == nil {
             if !posts.isLoading { withMotion { posts = .loading } }
@@ -355,6 +389,20 @@ struct ForumView: View {
         let result = await Loadable.run { try await env.api.forumPosts(request) }
         guard !Task.isCancelled, request == query else { return }
         show(result, for: request)
+    }
+
+    /// Fills in "Current location" (the new area reloads the feed), or goes back to the last area
+    /// with a short note when the device can't say where it is.
+    private func resolveCurrentLocation() async {
+        if let place = await env.location.currentLocation(), let coordinate = place.coordinate {
+            guard !Task.isCancelled else { return }
+            query.area = ForumArea(name: ForumArea.currentLocation.name, coordinate: coordinate, isCurrentLocation: true)
+        } else {
+            guard !Task.isCancelled else { return }
+            let fallback = shownQuery.area.coordinate == nil ? ForumArea.midtown : shownQuery.area
+            query.area = fallback
+            withMotion { areaNote = "Couldn't get your location. Showing \(fallback.name)." }
+        }
     }
 
     /// "Try again" after a failed feed.
@@ -382,7 +430,31 @@ struct ForumView: View {
         if myPost.value == nil, !myPost.isLoading { withMotion { myPost = .loading } }
         let result = await Loadable.run { try await env.api.myFreePost() }
         guard !statusBusy else { return }
-        withMotion { myPost = result }
+        withMotion {
+            myPost = result
+            if case .loaded(nil) = result { justPosted = false }
+        }
+    }
+
+    /// Quietly re-checks your post (a take-down elsewhere, `forum.update`); keeps it if the call fails.
+    private func refreshMyPost() async {
+        // (`try?` would flatten "no post" into a failure, so keep the Loadable.)
+        let result = await Loadable.run { try await env.api.myFreePost() }
+        guard case .loaded(let mine) = result, !statusBusy else { return }
+        withMotion {
+            myPost = .loaded(mine)
+            if mine == nil { justPosted = false }
+        }
+    }
+
+    /// Sleeps until the live post's `until`, then asks the server whether it's still up.
+    private func refreshWhenPostEnds() async {
+        guard case .loaded(let post?) = myPost, let until = post.until else { return }
+        let seconds = until.timeIntervalSince(env.clock.now)
+        guard seconds > 0 else { return }
+        try? await Task.sleep(for: .seconds(seconds + 1))
+        guard !Task.isCancelled else { return }
+        await refreshMyPost()
     }
 
     /// Pull to refresh: the feed and your post, together. Keeps what's on screen if a call fails.
@@ -416,14 +488,26 @@ struct ForumView: View {
         }
     }
 
-    /// `forum.update` from the socket refreshes the feed in place.
+    /// `forum.update` refreshes the feed and your post in place; `join.update` moves a card along
+    /// (and, once you're in, reloads everything so the plan shows on Home and its chat in Groups).
     private func listenForUpdates() async {
         for await event in env.realtime.subscribe() {
-            guard case .forumUpdate = event else { continue }
-            let request = query
-            if let fresh = try? await env.api.forumPosts(request), request == query {
-                show(.loaded(fresh), for: request)
+            switch event {
+            case .forumUpdate:
+                Task { await refreshFeed() }
+                Task { await refreshMyPost() }
+            case .joinUpdate(let postId, let result):
+                applyJoin(result, to: postId)
+            default:
+                break
             }
+        }
+    }
+
+    private func refreshFeed() async {
+        let request = query
+        if let fresh = try? await env.api.forumPosts(request), request == query {
+            show(.loaded(fresh), for: request)
         }
     }
 
@@ -438,9 +522,12 @@ struct ForumView: View {
         guard !statusBusy else { return }
         posting = visibility
         withMotion(Motion.quick) { statusError = nil }
+        // Around the area and radius you picked (the one on screen while "Current location" resolves).
+        let area = query.area.coordinate != nil ? query.area : shownQuery.area
+        let request = NewFreePost(visibility: visibility, until: nil, area: area, radiusMi: query.radiusMi)
         Task {
             do {
-                let post = try await env.api.postFreeNow(visibility: visibility)
+                let post = try await env.api.postFreeNow(request)
                 withMotion(Motion.arrive) {
                     myPost = .loaded(post)
                     justPosted = true
@@ -479,10 +566,21 @@ struct ForumView: View {
     private func act(on post: ForumPost) {
         switch post.type {
         case .plan:
-            if post.joinRequested {
-                run(post) { try await env.api.cancelJoinRequest(postId: post.id); update(post.id) { $0.joinRequested = false } }
-            } else {
-                run(post) { try await env.api.requestToJoin(postId: post.id); update(post.id) { $0.joinRequested = true } }
+            switch post.joinStatus {
+            case .none:
+                run(post) {
+                    let result = try await env.api.requestToJoin(postId: post.id)
+                    applyJoin(result, to: post.id)
+                }
+            case .requested:
+                run(post) {
+                    try await env.api.cancelJoinRequest(postId: post.id)
+                    update(post.id) { $0.joinStatus = .none }
+                }
+            case .joined:
+                openGroupChat(for: post.id)
+            case .full, .closed:
+                break
             }
         case .freeNow:
             if post.planTogetherSent {
@@ -494,7 +592,7 @@ struct ForumView: View {
                         threadId = try await env.api.startDM(userId: post.author.id).id
                         dmThreadIds[post.id] = threadId
                     }
-                    router.openThread(threadId)
+                    router.openThread(threadId, isGroup: false)
                 }
             } else {
                 run(post) {
@@ -503,6 +601,29 @@ struct ForumView: View {
                     update(post.id) { $0.planTogetherSent = true }
                 }
             }
+        }
+    }
+
+    /// Where you stand after asking (or after the host answered): the card's button follows. Once
+    /// you're in, everything reloads so the plan shows on Home and its chat in Groups.
+    private func applyJoin(_ result: JoinResult, to postId: String) {
+        if let threadId = result.threadId { joinThreadIds[postId] = threadId }
+        let wasJoined = posts.value?.first { $0.id == postId }?.joinStatus == .joined
+        // A slow "requested" answer never undoes "you're in" that already came over the socket.
+        guard !(wasJoined && result.status == .requested) else { return }
+        update(postId) { $0.joinStatus = result.status }
+        if result.status == .joined, !wasJoined {
+            Task { await env.reloadAll() }
+        }
+    }
+
+    /// "You're in · Open chat": the plan's group chat (from the join, or the post's `thread_id`), or
+    /// the Groups tab when the server didn't say which chat it is.
+    private func openGroupChat(for postId: String) {
+        if let threadId = joinThreadIds[postId] ?? posts.value?.first(where: { $0.id == postId })?.threadId {
+            router.openThread(threadId, isGroup: true)
+        } else {
+            router.select(.groups)
         }
     }
 

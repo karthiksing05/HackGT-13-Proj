@@ -68,6 +68,10 @@ private struct CreateFlowScreen: View {
                 go(to: step)
             }
         }
+        // Review › hold a stop › "Swap for something similar".
+        .sqSheet(item: $model.swapTarget, style: CreateSwapSheet.style) { target in
+            CreateSwapSheet(model: model, target: target) { model.swapTarget = nil }
+        }
         .onAppear(perform: start)
         .onChange(of: env.preferences) { model.applyPreferenceDefaults() }
         .onChange(of: forward) {
@@ -180,11 +184,12 @@ private struct CreateFlowScreen: View {
     // MARK: Actions
 
     /// Steps slide in from the side you're heading to. A direction change is applied one update
-    /// before the step changes, so the leaving step also exits toward the correct side.
+    /// before the step changes, so the leaving step also exits toward the correct side. Like its
+    /// Next button, the stepper doesn't leave Where until both places are set.
     private func go(to step: Int) {
-        focus = nil
         let target = min(4, max(1, step))
-        guard target != model.step else { return }
+        guard target != model.step, target == 1 || model.hasPlaces else { return }
+        focus = nil
         let isForward = target > model.step
         if isForward == forward {
             withMotion(Motion.gentle) { model.go(to: target) }
@@ -209,7 +214,7 @@ private struct CreateFlowScreen: View {
         }
     }
 
-    /// Demo deep links (`create/2/calendar`, `create/4/more`) + first loads.
+    /// Demo deep links (`create/2/calendar`, `create/4/more`, `create/4/swap`) + first loads.
     private func start() {
         if let parts = router.consumeLaunch("create") {
             switch parts.dropFirst().first {
@@ -220,6 +225,16 @@ private struct CreateFlowScreen: View {
                 Task {
                     try? await Task.sleep(nanoseconds: 700_000_000)
                     if model.options.value != nil { model.moreOpen = true } else { model.openMoreAfterLoad = true }
+                }
+            case "swap":
+                // The swap sheet for the selected option's second stop, once options are in.
+                Task {
+                    try? await Task.sleep(nanoseconds: 700_000_000)
+                    if let option = model.selectedOption, model.orderedStops(option).count > 1 {
+                        model.openSwap(model.orderedStops(option)[1].id, in: option.id)
+                    } else {
+                        model.openSwapAfterLoad = true
+                    }
                 }
             default:
                 break

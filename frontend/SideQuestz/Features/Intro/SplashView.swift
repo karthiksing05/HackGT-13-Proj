@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// First-launch opening animation (GUI_PLAN.md §6, Brand frames 01–04, `Splash` artboard).
-///
+/// Opening animation on every cold launch (GUI_PLAN.md §6, Brand frames 01–04, `Splash` artboard),
+/// played 1.3× faster than the prototype's timings:
 /// 0.08s rise + spin · 1.25s the road fades in while the S draws from the top-right down to the
-/// pin · 2.0s the pin and quest marker pop in, the wordmark fades up · 3.5s `onFinish`.
-/// Reduce Motion: the finished logo fades in (0.3s), then `onFinish`.
+/// pin · 2.0s the pin and quest marker pop in, the wordmark fades up · 3.5s `onFinish` (so about
+/// 2.7s in all). Reduce Motion: the finished logo fades in, holds, then `onFinish`.
 struct SplashView: View {
     let onFinish: () -> Void
 
@@ -58,7 +58,7 @@ struct SplashView: View {
         let start = ContinuousClock.now
         func wait(until seconds: Double) async -> Bool {
             do {
-                try await Task.sleep(until: start + .milliseconds(Int(seconds * 1000)), clock: .continuous)
+                try await Task.sleep(until: start + .milliseconds(Int(Self.t(seconds) * 1000)), clock: .continuous)
                 return true
             } catch {
                 return false
@@ -72,7 +72,7 @@ struct SplashView: View {
             pinOpacity = 1
             markerScale = 1
             wordLifted = true
-            withAnimation(.easeOut(duration: 0.3)) {
+            withAnimation(.easeOut(duration: Self.t(0.3))) {
                 tileOpacity = 1
                 wordOpacity = 1
             }
@@ -82,16 +82,16 @@ struct SplashView: View {
         }
 
         guard await wait(until: 0.08) else { return }
-        withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 1.1)) { risen = true }
+        withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: Self.t(1.1))) { risen = true }
         withAnimation(Self.cssEase(0.25)) { tileOpacity = 1 }
 
         guard await wait(until: 1.25) else { return }
         withAnimation(Self.cssEase(0.4)) { roadOpacity = 1 }
-        withAnimation(.easeInOut(duration: 0.75)) { drawProgress = 1 }
+        withAnimation(.easeInOut(duration: Self.t(0.75))) { drawProgress = 1 }
 
         guard await wait(until: 2.0) else { return }
         withAnimation(Self.cssEase(0.2)) { pinOpacity = 1 }
-        withAnimation(.timingCurve(0.34, 1.56, 0.64, 1, duration: 0.38)) { markerScale = 1 }
+        withAnimation(.timingCurve(0.34, 1.56, 0.64, 1, duration: Self.t(0.38))) { markerScale = 1 }
         withAnimation(Self.cssEase(0.45)) {
             wordOpacity = 1
             wordLifted = true
@@ -107,9 +107,16 @@ struct SplashView: View {
         onFinish()
     }
 
-    /// CSS `ease` (cubic-bezier(0.25, 0.1, 0.25, 1)).
+    /// The whole intro plays this much faster than the prototype's timings (which the numbers in
+    /// `play()` still read as).
+    private static let speed = 1.3
+
+    /// A prototype time or duration at `speed`.
+    private static func t(_ seconds: Double) -> Double { seconds / speed }
+
+    /// CSS `ease` (cubic-bezier(0.25, 0.1, 0.25, 1)), at `speed`.
     private static func cssEase(_ duration: Double) -> Animation {
-        .timingCurve(0.25, 0.1, 0.25, 1, duration: duration)
+        .timingCurve(0.25, 0.1, 0.25, 1, duration: t(duration))
     }
 }
 

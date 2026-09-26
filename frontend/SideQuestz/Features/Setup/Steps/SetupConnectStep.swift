@@ -2,7 +2,8 @@ import AuthenticationServices
 import SwiftUI
 
 /// Setup · 2 "Connect your calendar": Google / Outlook rows (free/busy only), via the backend's
-/// OAuth (`CalendarConnector`), then the list is reloaded from `GET /integrations`.
+/// OAuth (`CalendarConnector`), then the list is reloaded from `GET /integrations`. Below them,
+/// Facebook fills in the likes on step 3 (`FacebookSetupSection`).
 ///
 /// Loading: two skeleton rows shaped like the real ones. Connect: the pill shows `LoadingDots` while
 /// the connection and the reload run, then turns into "Connected" with its check drawing in.
@@ -22,37 +23,36 @@ struct SetupConnectStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SetupHeading(title: "Connect your calendar",
-                         subtitle: "We only read when you're busy or free, so we can plan around your schedule and spot gaps.")
-            SetupCard {
-                AuthLoadable(state: draft.integrations, minHeight: 136, retry: { Task { await load() } }) {
-                    SetupConnectSkeleton()
-                } content: { list in
-                    VStack(spacing: 0) {
-                        ForEach(Array(CalendarProvider.allCases.enumerated()), id: \.element) { index, provider in
-                            row(provider, connected: list.first { $0.provider == provider }?.connected ?? false)
-                                .authArrive(index, animated: animateRows)
-                            RowDivider(color: Theme.cream)
-                        }
-                    }
-                }
-            }
-            .padding(.top, 8)
+                         subtitle: "We only read when you're busy or free, so we can plan around your schedule. Disconnect anytime in Account.")
+            calendarCard
+                .padding(.top, 8)
             if let actionError {
                 ErrorBox(messages: [actionError])
                     .sqTransition(.rise)
             }
-            Text("We never post to your calendar or read event details without asking. You can disconnect anytime in Account.")
-                .sqFont(13)
-                .foregroundStyle(Theme.ink)
-                .authLineHeight(1.4, size: 13)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.sageTint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            FacebookSetupSection(imported: draft.facebookImport,
+                                 onImported: { draft.useFacebook($0) },
+                                 onDisconnected: { draft.dropFacebook() })
         }
         .task {
             if draft.integrations.value == nil { await load() }
+        }
+    }
+
+    /// Google and Outlook rows (skeleton while `GET /integrations` loads).
+    private var calendarCard: some View {
+        SetupCard {
+            AuthLoadable(state: draft.integrations, minHeight: 136, retry: { Task { await load() } }) {
+                SetupConnectSkeleton()
+            } content: { list in
+                VStack(spacing: 0) {
+                    ForEach(Array(CalendarProvider.allCases.enumerated()), id: \.element) { index, provider in
+                        row(provider, connected: list.first { $0.provider == provider }?.connected ?? false)
+                            .authArrive(index, animated: animateRows)
+                        RowDivider(color: Theme.cream)
+                    }
+                }
+            }
         }
     }
 

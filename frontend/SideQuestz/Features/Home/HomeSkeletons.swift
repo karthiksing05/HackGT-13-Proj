@@ -312,3 +312,83 @@ struct HomeTransitSkeleton: View {
         }
     }
 }
+
+// MARK: - Search
+
+/// Two result sections: an eyebrow over a white card of rows (a 36pt tile, a title and a caption).
+struct HomeSearchSkeleton: View {
+    private static let sections = [2, 3]
+    private static let eyebrows: [CGFloat] = [92, 64]
+    private static let titles: [CGFloat] = [168, 124, 146, 110, 156]
+    private static let captions: [CGFloat] = [132, 96, 118, 140, 104]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(Self.sections.enumerated()), id: \.offset) { section, rows in
+                HomeSkeletonLine(size: 13, width: Self.eyebrows[section], color: Theme.skeletonOnCream)
+                    .padding(.horizontal, Metrics.side)
+                    .padding(.top, 16)
+                    .padding(.bottom, 8)
+                VStack(spacing: 0) {
+                    ForEach(0..<rows, id: \.self) { row in
+                        if row > 0 { RowDivider(color: Theme.cream) }
+                        self.row(seed: section * 2 + row)
+                    }
+                }
+                .sqGroupedCard()
+                .padding(.horizontal, Metrics.side)
+            }
+        }
+        .homeSkeletonGroup()
+    }
+
+    private func row(seed: Int) -> some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Theme.skeleton)
+                .frame(width: 36, height: 36)
+            VStack(alignment: .leading, spacing: 0) {
+                HomeSkeletonLine(size: 15, width: Self.titles[seed % Self.titles.count])
+                HomeSkeletonLine(size: 13, width: Self.captions[seed % Self.captions.count])
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .frame(minHeight: 60)
+    }
+}
+
+// MARK: - Past insights
+
+/// The "What you like" card while it loads: eyebrow, a two-line headline, two tiles and tag chips.
+struct HomeInsightsSkeleton: View {
+    private static let chips: [CGFloat] = [96, 78, 64]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HomeSkeletonLine(size: 12, width: 92)
+            VStack(alignment: .leading, spacing: 0) {
+                HomeSkeletonLine(size: 17, multiplier: 1.25)
+                HomeSkeletonLine(size: 17, multiplier: 1.25, width: 170)
+            }
+            HStack(spacing: 8) {
+                ForEach(0..<2, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Theme.skeleton)
+                        .frame(height: 92)
+                }
+            }
+            HStack(spacing: 6) {
+                ForEach(Array(Self.chips.enumerated()), id: \.offset) { _, width in
+                    Capsule().fill(Theme.skeleton).frame(width: width, height: 26)
+                }
+            }
+            HomeSkeletonLine(size: 12, width: 150)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        .homeSkeletonGroup()
+    }
+}

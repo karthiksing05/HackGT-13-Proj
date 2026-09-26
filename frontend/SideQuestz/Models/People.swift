@@ -11,33 +11,46 @@ struct Place: Codable, Hashable {
     var coordinate: Coordinate?
 }
 
+/// Your availability (Account › Your status, the dot on your avatar). Sent as `open`, `friends_only`
+/// or `busy`; the older `online` / `not_free` values still decode.
 enum PresenceStatus: String, Codable, CaseIterable, Identifiable {
-    case open, online
-    case notFree = "not_free"
+    case open
+    case friendsOnly = "friends_only"
+    case busy
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        switch raw {
+        case "online": self = .friendsOnly
+        case "not_free": self = .busy
+        default: self = PresenceStatus(rawValue: raw) ?? .busy
+        }
+    }
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .open: "Open"
-        case .online: "Online"
-        case .notFree: "Not free"
+        case .open: "Open to all"
+        case .friendsOnly: "Friends only"
+        case .busy: "Busy"
         }
     }
 
+    /// Bright green, light green, grey.
     var color: Color {
         switch self {
         case .open: Theme.statusOpen
-        case .online: Theme.statusOnline
-        case .notFree: Theme.statusNotFree
+        case .friendsOnly: Theme.statusFriends
+        case .busy: Theme.statusBusy
         }
     }
 
     var description: String {
         switch self {
-        case .open: "Free and down for plans. Friends see you in the Forum and can invite you."
-        case .online: "Around and reachable, but not looking for plans right now."
-        case .notFree: "Hidden from the Forum and from friends' free lists."
+        case .open: "Free for plans. Anyone nearby can find you in the Forum and invite you."
+        case .friendsOnly: "Free for plans, but only your friends see you and can invite you."
+        case .busy: "Not free right now. You're hidden from the Forum and friends' free lists."
         }
     }
 }
@@ -84,8 +97,11 @@ struct User: Codable, Identifiable, Hashable {
     var ageBracket: AgeBracket
     /// Shown after the handle in Account ("@jordanlee · Georgia Tech").
     var school: String?
+    /// False until Profile setup is finished; signing in then resumes setup instead of Home.
+    var setupComplete: Bool = true
 
-    var initials: String { Initials.from(name, fallback: "JL") }
+    /// Empty when there's no name yet (never someone else's initials).
+    var initials: String { Initials.from(name, fallback: "") }
 }
 
 /// A lightweight reference to another person (avatars, stacks, chat senders, split members).
@@ -95,6 +111,9 @@ struct PersonRef: Codable, Hashable, Identifiable {
     var initials: String
     /// "#RRGGBB" — each person's avatar color from the prototype data.
     var colorHex: String
+    /// Their profile photo, when they've added one (avatars show it instead of initials).
+    var photoURL: URL?
+    var username: String?
 
     var color: Color { Color(hexString: colorHex) ?? Theme.ink }
     var firstName: String { name.split(separator: " ").first.map(String.init) ?? name }
@@ -135,4 +154,25 @@ struct FriendRequest: Codable, Identifiable, Hashable {
     var person: PersonRef
     /// "Met on Stone Mountain sunrise"
     var note: String
+    /// true = you sent it (it can be cancelled); false = they asked you (accept or decline).
+    var outgoing: Bool = false
+}
+
+/// How a search result relates to you (Friends › search).
+enum FriendRelation: String, Codable, Hashable {
+    case none, friend, outgoing, incoming
+
+    init(from decoder: Decoder) throws {
+        self = FriendRelation(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .none
+    }
+}
+
+/// `GET /users/search` row.
+struct UserSearchResult: Codable, Hashable, Identifiable {
+    var person: PersonRef
+    var relation: FriendRelation = .none
+    /// The pending request between you (outgoing: cancel it; incoming: accept or decline it).
+    var requestId: String?
+
+    var id: String { person.id }
 }

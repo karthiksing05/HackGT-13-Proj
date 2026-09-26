@@ -68,10 +68,6 @@ struct CreateVibeStep: View {
                 CreateLiveText(text: "“\(quote)”", size: 15, color: Theme.text2, lineHeight: 1.4, alignment: .center)
                     .sqTransition(.rise)
             }
-            Text("Voice input · Apple Speech")
-                .sqFont(12, relativeTo: .caption)
-                .foregroundStyle(Theme.text3)
-                .createLine(12, relativeTo: .caption)
         }
         .padding(.vertical, 18)
         .padding(.horizontal, 14)

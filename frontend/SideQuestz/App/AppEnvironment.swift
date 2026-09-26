@@ -43,7 +43,11 @@ final class AppEnvironment {
         self.voice = VoiceInput(allowDemoFallback: mode == .mock, forceDemo: forceVoiceDemo)
         self.places = PlaceSearch(api: api, isMock: mode == .mock)
         self.location = LocationService(isMock: mode == .mock)
-        self.socket = mode == .live ? socketURL.map { WebSocketService(url: $0, hub: hub) } : nil
+        self.socket = mode == .live ? socketURL.map { url in
+            WebSocketService(url: url, hub: hub, timeZone: clock.calendar.timeZone) { [auth] in auth.tokens?.accessToken }
+        } : nil
+        (api as? MockAPIClient)?.realtime = hub
+        (api as? LiveAPIClient)?.onUnauthorized = { [weak self] in self?.sessionDidExpire() }
     }
 
     /// Reads Info.plist (`SQAPIMode`, `SQAPIBaseURL`, `SQWebSocketURL`, `SQMockDelay`) and launch
@@ -89,7 +93,7 @@ final class AppEnvironment {
     func startSession(_ response: AuthResponse) {
         auth.save(response.tokens)
         user = response.user
-        socket?.connect(token: response.tokens.accessToken)
+        socket?.connect()
         Task { await refreshSession() }
     }
 
@@ -109,7 +113,7 @@ final class AppEnvironment {
         let prefsCall = Task { try await api.preferences() }
         if let me = try? await meCall.value { user = me }
         if let prefs = try? await prefsCall.value { preferences = prefs }
-        if !isMock, let token = auth.tokens?.accessToken { socket?.connect(token: token) }
+        if !isMock, auth.isSignedIn { socket?.connect() }
     }
 
     // MARK: Pull to refresh
@@ -135,6 +139,19 @@ final class AppEnvironment {
         }
     }
 
+    /// Set when the server ended the session (the refresh token stopped working). `RootView` sends
+    /// the app back to sign-in and Login explains why.
+    var sessionExpired = false
+
+    private func sessionDidExpire() {
+        socket?.disconnect()
+        voice.cancel()
+        user = nil
+        profileImage = nil
+        preferences = nil
+        sessionExpired = true
+    }
+
     func signOut() async {
         try? await api.logout()
         auth.clear()
@@ -145,9 +162,4 @@ final class AppEnvironment {
         preferences = nil
     }
 
-    /// Account › Your status. Optimistic, then confirmed by the server.
-    func setStatus(_ status: PresenceStatus) async {
-        user?.status = status
-        if let updated = try? await api.updateMe(UserPatch(status: status)) { user = updated }
-    }
 }

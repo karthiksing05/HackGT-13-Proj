@@ -57,12 +57,33 @@ struct ItineraryItem: Codable, Identifiable, Hashable {
     /// People going beyond `people` (e.g. "8 going" with 3 avatars shown).
     var extraGoing: Int = 0
     var notes: String?
+    /// Who sees `notes`: only you, or everyone on the plan.
+    var notesScope: NotesScope?
     var rating: Rating?
+    /// Your saved "Getting there" choice.
+    var transitMode: TravelMode?
+    /// Set once it's booked (agent checkout): "Get tickets" becomes the ticket.
+    var ticket: Ticket?
 
     var goingCount: Int { people.count + extraGoing }
     var hasPeople: Bool { !people.isEmpty || !interested.isEmpty }
     /// "3 going · 1 interested"
     var peopleLine: String { "\(goingCount) going · \(interested.count) interested" }
+}
+
+enum NotesScope: String, Codable, Hashable {
+    case personal = "private", shared
+}
+
+/// A booked ticket for an item.
+struct Ticket: Codable, Hashable {
+    var id: String
+    var quantity: Int = 1
+    var totalCents: Int?
+    /// "SQ-4F7K2"
+    var confirmation: String?
+    /// The ticket itself (PDF / pass / web page).
+    var url: URL?
 }
 
 struct Itinerary: Codable, Identifiable, Hashable {
@@ -79,10 +100,29 @@ struct Itinerary: Codable, Identifiable, Hashable {
     var items: [ItineraryItem]
     /// People on the plan including you; 1 = "Solo".
     var goingCount: Int = 1
+    /// You made this plan, so you can edit or delete it. People who joined can only leave.
+    var isHost: Bool = true
 
     /// Sidequest + group blocks ("3 stops").
     var stopCount: Int { items.filter { $0.kind == .sidequest || $0.kind == .group }.count }
     var peopleLabel: String { goingCount > 1 ? "\(goingCount) going" : "Solo" }
+}
+
+/// `PATCH /itineraries/{id}` (Home › Edit sidequest). Only the fields that are set are sent and
+/// changed. A new date, time window or stop order makes the server re-time the route; the response
+/// is the updated itinerary.
+struct ItineraryUpdate: Codable, Hashable {
+    var title: String?
+    var date: Date?
+    var start: Date?
+    var backBy: Date?
+    var visibility: Visibility?
+    /// The stop item ids (sidequest and group blocks) in their new order. Stops left out are removed.
+    var stopOrder: [String]?
+
+    var isEmpty: Bool {
+        title == nil && date == nil && start == nil && backBy == nil && visibility == nil && stopOrder == nil
+    }
 }
 
 /// Walk / MARTA / Rideshare choices in the Event sheet › "Getting there".
@@ -104,6 +144,9 @@ struct CalendarItem: Codable, Identifiable, Hashable {
     var end: Date
     var people: [PersonRef] = []
     var interested: [PersonRef] = []
+    /// The plan this block belongs to (nil for calendar-only events), so its notes and transit go
+    /// to `/itineraries/{id}/items/…`.
+    var itineraryId: String?
 }
 
 struct CalendarDay: Codable, Identifiable, Hashable {
@@ -132,8 +175,18 @@ struct PastEvent: Codable, Identifiable, Hashable {
 
 // MARK: - Checkout (Visa agent)
 
+/// The agent works in the background: `preparing` (finding the tickets, building the quote) →
+/// `awaitingApproval` → `processing` (paying) → `booked`, or `failed` / `cancelled`. Unknown states
+/// read as `processing`, so nothing ever looks finished (or failed) by mistake.
 enum CheckoutState: String, Codable {
-    case awaitingApproval = "awaiting_approval", booked, cancelled, failed
+    case preparing, awaitingApproval = "awaiting_approval", processing, booked, cancelled, failed
+
+    init(from decoder: Decoder) throws {
+        self = CheckoutState(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .processing
+    }
+
+    /// Still moving: keep listening for `checkout.status` / polling.
+    var isInProgress: Bool { self == .preparing || self == .processing }
 }
 
 struct CheckoutStep: Codable, Hashable {
@@ -153,4 +206,11 @@ struct CheckoutIntent: Codable, Identifiable, Hashable {
     var cardBrand: String
     var cardLast4: String
     var state: CheckoutState
+    var quantity: Int = 1
+    /// The saved card the agent pays with (change it with `updateCheckoutIntent`).
+    var paymentMethodId: String?
+    /// Why it failed, in a sentence ("The show sold out.").
+    var failureReason: String?
+    /// Instant checkout: the server skipped approval (it goes straight to `processing`).
+    var instant: Bool = false
 }

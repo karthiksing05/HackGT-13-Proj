@@ -2,10 +2,13 @@ import SwiftUI
 
 /// A group chat or DM, shown by `MainShell` over the tabs when `router.openThread` is set
 /// (GUI_PLAN.md §7.9). Groups get Chat | Album | Splits; DMs are chat only. Back closes it.
+/// Whether it's a group comes from the loaded thread, or before that from the opener's hint
+/// (`ThreadRoute.isGroup`); album and splits routes are groups by definition.
 ///
 /// Loading: the thread (title, subtitle, album name) and the open tab's data load side by side, so
 /// the header shows placeholder bars while the tab shows its own skeleton. Switching tabs
-/// cross-fades. Pull to refresh on any tab reloads the thread too.
+/// cross-fades. Pull to refresh on any tab reloads the thread too, and `thread.updated` from the
+/// socket refreshes the header in place.
 ///
 /// Launch routes: `thread/<id>/chat|album|splits` (starts on `route.tab`), `thread/g1/splits/expense`
 /// (also opens Add expense; `-SQExpenseDemo YES` prefills it), `thread/dm-maya`.
@@ -38,8 +41,9 @@ private struct ThreadScreen: View {
         _openedTabs = State(initialValue: [route.tab])
     }
 
-    /// Before the thread loads we go by the id, like the router does for launch routes.
-    private var isGroup: Bool { thread.value?.isGroup ?? !route.threadId.hasPrefix("dm-") }
+    /// The loaded thread says; before that, the opener's hint. With neither (a bare deep link to a
+    /// chat), it shows as a plain chat until the thread arrives.
+    private var isGroup: Bool { thread.value?.isGroup ?? route.isGroup ?? (route.tab != .chat) }
     private var visibleTab: ThreadTab { isGroup ? tab : .chat }
     /// The tabs to keep alive: the ones opened so far plus the one picked just now, so a first visit
     /// fades in together with the switch.
@@ -64,6 +68,7 @@ private struct ThreadScreen: View {
             }
             await loadThread()
         }
+        .task { await listenForUpdates() }
         .sqReloadable("thread.\(route.threadId)") { await refreshThread() }
         .onChange(of: tab) { _, newTab in
             if !openedTabs.contains(newTab) { openedTabs.append(newTab) }
@@ -195,16 +200,25 @@ private struct ThreadScreen: View {
             withMotion { thread = .loaded(fresh) }
         }
     }
+
+    /// `thread.updated` for this thread (members, subtitle, album title) updates the header.
+    private func listenForUpdates() async {
+        for await event in env.realtime.subscribe() {
+            if case .threadUpdated(let fresh) = event, fresh.id == route.threadId {
+                withMotion { thread = .loaded(fresh) }
+            }
+        }
+    }
 }
 
 #Preview("Group") {
-    ThreadView(route: ThreadRoute(threadId: "g1", tab: .chat))
+    ThreadView(route: ThreadRoute(threadId: "g1", tab: .chat, isGroup: true))
         .environment(AppEnvironment.preview())
         .environment(Router(phase: .main))
 }
 
 #Preview("DM") {
-    ThreadView(route: ThreadRoute(threadId: "dm-maya"))
+    ThreadView(route: ThreadRoute(threadId: "dm-maya", isGroup: false))
         .environment(AppEnvironment.preview())
         .environment(Router(phase: .main))
 }

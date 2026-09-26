@@ -1,21 +1,33 @@
 import AuthenticationServices
 import Observation
 import SwiftUI
+import UIKit
 
 /// Account › Me data. Owned by `AccountView` so it survives Me ⇄ Friends switches; every refresh
 /// keeps what's on screen and swaps the fresh data in with animation.
 @Observable
 final class AccountMeModel {
     var taste: Loadable<TasteProfile> = .loading
-    var links: Loadable<AccountLinks> = .loading
+    var integrations: Loadable<[Integration]> = .loading
+    var cards: Loadable<[PaymentMethod]> = .loading
     var history: Loadable<[PastEvent]> = .loading
+    /// Cards being removed here: a reload meanwhile must not bring them back.
+    var removingCards: Set<String> = []
+    /// Location and voice input permissions (read from the phone, not the server).
+    let permissions = AccountPermissions()
+    /// Facebook: the Connected row and the Facebook sheet.
+    let facebook = FacebookModel()
+    var showsFacebook = false
 
-    /// Loads (or quietly reloads) all three cards in parallel.
+    /// Loads (or quietly reloads) every card in parallel.
     func load(_ env: AppEnvironment) async {
         async let t: Void = loadTaste(env)
-        async let l: Void = loadLinks(env)
+        async let i: Void = loadIntegrations(env)
+        async let c: Void = loadCards(env)
         async let h: Void = loadHistory(env)
-        _ = await (t, l, h)
+        async let p: Void = loadPreferencesIfNeeded(env)
+        async let f: Void = facebook.load(env)
+        _ = await (t, i, c, h, p, f)
     }
 
     func loadTaste(_ env: AppEnvironment) async {
@@ -25,14 +37,19 @@ final class AccountMeModel {
         withMotion(Motion.gentle) { taste = result }
     }
 
-    func loadLinks(_ env: AppEnvironment) async {
-        let result = await Loadable.run {
-            async let integrations = env.api.integrations()
-            async let cards = env.api.paymentMethods()
-            return AccountLinks(integrations: try await integrations, cards: try await cards)
+    func loadIntegrations(_ env: AppEnvironment) async {
+        let result = await Loadable.run { try await env.api.integrations() }
+        guard result.value != nil || integrations.value == nil else { return }
+        withMotion { integrations = result }
+    }
+
+    func loadCards(_ env: AppEnvironment) async {
+        let result = await Loadable.run { try await env.api.paymentMethods() }
+        guard let list = result.value else {
+            if cards.value == nil { withMotion { cards = result } }
+            return
         }
-        guard result.value != nil || links.value == nil else { return }
-        withMotion { links = result }
+        withMotion { cards = .loaded(list.filter { !removingCards.contains($0.id) }) }
     }
 
     func loadHistory(_ env: AppEnvironment) async {
@@ -46,22 +63,25 @@ final class AccountMeModel {
         guard result.value != nil || history.value == nil else { return }
         withMotion { history = result }
     }
+
+    /// Instant checkout lives in the preferences (normally loaded with the session).
+    func loadPreferencesIfNeeded(_ env: AppEnvironment) async {
+        guard env.preferences == nil, let saved = try? await env.api.preferences() else { return }
+        if env.preferences == nil { env.preferences = saved }
+    }
 }
 
-/// What the "Connected" card is built from.
-struct AccountLinks {
-    var integrations: [Integration]
-    var cards: [PaymentMethod]
-}
-
-/// Account › Me: taste profile, connected services, rated past sidequests, sign out.
+/// Account › Me: taste profile, connected services, payments, rated past sidequests, sign out.
 /// No stats row and no app-color option (GUI_PLAN.md §7.10).
 ///
 /// First load: each card shows a skeleton of its own rows, then the rows arrive (taste bars grow
-/// from zero, one after another). Calendars connect and disconnect from the Connected card.
+/// from zero, one after another). Calendars connect and disconnect from the Connected card, which
+/// also shows the phone's real Location and voice permissions (tap to allow, or to open Settings).
 struct AccountMeSection: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     let model: AccountMeModel
 
     @State private var signingOut = false
@@ -74,7 +94,7 @@ struct AccountMeSection: View {
     @State private var working: CalendarProvider?
     /// Just connected here: its "Connected" gets a check that draws in.
     @State private var justConnected: CalendarProvider?
-    /// Calendars touched here stay listed (as "Not connected" after a disconnect) so you can undo.
+    /// Calendars touched here stay listed (as "Connect" after a disconnect) so you can undo.
     @State private var touched: Set<CalendarProvider> = []
     @State private var confirmDisconnect: CalendarProvider?
     @State private var choosingCalendar = false
@@ -83,7 +103,7 @@ struct AccountMeSection: View {
     init(model: AccountMeModel) {
         self.model = model
         _animateTaste = State(initialValue: model.taste.value == nil)
-        _animateLinks = State(initialValue: model.links.value == nil)
+        _animateLinks = State(initialValue: model.integrations.value == nil)
         _animateHistory = State(initialValue: model.history.value == nil)
     }
 
@@ -97,6 +117,10 @@ struct AccountMeSection: View {
 
             sectionTitle("Connected")
             connectionsCard
+
+            sectionTitle("Payments")
+            AccountPaymentsCard(model: model, shimmers: onScreen)
+                .padding(.horizontal, Metrics.side)
 
             HStack(alignment: .firstTextBaseline) {
                 SectionHeader(title: "Past sidequests")
@@ -119,19 +143,30 @@ struct AccountMeSection: View {
         // Refresh whenever Account comes on screen (tabs stay alive in the background).
         .task(id: router.tab == .account) {
             guard router.tab == .account else { return }
+            model.permissions.start()
             await model.load(env)
         }
-        .sqReloadable("account.me") { await model.load(env) }
+        .sqReloadable("account.me") {
+            model.permissions.refresh()
+            await model.load(env)
+        }
+        // Back from Settings (or a system prompt): show what changed.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { withMotion { model.permissions.refresh() } }
+        }
         .confirmationDialog(disconnectTitle, isPresented: disconnectShown, titleVisibility: .visible,
                             presenting: confirmDisconnect) { provider in
             Button("Disconnect", role: .destructive) { toggle(provider, connect: false) }
         } message: { _ in
-            Text("We'll stop reading your free/busy times. You can connect it again anytime.")
+            Text("We'll stop reading your free/busy times.")
         }
         .confirmationDialog("Connect a calendar", isPresented: $choosingCalendar, titleVisibility: .visible) {
             ForEach(CalendarProvider.allCases) { provider in
                 Button(provider.name) { toggle(provider, connect: true) }
             }
+        }
+        .sqSheet(isPresented: facebookShown, style: FacebookSheet.style, onDismiss: facebookClosed) {
+            FacebookSheet(model: model.facebook) { model.showsFacebook = false }
         }
     }
 
@@ -147,7 +182,7 @@ struct AccountMeSection: View {
     // MARK: Taste profile
 
     private var tasteCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
             AuthLoadable(state: model.taste, shimmers: onScreen, retry: { Task { await model.loadTaste(env) } }) {
                 AccountTasteSkeleton()
             } content: { profile in
@@ -164,11 +199,6 @@ struct AccountMeSection: View {
                 }
                 .onAppear { animateTaste = false }
             }
-            Text("Starts from your setup answers, then learns from your ratings. Each new sidequest mixes this with the mood you describe.")
-                .sqFont(12)
-                .foregroundStyle(Theme.text3)
-                .authLineHeight(1.35, size: 12)
-                .fixedSize(horizontal: false, vertical: true)
             Button("Redo setup questions") { router.setupRedo = SetupEntry(step: 3) }
                 .buttonStyle(.sqTintPill)
                 .authHitHeight(32)
@@ -184,10 +214,10 @@ struct AccountMeSection: View {
     private var connectionsCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             SetupCard {
-                AuthLoadable(state: model.links, shimmers: onScreen, retry: { Task { await model.loadLinks(env) } }) {
+                AuthLoadable(state: model.integrations, shimmers: onScreen, retry: { Task { await model.loadIntegrations(env) } }) {
                     AccountLinksSkeleton()
-                } content: { links in
-                    let rows = AccountConnection.rows(integrations: links.integrations, cards: links.cards, keep: touched)
+                } content: { integrations in
+                    let rows = connectedRows(integrations)
                     VStack(spacing: 0) {
                         ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                             if index > 0 { RowDivider() }
@@ -199,8 +229,8 @@ struct AccountMeSection: View {
                     .onAppear { animateLinks = false }
                 }
             }
-            if let linkError {
-                AuthErrorText(message: linkError)
+            if let message = linkError ?? (model.showsFacebook ? nil : model.facebook.message) {
+                AuthErrorText(message: message)
                     .padding(.horizontal, 4)
                     .sqTransition(.rise)
             }
@@ -208,37 +238,116 @@ struct AccountMeSection: View {
         .padding(.horizontal, Metrics.side)
     }
 
-    @ViewBuilder private func connectionRow(_ row: AccountConnection) -> some View {
-        switch row.action {
-        case .none:
-            connectionLabel(row)
-        case .calendar(let provider):
-            Button {
-                if row.connected {
-                    confirmDisconnect = provider
-                } else {
-                    toggle(provider, connect: true)
+    /// Every row of the Connected card, in order. To add a connection, append its row here.
+    private func connectedRows(_ integrations: [Integration]) -> [AccountConnection] {
+        var rows = integrations.filter { $0.connected || touched.contains($0.provider) }.map(calendarRow)
+        if rows.isEmpty {
+            rows.append(AccountConnection(id: "calendar", name: "Calendar", status: "Connect", color: Theme.sageInk,
+                                          action: { choosingCalendar = true }, hint: "Double-tap to connect a calendar",
+                                          disabled: working != nil))
+        }
+        rows.append(facebookRow())
+        rows.append(permissionRow(.location, name: "Location", state: model.permissions.location))
+        rows.append(permissionRow(.voice, name: "Voice input", state: model.permissions.voice))
+        return rows
+    }
+
+    private func calendarRow(_ integration: Integration) -> AccountConnection {
+        let provider = integration.provider
+        let connected = integration.connected
+        return AccountConnection(
+            id: provider.rawValue, name: provider.name,
+            status: connected ? "Connected" : "Connect",
+            color: connected ? Theme.success : Theme.sageInk,
+            action: {
+                if connected { confirmDisconnect = provider } else { toggle(provider, connect: true) }
+            },
+            hint: connected ? "Double-tap to disconnect" : "Double-tap to connect",
+            working: working == provider,
+            check: justConnected == provider && connected,
+            disabled: working != nil)
+    }
+
+    /// Allowed: green, tap opens Settings to change it. Never asked: "Turn on" shows the system
+    /// prompt. Turned off: "Turn on in Settings". Restricted: just says so.
+    private func permissionRow(_ kind: AccountPermissions.Kind, name: String, state: AccountPermissionState) -> AccountConnection {
+        let tap = { model.permissions.handleTap(kind, openSettings: openSettings) }
+        let working = model.permissions.asking == kind
+        switch state {
+        case .allowed(let how):
+            return AccountConnection(id: name, name: name, status: how, color: Theme.success, action: tap,
+                                     hint: "Opens Settings to change it", working: working)
+        case .notAsked:
+            return AccountConnection(id: name, name: name, status: "Turn on", color: Theme.sageInk, action: tap,
+                                     hint: "Asks for permission", working: working)
+        case .denied:
+            return AccountConnection(id: name, name: name, status: "Turn on in Settings", color: Theme.sageInk, action: tap,
+                                     hint: "Opens Settings", working: working)
+        case .restricted:
+            return AccountConnection(id: name, name: name, status: "Restricted", color: Theme.text2)
+        }
+    }
+
+    /// Facebook: not connected → Facebook's page, the import, then the sheet with what was found;
+    /// connected (or asking for a new sign-in) → the sheet.
+    private func facebookRow() -> AccountConnection {
+        let facebook = model.facebook
+        let (status, color): (String, Color) = switch facebook.connection {
+        case .loading: ("", Theme.text3)
+        case .failed: ("Try again", Theme.sageInk)
+        case .loaded(let connection):
+            connection.needsReconnect ? ("Reconnect", Theme.sageInk)
+                : connection.connected ? ("Connected", Theme.success) : ("Connect", Theme.sageInk)
+        }
+        return AccountConnection(
+            id: "facebook", name: "Facebook", status: status, color: color,
+            action: {
+                switch facebook.connection {
+                case .failed:
+                    Task { await facebook.load(env) }
+                case .loaded(let connection) where connection.connected:
+                    model.showsFacebook = true
+                default:
+                    Task {
+                        if await facebook.connect(env) { model.showsFacebook = true }
+                    }
                 }
-            } label: {
-                connectionLabel(row, working: working == provider, check: justConnected == provider && row.connected)
-            }
-            .buttonStyle(.sqPressable)
-            .disabled(working != nil)
-            .accessibilityHint(row.connected ? "Double-tap to disconnect" : "Double-tap to connect")
-        case .pickCalendar:
-            Button {
-                choosingCalendar = true
-            } label: {
+            },
+            hint: facebook.isConnected ? "Shows what was imported" : "Fills in your likes from Pages you like",
+            working: facebook.connection.isLoading || facebook.work == .connecting,
+            disabled: facebook.work != nil)
+    }
+
+    private var facebookShown: Binding<Bool> {
+        Binding(get: { model.showsFacebook }, set: { model.showsFacebook = $0 })
+    }
+
+    /// Errors from the sheet stay in the sheet; new likes may change the taste profile.
+    private func facebookClosed() {
+        model.facebook.message = nil
+        if model.facebook.applied { Task { await model.loadTaste(env) } }
+    }
+
+    private func openSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(url)
+    }
+
+    @ViewBuilder private func connectionRow(_ row: AccountConnection) -> some View {
+        if let action = row.action {
+            Button(action: action) {
                 connectionLabel(row)
             }
             .buttonStyle(.sqPressable)
-            .disabled(working != nil)
-            .accessibilityHint("Double-tap to connect a calendar")
+            .disabled(row.disabled || row.working)
+            .accessibilityHint(row.hint ?? "")
+        } else {
+            connectionLabel(row)
         }
     }
 
     /// "Google Calendar ··· Connected" (15pt name, 14 Semibold status in its color).
-    private func connectionLabel(_ row: AccountConnection, working: Bool = false, check: Bool = false) -> some View {
+    private func connectionLabel(_ row: AccountConnection) -> some View {
         HStack(spacing: 10) {
             Text(row.name)
                 .sqFont(15)
@@ -246,17 +355,18 @@ struct AccountMeSection: View {
             Spacer(minLength: 8)
             ZStack(alignment: .trailing) {
                 HStack(spacing: 5) {
-                    if check {
+                    if row.check {
                         AnimatedCheck(lineWidth: 2.8, delay: 0.15)
                             .frame(width: 13, height: 13)
                             .transition(.opacity)
                     }
                     Text(row.status)
                         .sqFont(14, .semibold)
+                        .contentTransition(.opacity)
                 }
                 .foregroundStyle(row.color)
-                .opacity(working ? 0 : 1)
-                if working {
+                .opacity(row.working ? 0 : 1)
+                if row.working {
                     LoadingDots(color: row.color, dotSize: 5)
                         .sqTransition(.pop)
                 }
@@ -267,7 +377,7 @@ struct AccountMeSection: View {
         .padding(.horizontal, 14)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityValue(working ? "In progress" : "")
+        .accessibilityValue(row.working ? "In progress" : "")
     }
 
     private var disconnectTitle: String {
@@ -356,8 +466,7 @@ struct AccountMeSection: View {
                 }
                 let integrations = try await env.api.integrations()
                 withMotion(Motion.arrive) {
-                    let cards = model.links.value?.cards ?? []
-                    model.links = .loaded(AccountLinks(integrations: integrations, cards: cards))
+                    model.integrations = .loaded(integrations)
                     working = nil
                     if connect { justConnected = provider }
                 }
@@ -373,6 +482,23 @@ struct AccountMeSection: View {
             }
         }
     }
+}
+
+/// One row of Account › Connected: a name, its status on the right, and what a tap does.
+struct AccountConnection: Identifiable {
+    let id: String
+    let name: String
+    let status: String
+    var color: Color = Theme.text2
+    /// nil: the row isn't tappable.
+    var action: (() -> Void)? = nil
+    /// VoiceOver hint for the tap.
+    var hint: String? = nil
+    /// Its request (or system prompt) is running: the status turns into dots.
+    var working = false
+    /// Just connected here: a check draws in before the status.
+    var check = false
+    var disabled = false
 }
 
 // MARK: - Rows
@@ -448,45 +574,6 @@ private struct AccountHistoryRow: View {
     }
 }
 
-/// One "Connected" row: name, status and its color; calendar rows can be tapped.
-struct AccountConnection: Identifiable, Hashable {
-    enum Action: Hashable {
-        case none
-        /// Tap to connect, or to disconnect (after confirming).
-        case calendar(CalendarProvider)
-        /// No calendar yet: tap to pick one to connect.
-        case pickCalendar
-    }
-
-    let name: String
-    let status: String
-    let color: Color
-    var action: Action = .none
-    var connected = false
-    var id: String { name }
-
-    /// Calendars and the card come from the server; location and voice describe how the app works.
-    /// `keep`: calendars to list even when not connected (just disconnected here).
-    static func rows(integrations: [Integration], cards: [PaymentMethod], keep: Set<CalendarProvider> = []) -> [AccountConnection] {
-        var rows = integrations.filter { $0.connected || keep.contains($0.provider) }.map {
-            AccountConnection(name: $0.provider.name, status: $0.connected ? "Connected" : "Not connected",
-                              color: $0.connected ? Theme.success : Theme.text2, action: .calendar($0.provider),
-                              connected: $0.connected)
-        }
-        if rows.isEmpty {
-            rows.append(AccountConnection(name: "Calendar", status: "Not connected", color: Theme.text2, action: .pickCalendar))
-        }
-        rows.append(AccountConnection(name: "Location", status: "While planning", color: Theme.text2))
-        if let card = cards.first(where: \.isDefault) ?? cards.first {
-            rows.append(AccountConnection(name: "\(card.brand) •••• \(card.last4)", status: "Agent checkout on", color: Theme.success))
-        } else {
-            rows.append(AccountConnection(name: "Card", status: "Not added", color: Theme.text2))
-        }
-        rows.append(AccountConnection(name: "Voice input", status: "On", color: Theme.success))
-        return rows
-    }
-}
-
 // MARK: - Skeletons
 
 /// Five label + bar rows, like the taste profile (18.9pt rows, 10pt apart).
@@ -511,9 +598,9 @@ private struct AccountTasteSkeleton: View {
     }
 }
 
-/// Four name ··· status rows, like the Connected card.
+/// Three name ··· status rows, like the Connected card.
 private struct AccountLinksSkeleton: View {
-    private let widths: [(CGFloat, CGFloat)] = [(120, 74), (66, 96), (104, 118), (84, 24)]
+    private let widths: [(CGFloat, CGFloat)] = [(120, 74), (66, 96), (84, 24)]
 
     var body: some View {
         VStack(spacing: 0) {

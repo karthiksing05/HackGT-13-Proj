@@ -17,7 +17,7 @@ struct DesignGalleryView: View {
         ("sage", Theme.sage), ("sageInk", Theme.sageInk), ("ink", Theme.ink), ("cream", Theme.cream),
         ("sageTint", Theme.sageTint), ("clay", Theme.clay), ("clayTint", Theme.clayTint), ("transitBg", Theme.transitBg),
         ("text2", Theme.text2), ("text3", Theme.text3), ("line", Theme.line), ("lineStrong", Theme.lineStrong),
-        ("danger", Theme.danger), ("success", Theme.success), ("statusOpen", Theme.statusOpen), ("statusOnline", Theme.statusOnline),
+        ("danger", Theme.danger), ("success", Theme.success), ("statusOpen", Theme.statusOpen), ("statusFriends", Theme.statusFriends),
     ]
 
     var body: some View {
@@ -68,7 +68,7 @@ struct DesignGalleryView: View {
                     Text("Your SideQuests").largeTitleStyle()
                     Text("Let's set up your profile").setupTitleStyle()
                     Text("Where do you start and end?").stepTitleStyle()
-                    Text("Active itineraries").sectionStyle()
+                    Text("Active sidequests").sectionStyle()
                     Text("FRIDAY, SEPTEMBER 25").eyebrowStyle()
                     Text("Mini golf, carnival games and skyline views on the roof.").bodyStyle()
                     Text("Today · 1–8 PM").captionStyle(13)
@@ -101,7 +101,7 @@ struct DesignGalleryView: View {
                         SQChip(label: "Open plans", isOn: false, style: .dark) {}
                         SQChip(label: "Great people", isOn: true, style: .rateTag) {}
                     }
-                    SQSegmentedControl(selection: $segment, options: [(0, "Itineraries"), (1, "Calendar"), (2, "Past")])
+                    SQSegmentedControl(selection: $segment, options: [(0, "Sidequests"), (1, "Calendar"), (2, "Past")])
                     ToggleRow(title: "Prefer free events", subtitle: "Show free options first when they fit", isOn: $toggle)
                     ProgressDots(total: 4, current: 2)
                     ProgressBar(fraction: 0.4)
@@ -129,7 +129,7 @@ struct DesignGalleryView: View {
 
                 group("States") {
                     LoadingStateView(label: "Loading", minHeight: 80)
-                    ErrorStateView(message: "Couldn't load your itineraries.", minHeight: 80) {}
+                    ErrorStateView(message: "Couldn't load your sidequests.", minHeight: 80) {}
                     SuccessBanner(text: "Added \"Pizza\" · $40.00 split equally 3 ways ($13.33 each). Everyone was notified.") {}
                     Button("Open a sheet") { showSheet = true }.buttonStyle(.sqPrimary)
                 }

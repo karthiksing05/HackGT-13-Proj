@@ -1,0 +1,3 @@
+/* The name iOS shows for the app (home screen, sign-in prompts). Internal names stay SideQuestz. */
+"CFBundleDisplayName" = "SideQuests";
+"CFBundleName" = "SideQuests";

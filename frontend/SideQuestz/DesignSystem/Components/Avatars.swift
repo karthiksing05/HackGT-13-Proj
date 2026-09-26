@@ -62,10 +62,11 @@ struct Avatar: View {
 }
 
 extension Avatar {
-    /// Avatar for another person (colored circle, white bold initials).
+    /// Avatar for another person: their photo when they have one, else a colored circle with white
+    /// bold initials (also shown while the photo loads).
     init(person: PersonRef, size: CGFloat, fontSize: CGFloat? = nil, ring: Color? = nil, ringWidth: CGFloat = 2) {
         self.init(initials: person.initials, fill: person.color, foreground: .white, size: size, fontSize: fontSize,
-                  fontWeight: .bold, ring: ring, ringWidth: ringWidth)
+                  fontWeight: .bold, imageURL: person.photoURL, ring: ring, ringWidth: ringWidth)
     }
 }
 
@@ -101,7 +102,7 @@ struct CurrentUserAvatar: View {
     var body: some View {
         let user = env.user
         let color = user?.avatarColor ?? .ink
-        Avatar(initials: user?.initials ?? "JL", fill: color.background, foreground: color.foreground, size: size,
+        Avatar(initials: user?.initials ?? "", fill: color.background, foreground: color.foreground, size: size,
                fontSize: size * 0.36, fontWeight: .semibold, image: env.profileImage,
                imageURL: env.profileImage == nil ? user?.photoURL : nil,
                statusColor: showsStatus ? (user?.status ?? .open).color : nil,

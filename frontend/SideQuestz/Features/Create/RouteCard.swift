@@ -66,7 +66,8 @@ struct CreateRouteRow: Identifiable, Equatable {
 /// The route card (white, radius 16, padding 6 × 14) with a 22pt rail. Stops reorder by dragging
 /// their ☰ handle: the lifted row gets a white fill, shadow and a 2pt sage ring, rows swap live
 /// when the finger passes a neighbor's midpoint, and on drop the server re-times the route.
-/// VoiceOver: each handle is adjustable (swipe up/down moves the stop).
+/// Press and hold a stop for "Swap for something similar" (the swap sheet) or "Remove stop".
+/// VoiceOver: each handle is adjustable (swipe up/down moves the stop); swap and remove are actions.
 ///
 /// Motion: switching options cross-fades the rows. While the timing is pending the legs and stop
 /// times shimmer; when it arrives, leg modes and minutes, stop times and the arrival roll into
@@ -139,26 +140,9 @@ struct CreateRouteCard: View {
 
     private func rowView(_ row: CreateRouteRow, isFirst: Bool, isLast: Bool, stopCount: Int) -> some View {
         let lifted = row.stopId != nil && row.stopId == model.draggingStopId
+        let swapped = row.stopId != nil && row.stopId == model.swappedStopId
         return HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(row.title)
-                    .sqFont(row.kind == .leg ? 13 : 16, row.kind == .leg ? .medium : .semibold)
-                    .foregroundStyle(row.kind == .leg ? (row.isPending ? Theme.text3 : Theme.transitText) : Theme.ink)
-                    .createLine(row.kind == .leg ? 13 : 16)
-                    .sqNumeric()
-                    .createPendingShimmer(row.kind == .leg && row.isPending)
-                if let subtitle = row.subtitle {
-                    Text(subtitle)
-                        .sqFont(12, relativeTo: .caption)
-                        .foregroundStyle(row.isLate ? Theme.danger : Theme.text3)
-                        .createLine(12, relativeTo: .caption)
-                        .sqNumeric()
-                        .createPendingShimmer(row.kind != .leg && row.isPending)
-                }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
+            rowText(row)
             if let stopId = row.stopId, case .stop(let number) = row.kind {
                 handle(stopId: stopId, title: row.title, number: number, count: stopCount, lifted: lifted)
             }
@@ -181,15 +165,70 @@ struct CreateRouteCard: View {
                             .padding(-2)
                     }
                     .transition(.opacity)
+            } else if swapped {
+                // Just swapped in: a brief tint, then it fades.
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Theme.sageTint)
+                    .transition(.opacity)
             }
         }
         .padding(.horizontal, -8)
         // Picking a row up and setting it down fade the lift in and out.
         .animation(Motion.quick, value: lifted)
+        .animation(Motion.gentle, value: swapped)
         .onGeometryChange(for: CGRect.self) { proxy in
             proxy.frame(in: .named(Self.space))
         } action: { frame in
             if let stopId = row.stopId { stopFrames[stopId] = frame }
+        }
+    }
+
+    /// The row's title and subtitle. On a stop, press and hold for Swap / Remove (the ☰ handle
+    /// stays free for dragging).
+    @ViewBuilder
+    private func rowText(_ row: CreateRouteRow) -> some View {
+        let text = VStack(alignment: .leading, spacing: 0) {
+            Text(row.title)
+                .sqFont(row.kind == .leg ? 13 : 16, row.kind == .leg ? .medium : .semibold)
+                .foregroundStyle(row.kind == .leg ? (row.isPending ? Theme.text3 : Theme.transitText) : Theme.ink)
+                .createLine(row.kind == .leg ? 13 : 16)
+                .sqNumeric()
+                .createPendingShimmer(row.kind == .leg && row.isPending)
+            if let subtitle = row.subtitle {
+                Text(subtitle)
+                    .sqFont(12, relativeTo: .caption)
+                    .foregroundStyle(row.isLate ? Theme.danger : Theme.text3)
+                    .createLine(12, relativeTo: .caption)
+                    .sqNumeric()
+                    .createPendingShimmer(row.kind != .leg && row.isPending)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        if let stopId = row.stopId {
+            text
+                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 12, style: .continuous).inset(by: -6))
+                .contextMenu {
+                    Button {
+                        model.openSwap(stopId, in: option.id)
+                    } label: {
+                        Label("Swap for something similar", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    Button(role: .destructive) {
+                        withMotion { model.removeStop(stopId, in: option.id) }
+                    } label: {
+                        Label("Remove stop", systemImage: "trash")
+                    }
+                    .disabled(!model.canRemoveStop(in: option.id))
+                }
+                .accessibilityAction(named: "Swap for something similar") { model.openSwap(stopId, in: option.id) }
+                .accessibilityAction(named: "Remove stop") {
+                    guard model.canRemoveStop(in: option.id) else { return }
+                    withMotion { model.removeStop(stopId, in: option.id) }
+                }
+        } else {
+            text
         }
     }
 
@@ -215,8 +254,8 @@ struct CreateRouteCard: View {
     private func marker(_ kind: CreateRouteRow.Kind) -> some View {
         switch kind {
         case .start, .end:
-            // The logo's ring (A) and diamond (B). The ring is smaller than its 22pt box, so the
-            // rail runs in behind it to meet its edge, like it met the old circle.
+            // The logo's diamond (A) and ring (B). The ring is smaller than its 22pt box, so the
+            // rail runs in behind it to meet its edge; behind the diamond it just meets the tip.
             RouteMarker(kind: kind == .start ? .start : .end, size: 22)
                 .background(alignment: kind == .start ? .bottom : .top) {
                     Rectangle()

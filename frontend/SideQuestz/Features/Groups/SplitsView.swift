@@ -7,7 +7,12 @@ import SwiftUI
 /// Loading: a skeleton of the balance card and expenses, then the rows arrive one after another.
 /// After adding an expense its row rises in right away (the server returned it) while the balance
 /// card waits, dimmed, for the server's new balances; then the amounts roll to the new values.
-/// "Settle up" shows loading dots until the server settles, then a banner confirms it.
+/// Expenses other people add (`expense.added` over the socket) arrive the same way.
+///
+/// Deleting: long-press an expense you added (or use the VoiceOver action) → confirm → the row
+/// fades out and the balances refresh from the server; if the server says no, the row comes back
+/// with a note. "Settle up" pays the amount on the button; if the balance changed meanwhile the
+/// server refuses (409), its sentence shows and the new amount loads.
 struct GroupSplitsView: View {
     let groupId: String
     /// Set by the `thread/…/splits/expense` launch route: open Add expense once the ledger loads.
@@ -27,6 +32,9 @@ struct GroupSplitsView: View {
     @State private var expenseRequest: ExpenseSheetRequest?
     @State private var settling = false
     @State private var settleError: String?
+    /// The expense waiting for "Delete expense" to be confirmed.
+    @State private var confirmingDelete: Expense?
+    @State private var deleteError: String?
     @State private var addedCount = 0
     @State private var settledCount = 0
 
@@ -66,7 +74,15 @@ struct GroupSplitsView: View {
                 openAddExpense(prefill: demo ? AddExpenseSheet.Prefill(what: "Pizza", amount: "40") : nil)
             }
         }
+        .task { await listenForExpenses() }
         .sqReloadable("thread.\(groupId).splits") { await reload() }
+        .confirmationDialog(confirmingDelete.map { "Delete \"\($0.what)\"?" } ?? "",
+                            isPresented: Binding(get: { confirmingDelete != nil }, set: { if !$0 { confirmingDelete = nil } }),
+                            titleVisibility: .visible, presenting: confirmingDelete) { expense in
+            Button("Delete expense", role: .destructive) { delete(expense) }
+        } message: { _ in
+            Text("It comes off everyone's balances.")
+        }
         .sqSheet(isPresented: $showAddExpense, style: .cream(.fromTop(60))) {
             if let request {
                 AddExpenseSheet(groupId: groupId, members: request.members, meId: meId, prefill: request.prefill,
@@ -108,6 +124,12 @@ struct GroupSplitsView: View {
                 .padding(.top, 4)
                 .accessibilityAddTraits(.isHeader)
             expenseList(ledger)
+            if let deleteError {
+                Text(deleteError)
+                    .socialText(12)
+                    .foregroundStyle(Theme.dangerText)
+                    .sqTransition(.rise)
+            }
             Button("+ Add an expense") { openAddExpense(prefill: nil) }
                 .buttonStyle(.sq(fill: Theme.sage, foreground: Theme.ink, height: 50, fontSize: 16))
                 .accessibilityLabel("Add an expense")
@@ -140,7 +162,7 @@ struct GroupSplitsView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .sqNumeric()
-                Text("\(count) \(count == 1 ? "expense" : "expenses") · all split equally")
+                Text("\(count) \(count == 1 ? "expense" : "expenses")")
                     .socialText(12)
                     .foregroundStyle(Theme.text3)
                     .sqNumeric()
@@ -199,7 +221,18 @@ struct GroupSplitsView: View {
             // Newest first; a new one rises in at the top.
             ForEach(Array(ledger.expenses.reversed().enumerated()), id: \.element.id) { index, expense in
                 VStack(spacing: 0) {
-                    expenseRow(expense, members: ledger.members)
+                    if isOwn(expense) {
+                        expenseRow(expense, members: ledger.members)
+                            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+                            .contextMenu {
+                                Button(role: .destructive) { confirmingDelete = expense } label: {
+                                    Label("Delete expense", systemImage: "trash")
+                                }
+                            }
+                            .accessibilityAction(named: "Delete expense") { confirmingDelete = expense }
+                    } else {
+                        expenseRow(expense, members: ledger.members)
+                    }
                     RowDivider(color: Theme.cream)
                 }
                 .socialArrival(index, staggered: arrivingIds.contains(expense.id))
@@ -221,7 +254,7 @@ struct GroupSplitsView: View {
                     Text(expense.what)
                         .socialText(15, .semibold)
                         .foregroundStyle(Theme.ink)
-                    Text("\(name(for: expense.payerId, in: members)) paid · split equally, \(people) \(people == 1 ? "person" : "people")")
+                    Text("\(name(for: expense.payerId, in: members)) paid · split \(people == 1 ? "1 way" : "\(people) ways")")
                         .socialText(12)
                         .foregroundStyle(Theme.text3)
                 }
@@ -242,7 +275,13 @@ struct GroupSplitsView: View {
         .padding(.vertical, 13)
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white)
         .accessibilityElement(children: .combine)
+    }
+
+    /// Expenses you added (the payer, when the server doesn't say who added it).
+    private func isOwn(_ expense: Expense) -> Bool {
+        !meId.isEmpty && (expense.createdBy ?? expense.payerId) == meId
     }
 
     private func name(for userId: String, in members: [PersonRef]) -> String {
@@ -342,7 +381,8 @@ struct GroupSplitsView: View {
         let method = card
         Task {
             do {
-                try await env.api.settleUp(groupId: groupId)
+                // The amount the button showed; the server refuses it if the balance changed meanwhile.
+                try await env.api.settleUp(groupId: groupId, amountCents: owed, paymentMethodId: method?.id)
                 // Settled: confirm now; the balances follow when the server has them (the button
                 // keeps its dots until then, and fades away once nothing is owed).
                 settledCount += 1
@@ -353,11 +393,57 @@ struct GroupSplitsView: View {
                 await refreshBalances()
                 withMotion { settling = false }
             } catch {
+                // 409: the balance changed since the button was drawn. Say so and load the new one.
+                let stale = error.socialConflictMessage
                 withMotion {
-                    settleError = error.socialMessage
+                    settleError = stale ?? error.socialMessage
                     settling = false
+                    if stale != nil { balancesRefreshing = true }
+                }
+                if stale != nil { await refreshBalances() }
+            }
+        }
+    }
+
+    /// Confirmed: the row fades out now and the balances follow from the server; a refusal puts the
+    /// row back with the server's reason.
+    private func delete(_ expense: Expense) {
+        confirmingDelete = nil
+        guard var current = ledger.value, let index = current.expenses.firstIndex(where: { $0.id == expense.id }) else { return }
+        current.expenses.remove(at: index)
+        withMotion {
+            ledger = .loaded(current)
+            balancesRefreshing = true
+            deleteError = nil
+        }
+        Task {
+            do {
+                try await env.api.deleteExpense(groupId: groupId, expenseId: expense.id)
+                await refreshBalances()
+            } catch {
+                withMotion(Motion.arrive) {
+                    if var restored = ledger.value, !restored.expenses.contains(where: { $0.id == expense.id }) {
+                        restored.expenses.insert(expense, at: min(index, restored.expenses.count))
+                        ledger = .loaded(restored)
+                    }
+                    balancesRefreshing = false
+                    deleteError = error.socialMessage
                 }
             }
+        }
+    }
+
+    /// `expense.added` for this group (someone else's): its row rises in and the balances refresh.
+    private func listenForExpenses() async {
+        for await event in env.realtime.subscribe() {
+            guard case .expenseAdded(let id, let expense) = event, id == groupId,
+                  var current = ledger.value, !current.expenses.contains(where: { $0.id == expense.id }) else { continue }
+            current.expenses.append(expense)
+            withMotion(Motion.arrive) {
+                ledger = .loaded(current)
+                balancesRefreshing = true
+            }
+            Task { await refreshBalances() }
         }
     }
 

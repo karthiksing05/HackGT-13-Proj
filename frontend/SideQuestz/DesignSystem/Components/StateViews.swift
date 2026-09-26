@@ -41,7 +41,7 @@ extension Loadable {
     }
 }
 
-/// Loading: the logo with its S drawing in on a loop, plus an optional caption. Pass several
+/// Loading: the logo with its S drawing and erasing on a loop, plus an optional caption. Pass several
 /// `lines` for long-running work (plans, routes) and they rotate while the request runs.
 struct LoadingStateView: View {
     var label: String? = nil

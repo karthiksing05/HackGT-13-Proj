@@ -12,7 +12,13 @@ struct RootView: View {
                 switch router.phase {
                 case .splash:
                     SplashView {
-                        if env.auth.isSignedIn { router.enterMain() } else { router.showLogin() }
+                        if !env.auth.isSignedIn {
+                            router.showLogin()
+                        } else if env.user?.setupComplete == false {
+                            router.resumeSetup()
+                        } else {
+                            router.enterMain()
+                        }
                     }
                     .transition(.opacity)
                 case .auth:
@@ -28,6 +34,19 @@ struct RootView: View {
             }
             .environment(\.safeAreaTop, proxy.safeAreaInsets.top)
             .environment(\.safeAreaBottom, proxy.safeAreaInsets.bottom)
+            // A stored session whose account never finished setup (closed mid-setup): resume it
+            // once `GET /me` says so.
+            .onChange(of: env.user?.setupComplete) { _, complete in
+                guard complete == false, router.phase == .main, env.auth.isSignedIn else { return }
+                router.resumeSetup()
+            }
+            // The server ended the session: back to sign-in, which says why.
+            .onChange(of: env.sessionExpired) { _, expired in
+                guard expired else { return }
+                env.sessionExpired = false
+                router.authNotice = "Your session expired. Sign in again."
+                router.signedOut()
+            }
         }
     }
 }

@@ -6,7 +6,8 @@ enum CreatePin: Hashable {
     case start, end
 }
 
-/// A suggestion pill under the Where search field. The first one is "Current location".
+/// A suggestion pill under the Where search field. The first one is "Current location" when the
+/// phone can say where it is.
 enum CreateSuggestion: Identifiable, Hashable {
     case currentLocation
     case place(Place)
@@ -44,6 +45,22 @@ struct CreateRouteState: Equatable {
     var isStale: Bool { result == nil || resultOrder != order }
 }
 
+/// Review › hold a stop › Swap: the stop whose similar alternatives are showing.
+struct CreateSwapTarget: Identifiable, Equatable {
+    let optionId: String
+    let stop: PlanStop
+    var id: String { "\(optionId)/\(stop.id)" }
+}
+
+/// A stop just removed on Review, and where it was, so "Undo" can put it back.
+struct CreateStopRemoval: Equatable {
+    let optionId: String
+    let stop: PlanStop
+    /// Its place in the option's stops and in the route order.
+    let index: Int
+    let slot: Int
+}
+
 /// "Recalculating transit…" / "Transit times updated" above the route card.
 enum CreateTransitStatus: Equatable {
     case idle, recalculating, updated
@@ -51,16 +68,30 @@ enum CreateTransitStatus: Equatable {
 
 /// Everything the Create flow collects and shows. All data comes from `env.api` (and
 /// `env.places` / `env.location` / `env.voice`); the server owns plan generation and timing.
+///
+/// Starting answers: the demo (mock mode) opens on the prototype's picks. A real account starts
+/// from its preferences (budget, pace, who's coming) and otherwise neutral choices: no quick
+/// picks, a 3-hour window, just you. In both, getting around follows the ride answer ("No ride"
+/// is walk + MARTA; driving or covering rides allows all three) until the user picks modes.
 @Observable
 final class CreateFlowModel {
     /// Quick picks on the Vibe step (fixed UI choices, in display order).
     static let quickPicks = ["Outdoors", "Food", "Art", "Music", "Chill", "Active", "Meet people", "Nerdy", "Nightlife"]
     static let budgetLabels = ["Free", "$", "$$", "$$$"]
-    /// Default max group size for shared plans (More options › Group).
+    /// More options › Getting around.
+    static let travelModes: [TravelMode] = [.walk, .marta, .rideshare]
+    /// Shared plans (More options › Group): joining locks this long before you leave…
+    static let defaultLockLeadMinutes = 40
+    /// …and the group tops out at this many people, you included.
     static let defaultMaxGroupSize = 6
-    /// Joining locks this long before you leave (1:30 PM for a 2:10 PM start).
-    static let lockLeadMinutes = 40
+    static let groupSizes = 2...20
+    /// A plan's window when nothing sets its end: 3 hours (the demo: 4 h 20 min, 2:10 → 6:30 PM).
+    static let defaultWindowMinutes = 180
     static let voiceDemoTranscript = "Something chill and outside, then cheap food after. Maybe meet a couple people."
+
+    // The prototype's answers, kept for the demo and the UI tests.
+    private static let demoTags: Set<String> = ["Outdoors", "Food", "Meet people"]
+    private static let demoWindowMinutes = 260
 
     @ObservationIgnored let env: AppEnvironment
 
@@ -71,6 +102,10 @@ final class CreateFlowModel {
     var moreOpen = false
     /// `create/4/more`: open More options once the first options load.
     @ObservationIgnored var openMoreAfterLoad = false
+    /// Review › hold a stop › Swap: the alternatives sheet is open for this stop.
+    var swapTarget: CreateSwapTarget?
+    /// `create/4/swap`: open the swap sheet for the second stop once the first options load.
+    @ObservationIgnored var openSwapAfterLoad = false
 
     // MARK: Where
 
@@ -88,11 +123,21 @@ final class CreateFlowModel {
     private(set) var searchingPlaces = false
     @ObservationIgnored private var suggestionGeneration = 0
     var range: TravelRange = .transit
-    var ride: RideChoice = .none
+    /// "Can you provide a ride this time?" Getting around follows it until the user picks modes.
+    var ride: RideChoice = .none {
+        didSet { if !modesTouched { modes = Self.defaultModes(for: ride) } }
+    }
     var openSeats = 3
+    /// The default pins have been worked out (both rows stop shimmering).
     private(set) var placesLoaded = false
+    /// The phone's location, once it has answered (nil while asking, or when it can't say).
+    private(set) var currentPlace: Place?
+    /// The location request has answered, with a place or with nothing.
+    private(set) var locationResolved = false
     @ObservationIgnored private var defaultsTask: Task<Void, Never>?
-    @ObservationIgnored private var currentPlace: Place?
+    /// The one location request of this flow: the default start and the "Current location" pill
+    /// share it.
+    @ObservationIgnored private var locationTask: Task<Place?, Never>?
     /// Bumped on every pin change so a slow reverse-geocode can't overwrite a newer pick.
     @ObservationIgnored private var pinGeneration = 0
 
@@ -113,18 +158,27 @@ final class CreateFlowModel {
     var moodText = ""
     /// The last voice transcript (shown in quotes on the voice card).
     private(set) var transcript: String?
-    private(set) var tags: Set<String> = ["Outdoors", "Food", "Meet people"]
+    private(set) var tags: Set<String>
     /// 0 Free … 3 $$$. Starts at the money preference until the user picks one.
     var budget: Int { didSet { budgetTouched = true } }
-    var who: Visibility = .friends
+    /// Starts at the company preference (live) until the user picks one.
+    var who: Visibility { didSet { whoTouched = true } }
     @ObservationIgnored private var budgetTouched = false
+    @ObservationIgnored private var whoTouched = false
 
     // MARK: More options
 
-    var modes: Set<TravelMode> = [.walk, .marta]
+    /// Getting around: from the ride answer until the user changes it (`toggleMode`).
+    private(set) var modes: Set<TravelMode>
+    @ObservationIgnored private var modesTouched = false
     /// Starts at the pace preference until the user picks one.
     var pace: Pace { didSet { paceTouched = true } }
     @ObservationIgnored private var paceTouched = false
+    /// Shared plans: joining locks this many minutes before you leave. nil until the user picks a
+    /// time (then `lockAt` uses the default lead).
+    private(set) var lockLeadMinutes: Int?
+    /// Shared plans: the most people who can be on it, you included.
+    private(set) var maxGroupSize = CreateFlowModel.defaultMaxGroupSize
 
     // MARK: Review
 
@@ -135,6 +189,12 @@ final class CreateFlowModel {
     private(set) var loadingMore = false
     private(set) var loadMoreError: String?
     private(set) var routes: [String: CreateRouteState] = [:]
+    /// Options as edited on Review (swapped-in stops in their slots, removed ones gone), by id.
+    private(set) var editedOptions: [String: PlanOption] = [:]
+    /// Just swapped in: its row gets a brief tint.
+    private(set) var swappedStopId: String?
+    /// The last stop removed on Review ("Removed … · Undo").
+    private(set) var lastRemoval: CreateStopRemoval?
     private(set) var transitStatus: CreateTransitStatus = .idle
     /// The stop being dragged on the route card (disables page scrolling).
     private(set) var draggingStopId: String?
@@ -154,15 +214,26 @@ final class CreateFlowModel {
         step = min(4, max(1, draft.step))
 
         // Calendar › "Plan this window" prefills date/start/end; otherwise start now (2:10 PM in
-        // the demo) and be back 4 h 20 min later (6:30 PM).
+        // the demo) and be back 3 hours later (the demo: 6:30 PM).
         let day = clock.startOfDay(draft.date ?? draft.start ?? clock.now)
         let start = draft.start ?? Self.roundedUp(clock.now, toMinutes: 5, clock: clock)
         date = day
         startTime = start
-        backBy = draft.end ?? clock.addingMinutes(260, to: start)
+        backBy = draft.end ?? clock.addingMinutes(env.isMock ? Self.demoWindowMinutes : Self.defaultWindowMinutes, to: start)
+        // Home › search › a place: plan a sidequest that ends there (the start stays where you are).
+        end = draft.destination
 
-        budget = env.preferences?.spend.defaultBudget ?? 1
-        pace = env.preferences?.pace ?? .balanced
+        let preferences = env.preferences ?? Preferences()
+        budget = preferences.spend.defaultBudget
+        pace = preferences.pace
+        modes = Self.defaultModes(for: .none)
+        if env.isMock {
+            tags = Self.demoTags
+            who = .friends
+        } else {
+            tags = []
+            who = env.preferences.map { Self.visibility(for: $0.company) } ?? .justMe
+        }
     }
 
     private static func roundedUp(_ date: Date, toMinutes step: Int, clock: AppClock) -> Date {
@@ -171,14 +242,33 @@ final class CreateFlowModel {
         return clock.addingMinutes(rounded, to: clock.startOfDay(date))
     }
 
+    /// Getting around for a ride answer: "No ride" keeps it to walking and MARTA; driving or
+    /// covering rides says nothing against any mode, so all three are on.
+    static func defaultModes(for ride: RideChoice) -> Set<TravelMode> {
+        ride == .none ? [.walk, .marta] : Set(travelModes)
+    }
+
+    /// Who's coming, from Setup › "Who do you usually go with?": solo plans stay private, small
+    /// groups go to friends, big groups are open to anyone nearby.
+    private static func visibility(for company: Company) -> Visibility {
+        switch company {
+        case .solo: .justMe
+        case .smallGroup: .friends
+        case .bigGroup: .open
+        }
+    }
+
     // MARK: - Navigation
 
     var canGoNext: Bool {
         switch step {
-        case 1: start != nil && (endSameAsStart || end != nil)
+        case 1: hasPlaces
         default: true
         }
     }
+
+    /// Where is answered: a start, and an end (or "End where I start").
+    var hasPlaces: Bool { start != nil && (endSameAsStart || end != nil) }
 
     func go(to newStep: Int) {
         let target = min(4, max(1, newStep))
@@ -200,19 +290,34 @@ final class CreateFlowModel {
             pace = prefs.pace
             paceTouched = false
         }
+        // The demo keeps the prototype's "Friends only".
+        if !env.isMock, !whoTouched {
+            who = Self.visibility(for: prefs.company)
+            whoTouched = false
+        }
     }
 
     // MARK: - Where
 
-    /// Default start/end: the first two places the API returns for an empty search.
+    /// Default pins: start where the phone is (the demo: Tech Square) and end at the first other
+    /// place the API suggests for an empty search (the demo: Home), or where you start when it
+    /// suggests none. A pin that's already set (Home's search sets the end) is kept. Without a
+    /// location the start stays empty and the Where step asks for one. The location and the
+    /// suggestions are asked for at the same time; each pin fills in as its answer arrives.
     func loadDefaultPlacesIfNeeded() async {
         if let defaultsTask { return await defaultsTask.value }
         let task = Task {
-            let places = await env.places.suggestions(for: "", near: nil, limit: 2)
-            if start == nil { start = places.first }
-            if start == nil { start = await currentLocation() }
-            if end == nil, !endSameAsStart {
-                if let second = places.dropFirst().first { end = second } else { endSameAsStart = true }
+            let suggestionsCall: Task<[Place], Never>? = end == nil && !endSameAsStart
+                ? Task { await env.places.suggestions(for: "", near: nil, limit: 3) }
+                : nil
+            let here = await currentLocation()
+            if start == nil { start = here }
+            if let suggestionsCall {
+                let places = await suggestionsCall.value
+                // The user may have picked while this loaded.
+                if end == nil, !endSameAsStart {
+                    if let other = places.first(where: { $0.name != here?.name }) { end = other } else { endSameAsStart = true }
+                }
             }
             placesLoaded = true
         }
@@ -220,12 +325,32 @@ final class CreateFlowModel {
         await task.value
     }
 
-    private func currentLocation() async -> Place {
-        if let currentPlace { return currentPlace }
-        let place = await env.location.currentLocation()
-        currentPlace = place
+    /// The phone's location, asked once per flow: everyone who needs it waits on the same request.
+    private func currentLocation() async -> Place? {
+        let task: Task<Place?, Never>
+        if let locationTask {
+            task = locationTask
+        } else {
+            task = Task { await env.location.currentLocation() }
+            locationTask = task
+        }
+        let place = await task.value
+        if !locationResolved {
+            currentPlace = place
+            locationResolved = true
+        }
         return place
     }
+
+    /// The phone couldn't say where it is (no permission or no fix): nothing is assumed.
+    var locationUnavailable: Bool { locationResolved && currentPlace == nil }
+
+    /// The start row has its default (or knows there's none), so it stops shimmering.
+    var startDefaultLoaded: Bool { locationResolved || placesLoaded }
+
+    /// Where has no start to offer: no location and nothing picked yet. The step says so and puts
+    /// the cursor in the search field.
+    var needsStartSearch: Bool { locationUnavailable && start == nil }
 
     /// The pin a pick or a map tap changes (Start while "End where I start" is on).
     var editingPin: CreatePin { endSameAsStart ? .start : activePin }
@@ -244,14 +369,18 @@ final class CreateFlowModel {
         defer { if generation == suggestionGeneration { searchingPlaces = false } }
 
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        let near = (editingPin == .end ? end : start)?.coordinate ?? start?.coordinate
+        // Near the pin being set, else the other pin, else the phone.
+        let (editing, other) = editingPin == .end ? (end, start) : (start, end)
+        let near = editing?.coordinate ?? other?.coordinate ?? currentPlace?.coordinate
         var results = await env.places.suggestions(for: query, near: near, limit: 5)
-        let current = await currentLocation()
         // A newer search (the next keystroke) replaced this one: don't flash its stale results.
         guard generation == suggestionGeneration, !Task.isCancelled else { return }
-        results.removeAll { $0.name == current.name }
+        // Results never wait for the location: the pill joins when it's known (the step reloads
+        // the pills then).
+        let current = currentPlace
+        if let current { results.removeAll { $0.name == current.name } }
         var pills: [CreateSuggestion] = []
-        if query.isEmpty || "current location".localizedCaseInsensitiveContains(query)
+        if let current, query.isEmpty || "current location".localizedCaseInsensitiveContains(query)
             || current.name.localizedCaseInsensitiveContains(query) {
             pills.append(.currentLocation)
         }
@@ -263,7 +392,9 @@ final class CreateFlowModel {
     func pick(_ suggestion: CreateSuggestion) async {
         let place: Place
         switch suggestion {
-        case .currentLocation: place = await currentLocation()
+        case .currentLocation:
+            guard let current = currentPlace else { return }
+            place = current
         case .place(let p): place = p
         }
         setPlace(place, for: editingPin)
@@ -371,7 +502,8 @@ final class CreateFlowModel {
                            budget: budget, who: who, pace: pace, modes: modes)
     }
 
-    var optionList: [PlanOption] { options.value ?? [] }
+    /// The options as they stand on Review, with the stops you swapped or removed.
+    var optionList: [PlanOption] { (options.value ?? []).map { editedOptions[$0.id] ?? $0 } }
 
     var selectedOption: PlanOption? {
         optionList.first { $0.id == selectedOptionId } ?? optionList.first
@@ -405,6 +537,10 @@ final class CreateFlowModel {
         options = .loading
         selectedOptionId = nil
         routes = [:]
+        editedOptions = [:]
+        swappedStopId = nil
+        lastRemoval = nil
+        swapTarget = nil
         cursor = nil
         noMoreOptions = false
         loadingMore = false
@@ -422,6 +558,10 @@ final class CreateFlowModel {
             if openMoreAfterLoad {
                 openMoreAfterLoad = false
                 moreOpen = true
+            }
+            if openSwapAfterLoad, let option = selectedOption, orderedStops(option).count > 1 {
+                openSwapAfterLoad = false
+                openSwap(orderedStops(option)[1].id, in: option.id)
             }
         } catch {
             guard generation == generateGeneration else { return }
@@ -463,10 +603,80 @@ final class CreateFlowModel {
 
     /// Stop titles in the option's current order ("A → B → C" on the option card).
     func orderedStops(_ option: PlanOption) -> [PlanStop] {
-        let order = routes[option.id]?.order ?? option.stops.map(\.id)
-        let byId = Dictionary(uniqueKeysWithValues: option.stops.map { ($0.id, $0) })
+        let current = editedOptions[option.id] ?? option
+        let order = routes[option.id]?.order ?? current.stops.map(\.id)
+        let byId = Dictionary(current.stops.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let ordered = order.compactMap { byId[$0] }
-        return ordered.count == option.stops.count ? ordered : option.stops
+        return ordered.count == order.count ? ordered : current.stops
+    }
+
+    // MARK: - Review: swap + remove
+
+    /// Hold a stop › "Swap for something similar".
+    func openSwap(_ stopId: String, in optionId: String) {
+        guard let option = optionList.first(where: { $0.id == optionId }),
+              let stop = option.stops.first(where: { $0.id == stopId }) else { return }
+        swapTarget = CreateSwapTarget(optionId: optionId, stop: stop)
+    }
+
+    /// When a stop happens on the current route ("2:24–3:44 PM" in the swap sheet), if known.
+    func timeSlot(of stopId: String, in optionId: String) -> DateInterval? {
+        guard let state = routes[optionId], !state.isStale, let result = state.result,
+              let index = state.order.firstIndex(of: stopId), result.stopTimes.indices.contains(index) else { return nil }
+        return result.stopTimes[index]
+    }
+
+    /// `alternative` takes the stop's slot, then the server re-times the route like after a drop.
+    func swapStop(_ stopId: String, with alternative: PlanStop, in optionId: String) {
+        guard var option = optionList.first(where: { $0.id == optionId }),
+              let index = option.stops.firstIndex(where: { $0.id == stopId }),
+              var state = routes[optionId], let slot = state.order.firstIndex(of: stopId),
+              !state.order.contains(alternative.id) else { return }
+        option.stops[index] = alternative
+        editedOptions[optionId] = option
+        state.order[slot] = alternative.id
+        routes[optionId] = state
+        lastRemoval = nil
+        swappedStopId = alternative.id
+        commitReorder(optionId)
+        Task {
+            try? await Task.sleep(for: .seconds(1.6))
+            if swappedStopId == alternative.id { swappedStopId = nil }
+        }
+    }
+
+    /// A plan keeps at least one stop.
+    func canRemoveStop(in optionId: String) -> Bool { (routes[optionId]?.order.count ?? 0) > 1 }
+
+    /// Hold a stop › "Remove stop". "Undo" can put it back until the next change.
+    func removeStop(_ stopId: String, in optionId: String) {
+        guard var option = optionList.first(where: { $0.id == optionId }),
+              let index = option.stops.firstIndex(where: { $0.id == stopId }),
+              var state = routes[optionId], state.order.count > 1,
+              let slot = state.order.firstIndex(of: stopId) else { return }
+        let stop = option.stops.remove(at: index)
+        editedOptions[optionId] = option
+        state.order.remove(at: slot)
+        routes[optionId] = state
+        lastRemoval = CreateStopRemoval(optionId: optionId, stop: stop, index: index, slot: slot)
+        commitReorder(optionId)
+    }
+
+    func undoRemoval() {
+        guard let removal = lastRemoval,
+              var option = optionList.first(where: { $0.id == removal.optionId }),
+              var state = routes[removal.optionId] else { return }
+        lastRemoval = nil
+        option.stops.insert(removal.stop, at: min(removal.index, option.stops.count))
+        editedOptions[removal.optionId] = option
+        state.order.insert(removal.stop.id, at: min(removal.slot, state.order.count))
+        routes[removal.optionId] = state
+        commitReorder(removal.optionId)
+    }
+
+    /// The Undo row timed out (or was dismissed).
+    func dismissRemoval(_ removal: CreateStopRemoval) {
+        if lastRemoval == removal { lastRemoval = nil }
     }
 
     // MARK: - Review: reorder + route
@@ -575,7 +785,7 @@ final class CreateFlowModel {
         let shared = who != .justMe
         let request = CreateItineraryRequest(
             plan: plan, option: option, stopOrder: state.order, route: route, visibility: who,
-            lockAt: shared ? lockAt : nil, maxGroupSize: shared ? Self.defaultMaxGroupSize : nil
+            lockAt: shared ? lockAt : nil, maxGroupSize: shared ? maxGroupSize : nil
         )
         do {
             return try await env.api.createItinerary(request)
@@ -585,8 +795,72 @@ final class CreateFlowModel {
         }
     }
 
-    /// Shared plans lock joining a little before you leave.
-    var lockAt: Date { env.clock.addingMinutes(-Self.lockLeadMinutes, to: startTime) }
+    // MARK: - Group (shared plans)
+
+    /// When joining locks: the picked lead (or 40 minutes) before you leave, within `lockRange`.
+    /// The default never locks a real plan before people have had a chance to join: when 40
+    /// minutes before the start has already passed, joining stays open at least 40 minutes from
+    /// now, or until you leave. (The demo's clock stands still at its 2:10 PM start, so it keeps
+    /// the prototype's 1:30 PM.)
+    var lockAt: Date {
+        let clock = env.clock
+        if let lockLeadMinutes {
+            return Self.clamp(clock.addingMinutes(-lockLeadMinutes, to: startTime), to: lockRange)
+        }
+        var lock = clock.addingMinutes(-Self.defaultLockLeadMinutes, to: startTime)
+        if !env.isMock {
+            lock = max(lock, min(startTime, clock.addingMinutes(Self.defaultLockLeadMinutes, to: clock.now)))
+        }
+        return Self.clamp(lock, to: lockRange)
+    }
+
+    /// Lock times you can pick: on the plan's day, no later than the start and (live) not in the past.
+    var lockRange: ClosedRange<Date> {
+        let clock = env.clock
+        var earliest = clock.startOfDay(startTime)
+        if !env.isMock {
+            let nextMinute = Date(timeIntervalSinceReferenceDate: (clock.now.timeIntervalSinceReferenceDate / 60).rounded(.up) * 60)
+            earliest = max(earliest, min(nextMinute, startTime))
+        }
+        return earliest...startTime
+    }
+
+    /// More options › Group › "Lock joining at". Kept as a lead, so it follows a new start time.
+    func setLockAt(_ time: Date) {
+        let clock = env.clock
+        let onPlanDay = clock.addingMinutes(clock.minutesIntoDay(time), to: clock.startOfDay(startTime))
+        let lock = Self.clamp(onPlanDay, to: lockRange)
+        lockLeadMinutes = max(0, Int((startTime.timeIntervalSince(lock) / 60).rounded()))
+    }
+
+    /// More options › Group › "Max group size" − / +.
+    func changeMaxGroupSize(by delta: Int) {
+        maxGroupSize = min(max(maxGroupSize + delta, Self.groupSizes.lowerBound), Self.groupSizes.upperBound)
+    }
+
+    // MARK: - More options
+
+    /// Getting around chip. At least one way to get around stays on.
+    func toggleMode(_ mode: TravelMode) {
+        modesTouched = true
+        if modes.contains(mode) {
+            guard modes.count > 1 else { return }
+            modes.remove(mode)
+        } else {
+            modes.insert(mode)
+        }
+    }
+
+    /// More options › Mood: the quick picks, else what was typed or said.
+    var moodSummary: String {
+        if !selectedTags.isEmpty { return selectedTags.joined(separator: ", ") }
+        let typed = moodText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return typed.isEmpty ? "Anything" : "“\(typed)”"
+    }
+
+    private static func clamp(_ date: Date, to range: ClosedRange<Date>) -> Date {
+        min(max(date, range.lowerBound), range.upperBound)
+    }
 
     // MARK: - Helpers
 
