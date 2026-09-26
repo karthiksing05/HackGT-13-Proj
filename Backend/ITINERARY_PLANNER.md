@@ -4,17 +4,24 @@ How `POST /plans/generate` builds plans, and what the iOS app needs to send and 
 
 ## What it does
 
-1. The backend loads candidate activities (events and places) and ranks them with the ML service.
+1. The backend loads candidates that fit the request (`pkg/candidates`, `store.FindPlanCandidates`):
+   - events that overlap the time window and aren't over, within `range_km` of the start or end point;
+   - places in schedulable categories, rated 4+ (or hiking trails), in the same area;
+   - nothing over the budget (per activity) or restricted by the user's age, and nothing matching the user's avoided tags.
+
+   If fewer than 5 fit, it searches twice the radius once. Timed-entry slots of one exhibition are ranked as one item. The ML service ranks the candidates (with the LLM rerank on the top 40), and the best 25 events and 25 places go to the optimizer.
 2. The itinerary optimizer (`pkg/itinerary`) turns the ranked list into plans that actually work:
    - stops never overlap;
    - travel time between stops is accounted for;
    - each leg stays within `range_km`;
    - the user is back at the end location by `back_by_time`;
-   - the same venue or exhibition is never visited twice, and there's at most one stop per category (e.g. one comedy show);
+   - the same venue or exhibition is never visited twice (duplicate listings of one show count as the same event), and there's at most one stop per category (e.g. one comedy show);
    - the total cost stays under `budget_cents` when prices are known.
 3. It returns the 3 best plans, chosen so they don't all repeat the same stops. More plans from the same run are available through `/plans/generate/more`.
 
-Events keep their real start times. Places (parks, bars, museums…) and drop-in events are scheduled at a time when they're open, on the hour or half hour.
+Events keep their real start times. Places (parks, restaurants, cafés, bars, museums, tours…) and drop-in events are scheduled at a time when they're open, on the hour or half hour. A plan has at most one stop per category, so at most one restaurant and one café.
+
+Stops are scored from the ML ranking: the LLM rerank score (0–4) when there is one, otherwise the model score (0–1). Anything at or below the midpoint (2/4, or 0.5) adds nothing to a plan, so weak matches aren't added just because they're nearby.
 
 Travel times are currently estimated from straight-line distance, not a routing service. Expect them to be roughly right, not exact.
 
@@ -45,7 +52,7 @@ Travel times are currently estimated from straight-line distance, not a routing 
 | `end_location` | `"lat,lng"` | Send the start again for a round trip, or the point the user picked. |
 | `date` | `YYYY-MM-DD` | Local date in the city being planned. |
 | `start_time`, `back_by_time` | `HH:MM`, 24-hour | Local time. A back-by at or before the start means the next day (`21:00` → `02:00` is fine). |
-| `range_km` | number | Longest leg between stops, straight line. `0` uses a default: walk 2, transit 10, drive 25. Suggested mapping: Walkable 2, Transit 10, Anywhere 25. |
+| `range_km` | number | Longest leg, straight line, including from the start and back to the end. `0` uses a default: walk 2, transit 10, drive 25. Suggested mapping: Walkable 2, Transit 10, Anywhere 25. |
 | `ride_choice` | `drive` \| `rideshare` \| `none` | `drive` or `rideshare` plans driving legs; anything else uses `travel_modes`. |
 | `travel_modes` | list | `marta`/`transit` → transit legs; otherwise walking. Legs of 0.8 km or less are always walked. |
 | `budget_cents` | integer | Total for the plan. `0` = no limit. Stops with no known price count as free. |
@@ -100,7 +107,7 @@ Travel times are currently estimated from straight-line distance, not a routing 
 - **Stop times.** `arrive_time` / `depart_time` are the scheduled visit, as UTC ISO 8601. Show them in the device's or city's local time. `arrive_time` is when the visit starts; the user may get there a few minutes earlier.
 - **Legs.** There is one more leg than stops. The first leg starts at `"start"` (the user's start location), the last ends at `"end"`. `legs[i]` is the leg *arriving at* `stops[i]`.
 - **Leg modes.** Possible values: `walk`, `transit`, `drive`, `rideshare`. **`transit` is new**: the Swift `TravelMode` enum needs a case for it (or map it to `marta`).
-- **`kind` and `flexible`.** `kind` is `event` or `place`. `flexible: true` means the time was chosen by the planner and could move (places, drop-in events). `false` means a fixed event start.
+- **`kind` and `flexible`.** `flexible` is always present; `kind` is `event` or `place`. `flexible: true` means the time was chosen by the planner and could move (places, drop-in events). `false` means a fixed event start.
 - **`late_flag`.** True when an event whose length is estimated could run long enough to break the plan. Worth a small "tight timing" hint, not an error.
 - **Empty or fallback results.**
   - If the planner can't build anything, the backend currently falls back to the old builder. Those options have **no `arrive_time`/`depart_time`**, no `"planner": "dag"`, and legs only *between* stops (no start or end leg). iOS should tolerate missing times until the fallback is removed.
@@ -148,6 +155,7 @@ Response:
 ## Known limitations
 
 - Travel times are straight-line estimates; a routing provider plugs in later behind the same interface (`pkg/travel`).
-- Candidate filtering by city, day and area isn't done yet: the planner only sees the 15 activities the handler loads. Until that lands, many real requests fall back to the old builder.
-- Some Ticketmaster add-on listings (parking, "Express Entry … Not a Concert Ticket") can appear as stops until filtering removes them.
+- Some Ticketmaster add-on listings (parking, "Express Entry … Not a Concert Ticket") can still appear as stops.
+- The real (non-demo) data has no restaurants or cafés yet; the planner schedules them as soon as ingestion adds them.
+- Meal times aren't modelled: a restaurant can be scheduled at 15:30.
 - Opening hours assume day 0 of `weeklyHours` is Sunday (Google's convention). This hasn't been checked against real hours yet.

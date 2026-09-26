@@ -37,17 +37,51 @@ type Drop struct {
 var unlimitedCategories = map[string]bool{"": true, "other": true}
 
 // Place categories we schedule. Venue types (theater, cinema, live_music,
-// comedy, nightclub) are left out: a visit only makes sense with a show,
-// and shows arrive as events.
+// comedy, nightclub) and class venues are left out: a visit only makes sense
+// with a show or a session, and those arrive as events. Food categories are
+// separate, so the one-stop-per-category rule allows at most one meal and
+// one coffee per plan.
 var placeCategories = map[string]bool{
 	"park": true, "hike": true, "bar": true, "landmark": true, "museum": true,
 	"gallery": true, "garden": true, "shopping": true, "rec_venue": true,
-	"zoo_aquarium": true, "market": true, "viewpoint": true,
+	"zoo_aquarium": true, "market": true, "viewpoint": true, "tour": true,
+	"restaurant": true, "cafe": true, "bakery": true, "dessert": true,
+	"food_hall": true, "brewery": true,
+}
+
+// PlaceCategories lists the place categories the optimizer can schedule.
+func PlaceCategories() []string {
+	out := make([]string, 0, len(placeCategories))
+	for c := range placeCategories {
+		out = append(out, c)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// SeriesKey groups activities that are one experience: every timed-entry
+// slot of an exhibition (same venue and name) shares a key; each place is
+// its own. BuildNodes refines this further for duplicate listings.
+func SeriesKey(a *models.Activity) string {
+	if a.Kind == "place" {
+		return "place|" + a.ID.Hex()
+	}
+	v := norm(ptrStr(a.VenueName))
+	if v == "" {
+		if p, ok := activityPoint(*a); ok {
+			v = travel.LocKey(p)
+		}
+	}
+	return "event|" + v + "|" + norm(a.Name)
 }
 
 // Two activities within this distance, where the place's name matches the
 // event's venue, are the same venue.
 const sameVenueKm = 0.05
+
+// Two event listings starting at the same time within this distance are
+// the same event.
+const duplicateListingKm = 0.1
 
 // BuildNodes turns candidates into nodes that fit the window. Activities
 // that can't fit are returned as drops with a reason; they could never be
@@ -227,9 +261,11 @@ func clampDur(d time.Duration, cfg Config) time.Duration {
 	return d
 }
 
-// utility maps ranker output to 0..1 and subtracts the baseline. The LLM
-// rerank score (0-4) is preferred when present; the model score is used
-// otherwise; unscored items get cfg.DefaultUtility.
+// utility maps ranker output to 0..1: scores at or below the baseline are
+// worth nothing, and the range above it is stretched back to 0..1, so a
+// higher bar cuts weak stops without shrinking good ones against travel and
+// wait penalties. The LLM rerank score (0-4) is preferred when present; the
+// model score is used otherwise; unscored items get cfg.DefaultUtility.
 func utility(a *models.Activity, cfg Config) float64 {
 	base := cfg.DefaultUtility
 	switch {
@@ -239,7 +275,10 @@ func utility(a *models.Activity, cfg Config) float64 {
 		base = *a.Score
 	}
 	base = math.Max(0, math.Min(1, base))
-	return math.Max(0, base-cfg.Tau)
+	if cfg.Tau >= 1 {
+		return 0
+	}
+	return math.Max(0, (base-cfg.Tau)/(1-cfg.Tau))
 }
 
 func costCents(a *models.Activity) int64 {
@@ -262,25 +301,53 @@ func assignSeries(nodes []Node) []Node {
 		name string
 		key  string
 	}
+	type listing struct {
+		start time.Time
+		loc   travel.Point
+		venue string
+		name  string
+		key   string
+	}
 	var venues []venue
+	var listings []listing
 	for i := range nodes {
 		a := nodes[i].Act
 		if a.Kind == "place" {
 			continue
 		}
-		v := norm(ptrStr(a.VenueName))
-		if v == "" {
-			v = travel.LocKey(nodes[i].Loc)
+		key := SeriesKey(a)
+		// The same event is often listed twice ("Michelle Malone" and
+		// "Michelle Malone Band w/ …" at 19:00 in one venue, or one tour
+		// geocoded to two points). Listings with the same start time are the
+		// same event if they have the same name, or are at the same venue
+		// (same venue name, or within 100 m) and one name extends the other.
+		// Different shows sharing a coordinate (Broadway theatres) stay
+		// separate.
+		if a.Start != nil {
+			name := norm(a.Name)
+			for _, l := range listings {
+				if !l.start.Equal(*a.Start) {
+					continue
+				}
+				sameSpot := (l.venue != "" && l.venue == norm(ptrStr(a.VenueName))) ||
+					travel.HaversineKm(l.loc, nodes[i].Loc) <= duplicateListingKm
+				related := strings.HasPrefix(l.name, name) || strings.HasPrefix(name, l.name)
+				if l.name == name || (sameSpot && related) {
+					key = l.key
+					break
+				}
+			}
+			listings = append(listings, listing{start: *a.Start, loc: nodes[i].Loc, venue: norm(ptrStr(a.VenueName)), name: name, key: key})
 		}
-		nodes[i].SeriesKey = "event|" + v + "|" + norm(a.Name)
-		venues = append(venues, venue{loc: nodes[i].Loc, name: norm(ptrStr(a.VenueName)), key: nodes[i].SeriesKey})
+		nodes[i].SeriesKey = key
+		venues = append(venues, venue{loc: nodes[i].Loc, name: norm(ptrStr(a.VenueName)), key: key})
 	}
 	for i := range nodes {
 		a := nodes[i].Act
 		if a.Kind != "place" {
 			continue
 		}
-		nodes[i].SeriesKey = "place|" + a.ID.Hex()
+		nodes[i].SeriesKey = SeriesKey(a)
 		name := norm(a.Name)
 		for _, v := range venues {
 			if v.name != "" && v.name == name && travel.HaversineKm(v.loc, nodes[i].Loc) <= sameVenueKm {

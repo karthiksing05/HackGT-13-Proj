@@ -2,6 +2,7 @@ package itinerary
 
 import (
 	"Backend/pkg/models"
+	"math"
 	"testing"
 	"time"
 )
@@ -129,17 +130,78 @@ func TestBudgetAndPrice(t *testing.T) {
 }
 
 func TestUtility(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultConfig() // baseline 0.5
 	a := event("x", techSquare, at(19, 0), 60, 0.9)
-	if u := utility(&a, cfg); u < 0.59 || u > 0.61 {
-		t.Errorf("score 0.9 -> %.2f, want 0.6", u)
+	cases := []struct {
+		name   string
+		score  *float64
+		rerank *float64
+		want   float64
+	}{
+		{"model 0.9", f64(0.9), nil, 0.8},
+		{"model 1.0 is the top", f64(1.0), nil, 1.0},
+		{"model 0.45, below the baseline", f64(0.45), nil, 0},
+		{"rerank 3.5/4 wins over the model", f64(0.2), f64(3.5), 0.75},
+		{"rerank 2/4 is the baseline", f64(0.9), f64(2), 0},
+		{"rerank 1.66/4 adds nothing", f64(0.9), f64(1.66), 0},
+		{"unscored", nil, nil, 0.2},
 	}
-	a.RerankScore = f64(2)
-	if u := utility(&a, cfg); u < 0.19 || u > 0.21 {
-		t.Errorf("rerank 2/4 -> %.2f, want 0.2", u)
+	for _, c := range cases {
+		a.Score, a.RerankScore = c.score, c.rerank
+		if u := utility(&a, cfg); math.Abs(u-c.want) > 1e-9 {
+			t.Errorf("%s: utility %.3f, want %.3f", c.name, u, c.want)
+		}
 	}
-	a.RerankScore, a.Score = nil, nil
-	if u := utility(&a, cfg); u < 0.09 || u > 0.11 {
-		t.Errorf("unscored -> %.2f, want 0.1", u)
+}
+
+func TestDuplicateListingsShareASeries(t *testing.T) {
+	cfg := DefaultConfig()
+	w := window(at(18, 0), at(23, 0))
+	a := event("Michelle Malone Band w/ Trina Meade & Co.", offset(1, 0), at(19, 0), 150, 0.8)
+	b := event("Michelle Malone", offset(1.02, 0), at(19, 0), 150, 0.8) // same venue, other name
+	c := event("Little Big Town", offset(0, 1), at(19, 30), 150, 0.8)
+	d := event("Little Big Town", offset(0.9, 1), at(19, 30), 150, 0.8) // same name, geocoded elsewhere
+	e := event("Michelle Malone", offset(1, 0), at(21, 0), 60, 0.8)     // later show: a different event
+	f := event("Wicked", offset(0, -1), at(19, 0), 150, 0.8)
+	g := event("Hamilton", offset(0, -1), at(19, 0), 150, 0.8) // theatres sharing a coordinate
+	nodes, _ := BuildNodes(w, []models.Activity{a, b, c, d, e, f, g}, cfg)
+	key := map[string]string{}
+	for _, n := range nodes {
+		key[n.Act.ID.Hex()] = n.SeriesKey
+	}
+	if key[a.ID.Hex()] != key[b.ID.Hex()] {
+		t.Error("same venue, same start: should be one event")
+	}
+	if key[c.ID.Hex()] != key[d.ID.Hex()] {
+		t.Error("same name, same start: should be one event")
+	}
+	if key[e.ID.Hex()] == key[b.ID.Hex()] {
+		t.Error("a later show is a different event")
+	}
+	if key[f.ID.Hex()] == key[g.ID.Hex()] {
+		t.Error("different shows at one coordinate are different events")
+	}
+}
+
+func TestFoodPlacesAreScheduled(t *testing.T) {
+	cfg := DefaultConfig()
+	w := window(at(8, 0), at(21, 0))
+	cafe := place("Coffee", "cafe", techSquare, daily(7, 16), 0.9)
+	diner := place("Diner", "restaurant", techSquare, nil, 0.9) // no hours: default 11:00-22:00
+	tour := place("Ferry loop", "tour", techSquare, daily(10, 18), 0.9)
+	workshop := place("Makerspace", "class_workshop", techSquare, daily(9, 21), 0.9)
+	nodes, drops := BuildNodes(w, []models.Activity{cafe, diner, tour, workshop}, cfg)
+	got := map[string]int{}
+	for _, n := range nodes {
+		got[n.Act.Name]++
+		if n.Act.Name == "Diner" && n.Start.Before(at(11, 0)) {
+			t.Errorf("diner scheduled at %v, before its default opening", n.Start.In(ny))
+		}
+	}
+	if got["Coffee"] == 0 || got["Diner"] == 0 || got["Ferry loop"] == 0 {
+		t.Errorf("food and tour places should get slots, got %v (drops %+v)", got, drops)
+	}
+	if got["Makerspace"] != 0 {
+		t.Error("class venues need a session and should stay excluded")
 	}
 }

@@ -36,18 +36,7 @@ type Window struct {
 // the next day.
 func FromRequest(req models.PlanGenerateRequest, cands []models.Activity, user *models.User, now time.Time, cfg Config) (Window, error) {
 	var w Window
-
-	if p, ok := travel.ParsePoint(req.StartLocation); ok {
-		w.Start = &p
-	} else if user != nil && user.LastLocation != nil && len(user.LastLocation.Coordinates) >= 2 {
-		p := travel.Point{Lat: user.LastLocation.Coordinates[1], Lng: user.LastLocation.Coordinates[0]}
-		w.Start = &p
-	}
-	if p, ok := travel.ParsePoint(req.EndLocation); ok {
-		w.End = &p
-	} else {
-		w.End = w.Start
-	}
+	w.Start, w.End = Endpoints(req, user)
 
 	w.TZ = resolveTimezone(cands, w.Start)
 
@@ -83,6 +72,24 @@ func FromRequest(req models.PlanGenerateRequest, cands []models.Activity, user *
 	w.BudgetCents = req.BudgetCents
 	w.Pace = req.Pace
 	return w, nil
+}
+
+// Endpoints parses start_location and end_location ("lat,lng"). An
+// unparseable start falls back to the user's last known location; a missing
+// end means a round trip. Either can be nil when nothing is known.
+func Endpoints(req models.PlanGenerateRequest, user *models.User) (start, end *travel.Point) {
+	if p, ok := travel.ParsePoint(req.StartLocation); ok {
+		start = &p
+	} else if user != nil && user.LastLocation != nil && len(user.LastLocation.Coordinates) >= 2 {
+		p := travel.Point{Lat: user.LastLocation.Coordinates[1], Lng: user.LastLocation.Coordinates[0]}
+		start = &p
+	}
+	if p, ok := travel.ParsePoint(req.EndLocation); ok {
+		end = &p
+	} else {
+		end = start
+	}
+	return start, end
 }
 
 func defaultIfEmpty(s, def string) string {

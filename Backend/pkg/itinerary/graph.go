@@ -32,10 +32,6 @@ type edgeCandidate struct {
 	pair     travel.Pair
 }
 
-// Legs to and from the user's start and end points may be longer than the
-// per-leg range between stops.
-const depotLegFactor = 2.0
-
 // BuildGraph finds every feasible transition. Pairs are pruned with cheap
 // checks (time order, same series or category, straight-line distance, a
 // travel-time lower bound) before one batched call to the provider.
@@ -83,10 +79,10 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 	for j := 0; j < n; j++ {
 		b := &nodes[j]
 		if w.Start == nil {
-			g.In[j] = append(g.In[j], Edge{From: Source, Wait: b.Start.Sub(w.From), Penalty: firstWaitPenalty(b.Start.Sub(w.From), pace)})
+			g.In[j] = append(g.In[j], Edge{From: Source, Wait: b.Start.Sub(w.From), Penalty: firstWaitPenalty(b.Start.Sub(w.From), pace, cfg)})
 			continue
 		}
-		if travel.HaversineKm(*w.Start, b.Loc) > w.MaxLegKm*depotLegFactor {
+		if travel.HaversineKm(*w.Start, b.Loc) > w.MaxLegKm {
 			continue
 		}
 		if w.From.Add(travel.LowerBound(*w.Start, b.Loc, w.Mode)).After(b.Start) {
@@ -101,7 +97,7 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 			g.In[n] = append(g.In[n], Edge{From: i})
 			continue
 		}
-		if travel.HaversineKm(a.Loc, *w.End) > w.MaxLegKm*depotLegFactor {
+		if travel.HaversineKm(a.Loc, *w.End) > w.MaxLegKm {
 			continue
 		}
 		if a.End.Add(travel.LowerBound(a.Loc, *w.End, w.Mode)).After(w.BackBy) {
@@ -129,7 +125,7 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 			}
 			g.In[c.to] = append(g.In[c.to], Edge{
 				From: Source, Leg: leg, Wait: wait,
-				Penalty: cfg.LambdaTravel*legMin + firstWaitPenalty(wait, pace),
+				Penalty: cfg.LambdaTravel*legMin + firstWaitPenalty(wait, pace, cfg),
 			})
 		default:
 			a, b := &nodes[c.from], &nodes[c.to]
@@ -147,13 +143,13 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 	return g
 }
 
-// Waiting before the first stop costs half as much: the user is still at
-// home (or wherever they started).
-func firstWaitPenalty(wait time.Duration, pace PaceProfile) float64 {
+// Waiting before the first stop is weighted by cfg.FirstWaitWeight: the
+// user is still at home (or wherever they started).
+func firstWaitPenalty(wait time.Duration, pace PaceProfile, cfg Config) float64 {
 	if wait < 0 {
 		return 0
 	}
-	return 0.5 * pace.LambdaWait * wait.Minutes()
+	return cfg.FirstWaitWeight * pace.LambdaWait * wait.Minutes()
 }
 
 // lookupLegs asks the provider for every pair at once and falls back to the

@@ -278,8 +278,8 @@ type PlanStop struct {
 	// Scheduled visit, set by the itinerary optimizer. Nil for legacy plans.
 	ArriveTime *time.Time `json:"arrive_time,omitempty"`
 	DepartTime *time.Time `json:"depart_time,omitempty"`
-	Kind       string     `json:"kind,omitempty"`     // "event" | "place"
-	Flexible   bool       `json:"flexible,omitempty"` // true when the visit time can move (drop-ins, places)
+	Kind       string     `json:"kind,omitempty"` // "event" | "place"
+	Flexible   bool       `json:"flexible"`       // true when the visit time can move (drop-ins, places)
 }
 
 type PlanLeg struct {

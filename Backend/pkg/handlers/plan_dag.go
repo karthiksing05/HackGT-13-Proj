@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"Backend/pkg/candidates"
 	"Backend/pkg/itinerary"
+	"Backend/pkg/ml"
 	"Backend/pkg/models"
 	"Backend/pkg/store"
 	"Backend/pkg/travel"
@@ -101,16 +103,169 @@ func planWindowFor(optionID string) (itinerary.Window, bool) {
 	return pw.window, ok
 }
 
-// generateDAGPlans runs the itinerary optimizer on ranked candidates. It
-// returns the first page of options, a cursor for the rest, and a short
+// Candidate limits for one plan request.
+const (
+	planEventLimit    = 200 // events loaded from the database
+	planPlaceLimit    = 150 // places loaded from the database
+	planEventQuota    = 25  // events kept after ranking
+	planPlaceQuota    = 25  // places kept after ranking
+	planRerankTopK    = 40  // how many the LLM rerank judges
+	planMinCandidates = 5   // below this, search twice the radius once
+	planMinPlaceScore = 4.0 // Google rating
+	maxEventSpan      = 6 * time.Hour
+)
+
+// planWithOptimizer runs the whole planning pipeline:
+//
+//	request -> window -> candidate query (backend filters) -> collapse
+//	timed-entry slots -> ML ranking -> top events and places -> optimizer
+//
+// It returns the first page of options, a cursor for the rest, and a short
 // reason when it found nothing.
-func generateDAGPlans(ctx context.Context, req models.PlanGenerateRequest, acts []models.Activity, user *models.User) ([]models.PlanOption, string, string) {
+func planWithOptimizer(ctx context.Context, req models.PlanGenerateRequest, user *models.User, ageBracket string) ([]models.PlanOption, string, string) {
 	started := time.Now()
-	w, err := itinerary.FromRequest(req, acts, user, started, plannerConfig)
+
+	// The time zone comes from the nearest activity, so the window can be
+	// built before any candidates are loaded.
+	start, _ := itinerary.Endpoints(req, user)
+	var hints []models.Activity
+	if start != nil {
+		if a := store.GlobalStore.NearestActivity(ctx, *start); a != nil {
+			hints = append(hints, *a)
+		}
+	}
+	w, err := itinerary.FromRequest(req, hints, user, started, plannerConfig)
 	if err != nil {
 		return nil, "", "invalid_request: " + err.Error()
 	}
 
+	q := candidateQuery(w, user, ageBracket, started)
+	found, err := findCandidates(ctx, q)
+	if err != nil {
+		log.Error().Err(err).Msg("plan candidate query failed")
+		return nil, "", "candidate_query_failed"
+	}
+	widened := false
+	if len(found.Events)+len(found.Places) < planMinCandidates && len(q.Centers) > 0 {
+		q.RadiusKm *= 2
+		if more, err := findCandidates(ctx, q); err == nil {
+			found, widened = more, true
+		}
+	}
+	if len(found.Events)+len(found.Places) == 0 {
+		return nil, "", "no_candidates_in_area_or_window"
+	}
+
+	searchText := strings.TrimSpace(req.MoodText + " " + strings.Join(req.Tags, ", "))
+	cands := rankForPlanning(ctx, user, found, searchText)
+
+	options, cursor, reason := optimize(ctx, w, cands)
+	log.Info().
+		Int("events_found", len(found.Events)).
+		Int("places_found", len(found.Places)).
+		Interface("query_rejects", found.Rejects).
+		Bool("widened", widened).
+		Float64("radius_km", q.RadiusKm).
+		Int("ranked_kept", len(cands)).
+		Int("options", len(options)).
+		Dur("total", time.Since(started)).
+		Msg("plan request")
+	return options, cursor, reason
+}
+
+// candidateQuery turns the window into the backend's hard filters.
+func candidateQuery(w itinerary.Window, user *models.User, ageBracket string, now time.Time) candidates.Query {
+	q := candidates.Query{
+		RadiusKm:        w.MaxLegKm,
+		From:            w.From,
+		To:              w.BackBy,
+		Now:             now,
+		MaxEventSpan:    maxEventSpan,
+		BudgetCents:     w.BudgetCents,
+		AgeBracket:      ageBracket,
+		PlaceCategories: itinerary.PlaceCategories(),
+		MinPlaceRating:  planMinPlaceScore,
+	}
+	if w.Start != nil {
+		q.Centers = append(q.Centers, *w.Start)
+	}
+	if w.End != nil && (w.Start == nil || *w.End != *w.Start) {
+		q.Centers = append(q.Centers, *w.End)
+	}
+	if user != nil {
+		q.AvoidTags = user.Taste.AvoidTags
+	}
+	return q
+}
+
+func findCandidates(ctx context.Context, q candidates.Query) (store.PlanCandidates, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	return store.GlobalStore.FindPlanCandidates(ctx, q, planEventLimit, planPlaceLimit)
+}
+
+// rankForPlanning ranks one representative per series (so 255 timed-entry
+// slots of one exhibition cost one ranker slot), keeps the best events and
+// places, and gives every slot its series' scores. If ranking is
+// unavailable, candidates keep their query order without scores and the
+// optimizer uses its default utility.
+func rankForPlanning(ctx context.Context, user *models.User, found store.PlanCandidates, searchText string) []models.Activity {
+	all := append(append([]models.Activity{}, found.Events...), found.Places...)
+	groups := map[string][]int{}
+	var reps []models.Activity
+	for i := range all {
+		key := itinerary.SeriesKey(&all[i])
+		if _, seen := groups[key]; !seen {
+			reps = append(reps, all[i])
+		}
+		groups[key] = append(groups[key], i)
+	}
+
+	topK := planRerankTopK
+	if topK > len(reps) {
+		topK = len(reps)
+	}
+	ranked := ml.DefaultClient().RankActivities(ctx, user, reps, ml.RankingOptions{Rerank: true, RerankTopK: &topK}, searchText, nil)
+
+	scored := false
+	for _, r := range ranked {
+		if r.Score != nil {
+			scored = true
+			break
+		}
+	}
+
+	var out []models.Activity
+	events, places := 0, 0
+	for i := range ranked {
+		r := &ranked[i]
+		if scored && r.Score == nil {
+			continue // dropped by the ranker
+		}
+		if r.Kind == "place" {
+			if places >= planPlaceQuota {
+				continue
+			}
+			places++
+		} else {
+			if events >= planEventQuota {
+				continue
+			}
+			events++
+		}
+		for _, idx := range groups[itinerary.SeriesKey(r)] {
+			a := all[idx]
+			a.Score, a.RerankScore = r.Score, r.RerankScore
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// optimize runs the itinerary optimizer on ranked candidates and saves the
+// results for paging and re-timing.
+func optimize(ctx context.Context, w itinerary.Window, acts []models.Activity) ([]models.PlanOption, string, string) {
+	started := time.Now()
 	nodes, drops := itinerary.BuildNodes(w, acts, plannerConfig)
 	graph := itinerary.BuildGraph(ctx, w, nodes, travelProvider, plannerConfig)
 	pool := itinerary.Diverse(itinerary.Solve(graph, w, plannerConfig), plannerConfig.Mu)

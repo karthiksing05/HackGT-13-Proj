@@ -315,32 +315,10 @@ func GeneratePlans(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Retrieve real activities from the database matching the criteria (fetch a richer pool for ML ranking)
-	activities, nextCursor, hasMore := store.GlobalStore.ListActivities("", req.StartLocation, req.RangeKm, req.Tags, req.BudgetCents, userAgeBracket, "", 15)
-	if len(activities) < 4 && len(req.Tags) > 0 {
-		// Fallback without tag filter if user tags were too specific
-		activities, nextCursor, hasMore = store.GlobalStore.ListActivities("", req.StartLocation, req.RangeKm, nil, req.BudgetCents, userAgeBracket, "", 15)
-	}
-	if len(activities) < 3 {
-		// Fallback to broader catalog query to ensure options are generated from database
-		activities, nextCursor, hasMore = store.GlobalStore.ListActivities("", "", 0, nil, 0, userAgeBracket, "", 15)
-	}
-
-	// Rank activities via FastAPI ML inference (compatibility classifier + Jev reranker)
-	rankedActivities := ml.DefaultClient().RankActivities(
-		r.Context(),
-		currentUser,
-		activities,
-		ml.RankingOptions{
-			Rerank: true,
-		},
-		req.MoodText,
-		nil,
-	)
-
-	// Build feasible, time-ordered itineraries from the ranked candidates.
+	// Plan from activities that fit the request's area, window, budget and
+	// age, ranked by the ML service, through the itinerary optimizer.
 	if planner := env.GetPlanner(); planner != "legacy" {
-		dagOptions, dagCursor, reason := generateDAGPlans(r.Context(), req, rankedActivities, currentUser)
+		dagOptions, dagCursor, reason := planWithOptimizer(r.Context(), req, currentUser, userAgeBracket)
 		if len(dagOptions) > 0 || planner == "dag" {
 			resp := map[string]interface{}{
 				"options":      dagOptions,
@@ -359,6 +337,25 @@ func GeneratePlans(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Info().Str("reason", reason).Msg("itinerary optimizer found nothing; using legacy planner")
 	}
+
+	// Legacy planner: first activities by id, ranked, sliced into options.
+	activities, nextCursor, hasMore := store.GlobalStore.ListActivities("", req.StartLocation, req.RangeKm, req.Tags, req.BudgetCents, userAgeBracket, "", 15)
+	if len(activities) < 4 && len(req.Tags) > 0 {
+		activities, nextCursor, hasMore = store.GlobalStore.ListActivities("", req.StartLocation, req.RangeKm, nil, req.BudgetCents, userAgeBracket, "", 15)
+	}
+	if len(activities) < 3 {
+		activities, nextCursor, hasMore = store.GlobalStore.ListActivities("", "", 0, nil, 0, userAgeBracket, "", 15)
+	}
+	rankedActivities := ml.DefaultClient().RankActivities(
+		r.Context(),
+		currentUser,
+		activities,
+		ml.RankingOptions{
+			Rerank: true,
+		},
+		req.MoodText,
+		nil,
+	)
 
 	optionsList := buildPlanOptionsFromActivities(rankedActivities, req, 3)
 
