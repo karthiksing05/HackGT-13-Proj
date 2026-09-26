@@ -8,7 +8,7 @@ following [`training.md`](training.md) on the synthetic `users` data described i
 
 | | |
 |---|---|
-| Model (private) | [`karthiksing05/sidequestz-compatibility-classifier`](https://huggingface.co/karthiksing05/sidequestz-compatibility-classifier); the final model is `final/best.pt` |
+| Model (private) | [`karthiksing05/sidequestz-compatibility-classifier`](https://huggingface.co/karthiksing05/sidequestz-compatibility-classifier); the final model is `final/best.pt`. A CPU copy with only the weights and config is bundled at [`checkpoints/compatibility_classifier.pt`](checkpoints/compatibility_classifier.pt), and the API loads it by default |
 | W&B report | [SideQuestz Compatibility Classifier: Training and Results](https://wandb.ai/karthiksing05-Independent/sidequestz-compatibility/reports/SideQuestz-Compatibility-Classifier-Training-and-Results--VmlldzoxODAxMDEwMQ?accessToken=wg1fgpvz80y948xex5tw1i9c40o40usgbwglyvrmj3mj7to264gr6avvkt3a4l2z) |
 | W&B project | [`sidequestz-compatibility`](https://wandb.ai/karthiksing05-Independent/sidequestz-compatibility), group `recipe-20260926-031750-compat-train`: all 24 runs (λ sweep, 21 training runs, selection, final test) |
 | Training data (private) | [`karthiksing05/sidequestz-event-embedding-text`](https://huggingface.co/datasets/karthiksing05/sidequestz-event-embedding-text), config `users` |

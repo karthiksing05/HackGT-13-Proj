@@ -2,12 +2,16 @@
 
 A reference is either a local path or `hf://<owner>/<repo>/<file in repo>`,
 which is downloaded from the Hugging Face Hub (and cached) with `HF_TOKEN`.
+
+The default is the final model (`final/best.pt` from
+karthiksing05/sidequestz-compatibility-classifier, weights and config only)
+committed at `ml/checkpoints/`, so the server starts without network access.
 """
 
 from pathlib import Path
 
 HF_PREFIX = "hf://"
-DEFAULT_CHECKPOINT = "hf://karthiksing05/sidequestz-compatibility-classifier/final/best.pt"
+DEFAULT_CHECKPOINT = str(Path(__file__).resolve().parents[1] / "checkpoints" / "compatibility_classifier.pt")
 
 
 def resolve_checkpoint(reference: str, token: str | None = None) -> Path:

@@ -11,9 +11,17 @@ class ResolveCheckpointTests(unittest.TestCase):
             self.assertEqual(resolve_checkpoint("runs/x/best.pt"), Path("runs/x/best.pt"))
         download.assert_not_called()
 
+    def test_default_checkpoint_is_bundled(self):
+        with mock.patch("huggingface_hub.hf_hub_download") as download:
+            path = resolve_checkpoint(DEFAULT_CHECKPOINT)
+        download.assert_not_called()
+        self.assertTrue(path.is_file(), path)
+
     def test_hf_reference_downloads_file_from_repo(self):
         with mock.patch("huggingface_hub.hf_hub_download", return_value="/cache/best.pt") as download:
-            path = resolve_checkpoint(DEFAULT_CHECKPOINT, token="hf_test")
+            path = resolve_checkpoint(
+                "hf://karthiksing05/sidequestz-compatibility-classifier/final/best.pt", token="hf_test"
+            )
         self.assertEqual(path, Path("/cache/best.pt"))
         download.assert_called_once_with(
             "karthiksing05/sidequestz-compatibility-classifier", "final/best.pt", token="hf_test"

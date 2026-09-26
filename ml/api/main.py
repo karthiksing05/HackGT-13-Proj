@@ -4,8 +4,8 @@
 
     RANKING_MODEL          "classifier" (default) or "cosine"
     RANKING_CHECKPOINT     classifier checkpoint: a local path or hf://<owner>/<repo>/<file>
-                           (default: the final model on the Hugging Face Hub)
-    HF_TOKEN               read access to a private hf:// checkpoint
+                           (default: the final model bundled at checkpoints/compatibility_classifier.pt)
+    HF_TOKEN               read access to a private hf:// checkpoint (not needed by default)
     RANKING_MODEL_VERSION  overrides the reported model_version
     RANKING_DEVICE         torch device for the classifier (default "cpu")
     USER_EMBEDDING_ALPHA   preference retention for /v1/compatibility/user-embedding/update (default 0.8)
