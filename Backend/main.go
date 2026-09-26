@@ -6,6 +6,7 @@ import (
 	"Backend/pkg/config"
 	"Backend/pkg/datastore"
 	"Backend/pkg/ml"
+	plannerwire "Backend/pkg/planner/wire"
 	"Backend/pkg/profiles"
 	"Backend/pkg/realtime"
 	"Backend/pkg/router"
@@ -47,11 +48,16 @@ func main() {
 		Cfg:   cfg,
 		Now:   time.Now,
 		ML:    ml.NewClient(cfg.MLServiceURL),
-		// Planner is wired by the planner agent (pkg/planner); until then
-		// /plans/* answer 503. The checkout agent (backend-D) starts its
-		// state machine here.
 	}
+	// Taste vectors (pkg/profiles) and the planner both run over the ML
+	// client. A planner that fails to start leaves /plans/* answering 503
+	// instead of taking the whole API down.
 	deps.Profiles = profiles.New(st, deps.ML, time.Now)
+	if p, err := plannerwire.Planner(ctx, st.DB(), deps.ML); err != nil {
+		log.Error().Err(err).Msg("planner not started; /plans/* answer 503")
+	} else {
+		deps.Planner = p
+	}
 	hub := realtime.NewHub(deps.Auth().UserFromToken)
 	deps.Hub = hub
 	checkout.StartAgent(ctx, deps)

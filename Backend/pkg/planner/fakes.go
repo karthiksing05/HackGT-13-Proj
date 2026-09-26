@@ -130,6 +130,32 @@ func (f *FakeSource) FetchEmbeddings(ctx context.Context, catalog string, ids []
 	return out, nil
 }
 
+// FetchTexts returns each activity's embedding text, else its name (the
+// fixtures carry no texts).
+func (f *FakeSource) FetchTexts(ctx context.Context, catalog string, ids []string) (map[string]string, error) {
+	if f.Err != nil {
+		return nil, f.Err
+	}
+	want := map[string]bool{}
+	for _, id := range ids {
+		want[id] = true
+	}
+	out := map[string]string{}
+	for _, list := range [][]models.Activity{f.Activities, f.Hidden} {
+		for _, a := range list {
+			if !want[a.ID.Hex()] {
+				continue
+			}
+			if a.EmbeddingText != nil && *a.EmbeddingText != "" {
+				out[a.ID.Hex()] = *a.EmbeddingText
+			} else {
+				out[a.ID.Hex()] = a.Name
+			}
+		}
+	}
+	return out, nil
+}
+
 func (f *FakeSource) GetActivities(ctx context.Context, catalog string, ids []string) ([]models.Activity, error) {
 	if f.Err != nil {
 		return nil, f.Err
@@ -370,6 +396,41 @@ func (m *MemPoolStore) SetScores(ctx context.Context, runID string, scores map[s
 		p.Scores[id] = cur
 	}
 	return nil
+}
+
+// FindStop returns the newest live pool holding the stop id, as an
+// option's stop or a suggested alternative.
+func (m *MemPoolStore) FindStop(ctx context.Context, stopID string) (*PlanPool, *Stop, error) {
+	if m.Err != nil {
+		return nil, nil, m.Err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var bestPool *PlanPool
+	var best *Stop
+	for _, p := range m.pools {
+		if !p.ExpiresAt.After(m.Clock.Now()) || (bestPool != nil && !p.CreatedAt.After(bestPool.CreatedAt)) {
+			continue
+		}
+		if s, ok := p.Alternatives[stopID]; ok {
+			stop := s
+			bestPool, best = p, &stop
+			continue
+		}
+		for _, o := range p.Options {
+			for _, s := range o.Stops {
+				if s.ID == stopID {
+					stop := s
+					bestPool, best = p, &stop
+				}
+			}
+		}
+	}
+	if best == nil {
+		return nil, nil, ErrPoolNotFound
+	}
+	cp := *bestPool
+	return &cp, best, nil
 }
 
 // GetRun returns a saved run (tests only; the Mongo store has no reader).

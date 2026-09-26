@@ -191,19 +191,18 @@ func TestDiversePutsBestFirstAndVaries(t *testing.T) {
 
 func TestEvaluateFlagsLateReorder(t *testing.T) {
 	w := window(at(18, 0), at(23, 0))
-	mk := func(lat, lng float64, start, end time.Time) models.PlanStop {
+	mk := func(loc travel.Point, start, end time.Time) EvalStop {
 		s, e := start.UTC(), end.UTC()
-		return models.PlanStop{Lat: lat, Lng: lng, ArriveTime: &s, DepartTime: &e, DurationMin: int(e.Sub(s).Minutes())}
+		return EvalStop{Loc: loc, Arrive: &s, Depart: &e, DurationMin: int(e.Sub(s).Minutes())}
 	}
-	p1, p2 := offset(0.5, 0), offset(0.6, 0.2)
-	a := mk(p1.Lat, p1.Lng, at(19, 0), at(20, 0))
-	b := mk(p2.Lat, p2.Lng, at(20, 30), at(21, 30))
+	a := mk(offset(0.5, 0), at(19, 0), at(20, 0))
+	b := mk(offset(0.6, 0.2), at(20, 30), at(21, 30))
 
-	ok := Evaluate(context.Background(), w, []models.PlanStop{a, b}, travel.Heuristic{})
+	ok := Evaluate(context.Background(), w, []EvalStop{a, b}, travel.Heuristic{})
 	if ok.BrokenAt != -1 || ok.MinutesLate != 0 || len(ok.Legs) != 3 {
 		t.Errorf("original order: %+v", ok)
 	}
-	swapped := Evaluate(context.Background(), w, []models.PlanStop{b, a}, travel.Heuristic{})
+	swapped := Evaluate(context.Background(), w, []EvalStop{b, a}, travel.Heuristic{})
 	if swapped.BrokenAt != 1 || swapped.MinutesLate <= 0 {
 		t.Errorf("swapped order should be late at stop 1: %+v", swapped)
 	}

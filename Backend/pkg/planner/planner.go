@@ -299,7 +299,7 @@ func (p *Planner) More(ctx context.Context, user *UserContext, cursor string) (B
 // the run as having requested it (before the run is saved). With
 // PLANNER_JEV=sync the reranker already ran during retrieval.
 func (p *Planner) prepareJev(run *Run, options []Option) []*Candidate {
-	if !p.jevEnabled() || p.Cfg.Jev != "async" || run.Log.ML.Mode != "classifier" {
+	if !p.rerankable(run) || p.Cfg.Jev != "async" || run.Log.ML.Mode != "classifier" {
 		return nil
 	}
 	cands := p.jevCandidates(run, options)
@@ -319,6 +319,7 @@ func (p *Planner) startJev(run *Run, cands []*Candidate) {
 	job := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), p.Cfg.JevTimeout)
 		defer cancel()
+		p.attachTexts(ctx, run, cands)
 		res, err := p.Scorer.Score(ctx, p.scoreRequest(run, cands, true))
 		now := p.Clock.Now()
 		jl := JevLog{Requested: true, CompletedAt: &now, Scores: map[string]float64{}}
@@ -359,7 +360,7 @@ func (p *Planner) jevCandidates(run *Run, options []Option) []*Candidate {
 		if seen[id] || len(out) >= p.Cfg.JevTopK {
 			return
 		}
-		if c := run.Pool.Get(id); c != nil && len(c.Act.Embedding) > 0 {
+		if c := run.Pool.Get(id); c != nil && c.ML != nil { // classifier-scored: its vector was usable
 			seen[id] = true
 			out = append(out, c)
 		}
