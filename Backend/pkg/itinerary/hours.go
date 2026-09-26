@@ -15,8 +15,9 @@ type Interval struct {
 }
 
 // Opening hours assumed for places with no weeklyHours, as local
-// [open, close) minutes of the day. Categories missing here (bars, for
-// instance) are dropped instead: guessing their hours is too risky.
+// [open, close) minutes of the day. Categories missing here (bars and
+// nightclubs, for instance) are dropped instead: guessing their hours is
+// too risky.
 var defaultDailyHours = map[string][2]int{
 	"park":         {6 * 60, 22 * 60},
 	"hike":         {6 * 60, 20 * 60},
@@ -29,6 +30,8 @@ var defaultDailyHours = map[string][2]int{
 	"market":       {8 * 60, 14 * 60},
 	"rec_venue":    {10 * 60, 22 * 60},
 	"zoo_aquarium": {9 * 60, 17 * 60},
+	"restaurant":   {11 * 60, 22 * 60},
+	"cafe":         {7 * 60, 19 * 60},
 }
 
 // OpenIntervals returns when a place is open inside [from, to).
