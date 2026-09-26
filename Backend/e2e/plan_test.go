@@ -132,9 +132,9 @@ func TestDemoPlanAndSidequest(t *testing.T) {
 	req := planRequest(home, tomorrow, 12, 16, contract.RangeWalkable, contract.TravelModes{contract.ModeWalk},
 		[]string{"Outdoors", "Music"}, 1, contract.VisibilityFriends)
 
-	started := time.Now()
+	began := time.Now()
 	batch := generate(t, s, req)
-	t.Logf("generate took %s: %d options", time.Since(started).Round(time.Millisecond), len(batch.Options))
+	t.Logf("generate took %s: %d options", time.Since(began).Round(time.Millisecond), len(batch.Options))
 	if len(batch.Options) == 0 {
 		t.Fatalf("no plans for tomorrow 12–4 PM in Saltlight: %v", batch.Reason)
 	}
@@ -169,6 +169,23 @@ func TestDemoPlanAndSidequest(t *testing.T) {
 	bad := req
 	bad.Range = "teleport"
 	fails(t, s, "POST", "/plans/generate", bad, http.StatusBadRequest)
+
+	// A window that started two hours ago is planned from now: no stop in
+	// the past (the account's now, which the demo clock may move).
+	now := time.Now().In(c.Loc)
+	bizNow := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day()-1, now.Hour(), now.Minute(), now.Second(), 0, c.Loc)
+	started := req
+	started.StartTime, started.BackBy = contract.NewTime(bizNow.Add(-2*time.Hour)), contract.NewTime(bizNow.Add(3*time.Hour))
+	started.Date = started.StartTime
+	late := send[contract.PlanBatch](t, s, "POST", "/plans/generate", started, http.StatusOK)
+	for _, o := range late.Options {
+		for _, st := range o.Stops {
+			if st.ArriveTime != nil && st.ArriveTime.Before(bizNow.Add(-time.Minute)) {
+				t.Errorf("a window that already started schedules %s at %s, before now (%s)", st.Title,
+					st.ArriveTime.In(c.Loc).Format("15:04"), bizNow.Format("15:04"))
+			}
+		}
+	}
 
 	// Prefer an option with a priced stop (the checkout below needs one).
 	pick := options[0]

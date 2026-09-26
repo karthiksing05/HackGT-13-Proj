@@ -793,3 +793,53 @@ func TestDemoGroupPhotos(t *testing.T) {
 	}
 	fails(t, s, "DELETE", group+"/photos/"+photo.ID, nil, http.StatusNotFound)
 }
+
+// TestDemoDate checks the per-account demo clock when the server runs the
+// demo on a fixed date (DEMO_DATE); set E2E_DEMO_DATE to the same date.
+func TestDemoDate(t *testing.T) {
+	c := config(t)
+	want := envOr("E2E_DEMO_DATE", "")
+	if want == "" {
+		t.Skip("set E2E_DEMO_DATE to the server's DEMO_DATE to check the demo clock")
+	}
+	s := sandy(t)
+	me := get[contract.User](t, s, "/me")
+	if me.DemoDate == nil || *me.DemoDate != want {
+		t.Fatalf("Sandy's demo_date %v, want %s", me.DemoDate, want)
+	}
+	day, err := time.ParseInLocation("2006-01-02", want, c.Loc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := demoToday(t, s); !got.Equal(day) {
+		t.Errorf("demoToday %s", got)
+	}
+	// Her calendar starts on the demo date; a real account's on today.
+	days := get[[]contract.CalendarDay](t, s, "/calendar/days")
+	if len(days) == 0 || days[0].ID != want {
+		t.Errorf("Sandy's calendar starts on %v, want %s", days, want)
+	}
+	alice, _ := people(t)
+	if a := get[contract.User](t, alice, "/me"); a.DemoDate != nil {
+		t.Errorf("a real account has demo_date %s", *a.DemoDate)
+	}
+	real := localDay(time.Now(), c.Loc).Format("2006-01-02")
+	if ad := get[[]contract.CalendarDay](t, alice, "/calendar/days"); len(ad) == 0 || ad[0].ID != real {
+		t.Errorf("Alice's calendar starts on %v, want %s", ad[0].ID, real)
+	}
+	// Messages she sends are stamped on the demo date, at the real time of day.
+	msg := send[contract.Message](t, s, "POST", "/threads/"+seedCrewThread+"/messages", contract.NewMessage{Text: "Demo clock check"}, http.StatusCreated)
+	if got := msg.SentAt.In(c.Loc).Format("2006-01-02"); got != want {
+		t.Errorf("a message sent now is dated %s, want the demo date %s", got, want)
+	}
+	now := time.Now().In(c.Loc)
+	bizNow := time.Date(day.Year(), day.Month(), day.Day(), now.Hour(), now.Minute(), now.Second(), 0, c.Loc)
+	if d := msg.SentAt.Sub(bizNow); d < -2*time.Minute || d > 2*time.Minute {
+		t.Errorf("the message should keep the real time of day: sent %s, now %s", msg.SentAt.In(c.Loc).Format("15:04"), now.Format("15:04"))
+	}
+	// Past events and the Forum read her date: yesterday's walk is in the past,
+	// Marin's plan is still ahead.
+	if posts := forum(t, s, "?type=plans"); !slices.ContainsFunc(posts, func(p contract.ForumPost) bool { return p.ID == seedOpenPlan && p.StartsInMinutes > 0 }) {
+		t.Errorf("Marin's plan is not upcoming on the demo date: %v", postIDs(posts))
+	}
+}
