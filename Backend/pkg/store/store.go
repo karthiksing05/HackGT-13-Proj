@@ -16,41 +16,45 @@ import (
 
 // Store provides data access layer for SideQuestz
 type Store struct {
-	mu          sync.RWMutex
-	users       map[string]*models.User
-	resets      map[string]*models.PasswordResetRecord
-	places      []models.Place
-	events      []models.Event
-	itineraries map[string]*models.Itinerary
-	ratings     map[string]*models.Rating
-	checkouts   map[string]*models.CheckoutIntent
-	posts       map[string]*models.ForumPost
-	joinReqs    map[string]*models.JoinRequest
-	threads     map[string]*models.Thread
-	messages    map[string][]*models.Message
-	photos      map[string][]*models.GroupPhoto
-	expenses    map[string][]*models.Expense
-	requests    map[string]*models.FriendRequest
-	invites     map[string]*models.InviteLink
+	mu             sync.RWMutex
+	users          map[string]*models.User
+	resets         map[string]*models.PasswordResetRecord
+	places         []models.Place
+	events         []models.Event
+	itineraries    map[string]*models.Itinerary
+	ratings        map[string]*models.Rating
+	checkouts      map[string]*models.CheckoutIntent
+	posts          map[string]*models.ForumPost
+	joinReqs       map[string]*models.JoinRequest
+	threads        map[string]*models.Thread
+	messages       map[string][]*models.Message
+	photos         map[string][]*models.GroupPhoto
+	expenses       map[string][]*models.Expense
+	requests       map[string]*models.FriendRequest
+	invites        map[string]*models.InviteLink
+	calendarTokens map[string]string // token -> userID
+	userCalTokens  map[string]string // userID -> token
 }
 
 var GlobalStore = NewStore()
 
 func NewStore() *Store {
 	s := &Store{
-		users:       make(map[string]*models.User),
-		resets:      make(map[string]*models.PasswordResetRecord),
-		itineraries: make(map[string]*models.Itinerary),
-		ratings:     make(map[string]*models.Rating),
-		checkouts:   make(map[string]*models.CheckoutIntent),
-		posts:       make(map[string]*models.ForumPost),
-		joinReqs:    make(map[string]*models.JoinRequest),
-		threads:     make(map[string]*models.Thread),
-		messages:    make(map[string][]*models.Message),
-		photos:      make(map[string][]*models.GroupPhoto),
-		expenses:    make(map[string][]*models.Expense),
-		requests:    make(map[string]*models.FriendRequest),
-		invites:     make(map[string]*models.InviteLink),
+		users:          make(map[string]*models.User),
+		resets:         make(map[string]*models.PasswordResetRecord),
+		itineraries:    make(map[string]*models.Itinerary),
+		ratings:        make(map[string]*models.Rating),
+		checkouts:      make(map[string]*models.CheckoutIntent),
+		posts:          make(map[string]*models.ForumPost),
+		joinReqs:       make(map[string]*models.JoinRequest),
+		threads:        make(map[string]*models.Thread),
+		messages:       make(map[string][]*models.Message),
+		photos:         make(map[string][]*models.GroupPhoto),
+		expenses:       make(map[string][]*models.Expense),
+		requests:       make(map[string]*models.FriendRequest),
+		invites:        make(map[string]*models.InviteLink),
+		calendarTokens: make(map[string]string),
+		userCalTokens:  make(map[string]string),
 	}
 	s.seedDefaultCatalog()
 	return s
@@ -387,6 +391,207 @@ func (s *Store) GetUserCard(userID string) *models.UserCard {
 		return nil
 	}
 	return u.Card
+}
+
+// ---------------- CALENDAR FEED & TOKENS ----------------
+
+type calendarTokenDoc struct {
+	Token     string    `bson:"token"`
+	UserID    string    `bson:"userId"`
+	UpdatedAt time.Time `bson:"updatedAt"`
+}
+
+func (s *Store) GetOrCreateCalendarToken(userID string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if tok, ok := s.userCalTokens[userID]; ok {
+		return tok
+	}
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("calendar_tokens")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			var doc calendarTokenDoc
+			err := col.FindOne(ctx, bson.M{"userId": userID}).Decode(&doc)
+			cancel()
+			if err == nil && doc.Token != "" {
+				s.calendarTokens[doc.Token] = userID
+				s.userCalTokens[userID] = doc.Token
+				return doc.Token
+			}
+		}
+	}
+
+	tok := strings.ReplaceAll(util.GenerateID(), "-", "")
+	s.calendarTokens[tok] = userID
+	s.userCalTokens[userID] = tok
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("calendar_tokens")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			_, _ = col.DeleteMany(ctx, bson.M{"userId": userID})
+			_, _ = col.InsertOne(ctx, calendarTokenDoc{
+				Token:     tok,
+				UserID:    userID,
+				UpdatedAt: time.Now().UTC(),
+			})
+			cancel()
+		}
+	}
+
+	return tok
+}
+
+func (s *Store) RegenerateCalendarToken(userID string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if oldTok, ok := s.userCalTokens[userID]; ok {
+		delete(s.calendarTokens, oldTok)
+	}
+
+	newTok := strings.ReplaceAll(util.GenerateID(), "-", "")
+	s.calendarTokens[newTok] = userID
+	s.userCalTokens[userID] = newTok
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("calendar_tokens")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			_, _ = col.DeleteMany(ctx, bson.M{"userId": userID})
+			_, _ = col.InsertOne(ctx, calendarTokenDoc{
+				Token:     newTok,
+				UserID:    userID,
+				UpdatedAt: time.Now().UTC(),
+			})
+			cancel()
+		}
+	}
+
+	return newTok
+}
+
+func (s *Store) GetUserIDByCalendarToken(token string) (string, error) {
+	s.mu.RLock()
+	userID, ok := s.calendarTokens[token]
+	s.mu.RUnlock()
+	if ok {
+		return userID, nil
+	}
+
+	if datastore.IsConnected() {
+		col := datastore.GetCollection("calendar_tokens")
+		if col != nil {
+			ctx, cancel := datastore.GetCtx()
+			var doc calendarTokenDoc
+			err := col.FindOne(ctx, bson.M{"token": token}).Decode(&doc)
+			cancel()
+			if err == nil && doc.UserID != "" {
+				s.mu.Lock()
+				s.calendarTokens[doc.Token] = doc.UserID
+				s.userCalTokens[doc.UserID] = doc.Token
+				s.mu.Unlock()
+				return doc.UserID, nil
+			}
+		}
+	}
+
+	return "", errors.New("calendar feed token not found")
+}
+
+func (s *Store) GenerateUserICS(userID string) (string, error) {
+	u, err := s.GetUserByID(userID)
+	if err != nil {
+		return "", err
+	}
+
+	itins, _, _ := s.ListActiveItineraries(userID, "", 100)
+
+	var events []util.ICSEvent
+	now := time.Now()
+
+	for _, it := range itins {
+		startDate := now
+		if parsed, err := time.Parse("2006-01-02", it.Date); err == nil {
+			startDate = parsed
+		}
+
+		startTime := startDate
+		if it.StartTime != "" {
+			if parsedT, err := time.Parse("15:04", it.StartTime); err == nil {
+				startTime = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), parsedT.Hour(), parsedT.Minute(), 0, 0, startDate.Location())
+			}
+		} else {
+			// default start time 11:00 AM on scheduled date
+			startTime = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 11, 0, 0, 0, startDate.Location())
+		}
+
+		endTime := startTime.Add(3 * time.Hour)
+		if it.BackByTime != "" {
+			if parsedT, err := time.Parse("15:04", it.BackByTime); err == nil {
+				endTime = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), parsedT.Hour(), parsedT.Minute(), 0, 0, startDate.Location())
+			}
+		}
+
+		var descParts []string
+		descParts = append(descParts, fmt.Sprintf("SideQuest: %s", it.Title))
+		if it.MaxGroupSize > 0 {
+			descParts = append(descParts, fmt.Sprintf("Group size: %d members", len(it.Members)))
+		}
+
+		location := "Atlanta, GA"
+		if len(it.Items) > 0 {
+			location = it.Items[0].LocationName
+			if it.Items[0].Address != "" {
+				location = fmt.Sprintf("%s, %s", it.Items[0].LocationName, it.Items[0].Address)
+			}
+			descParts = append(descParts, "\nStops:")
+			for idx, item := range it.Items {
+				descParts = append(descParts, fmt.Sprintf("%d. %s (%s)", idx+1, item.Title, item.Type))
+				if item.SharedNotes != "" {
+					descParts = append(descParts, fmt.Sprintf("   Note: %s", item.SharedNotes))
+				}
+			}
+		}
+
+		events = append(events, util.ICSEvent{
+			UID:         fmt.Sprintf("itin-%s@sidequestz.app", it.ID),
+			Start:       startTime,
+			End:         endTime,
+			Summary:     fmt.Sprintf("SideQuest: %s", it.Title),
+			Description: strings.Join(descParts, "\n"),
+			Location:    location,
+			Status:      "CONFIRMED",
+		})
+
+		for _, item := range it.Items {
+			if !item.ArriveTime.IsZero() {
+				stopEnd := item.DepartTime
+				if stopEnd.IsZero() {
+					stopEnd = item.ArriveTime.Add(45 * time.Minute)
+				}
+				stopLocation := item.LocationName
+				if item.Address != "" {
+					stopLocation = fmt.Sprintf("%s, %s", item.LocationName, item.Address)
+				}
+				events = append(events, util.ICSEvent{
+					UID:         fmt.Sprintf("stop-%s-%s@sidequestz.app", it.ID, item.ID),
+					Start:       item.ArriveTime,
+					End:         stopEnd,
+					Summary:     fmt.Sprintf("%s — %s", it.Title, item.Title),
+					Description: fmt.Sprintf("Stop: %s\nType: %s\nNotes: %s", item.Title, item.Type, item.SharedNotes),
+					Location:    stopLocation,
+					Status:      "CONFIRMED",
+				})
+			}
+		}
+	}
+
+	calName := fmt.Sprintf("SideQuestz - %s", u.Name)
+	return util.BuildICSCalendar(calName, events), nil
 }
 
 // ---------------- PLACES & EVENTS ----------------

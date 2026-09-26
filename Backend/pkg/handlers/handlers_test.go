@@ -473,3 +473,240 @@ func TestForumAndFriends(t *testing.T) {
 		t.Fatalf("expected status 201 on /invites, got %d", resp.Code)
 	}
 }
+
+func TestCalendarICSFeedSystem(t *testing.T) {
+	r := setupTestServer()
+
+	// 1. Signup a test user
+	signupBody := map[string]string{
+		"email":    "calendar_tester@example.com",
+		"password": "Password123!",
+		"name":     "Calendar Explorer",
+	}
+	body, _ := json.Marshal(signupBody)
+	req, _ := http.NewRequest("POST", "/auth/signup", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp := executeRequest(r, req)
+	if resp.Code != http.StatusCreated {
+		t.Fatalf("signup failed: %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var authResp struct {
+		AccessToken string `json:"access_token"`
+	}
+	_ = json.Unmarshal(resp.Body.Bytes(), &authResp)
+	token := authResp.AccessToken
+
+	// 2. Create an itinerary so the calendar has events
+	itinReq := map[string]interface{}{
+		"title":          "Atlanta BeltLine Adventure",
+		"date":           "2026-10-15",
+		"start_time":     "14:00",
+		"back_by_time":   "18:00",
+		"visibility":     "private",
+		"max_group_size": 4,
+	}
+	body, _ = json.Marshal(itinReq)
+	req, _ = http.NewRequest("POST", "/itineraries", bytes.NewBuffer(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusCreated {
+		t.Fatalf("create itinerary failed: %d: %s", resp.Code, resp.Body.String())
+	}
+
+	// 3. Get calendar subscription links (authenticated)
+	req, _ = http.NewRequest("GET", "/calendar/link", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on /calendar/link, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var linkResp struct {
+		Token             string `json:"token"`
+		URL               string `json:"url"`
+		WebcalURL         string `json:"webcal_url"`
+		GoogleCalendarURL string `json:"google_calendar_url"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &linkResp); err != nil {
+		t.Fatalf("failed to decode link response: %v", err)
+	}
+	if linkResp.Token == "" || linkResp.URL == "" || linkResp.WebcalURL == "" {
+		t.Fatalf("expected valid token and URLs, got %+v", linkResp)
+	}
+
+	feedToken := linkResp.Token
+
+	// 4. Fetch the public ICS feed WITHOUT any authorization header (as Google / Apple Calendar would)
+	feedPath := fmt.Sprintf("/calendar/feed/%s.ics", feedToken)
+	req, _ = http.NewRequest("GET", feedPath, nil)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on public ICS feed, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	contentType := resp.Header().Get("Content-Type")
+	if !bytes.Contains([]byte(contentType), []byte("text/calendar")) {
+		t.Fatalf("expected Content-Type text/calendar, got %s", contentType)
+	}
+
+	icsBody := resp.Body.String()
+	if !bytes.Contains([]byte(icsBody), []byte("BEGIN:VCALENDAR")) {
+		t.Fatalf("expected BEGIN:VCALENDAR in feed, got:\n%s", icsBody)
+	}
+	if !bytes.Contains([]byte(icsBody), []byte("Atlanta BeltLine Adventure")) {
+		t.Fatalf("expected itinerary title in feed, got:\n%s", icsBody)
+	}
+	if !bytes.Contains([]byte(icsBody), []byte("END:VCALENDAR")) {
+		t.Fatalf("expected END:VCALENDAR in feed, got:\n%s", icsBody)
+	}
+
+	// 5. Test direct download / export
+	req, _ = http.NewRequest("GET", "/calendar/export.ics", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on /calendar/export.ics, got %d", resp.Code)
+	}
+	if !bytes.Contains(resp.Body.Bytes(), []byte("BEGIN:VCALENDAR")) {
+		t.Fatalf("expected BEGIN:VCALENDAR in exported file")
+	}
+
+	// 6. Test calendar days endpoint includes calendar_link
+	req, _ = http.NewRequest("GET", "/calendar/days", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on /calendar/days, got %d", resp.Code)
+	}
+	var daysResp struct {
+		Days         []interface{}          `json:"days"`
+		CalendarLink map[string]interface{} `json:"calendar_link"`
+	}
+	_ = json.Unmarshal(resp.Body.Bytes(), &daysResp)
+	if daysResp.CalendarLink == nil || daysResp.CalendarLink["token"] != feedToken {
+		t.Fatalf("expected calendar_link in /calendar/days, got %+v", daysResp.CalendarLink)
+	}
+
+	// 7. Test integrations endpoint includes calendar_feed
+	req, _ = http.NewRequest("GET", "/integrations", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on /integrations, got %d", resp.Code)
+	}
+	var integResp struct {
+		CalendarFeed map[string]interface{} `json:"calendar_feed"`
+	}
+	_ = json.Unmarshal(resp.Body.Bytes(), &integResp)
+	if integResp.CalendarFeed == nil || integResp.CalendarFeed["token"] != feedToken {
+		t.Fatalf("expected calendar_feed in /integrations, got %+v", integResp.CalendarFeed)
+	}
+
+	// 8. Regenerate calendar link
+	req, _ = http.NewRequest("POST", "/calendar/link/regenerate", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on regenerate, got %d", resp.Code)
+	}
+
+	var regenResp struct {
+		Token string `json:"token"`
+	}
+	_ = json.Unmarshal(resp.Body.Bytes(), &regenResp)
+	if regenResp.Token == "" || regenResp.Token == feedToken {
+		t.Fatalf("expected new distinct token, got %s vs old %s", regenResp.Token, feedToken)
+	}
+
+	// 9. Old token should now return 404 Not Found
+	req, _ = http.NewRequest("GET", fmt.Sprintf("/calendar/feed/%s.ics", feedToken), nil)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 for revoked old token, got %d", resp.Code)
+	}
+
+	// 10. New token should return 200 OK
+	req, _ = http.NewRequest("GET", fmt.Sprintf("/calendar/feed/%s.ics", regenResp.Token), nil)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 for new token, got %d", resp.Code)
+	}
+}
+
+func TestHelloWorldBrowserEndpoint(t *testing.T) {
+	r := setupTestServer()
+
+	// 1. Browser GET /hello returns HTML
+	req, _ := http.NewRequest("GET", "/hello", nil)
+	req.Header.Set("Accept", "text/html,application/xhtml+xml")
+	resp := executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on GET /hello, got %d", resp.Code)
+	}
+	contentType := resp.Header().Get("Content-Type")
+	if !bytes.Contains([]byte(contentType), []byte("text/html")) {
+		t.Fatalf("expected text/html, got %s", contentType)
+	}
+	bodyStr := resp.Body.String()
+	if !bytes.Contains([]byte(bodyStr), []byte("Hello, <span class=\"gradient-text\">World!</span>")) {
+		t.Fatalf("expected Hello World headline in HTML")
+	}
+	if !bytes.Contains([]byte(bodyStr), []byte("Calendar .ICS Feed")) {
+		t.Fatalf("expected Calendar ICS feed tester in HTML")
+	}
+
+	// Verify root / is not hello world
+	req, _ = http.NewRequest("GET", "/", nil)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 on GET /, got %d", resp.Code)
+	}
+
+	// 2. API client GET /hello with JSON accept returns JSON
+	req, _ = http.NewRequest("GET", "/hello", nil)
+	req.Header.Set("Accept", "application/json")
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on GET /hello (JSON), got %d", resp.Code)
+	}
+	var apiResp struct {
+		Message        string `json:"message"`
+		Status         string `json:"status"`
+		CalendarSystem string `json:"calendar_system"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &apiResp); err != nil {
+		t.Fatalf("failed to decode JSON response: %v", err)
+	}
+	if !bytes.Contains([]byte(apiResp.Message), []byte("Hello, World!")) {
+		t.Fatalf("expected Hello World message, got %s", apiResp.Message)
+	}
+	if apiResp.Status != "ok" {
+		t.Fatalf("expected status ok, got %s", apiResp.Status)
+	}
+
+	// 3. Demo calendar feed endpoint
+	req, _ = http.NewRequest("GET", "/api/test/calendar-demo", nil)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on /api/test/calendar-demo, got %d", resp.Code)
+	}
+	var demoResp struct {
+		Status   string `json:"status"`
+		Calendar struct {
+			URL       string `json:"url"`
+			WebcalURL string `json:"webcal_url"`
+		} `json:"calendar"`
+		RawICS string `json:"raw_ics"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &demoResp); err != nil {
+		t.Fatalf("failed to decode demo calendar response: %v", err)
+	}
+	if demoResp.Status != "ok" || demoResp.Calendar.URL == "" {
+		t.Fatalf("expected valid calendar url, got %+v", demoResp)
+	}
+	if !bytes.Contains([]byte(demoResp.RawICS), []byte("BEGIN:VCALENDAR")) {
+		t.Fatalf("expected BEGIN:VCALENDAR in raw_ics, got: %s", demoResp.RawICS)
+	}
+}

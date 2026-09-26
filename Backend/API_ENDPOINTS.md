@@ -4,6 +4,9 @@ REST + JSON over HTTPS, bearer token auth (except the auth routes). Money in int
 
 Rule of thumb: the server owns anything that must be correct for everyone — equal-split math, transit times, age filtering, join limits, ratings → taste profile.
 
+## System Health & Test
+- GET /hello — interactive browser test dashboard when opened in a browser; JSON system health & endpoint map when requested with `Accept: application/json`
+
 ## Auth
 - POST /auth/signup — email, password, name → account + tokens (profile setup step 1)
 - POST /auth/login — email, password → tokens
@@ -30,8 +33,12 @@ Rule of thumb: the server owns anything that must be correct for everyone — eq
 - DELETE /integrations/{provider}
 - GET /me/payment-methods, POST /me/payment-methods (tokenized Visa card), DELETE /me/payment-methods/{id}
 
-## Calendar
-- GET /calendar/days?from=&to= — merged view per day: busy blocks (free/busy only), sidequests, group events (Home › Calendar, When dropdown)
+## Calendar (RFC 5545 .ics Feed & Universal Subscription)
+- GET /calendar/feed/{token}.ics — public unauthenticated RFC 5545 iCalendar feed for external calendar apps (Google Calendar, Apple Calendar, Outlook, Thunderbird)
+- GET /calendar/link — authenticated endpoint returning user's public feed URL, `webcal://` subscription URL, one-click Google Calendar add link, and setup instructions
+- POST /calendar/link/regenerate — rotates the user's secret calendar token and invalidates previous subscription links
+- GET /calendar/export.ics — authenticated direct `.ics` download of active sidequests, stops, and schedules
+- GET /calendar/days?from=&to= — merged view per day: busy blocks (free/busy only), sidequests, group events, plus the user's `calendar_link` subscription object
 
 ## Places + events catalog
 - GET /places/search?q=&near= — search for start/end pins and suggestion chips

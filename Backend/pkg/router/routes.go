@@ -40,6 +40,10 @@ func registerEndpoints(r *mux.Router, prefix string) {
 		return prefix + path
 	}
 
+	// ---------------- HELLO WORLD BROWSER TEST ----------------
+	r.HandleFunc(p("/hello"), handlers.HelloWorldHandler).Methods("GET")
+	r.HandleFunc(p("/test/calendar-demo"), handlers.HelloDemoICSTest).Methods("GET")
+
 	// ---------------- AUTH (Public) ----------------
 	r.HandleFunc(p("/auth/signup"), handlers.Signup).Methods("POST")
 	r.HandleFunc(p("/auth/login"), handlers.Login).Methods("POST")
@@ -73,8 +77,13 @@ func registerEndpoints(r *mux.Router, prefix string) {
 	r.Handle(p("/me/payment-methods"), protect(handlers.AddPaymentMethod)).Methods("POST")
 	r.Handle(p("/me/payment-methods/{id}"), protect(handlers.DeletePaymentMethod)).Methods("DELETE")
 
-	// ---------------- CALENDAR ----------------
+	// ---------------- CALENDAR (RFC 5545 .ics Feed & Sync) ----------------
+	r.Handle(p("/calendar/link"), protect(handlers.GetCalendarLink)).Methods("GET")
+	r.Handle(p("/calendar/link/regenerate"), protect(handlers.RegenerateCalendarLink)).Methods("POST")
+	r.Handle(p("/calendar/export.ics"), protect(handlers.ExportUserICS)).Methods("GET")
 	r.Handle(p("/calendar/days"), protect(handlers.GetCalendarDays)).Methods("GET")
+	r.HandleFunc(p("/calendar/feed/{token}"), handlers.ServeICSFeed).Methods("GET")
+	r.HandleFunc(p("/calendar/{token:[a-zA-Z0-9_-]{16,64}(?:\\.ics)?}"), handlers.ServeICSFeed).Methods("GET")
 
 	// ---------------- PLACES & EVENTS CATALOG ----------------
 	r.HandleFunc(p("/places/search"), handlers.SearchPlaces).Methods("GET")

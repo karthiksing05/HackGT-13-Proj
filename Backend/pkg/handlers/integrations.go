@@ -23,9 +23,12 @@ type AddPaymentMethodRequest struct {
 func GetIntegrations(w http.ResponseWriter, r *http.Request) {
 	uid := middleware.GetUserID(r)
 	calendars := store.GlobalStore.GetUserCalendars(uid)
+	token := store.GlobalStore.GetOrCreateCalendarToken(uid)
+	calFeed := buildCalendarLinkResponse(r, token)
 	middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
-		"calendars": calendars,
-		"count":     len(calendars),
+		"calendars":     calendars,
+		"count":         len(calendars),
+		"calendar_feed": calFeed,
 	})
 }
 

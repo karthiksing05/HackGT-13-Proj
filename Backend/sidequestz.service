@@ -4,10 +4,8 @@ After=network.target mongod.service
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
-WorkingDirectory=/opt/sidequestz
-ExecStart=/opt/sidequestz/sidequestz-server
+WorkingDirectory=/home/backend
+ExecStart=/home/backend/sidequestz-server
 Restart=always
 RestartSec=5s
 
@@ -15,13 +13,12 @@ RestartSec=5s
 Environment=PORT=8080
 Environment=MONGO_URI=mongodb://127.0.0.1:27017
 Environment=MONGO_DB=hackgt
-Environment=JWT_SECRET=replace_with_your_secure_random_production_secret
+Environment=JWT_SECRET=sxXo2L3Ywe6gdezLpu8P1rclA98YWnDIyPmAYnqaBmAZGTLN33rtmnizjZzof8O2
 Environment=COOKIE_SECURE=true
 
 # Security Hardening
 NoNewPrivileges=true
 ProtectSystem=full
-ProtectHome=true
 
 [Install]
 WantedBy=multi-user.target

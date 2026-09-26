@@ -189,6 +189,14 @@ type CalendarDay struct {
 	GroupEvents []CalendarEventItem `json:"group_events"`
 }
 
+type CalendarLinkResponse struct {
+	Token             string            `json:"token"`
+	URL               string            `json:"url"`
+	WebcalURL         string            `json:"webcal_url"`
+	GoogleCalendarURL string            `json:"google_calendar_url"`
+	Instructions      map[string]string `json:"instructions"`
+}
+
 type Place struct {
 	ID             string   `bson:"_id" json:"id"`
 	Name           string   `bson:"name" json:"name"`
