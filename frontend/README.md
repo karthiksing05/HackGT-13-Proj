@@ -5,7 +5,7 @@
 API interface, so the backend, AI and database can be plugged in later. See
 [API_CONTRACT.md](API_CONTRACT.md) for the backend contract.
 
-By default the app runs fully offline on demo data (Atlanta, Friday Sep 25, user Jordan Lee), so you can try every screen before the backend exists.
+By default the app talks to the live SideQuests server (`https://api.sidequestz.tech`). Launch it with `-SQAPIMode mock` to run fully offline on demo data (Atlanta, Friday Sep 25, user Jordan Lee) and try every screen without a server.
 
 ## Project layout
 
@@ -33,7 +33,7 @@ Any file you add inside `SideQuestz/` becomes part of the app automatically. You
 
 1. Open `frontend/SideQuestz.xcodeproj` in Xcode.
 2. Choose an iPhone simulator, or your phone (see [Run on your iPhone](#run-on-your-iphone)), in the toolbar.
-3. Press **⌘R**. Every cold launch plays the opening animation, then shows the sign-in screen. Any valid email with any password signs you in to the demo. Demo calls take 5 seconds on purpose (`SQMockDelay` in Info.plist) so you can see the loading animations. Pull down on any main screen to reload everything from the API.
+3. Press **⌘R**. Every cold launch plays the opening animation, then shows the sign-in screen. Sign in with an account on the server, or tap **Use the demo account** (Sandy Byte; the link shows when the build knows the demo password, see [Pointing the app at a server](#pointing-the-app-at-a-server)). In the offline demo (`-SQAPIMode mock`), any valid email with any password signs you in. Loading states last exactly as long as the requests do. Pull down on any main screen to reload everything from the API.
 
 To see the intro again, long-press the logo on the sign-in screen.
 
@@ -43,20 +43,30 @@ In Xcode, go to Product → Scheme → Edit Scheme → Run → **Arguments** and
 
 | Argument | What it does |
 | --- | --- |
-| `-SQRoute home/calendar` | Opens straight to a screen, signed in. Also: `login`, `forgot/2`, `setup/3`, `home`, `home/past`, `home/sheet/a3`, `home/rate/x1`, `home/edit/itin-fri` (Edit sidequest), `create/1`…`create/4`, `create/4/more`, `create/4/swap` (the swap sheet for stop 2), `forum`, `forum/filter`, `groups`, `thread/g1/splits`, `thread/dm-maya`, `account/friends`, `account/facebook` (connects the demo Facebook and opens its sheet), `gallery` (the design-system gallery) |
+| `-SQAPIMode mock` | Runs fully offline on the demo backend (Atlanta, Friday Sep 25, user Jordan Lee; any valid email with any password signs in). Without it the app uses the live server from Info.plist |
+| `-SQRoute home/calendar` | Opens straight to a screen, signed in as the demo user; needs `-SQAPIMode mock` (in live mode a signed-out launch lands on Login). Also: `login`, `forgot/2`, `setup/3`, `home`, `home/past`, `home/sheet/a3`, `home/rate/x1`, `home/edit/itin-fri` (Edit sidequest), `create/1`…`create/4`, `create/4/more`, `create/4/swap` (the swap sheet for stop 2), `forum`, `forum/filter`, `groups`, `thread/g1/splits`, `thread/dm-maya`, `account/friends`, `account/facebook` (connects the demo Facebook and opens its sheet), `gallery` (the design-system gallery) |
 | `-SQSkipIntro YES` | Skips the opening animation, which otherwise plays on every cold launch |
-| `-SQMockDelay 1` | Seconds each demo call waits (Info.plist `SQMockDelay`, 5 for now, so loading animations show). Delete the Info.plist key for realistic per-call timings |
-| `-SQMockLatency 0` | Removes the demo backend's fake network delay |
+| `-SQDemoPassword …` | The demo account's password for this launch, so Login shows "Use the demo account" (live mode only; wins over the `SQ_DEMO_PASSWORD` build setting) |
+| `-SQAPIBaseURL http://127.0.0.1:8080` | Uses another server for this launch, with `-SQWebSocketURL ws://127.0.0.1:8080/ws` for realtime (see [Pointing the app at a server](#pointing-the-app-at-a-server)) |
+| `-SQSlowLoadingAfter 0` | Seconds a first load shows its skeleton before the S loader takes over (default 2; `0` shows the S at once, a large number never) |
+| `-SQMockLatency 0` | Removes the demo backend's fake network delay (each demo call otherwise takes about as long as a real one, 0.1–0.9 s) |
 | `-SQMockFail forum,itineraries` | Makes those demo endpoints fail, to see error states (also `facebook`, `me`, `friends`, `splits`, `album`, …) |
 | `-SQVoiceDemo YES` | Voice buttons return sample transcripts instead of using the mic |
-| `-SQAPIMode live` | Uses your real backend (details in [API_CONTRACT.md](API_CONTRACT.md#pointing-the-app-at-your-server)) |
+
+### Pointing the app at a server
+
+`SideQuestz/Info.plist` names the server: `SQAPIMode` (`live`), `SQAPIBaseURL` (`https://api.sidequestz.tech`), `SQWebSocketURL` (`wss://api.sidequestz.tech/ws`) and `SQDemoPassword` (`$(SQ_DEMO_PASSWORD)`, empty unless a build supplies it). A launch argument with the same name overrides each one (`-SQAPIBaseURL …`, `-SQWebSocketURL …`, `-SQDemoPassword …`, `-SQAPIMode mock`).
+
+- **A backend on your Mac** (the local dev loop in [docs/DEPLOY.md](../docs/DEPLOY.md)): `-SQAPIBaseURL http://127.0.0.1:8080 -SQWebSocketURL ws://127.0.0.1:8080/ws -SQDemoPassword demo`. `127.0.0.1` only works in the Simulator; on a phone use the Mac's LAN IP. Plain `http://` is allowed for local networks only (`NSAllowsLocalNetworking`).
+- **The demo account** (Sandy Byte, `demo@sidequestz.tech`) is one tap away on Login, "Use the demo account", whenever the app knows the password. Give it to the build (`xcodebuild … SQ_DEMO_PASSWORD='…'`, or the `SQ_DEMO_PASSWORD` build setting of the SideQuestz target in Xcode) or to a launch (`-SQDemoPassword …`, which wins). The setting is empty in the repo, so no password is ever committed, and the offline demo never shows the link.
+- What the server has to implement is in [API_CONTRACT.md](API_CONTRACT.md).
 
 ### Tests
 
 Press **⌘U** to run both suites (about 3 minutes, most of it the UI tests).
 
-- **Unit tests** (`SideQuestzTests`, a few seconds) check that the equal-split preview always adds up to the total, to the cent; that reordering stops re-times the route and flags lateness, matching the prototype's numbers; the validation copy; time formatting; the demo backend's forum filters, sidequest edits and stop alternatives (same kind, never already in the plan); how the app reads Facebook's sign-in result and merges suggested likes (never replacing one you picked in Setup); and that every model round-trips through the API's JSON format.
-- **UI tests** (`SideQuestzUITests`) run twelve flows on the demo backend:
+- **Unit tests** (`SideQuestzTests`, a few seconds) check that the equal-split preview always adds up to the total, to the cent; that reordering stops re-times the route and flags lateness, matching the prototype's numbers; the validation copy; time formatting; the demo backend's forum filters, sidequest edits and stop alternatives (same kind, never already in the plan); how the app reads Facebook's sign-in result and merges suggested likes (never replacing one you picked in Setup); how the demo password is read (a launch argument beats Info.plist, blank means none) and that a `-SQRoute` deep link never skips sign-in in live mode; and that every model round-trips through the API's JSON format.
+- **UI tests** (`SideQuestzUITests`) run twelve flows on the demo backend, plus one launch check against the live configuration:
   - create an account through all five Setup steps;
   - reset a password and sign in with it;
   - plan and start a sidequest;
@@ -67,7 +77,8 @@ Press **⌘U** to run both suites (about 3 minutes, most of it the UI tests).
   - "Plan together" into a DM;
   - add a $40 expense split three ways;
   - connect Facebook in Setup and see step 3 filled in;
-  - review Facebook's suggestions in Account and save them.
+  - review Facebook's suggestions in Account and save them;
+  - in live mode with a demo password, the app starts on Login and shows "Use the demo account" (nothing is tapped, so no request leaves the simulator).
 
   Tab bar buttons have the accessibility identifiers `tab.home`, `tab.forum`, `tab.plan`, `tab.groups` and `tab.account`.
 
@@ -87,7 +98,7 @@ There's no Facebook SDK in the app.
 
 - The contract is [`SideQuestz/Services/APIClient.swift`](SideQuestz/Services/APIClient.swift). The REST wrappers that call your server are in [`LiveAPIClient.swift`](SideQuestz/Services/LiveAPIClient.swift).
 - Plan generation, ranking, transit re-timing, split math, age filtering and the taste profile belong to the server. The app shows whatever the server returns.
-- Loading animations follow the real requests: skeletons and loaders show for exactly as long as your server takes, and the demo's 5-second delay disappears in live mode.
+- Loading animations follow the real requests: skeletons and loaders show for exactly as long as your server takes (a first load that runs past 2 s cross-fades its skeleton to the S loader; `-SQSlowLoadingAfter` tunes that).
 - Pull to refresh reloads every screen that's open (plus the profile) in parallel. A screen joins in with `.sqReloadable("key") { … }` and gets the gesture with `.sqPullToRefresh()` (see `App/PullToRefresh.swift`).
 - [API_CONTRACT.md](API_CONTRACT.md) lists every endpoint with example JSON, the realtime WebSocket events, and how voice input works (Apple's Speech framework, on device).
 
@@ -131,6 +142,7 @@ Your iPhone needs iOS 17 or later. A free Apple Account (Apple ID) is enough; yo
 | Xcode says your iOS version isn't supported | Update Xcode, and macOS if the App Store requires it. |
 | "Untrusted Developer" | See step 6 above. |
 | The live backend is unreachable from your phone | `127.0.0.1` only works in the Simulator. Use your Mac's LAN IP or a deployed URL in `SQAPIBaseURL`. |
+| Login has no "Use the demo account" link | The app doesn't know the demo password: pass `SQ_DEMO_PASSWORD='…'` to `xcodebuild` (or set the build setting) or `-SQDemoPassword …` at launch. The offline demo (`-SQAPIMode mock`) never shows it; any login works there. |
 | "Use Strong Password?" pops up while creating an account | That's iOS offering a generated password for the sign-up form. Close it (×) to type your own, or tap "Fill Strong Password". |
 
 ## Working as a team
