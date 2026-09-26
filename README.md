@@ -80,7 +80,8 @@ database `freetime`):
 
 ```sh
 docker run -d --name sq-mongo -p 27017:27017 mongo:7
-# the demo city's 100 activities go into demo_activities (seed-demo needs them; details in docs/DATA.md)
+# the demo city's 100 activities go into demo_activities (seed-demo needs them). The JSON has no texts or
+# vectors, so the demo city ranks by priors until they are copied in (docs/DATA.md, "The demo snapshot")
 docker cp dataingestion/demo/saltlight_harbor.json sq-mongo:/tmp/ && docker exec sq-mongo \
   mongoimport --db freetime --collection demo_activities --jsonArray --file /tmp/saltlight_harbor.json
 ```
