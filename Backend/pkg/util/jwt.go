@@ -1,82 +1,66 @@
 package util
 
 import (
-	"Backend/pkg/env"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
-type Claims struct {
-	UserID   string `json:"user_id"`
-	Email    string `json:"email"`
-	Username string `json:"username"`
+// Token types carried in the "typ" claim so an access token can never be
+// presented where a reset token is expected and vice versa.
+const (
+	TokenTypeAccess = "access"
+	TokenTypeReset  = "reset"
+)
+
+// TokenClaims is the HS256 claim set: sub = user id, jti, exp, iat, typ.
+type TokenClaims struct {
+	Typ string `json:"typ"`
 	jwt.RegisteredClaims
 }
 
-const (
-	AccessTokenDuration  = 24 * time.Hour
-	RefreshTokenDuration = 30 * 24 * time.Hour
-	ResetTokenDuration   = 15 * time.Minute
-)
+// ErrInvalidToken is returned for any token that does not verify (bad
+// signature, expired, wrong type, malformed).
+var ErrInvalidToken = errors.New("invalid token")
 
-func GenerateAccessToken(userID, email, username string) (string, error) {
-	claims := Claims{
-		UserID:   userID,
-		Email:    email,
-		Username: username,
+// SignToken issues an HS256 token of the given type for subject, valid for ttl
+// from now. It returns the token, its jti and its expiry.
+func SignToken(secret, typ, subject string, now time.Time, ttl time.Duration) (token, jti string, expiresAt time.Time, err error) {
+	if secret == "" {
+		return "", "", time.Time{}, errors.New("jwt: empty secret")
+	}
+	jti = uuid.NewString()
+	expiresAt = now.Add(ttl)
+	claims := TokenClaims{
+		Typ: typ,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(AccessTokenDuration)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Subject:   userID,
-			ID:        uuid.New().String(),
+			Subject:   subject,
+			ID:        jti,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
 		},
 	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(env.GetJWTSecret()))
-}
-
-func GenerateRefreshToken() (string, error) {
-	u, err := uuid.NewV7()
+	token, err = jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
 	if err != nil {
-		return uuid.New().String(), nil
+		return "", "", time.Time{}, fmt.Errorf("jwt sign: %w", err)
 	}
-	return u.String(), nil
+	return token, jti, expiresAt, nil
 }
 
-func GenerateResetToken(email string) (string, error) {
-	claims := Claims{
-		Email: email,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(ResetTokenDuration)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Subject:   "password_reset",
-			ID:        uuid.New().String(),
-		},
+// ParseToken verifies signature, expiry (against now, 5 s leeway) and type.
+func ParseToken(secret, token, typ string, now time.Time) (*TokenClaims, error) {
+	claims := &TokenClaims{}
+	parsed, err := jwt.ParseWithClaims(token, claims, func(*jwt.Token) (any, error) {
+		return []byte(secret), nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		jwt.WithTimeFunc(func() time.Time { return now }),
+		jwt.WithLeeway(5*time.Second),
+		jwt.WithExpirationRequired())
+	if err != nil || !parsed.Valid || claims.Typ != typ || claims.Subject == "" {
+		return nil, ErrInvalidToken
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(env.GetJWTSecret()))
-}
-
-func ValidateToken(tokenString string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("unexpected signing method")
-		}
-		return []byte(env.GetJWTSecret()), nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		return claims, nil
-	}
-
-	return nil, errors.New("invalid token")
+	return claims, nil
 }

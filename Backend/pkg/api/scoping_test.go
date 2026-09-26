@@ -1,0 +1,83 @@
+package api_test
+
+import (
+	"Backend/pkg/contract"
+	"Backend/pkg/testutil"
+	"net/http"
+	"testing"
+)
+
+// scope is one resource created by user A that user B must not reach. Area
+// agents append rows as their endpoints land (backend-contract §6,
+// scoping_test): a 404 for unowned resources, 403 for host-only edits by a
+// member.
+type scope struct {
+	name   string
+	setup  func(t *testing.T, srv *testutil.Server, a *testutil.Session) (method, path string, body any)
+	status int // expected for B
+}
+
+var scopes = []scope{
+	// backend-B: {"GET /itineraries/{id} of A", createItineraryForA, 404},
+	// backend-B: {"PATCH /itineraries/{id} by a member", joinAsMemberThenPatch, 403},
+	// backend-C: {"GET /threads/{id} of A", startDMForA, 404},
+	// backend-D: {"GET /checkout/intents/{id} of A", createIntentForA, 404},
+}
+
+func TestScoping(t *testing.T) {
+	srv := testutil.New(t)
+	a := srv.Signup(t, "Alice Scope")
+	b := srv.Signup(t, "Bob Scope")
+
+	// A's token reads A; B's reads B; neither reads the other.
+	var me contract.User
+	srv.Do(t, "GET", "/me", nil, a).Expect(t, http.StatusOK).JSON(t, &me)
+	if me.ID != a.UserID || me.ID == b.UserID {
+		t.Fatalf("A's token returned %s, want %s", me.ID, a.UserID)
+	}
+	srv.Do(t, "GET", "/me", nil, b).Expect(t, http.StatusOK).JSON(t, &me)
+	if me.ID != b.UserID {
+		t.Fatalf("B's token returned %s, want %s", me.ID, b.UserID)
+	}
+	// B's refresh token never yields A's session.
+	var rotated contract.RefreshResponse
+	srv.Do(t, "POST", "/auth/refresh", contract.RefreshRequest{RefreshToken: b.Refresh}, nil).Expect(t, http.StatusOK).JSON(t, &rotated)
+	srv.Do(t, "GET", "/me", nil, &testutil.Session{Access: rotated.AccessToken}).Expect(t, http.StatusOK).JSON(t, &me)
+	if me.ID != b.UserID {
+		t.Fatalf("rotated B token returned %s", me.ID)
+	}
+
+	for _, sc := range scopes {
+		t.Run(sc.name, func(t *testing.T) {
+			method, path, body := sc.setup(t, srv, a)
+			if res := srv.Do(t, method, path, body, b); res.Status != sc.status {
+				t.Fatalf("B got %d for A's resource, want %d: %s", res.Status, sc.status, res.Body)
+			}
+		})
+	}
+}
+
+// TestStubsAnswer501 pins the placeholder shape every unbuilt route answers with.
+func TestStubsAnswer501(t *testing.T) {
+	srv := testutil.New(t)
+	a := srv.Signup(t, "Stub Person")
+	res := srv.Do(t, "GET", "/itineraries", nil, a)
+	if res.Status != http.StatusNotImplemented || res.Message() != "Not built yet" {
+		t.Fatalf("stub: %d %s", res.Status, res.Body)
+	}
+	if res := srv.Do(t, "GET", "/itineraries", nil, nil); res.Status != http.StatusUnauthorized {
+		t.Fatalf("protected stub without a token: %d", res.Status)
+	}
+	if res := srv.Do(t, "GET", "/photos/nope", nil, nil); res.Status != http.StatusNotImplemented {
+		t.Fatalf("public stub: %d", res.Status)
+	}
+	if res := srv.Do(t, "POST", "/plans/generate", contract.PlanRequest{Range: "transit", Ride: "none", Who: "friends", Pace: "balanced", Budget: 1}, a); res.Status != http.StatusServiceUnavailable || res.Message() != "Planning is warming up. Try again in a moment." {
+		t.Fatalf("planning without a planner: %d %s", res.Status, res.Body)
+	}
+	if res := srv.Do(t, "GET", "/nowhere", nil, nil); res.Status != http.StatusNotFound || res.Message() == "" {
+		t.Fatalf("404 shape: %d %s", res.Status, res.Body)
+	}
+	if res := srv.Do(t, "GET", "/healthz", nil, nil); res.Status != http.StatusOK || string(res.Body) != "{\"ok\":true}\n" {
+		t.Fatalf("healthz: %d %s", res.Status, res.Body)
+	}
+}
