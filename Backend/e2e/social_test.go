@@ -541,3 +541,20 @@ func TestRealtimeAuth(t *testing.T) {
 		t.Errorf("/ws 401 body: %s", res.Body)
 	}
 }
+
+// TestHealthAndRoot checks the unauthenticated surface: health, the API
+// root and unknown routes answer JSON.
+func TestHealthAndRoot(t *testing.T) {
+	var health struct {
+		OK bool `json:"ok"`
+	}
+	do(t, nil, "GET", "/healthz", nil).Expect(t, http.StatusOK).JSON(t, &health)
+	if !health.OK {
+		t.Error("healthz is not ok")
+	}
+	if msg := fails(t, nil, "GET", "/", nil, http.StatusNotFound); msg != "Not found." {
+		t.Errorf("root: %q", msg)
+	}
+	fails(t, nil, "DELETE", "/healthz", nil, http.StatusMethodNotAllowed)
+	fails(t, nil, "GET", "/itineraries", nil, http.StatusUnauthorized)
+}

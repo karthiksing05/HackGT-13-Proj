@@ -401,5 +401,11 @@ func TestAccount(t *testing.T) {
 		}
 		fails(t, casey, "POST", "/integrations/facebook/import", nil, http.StatusConflict)
 		do(t, casey, "DELETE", "/integrations/facebook", nil).NoContent(t)
+		// Facebook's server-to-server callbacks refuse an unsigned request;
+		// an unknown deletion code is the not-found page.
+		forged := url.Values{"signed_request": {"bm90.c2lnbmVk"}}
+		fails(t, nil, "POST", "/integrations/facebook/deauthorize", forged, http.StatusBadRequest)
+		fails(t, nil, "POST", "/integrations/facebook/data-deletion", forged, http.StatusBadRequest)
+		do(t, nil, "GET", "/integrations/facebook/deletion-status?code=nope", nil).Expect(t, http.StatusNotFound)
 	})
 }
