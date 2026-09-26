@@ -27,12 +27,22 @@ type Itinerary struct {
 	LateRisk  bool      // a visit running to its 75th-percentile length breaks the plan
 }
 
+// mask is a set of up to maxMaskBits bit indices (series or categories).
+type mask [2]uint64
+
+func (m mask) has(i int) bool { return m[i>>6]&(1<<uint(i&63)) != 0 }
+
+func (m mask) with(i int) mask {
+	m[i>>6] |= 1 << uint(i&63)
+	return m
+}
+
 type label struct {
 	utility float64
 	cost    int64
 	stops   int
-	series  uint64
-	cats    uint64
+	series  mask
+	cats    mask
 	node    int
 	edge    *Edge
 	prev    *label
@@ -51,17 +61,15 @@ func Solve(g *Graph, w Window, cfg Config) []Itinerary {
 
 	extend := func(from *label, e *Edge, j int) *label {
 		node := &g.Nodes[j]
-		sBit := uint64(1) << uint(node.series)
-		if from.stops >= pace.MaxStops || from.series&sBit != 0 {
+		if from.stops >= pace.MaxStops || from.series.has(node.series) {
 			return nil
 		}
 		cats := from.cats
 		if node.category >= 0 {
-			cBit := uint64(1) << uint(node.category)
-			if cats&cBit != 0 {
+			if cats.has(node.category) {
 				return nil
 			}
-			cats |= cBit
+			cats = cats.with(node.category)
 		}
 		cost := from.cost + node.CostCents
 		if w.BudgetCents > 0 && cost > w.BudgetCents {
@@ -71,7 +79,7 @@ func Solve(g *Graph, w Window, cfg Config) []Itinerary {
 			utility: from.utility + node.Utility - e.Penalty,
 			cost:    cost,
 			stops:   from.stops + 1,
-			series:  from.series | sBit,
+			series:  from.series.with(node.series),
 			cats:    cats,
 			node:    j,
 			edge:    e,

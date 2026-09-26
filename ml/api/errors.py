@@ -7,3 +7,12 @@ class RankingRequestError(ValueError):
 
 class InferenceError(RuntimeError):
     """The compatibility model failed (maps to HTTP 500)."""
+
+
+class EmbeddingUnavailableError(RuntimeError):
+    """No embedding provider could serve the request (maps to HTTP 503)."""
+
+    MESSAGE = "Embedding provider unavailable."
+
+    def __init__(self, message: str = MESSAGE) -> None:
+        super().__init__(message)

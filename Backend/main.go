@@ -6,6 +6,7 @@ import (
 	"Backend/pkg/config"
 	"Backend/pkg/datastore"
 	"Backend/pkg/ml"
+	"Backend/pkg/profiles"
 	"Backend/pkg/realtime"
 	"Backend/pkg/router"
 	"Backend/pkg/store"
@@ -47,10 +48,10 @@ func main() {
 		Now:   time.Now,
 		ML:    ml.NewClient(cfg.MLServiceURL),
 		// Planner is wired by the planner agent (pkg/planner); until then
-		// /plans/* answer 503. Profiles (pkg/profiles over the ML client) is
-		// wired once the ML rewrite lands; until then profile refreshes are
-		// no-ops. The checkout agent (backend-D) starts its state machine here.
+		// /plans/* answer 503. The checkout agent (backend-D) starts its
+		// state machine here.
 	}
+	deps.Profiles = profiles.New(st, deps.ML, time.Now)
 	hub := realtime.NewHub(deps.Auth().UserFromToken)
 	deps.Hub = hub
 	checkout.StartAgent(ctx, deps)

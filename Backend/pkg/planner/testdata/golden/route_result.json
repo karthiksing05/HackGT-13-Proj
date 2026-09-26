@@ -1,0 +1,47 @@
+{
+  "option_id": "id-0001-0",
+  "legs": [
+    {
+      "from_stop_id": "start",
+      "to_stop_id": "stop_ad4f58795ec3ba0d008af20a_1",
+      "mode": "walk",
+      "minutes": 18,
+      "distance_km": 1.37
+    },
+    {
+      "from_stop_id": "stop_ad4f58795ec3ba0d008af20a_1",
+      "to_stop_id": "stop_bd670883e140022274fe9e2f_0",
+      "mode": "walk",
+      "minutes": 26,
+      "distance_km": 1.95
+    },
+    {
+      "from_stop_id": "stop_bd670883e140022274fe9e2f_0",
+      "to_stop_id": "end",
+      "mode": "walk",
+      "minutes": 12,
+      "distance_km": 0.87
+    }
+  ],
+  "stop_times": [
+    {
+      "stop_id": "stop_ad4f58795ec3ba0d008af20a_1",
+      "start": "2026-09-27T00:30:00Z",
+      "end": "2026-09-27T02:00:00Z",
+      "flexible": true
+    },
+    {
+      "stop_id": "stop_bd670883e140022274fe9e2f_0",
+      "start": "2026-09-27T02:26:00Z",
+      "end": "2026-09-27T03:41:00Z",
+      "flexible": true,
+      "closed": true
+    }
+  ],
+  "arrival": "2026-09-27T03:53:00Z",
+  "depart": "2026-09-27T00:12:00Z",
+  "minutes_late": 53,
+  "broken_at": 1,
+  "late_flag": true,
+  "total_duration_min": 221
+}

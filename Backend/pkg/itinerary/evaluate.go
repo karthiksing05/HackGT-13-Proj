@@ -18,17 +18,43 @@ type Evaluation struct {
 	BrokenAt    int // index of the first stop reached late, or -1
 }
 
+// EvalStop is what Evaluate needs to know about a stop: where it is, when
+// it was planned (nil for a stop with no scheduled time) and whether that
+// time can move.
+type EvalStop struct {
+	Loc         travel.Point
+	Arrive      *time.Time
+	Depart      *time.Time
+	DurationMin int
+	Flexible    bool
+}
+
 // Evaluate times a given stop order, e.g. after the user drags stops around.
 // Fixed-time stops keep their scheduled times and count as late when the
 // user can't get there in time. Flexible stops start on arrival, but never
 // before their planned time, which is known to be open.
 func Evaluate(ctx context.Context, w Window, stops []models.PlanStop, tp travel.Provider) Evaluation {
+	es := make([]EvalStop, len(stops))
+	for i, s := range stops {
+		es[i] = EvalStop{
+			Loc:         travel.Point{Lat: s.Lat, Lng: s.Lng},
+			Arrive:      s.ArriveTime,
+			Depart:      s.DepartTime,
+			DurationMin: s.DurationMin,
+			Flexible:    s.Flexible,
+		}
+	}
+	return EvaluateStops(ctx, w, es, tp)
+}
+
+// EvaluateStops is Evaluate over the optimizer's own stop type.
+func EvaluateStops(ctx context.Context, w Window, stops []EvalStop, tp travel.Provider) Evaluation {
 	ev := Evaluation{BrokenAt: -1}
 
 	points := make([]*travel.Point, 0, len(stops)+2)
 	points = append(points, w.Start)
-	for _, s := range stops {
-		points = append(points, &travel.Point{Lat: s.Lat, Lng: s.Lng})
+	for i := range stops {
+		points = append(points, &stops[i].Loc)
 	}
 	points = append(points, w.End)
 
@@ -47,8 +73,8 @@ func Evaluate(ctx context.Context, w Window, stops []models.PlanStop, tp travel.
 	}
 
 	t := w.From
-	if len(stops) > 0 && stops[0].ArriveTime != nil {
-		if leave := stops[0].ArriveTime.Add(-legAt(0).Duration); leave.After(t) {
+	if len(stops) > 0 && stops[0].Arrive != nil {
+		if leave := stops[0].Arrive.Add(-legAt(0).Duration); leave.After(t) {
 			t = leave
 		}
 	}
@@ -60,23 +86,23 @@ func Evaluate(ctx context.Context, w Window, stops []models.PlanStop, tp travel.
 		arrive := t.Add(leg.Duration)
 
 		start := arrive
-		if s.ArriveTime != nil && s.ArriveTime.After(start) {
-			start = *s.ArriveTime
+		if s.Arrive != nil && s.Arrive.After(start) {
+			start = *s.Arrive
 		}
 		dur := time.Duration(s.DurationMin) * time.Minute
-		if s.ArriveTime != nil && s.DepartTime != nil {
-			dur = s.DepartTime.Sub(*s.ArriveTime)
+		if s.Arrive != nil && s.Depart != nil {
+			dur = s.Depart.Sub(*s.Arrive)
 		}
 		end := start.Add(dur)
 
-		if !s.Flexible && s.ArriveTime != nil && arrive.After(*s.ArriveTime) {
-			ev.MinutesLate += int(arrive.Sub(*s.ArriveTime).Minutes())
+		if !s.Flexible && s.Arrive != nil && arrive.After(*s.Arrive) {
+			ev.MinutesLate += int(arrive.Sub(*s.Arrive).Minutes())
 			if ev.BrokenAt < 0 {
 				ev.BrokenAt = i
 			}
 			start = arrive
-			if s.DepartTime != nil {
-				end = *s.DepartTime // the event ends when it ends
+			if s.Depart != nil {
+				end = *s.Depart // the event ends when it ends
 				if end.Before(start) {
 					end = start
 				}

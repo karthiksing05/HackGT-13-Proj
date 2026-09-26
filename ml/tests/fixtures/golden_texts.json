@@ -1,0 +1,25 @@
+{
+  "model": "Qwen/Qwen3-Embedding-0.6B",
+  "texts": [
+    {
+      "name": "canary",
+      "text": "Interests:\n- live jazz\n\nCost:\n- free admission"
+    },
+    {
+      "name": "profile_jordan:positive",
+      "text": "Interests:\n- outdoor recreation\n- local food\n- hiking\n- indie rock\n- coffee\n- street food\n- board games\n\nActivities:\n- park visit\n- guided hike\n- food tasting\n\nSocial:\n- small-group setting\n- close friends\n- meeting new people\n\nEnvironment:\n- outdoor setting\n\nPace:\n- moderate pace\n\nCost:\n- free admission\n- under $15 admission"
+    },
+    {
+      "name": "profile_jordan:negative",
+      "text": "Interests:\n- nightlife\n\nSocial:\n- large crowds\n\nEnvironment:\n- loud nightclub setting\n\nTiming:\n- late night"
+    },
+    {
+      "name": "search_jordan",
+      "text": "Interests:\n- outdoor recreation\n- local food\n\nActivities:\n- eating out\n- social mixer\n\nSocial:\n- meeting new people\n- small group of friends\n\nEnvironment:\n- outdoor setting\n- outside\n\nPace:\n- moderate pace\n- chill\n\nCost:\n- under $15 admission\n- cheap food\n\nTiming:\n- friday afternoon\n- weekday afternoon\n- multi-hour outing"
+    },
+    {
+      "name": "activity:b0060f0fe111",
+      "text": "Interests:\n- disney\n- theater\n- ice skating\n\nActivities:\n- live performance\n- spectator sports\n\nSocial:\n- family friendly\n- large group\n\nEnvironment:\n- indoor\n- arena\n- loud atmosphere\n- high energy\n\nPace:\n- high energy\n\nTiming:\n- morning\n\nExperience:\n- ice show\n- character performance"
+    }
+  ]
+}

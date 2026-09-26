@@ -1,0 +1,10 @@
+[Unit]
+Description=Embed new or changed activities every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Unit=ml-embed-missing.service
+
+[Install]
+WantedBy=timers.target

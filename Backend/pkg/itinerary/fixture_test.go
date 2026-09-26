@@ -65,7 +65,7 @@ func TestFixtures(t *testing.T) {
 			if len(pool) == 0 {
 				t.Fatal("no itineraries")
 			}
-			if took > 250*time.Millisecond {
+			if !raceEnabled && took > 250*time.Millisecond {
 				t.Errorf("optimizer took %v", took)
 			}
 			for i, it := range pool {
