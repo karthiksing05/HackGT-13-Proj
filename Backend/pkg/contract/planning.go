@@ -41,8 +41,8 @@ type PlanOption struct {
 	Tag   string     `json:"tag"`
 	Meta  string     `json:"meta"`
 	Stops []PlanStop `json:"stops"`
-	// Additive planner extras.
-	LateFlag       bool `json:"late_flag,omitempty"`
+	// LateFlag marks an option that gets back after back_by; always present.
+	LateFlag       bool `json:"late_flag"`
 	TotalCostCents *int `json:"total_cost_cents,omitempty"`
 }
 
@@ -91,9 +91,9 @@ type RouteResult struct {
 	StopTimes   []StopWindow `json:"stop_times"`
 	Arrival     Time         `json:"arrival"`
 	MinutesLate int          `json:"minutes_late"`
-	// BrokenAt is the index of the first stop reached late, -1 for none;
-	// nil when the route was not evaluated (additive).
-	BrokenAt *int `json:"broken_at,omitempty"`
+	// BrokenAt is the index of the first stop reached late, -1 for none
+	// (always present; builders set -1 explicitly).
+	BrokenAt int `json:"broken_at"`
 }
 
 type AlternativesRequest struct {

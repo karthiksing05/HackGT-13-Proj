@@ -16,7 +16,9 @@ import (
 // the truth for every wire shape.
 const examplesDir = "../../../docs/api/examples"
 
-// examples maps each dump to a fresh pointer of the Go type it must round-trip through.
+// examples maps each dump to a fresh pointer of the Go type it must round-trip
+// through. A ".<variant>" suffix (PlanBatch.dag) selects the same type; aliases
+// map differently named dumps.
 var examples = map[string]func() any{
 	"AuthResponse":           func() any { return &AuthResponse{} },
 	"CalendarDays":           func() any { return &[]CalendarDay{} },
@@ -60,6 +62,22 @@ var examples = map[string]func() any{
 	"UserSearchResults":      func() any { return &[]UserSearchResult{} },
 }
 
+// aliases are dumps whose name is not the type name.
+var aliases = map[string]string{
+	"UserHomeBase": "User",
+}
+
+// typeName strips a ".<variant>" suffix and applies aliases.
+func typeName(name string) string {
+	if i := strings.IndexByte(name, '.'); i >= 0 {
+		name = name[:i]
+	}
+	if alias, ok := aliases[name]; ok {
+		return alias
+	}
+	return name
+}
+
 // skipped dumps are not one wire struct; each entry says why.
 var skipped = map[string]string{
 	"index":       "manifest of the examples, not a payload",
@@ -90,16 +108,16 @@ func TestExamplesRoundTrip(t *testing.T) {
 	seen := map[string]bool{}
 	for _, file := range files {
 		name := strings.TrimSuffix(filepath.Base(file), ".json")
-		seen[name] = true
 		if why, ok := skipped[name]; ok {
 			t.Logf("skip %s: %s", name, why)
 			continue
 		}
-		fresh, ok := examples[name]
+		fresh, ok := examples[typeName(name)]
 		if !ok {
 			t.Errorf("%s.json has no Go type in the examples map", name)
 			continue
 		}
+		seen[typeName(name)] = true
 		t.Run(name, func(t *testing.T) {
 			raw, err := os.ReadFile(file)
 			if err != nil {

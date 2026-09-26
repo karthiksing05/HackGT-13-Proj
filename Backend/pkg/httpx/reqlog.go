@@ -1,7 +1,10 @@
 package httpx
 
 import (
+	"bufio"
 	"context"
+	"errors"
+	"net"
 	"net/http"
 	"time"
 
@@ -45,8 +48,27 @@ func (s *statusWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
-// Unwrap lets http.ResponseController reach the underlying writer (hijack for websockets).
+// Unwrap lets http.ResponseController reach the underlying writer.
 func (s *statusWriter) Unwrap() http.ResponseWriter { return s.ResponseWriter }
+
+// Hijack hands the connection to a websocket upgrader.
+func (s *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	h, ok := s.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, errors.New("httpx: response writer cannot hijack")
+	}
+	if s.status == 0 {
+		s.status = http.StatusSwitchingProtocols
+	}
+	return h.Hijack()
+}
+
+// Flush forwards streaming writes.
+func (s *statusWriter) Flush() {
+	if f, ok := s.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
 
 // RequestLog assigns an X-Request-ID (honouring an incoming one) and logs one
 // line per request with method, path, status, duration and size.
