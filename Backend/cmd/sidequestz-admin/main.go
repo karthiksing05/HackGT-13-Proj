@@ -10,6 +10,8 @@ package main
 import (
 	"Backend/pkg/config"
 	"Backend/pkg/datastore"
+	"Backend/pkg/ml"
+	"Backend/pkg/profiles"
 	"Backend/pkg/store"
 	"bufio"
 	"context"
@@ -80,9 +82,9 @@ func run(args []string) int {
 	case "reset-app-data":
 		return resetAppData(ctx, st, cmdArgs)
 	case "seed-demo":
-		// Profiles (pkg/profiles over the ML client) is wired here once the ML
-		// rewrite lands; until then Sandy's vectors are reported as pending.
-		return runSeedDemo(ctx, st, cfg, nil)
+		// Sandy's taste vectors come from the ML service (pkg/profiles); when
+		// it is down the seed reports them as pending and still succeeds.
+		return runSeedDemo(ctx, st, cfg, profiles.New(st, ml.NewClient(cfg.MLServiceURL), time.Now))
 	}
 	fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", command, usage)
 	return 2
