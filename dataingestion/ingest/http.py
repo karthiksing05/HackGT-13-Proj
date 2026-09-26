@@ -21,6 +21,8 @@ MIN_INTERVAL = {
     "places.googleapis.com": 0.2,
     "nominatim.openstreetmap.org": 1.1,
     "maps.googleapis.com": 0.05,
+    "overpass-api.de": 1.0,
+    "api.opentopodata.org": 1.1,  # public API allows 1 req/s
 }
 DEFAULT_INTERVAL = 1.0
 

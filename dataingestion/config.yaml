@@ -25,6 +25,14 @@ blurb:
   max_words: 90
   skip_research_min_chars: null # spec §6.6 step 2 suggests 300; null = research every activity
 
+# OSM trails (§5.10). Radius is cities/<slug>.yaml hikes_radius_km.
+osm_trails:
+  min_length_km: 1.0
+  max_length_km: 25            # longer (e.g. rail trails) doesn't fit a free afternoon
+  sample_m: 30                 # elevation sample spacing
+  max_samples: 200             # per trail (2 OpenTopoData calls); long trails sample coarser
+  hours: ["06:00", "18:00"]    # assumed daily hours (local); OSM rarely has trail hours
+
 # Google Places (New) crawl settings (§5.2). Type groups are VERIFY against "Table A".
 google_places:
   cell_km: 3.0

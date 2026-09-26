@@ -70,8 +70,8 @@ class Price(BaseModel):
 
 class Trail(BaseModel):
     lengthKm: float
-    ascentM: float
-    descentM: float
+    ascentM: float | None = None  # None when elevation data wasn't available
+    descentM: float | None = None
     loop: bool
     geometry: dict
 
@@ -104,7 +104,7 @@ class Activity(BaseModel):
     attendance: Attendance | None = None
     timezone: str
     weeklyHours: list[HoursInterval] | None = None
-    hoursSource: Literal["google", "osm", "nps"] | None = None
+    hoursSource: Literal["google", "osm", "nps", "default"] | None = None  # default = assumed, not from a source
     recurrence: Recurrence | None = None
     duration: Duration | None = None
     price: Price | None = None

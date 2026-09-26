@@ -62,6 +62,8 @@ class City(BaseModel):
     center: LatLng
     bbox: BBox
     neighborhoods: list[str] = []
+    hikes_radius_km: float = 60
+    elevation_dataset: str | None = None  # OpenTopoData dataset; None = no elevation
     query_terms: dict[str, list[str]] = {}
     ticketmaster: dict = {}
     resident_advisor: dict = {}

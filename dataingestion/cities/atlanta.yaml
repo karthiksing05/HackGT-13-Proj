@@ -33,7 +33,7 @@ adapters:
   web_calendar: true
   resident_advisor: true
   eventbrite: true
-  osm_trails: false
+  osm_trails: true           # §5.10; Overpass + OpenTopoData, both free
   google_typical_time: false
   predicthq: false
   nps: false

@@ -15,6 +15,7 @@ CAPS: dict[str, tuple[str, int]] = {
     "google_geocode": ("month", 9000),
     "google_route_matrix": ("month", 9000),
     "serpapi": ("month", 200),
+    "opentopodata": ("day", 1000),  # public API limit
     "gemini_grounded": ("day", load_global().get("blurb", {}).get("grounded_daily_cap", 200)),
     "muse_research": ("day", load_global().get("blurb", {}).get("muse", {}).get("daily_cap", 300)),
 }

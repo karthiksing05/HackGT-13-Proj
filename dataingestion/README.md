@@ -21,7 +21,9 @@ Keys live in the repo-root `.env` (see `.env.example`). Mongo defaults to
 .venv/bin/python -m ingest run ticketmaster --dry-run       # normalize to out/ without writing
 .venv/bin/python -m ingest run google_places --dry-run      # estimate paid calls vs quota, no requests
 .venv/bin/python -m ingest run google_places                # needs GOOGLE_MAPS_API_KEY with billing on
+.venv/bin/python -m ingest run osm_trails --dry-run         # OSM hikes to out/ (elevation from cache only)
 .venv/bin/python -m ingest run-all                          # every adapter enabled in cities/<slug>.yaml
+.venv/bin/python -m ingest pipeline                         # fetch all sources -> backfill -> blurbs/embedding text -> coverage
 .venv/bin/python -m ingest stats | quota
 .venv/bin/python -m ingest blurb --kind event             # web research + paragraph for every event (Gemini)
 .venv/bin/python -m ingest blurb --limit 3 --dry-run       # try a few; blurbs go to out/, not the DB
@@ -31,7 +33,7 @@ Keys live in the repo-root `.env` (see `.env.example`). Mongo defaults to
 ```
 
 Responses are cached under `cache/<adapter>/` (Ticketmaster 1h, Resident Advisor 1h, Google 7 days,
-geocoding 90 days), so reruns while developing don't spend quota. Geocoding (Google Geocoding API,
+Overpass 7 days, geocoding and elevation 90 days), so reruns while developing don't spend quota. Geocoding (Google Geocoding API,
 counted against the `google_geocode` quota) only calls the network when Mongo is reachable.
 
 ## Web research, blurbs and embedding text
@@ -56,3 +58,15 @@ Research and writing are separate steps:
 The Muse key needs billing on the Meta developer account: without it every call returns
 `402 billing_not_configured`, research turns off for the run, and Gemini writes from our own
 fields only. Those outputs regenerate automatically once research exists.
+
+## Trails (OpenStreetMap)
+
+`osm_trails` (`ingest/adapters/osm_trails.py`) makes hikes from one Overpass query within
+`hikes_radius_km` of the city centre: named hiking routes, plus named paths/tracks/footways/cycleways
+joined into whole trails (pieces split by road crossings are joined; junk names like "unmarked trail"
+or "Bronner Road" are dropped). Each trail is a `place` with `category: hike`, a `trail` subdocument
+(length, climb, loop, GeoJSON line), `venueName` = the park it's in, and assumed daily hours
+(`osm_trails.hours`, default 06:00-18:00, `hoursSource: default`). Duration is Tobler's hiking
+function over an OpenTopoData elevation profile (`ingest/enrich/trails.py`, quota `opentopodata`,
+1000/day); if elevation is unavailable the trail is timed as flat ground. Settings are in
+`config.yaml` -> `osm_trails`. OSM data needs "© OpenStreetMap contributors" shown in the app.

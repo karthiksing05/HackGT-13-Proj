@@ -180,7 +180,7 @@ def embed_text(
     })
 
 
-PIPELINE_SOURCES = ["ticketmaster", "google_places", "resident_advisor"]
+PIPELINE_SOURCES = ["ticketmaster", "google_places", "resident_advisor", "osm_trails"]
 
 
 @app.command()
