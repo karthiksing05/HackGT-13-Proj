@@ -10,8 +10,11 @@ import (
 )
 
 // ItemStates is item_states: one viewer's own state on one item (private
-// notes and their scope, the "Getting there" choice, a booked ticket),
-// _id = PairID(userId, itemId). Rendering folds it into ItineraryItem.
+// notes and their scope, the "Getting there" choice, a booked ticket).
+// Documents are unique on {userId, itemId} with _id = PairID(userId,
+// itemId) when created here or by the checkout agent; reads and writes
+// match on {userId, itemId}, so documents written elsewhere with the
+// shared schema are found too. Rendering folds it into ItineraryItem.
 type ItemStates struct{ s *Store }
 
 func (s *Store) ItemStates() ItemStates { return ItemStates{s} }
@@ -24,11 +27,7 @@ func (st ItemStates) ForUser(ctx context.Context, userID string, itemIDs []strin
 	if len(itemIDs) == 0 {
 		return out, nil
 	}
-	ids := make([]string, 0, len(itemIDs))
-	for _, itemID := range itemIDs {
-		ids = append(ids, models.PairID(userID, itemID))
-	}
-	cursor, err := st.coll().Find(ctx, bson.M{"_id": bson.M{"$in": ids}})
+	cursor, err := st.coll().Find(ctx, bson.M{"userId": userID, "itemId": bson.M{"$in": itemIDs}})
 	if err != nil {
 		return nil, err
 	}
@@ -42,10 +41,29 @@ func (st ItemStates) ForUser(ctx context.Context, userID string, itemIDs []strin
 	return out, nil
 }
 
+// Tickets is the booked tickets of any of userIDs on any of itemIDs, most
+// recently updated first (a group sees what one of them booked).
+func (st ItemStates) Tickets(ctx context.Context, itemIDs, userIDs []string) ([]*models.ItemState, error) {
+	docs := []*models.ItemState{}
+	if len(itemIDs) == 0 || len(userIDs) == 0 {
+		return docs, nil
+	}
+	cursor, err := st.coll().Find(ctx,
+		bson.M{"itemId": bson.M{"$in": itemIDs}, "userId": bson.M{"$in": userIDs}, "ticket": bson.M{"$ne": nil}},
+		options.Find().SetSort(bson.D{{Key: "updatedAt", Value: -1}, {Key: "_id", Value: 1}}))
+	if err != nil {
+		return nil, err
+	}
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
 // Get loads one state; ErrNotFound when the user never touched the item.
 func (st ItemStates) Get(ctx context.Context, userID, itemID string) (*models.ItemState, error) {
 	var doc models.ItemState
-	if err := decodeOne(st.coll().FindOne(ctx, bson.M{"_id": models.PairID(userID, itemID)}), &doc); err != nil {
+	if err := decodeOne(st.coll().FindOne(ctx, bson.M{"userId": userID, "itemId": itemID}), &doc); err != nil {
 		return nil, err
 	}
 	return &doc, nil
@@ -78,11 +96,11 @@ func (st ItemStates) upsert(ctx context.Context, userID, itemID, itineraryID str
 	}
 	update := bson.M{
 		"$set":         fields,
-		"$setOnInsert": bson.M{"userId": userID, "itemId": itemID},
+		"$setOnInsert": bson.M{"_id": models.PairID(userID, itemID)},
 	}
 	if len(unset) > 0 {
 		update["$unset"] = unset
 	}
-	_, err := st.coll().UpdateOne(ctx, bson.M{"_id": models.PairID(userID, itemID)}, update, options.UpdateOne().SetUpsert(true))
+	_, err := st.coll().UpdateOne(ctx, bson.M{"userId": userID, "itemId": itemID}, update, options.UpdateOne().SetUpsert(true))
 	return err
 }

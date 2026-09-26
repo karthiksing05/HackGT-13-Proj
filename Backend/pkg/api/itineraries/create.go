@@ -171,7 +171,8 @@ func (h *H) materialize(ctx context.Context, hostID string, req contract.CreateI
 }
 
 // resolveStops asks the planner (when wired) what it knows about each
-// stop. A stop it cannot resolve keeps the option's own data.
+// stop. A stop it cannot resolve (an error, e.g. wrapping ErrNotFound) keeps
+// the option's own data; the save never fails because of it.
 func (h *H) resolveStops(ctx context.Context, stops []contract.PlanStop) []*api.StopDetail {
 	out := make([]*api.StopDetail, len(stops))
 	if h.d.Planner == nil {
@@ -188,8 +189,10 @@ func (h *H) resolveStops(ctx context.Context, stops []contract.PlanStop) []*api.
 	return out
 }
 
-// stopItem is one saved stop: the option's title, place and subtitle at its
-// route time, plus the planner's details when there are any.
+// stopItem is one saved stop: the option's title, place, subtitle and visit
+// length at its route time, plus what the planner knows about the activity
+// (id, price, website, bookable) when there is anything. Stop ids are not
+// unique per user, so the planner never decides the stop's time.
 func stopItem(s contract.PlanStop, window contract.StopWindow, detail *api.StopDetail) models.ItineraryItem {
 	place := placeIn(s.Place)
 	item := models.ItineraryItem{
@@ -215,9 +218,6 @@ func stopItem(s contract.PlanStop, window contract.StopWindow, detail *api.StopD
 			item.WebsiteURL = detail.WebsiteURL
 		}
 		item.Bookable = detail.Bookable
-		if detail.DurationMin > 0 {
-			item.DurationMin = detail.DurationMin
-		}
 	}
 	return item
 }

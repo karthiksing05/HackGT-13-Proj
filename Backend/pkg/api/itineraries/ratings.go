@@ -12,13 +12,18 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 )
 
-// MsgStars is the 400 for a rating outside 1–5.
-const MsgStars = "Pick 1 to 5 stars."
+// Rating limits and their sentences.
+const (
+	MsgStars     = "Pick 1 to 5 stars."
+	MsgRatingTag = "Pick up to 12 tags."
+	maxTags      = 12
+)
 
 // ratedTimeout bounds the background taste-vector update after a rating.
 const ratedTimeout = 10 * time.Second
@@ -51,6 +56,14 @@ func (h *H) Rate(w http.ResponseWriter, r *http.Request) {
 	}
 	item := it.Items[i]
 	tags := cleanTags(req.Tags)
+	if len(tags) > maxTags {
+		httpx.Error(w, http.StatusBadRequest, MsgRatingTag)
+		return
+	}
+	if req.Note != nil && utf8.RuneCountInString(*req.Note) > maxNoteRunes {
+		httpx.Error(w, http.StatusBadRequest, MsgNoteTooLong)
+		return
+	}
 	var note *string
 	if req.Note != nil && strings.TrimSpace(*req.Note) != "" {
 		text := strings.TrimSpace(*req.Note)

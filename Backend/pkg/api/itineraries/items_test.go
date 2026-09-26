@@ -1,12 +1,16 @@
 package itineraries_test
 
 import (
+	"Backend/pkg/api/itineraries"
 	"Backend/pkg/contract"
+	"Backend/pkg/models"
 	"Backend/pkg/realtime"
 	"Backend/pkg/testutil"
 	"Backend/pkg/travel"
+	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -92,6 +96,11 @@ func TestNotesPrivateAndShared(t *testing.T) {
 	}
 
 	srv.Do(t, "PATCH", nested, map[string]any{"notes": "x", "notes_scope": "everyone"}, a).Expect(t, http.StatusBadRequest)
+	long := strings.Repeat("é", 2001)
+	if res := srv.Do(t, "PATCH", nested, map[string]any{"notes": long, "notes_scope": "shared"}, a).Expect(t, http.StatusBadRequest); res.Message() != itineraries.MsgNoteTooLong {
+		t.Fatalf("a long note: %s", res.Body)
+	}
+	srv.Do(t, "PATCH", nested, map[string]any{"notes": long[:2000*len("é")]}, a).Expect(t, http.StatusNoContent)
 	srv.Do(t, "PATCH", nested, map[string]any{"notes": "x"}, d).Expect(t, http.StatusNotFound)
 	srv.Do(t, "PATCH", "/events/"+stop.ID, map[string]any{"notes": "x"}, d).Expect(t, http.StatusNotFound)
 	srv.Do(t, "PATCH", "/itineraries/"+it.ID+"/items/nope", map[string]any{"notes": "x"}, a).Expect(t, http.StatusNotFound)
@@ -165,4 +174,75 @@ func TestEventDetail(t *testing.T) {
 	srv.Do(t, "GET", "/events/"+want.ID, nil, b).Expect(t, http.StatusNotFound)
 	srv.Do(t, "GET", "/events/nope", nil, a).Expect(t, http.StatusNotFound)
 	srv.Do(t, "GET", "/events/"+want.ID, nil, nil).Expect(t, http.StatusUnauthorized)
+}
+
+// TestTicketsAreSharedWithTheGroup: a ticket one member booked shows for
+// everyone on the plan ("The group sees it too"); your own ticket wins;
+// a member who leaves takes theirs along.
+func TestTicketsAreSharedWithTheGroup(t *testing.T) {
+	srv := testutil.New(t, testutil.WithNow(exampleClock))
+	a := srv.Signup(t, "Alice Ticket")
+	b := srv.Signup(t, "Bob Ticket")
+	c := srv.Signup(t, "Cara Ticket")
+	d := srv.Signup(t, "Dan Ticket")
+	it := create(t, srv, a, exampleRequest(t))
+	addMember(t, srv, it.ID, b)
+	addMember(t, srv, it.ID, c)
+	rooftop := stops(it)[0]
+	book := func(sess *testutil.Session, id string, quantity int) {
+		t.Helper()
+		total, confirmation, url := 1800*quantity, "SQ-"+id, "http://api.test/tickets/"+id
+		ticket := models.ItemTicket{ID: id, Quantity: quantity, TotalCents: &total, Confirmation: &confirmation, URL: &url}
+		if err := srv.Store.CheckoutReads().SaveTicket(context.Background(), sess.UserID, it.ID, rooftop.ID, ticket); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ticketFor := func(sess *testutil.Session) (string, string) {
+		t.Helper()
+		onPlan, onEvent := stops(getItinerary(t, srv, sess, it.ID))[0].Ticket, event(t, srv, sess, rooftop.ID).Ticket
+		id := func(tk *contract.Ticket) string {
+			if tk == nil {
+				return ""
+			}
+			return tk.ID
+		}
+		return id(onPlan), id(onEvent)
+	}
+
+	book(a, "TA", 2)
+	for _, sess := range []*testutil.Session{a, b, c} {
+		if plan, ev := ticketFor(sess); plan != "TA" || ev != "TA" {
+			t.Fatalf("%s sees %q / %q, want A's ticket", sess.User.Name, plan, ev)
+		}
+	}
+	full := event(t, srv, b, rooftop.ID).Ticket
+	if full.Quantity != 2 || full.TotalCents == nil || *full.TotalCents != 3600 || full.Confirmation == nil || *full.Confirmation != "SQ-TA" ||
+		full.URL == nil || *full.URL != "http://api.test/tickets/TA" {
+		t.Fatalf("the shared ticket is the whole ticket: %+v", full)
+	}
+	if other := stops(getItinerary(t, srv, b, it.ID))[1]; other.Ticket != nil {
+		t.Fatalf("an item nobody booked has no ticket: %+v", other.Ticket)
+	}
+	srv.Do(t, "GET", "/itineraries/"+it.ID, nil, d).Expect(t, http.StatusNotFound)
+	srv.Do(t, "GET", "/events/"+rooftop.ID, nil, d).Expect(t, http.StatusNotFound)
+	// Notes and travel choices land on the same state the checkout agent wrote.
+	srv.Do(t, "PATCH", "/events/"+rooftop.ID, map[string]any{"notes": "Tickets are in my wallet"}, a).Expect(t, http.StatusNoContent)
+	srv.Do(t, "PUT", "/events/"+rooftop.ID+"/transit", map[string]string{"mode": "walk"}, a).Expect(t, http.StatusNoContent)
+	if mine := event(t, srv, a, rooftop.ID); mine.Ticket == nil || mine.Ticket.ID != "TA" || mine.Notes == nil || mine.TransitMode == nil {
+		t.Fatalf("A's state after notes and transit: %+v", mine)
+	}
+
+	// B books too, later: B and C see B's; A keeps their own.
+	srv.Clock.Advance(time.Minute)
+	book(b, "TB", 1)
+	for sess, want := range map[*testutil.Session]string{a: "TA", b: "TB", c: "TB"} {
+		if plan, ev := ticketFor(sess); plan != want || ev != want {
+			t.Errorf("%s sees %q / %q, want %s", sess.User.Name, plan, ev, want)
+		}
+	}
+	// Once B leaves, their ticket is no longer the group's.
+	srv.Do(t, "POST", "/itineraries/"+it.ID+"/leave", nil, b).Expect(t, http.StatusNoContent)
+	if plan, ev := ticketFor(c); plan != "TA" || ev != "TA" {
+		t.Errorf("after B left, C sees %q / %q, want A's", plan, ev)
+	}
 }

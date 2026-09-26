@@ -23,13 +23,15 @@ const peopleShown = 3
 const kindBusy = string(contract.KindBusy)
 
 // viewer is what rendering needs for one viewer: the members shown on group
-// items and, for full renders, the viewer's own item states and ratings.
+// items and, for full renders, the viewer's own item states and ratings and
+// the tickets other members booked.
 type viewer struct {
 	id      string
 	base    string
 	users   map[string]*models.User
 	states  map[string]*models.ItemState
 	ratings map[string]*models.Rating
+	tickets map[string]*models.ItemTicket // item id → a ticket another member booked
 }
 
 // newViewer loads what rendering its for viewerID needs. full adds the
@@ -65,12 +67,54 @@ func newViewer(ctx context.Context, d *api.Deps, viewerID string, its []*models.
 	if v.ratings, err = d.Store.Ratings().ForUser(ctx, viewerID, itemIDs); err != nil {
 		return nil, err
 	}
+	if v.tickets, err = groupTickets(ctx, d, viewerID, its, v.states); err != nil {
+		return nil, err
+	}
 	return v, nil
 }
 
+// groupTickets are the tickets the rest of a group booked: on a plan with
+// more than one member, an item the viewer has no ticket for shows the one
+// a current member booked (the most recently updated when several did).
+// The booking screen tells people exactly that: "Your ticket is saved to
+// this sidequest. The group sees it too."
+func groupTickets(ctx context.Context, d *api.Deps, viewerID string, its []*models.Itinerary, own map[string]*models.ItemState) (map[string]*models.ItemTicket, error) {
+	out := map[string]*models.ItemTicket{}
+	planOf := map[string]*models.Itinerary{}
+	var itemIDs, members []string
+	seen := map[string]bool{}
+	for _, it := range its {
+		if len(it.MemberIDs) < 2 {
+			continue
+		}
+		for _, item := range it.Items {
+			if st := own[item.ID]; st == nil || st.Ticket == nil {
+				itemIDs = append(itemIDs, item.ID)
+				planOf[item.ID] = it
+			}
+		}
+		for _, id := range it.MemberIDs {
+			if id != viewerID && !seen[id] {
+				seen[id] = true
+				members = append(members, id)
+			}
+		}
+	}
+	states, err := d.Store.ItemStates().Tickets(ctx, itemIDs, members)
+	if err != nil {
+		return nil, err
+	}
+	for _, st := range states {
+		if it := planOf[st.ItemID]; it != nil && out[st.ItemID] == nil && st.UserID != viewerID && it.IsMember(st.UserID) {
+			out[st.ItemID] = st.Ticket
+		}
+	}
+	return out, nil
+}
+
 // View renders one itinerary for one viewer: is_host, going_count, the
-// members on group items and the viewer's own notes, travel choice, ticket
-// and rating on each item. pkg/api/social can use it for the
+// members on group items and the viewer's own notes, travel choice and
+// rating on each item, with their ticket (or the group's, see groupTickets). pkg/api/social can use it for the
 // itinerary.updated a join sends (or call PublishUpdated).
 func View(ctx context.Context, d *api.Deps, it *models.Itinerary, viewerID string) (contract.Itinerary, error) {
 	v, err := newViewer(ctx, d, viewerID, []*models.Itinerary{it}, true)
@@ -194,14 +238,18 @@ func (v *viewer) item(it *models.Itinerary, item *models.ItineraryItem) contract
 	}
 	state := v.states[item.ID]
 	out.Notes, out.NotesScope = notesFor(item, state)
+	ticket := v.tickets[item.ID]
 	if state != nil {
 		if state.TransitMode != "" {
 			mode := contract.TravelMode(state.TransitMode)
 			out.TransitMode = &mode
 		}
-		if t := state.Ticket; t != nil {
-			out.Ticket = &contract.Ticket{ID: t.ID, Quantity: t.Quantity, TotalCents: t.TotalCents, Confirmation: t.Confirmation, URL: t.URL}
+		if state.Ticket != nil {
+			ticket = state.Ticket
 		}
+	}
+	if ticket != nil {
+		out.Ticket = &contract.Ticket{ID: ticket.ID, Quantity: ticket.Quantity, TotalCents: ticket.TotalCents, Confirmation: ticket.Confirmation, URL: ticket.URL}
 	}
 	out.Rating = ratingOut(v.ratings[item.ID])
 	return out

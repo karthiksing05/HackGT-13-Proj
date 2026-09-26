@@ -11,8 +11,10 @@ import (
 )
 
 // Ratings is the ratings collection: one user's stars, tags and note for
-// one stop (_id = PairID(userId, itemId)). activityId is copied from the
-// item so taste-vector refreshes can find the catalog activity.
+// one stop, unique on {userId, itemId} (_id = PairID(userId, itemId) when
+// created here; reads and writes match on the pair, like item_states).
+// activityId is copied from the item so taste-vector refreshes can find
+// the catalog activity.
 type Ratings struct{ s *Store }
 
 func (s *Store) Ratings() Ratings { return Ratings{s} }
@@ -40,13 +42,13 @@ func (r Ratings) Upsert(ctx context.Context, rating models.Rating) (*models.Rati
 	}
 	update := bson.M{
 		"$set":         set,
-		"$setOnInsert": bson.M{"userId": rating.UserID, "itemId": rating.ItemID, "createdAt": now},
+		"$setOnInsert": bson.M{"_id": models.PairID(rating.UserID, rating.ItemID), "createdAt": now},
 	}
 	if len(unset) > 0 {
 		update["$unset"] = unset
 	}
 	var prev models.Rating
-	err := r.coll().FindOneAndUpdate(ctx, bson.M{"_id": models.PairID(rating.UserID, rating.ItemID)}, update,
+	err := r.coll().FindOneAndUpdate(ctx, bson.M{"userId": rating.UserID, "itemId": rating.ItemID}, update,
 		options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.Before)).Decode(&prev)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
@@ -63,11 +65,7 @@ func (r Ratings) ForUser(ctx context.Context, userID string, itemIDs []string) (
 	if len(itemIDs) == 0 {
 		return out, nil
 	}
-	ids := make([]string, 0, len(itemIDs))
-	for _, itemID := range itemIDs {
-		ids = append(ids, models.PairID(userID, itemID))
-	}
-	docs, err := r.find(ctx, bson.M{"_id": bson.M{"$in": ids}})
+	docs, err := r.find(ctx, bson.M{"userId": userID, "itemId": bson.M{"$in": itemIDs}})
 	if err != nil {
 		return nil, err
 	}

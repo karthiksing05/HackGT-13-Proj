@@ -200,10 +200,12 @@ type PastStopsQuery struct {
 	Limit   int
 }
 
-// PastStops is the member's stops that ended before q.Now across their
-// live itineraries, most recent start first (ties by item id, descending).
+// PastStops is the member's stops (items that are neither transit legs nor
+// busy blocks) that ended before q.Now across their live itineraries, most
+// recent start first (ties by item id, descending).
 func (it Itineraries) PastStops(ctx context.Context, q PastStopsQuery) ([]PastStop, error) {
-	stop := bson.M{"items.kind": models.ItemStop, "items.end": bson.M{"$lt": q.Now}}
+	notStop := bson.M{"$nin": []string{models.ItemTransit, "busy"}}
+	stop := bson.M{"items.kind": notStop, "items.end": bson.M{"$lt": q.Now}}
 	if len(q.Exclude) > 0 {
 		stop["items.id"] = bson.M{"$nin": q.Exclude}
 	}
@@ -216,7 +218,7 @@ func (it Itineraries) PastStops(ctx context.Context, q PastStopsQuery) ([]PastSt
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: it.live(bson.M{
 			"memberIds": q.UserID,
-			"items":     bson.M{"$elemMatch": bson.M{"kind": models.ItemStop, "end": bson.M{"$lt": q.Now}}},
+			"items":     bson.M{"$elemMatch": bson.M{"kind": notStop, "end": bson.M{"$lt": q.Now}}},
 		})}},
 		{{Key: "$unwind", Value: "$items"}},
 		{{Key: "$match", Value: stop}},
@@ -359,7 +361,8 @@ func (it Itineraries) Leave(ctx context.Context, id, userID string) (*models.Iti
 }
 
 // DeleteHost deletes a plan hostID hosts. The group thread with its
-// messages, expenses and photos, and the plan's join records, go first;
+// messages, expenses and photos, the plan's join records and "plan
+// together" marks go first;
 // then the itinerary is marked deleted, so a retry after a partial failure
 // finishes the job. It returns the itinerary as it was.
 func (it Itineraries) DeleteHost(ctx context.Context, id, hostID string) (*models.Itinerary, error) {
@@ -387,6 +390,11 @@ func (it Itineraries) DeleteHost(ctx context.Context, id, hostID string) (*model
 		}
 	}
 	if _, err := it.s.db.Collection(CollJoinRequests).DeleteMany(ctx, bson.M{"itineraryId": id}); err != nil {
+		return nil, err
+	}
+	// "Plan together" marks on the plan's forum post (post id = itinerary id);
+	// the DMs they started stay.
+	if _, err := it.s.db.Collection(CollPlanTogether).DeleteMany(ctx, bson.M{"postId": id}); err != nil {
 		return nil, err
 	}
 	res, err := it.coll().UpdateOne(ctx, it.live(bson.M{"_id": id, "hostId": hostID}),

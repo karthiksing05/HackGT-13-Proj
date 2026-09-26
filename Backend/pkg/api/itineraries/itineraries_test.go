@@ -117,14 +117,15 @@ func TestCreateFromContractExample(t *testing.T) {
 func TestCreateEnrichesStopsThroughThePlanner(t *testing.T) {
 	price, site := 1800, "https://skyline.example"
 	planner := fakePlanner{details: map[string]*api.StopDetail{
-		"opt-a-0": {ActivityID: "64b000000000000000000001", PriceCents: &price, WebsiteURL: &site, Bookable: true, DurationMin: 80},
+		"opt-a-0": {ActivityID: "64b000000000000000000001", PriceCents: &price, WebsiteURL: &site, Bookable: true, DurationMin: 999},
 	}}
 	srv := testutil.New(t, testutil.WithNow(exampleClock), testutil.WithPlanner(planner))
 	a := srv.Signup(t, "Alice Planner")
 	req := exampleRequest(t)
 	own := "64b000000000000000000003"
 	req.Option.Stops[2].ActivityID = &own
-	s := stops(create(t, srv, a, req))
+	it := create(t, srv, a, req)
+	s := stops(it)
 	if s[0].ActivityID == nil || *s[0].ActivityID != "64b000000000000000000001" || s[0].PriceCents == nil || *s[0].PriceCents != 1800 ||
 		s[0].WebsiteURL == nil || *s[0].WebsiteURL != site || !s[0].Bookable {
 		t.Fatalf("resolved stop not enriched: %+v", s[0])
@@ -134,6 +135,14 @@ func TestCreateEnrichesStopsThroughThePlanner(t *testing.T) {
 	}
 	if s[2].ActivityID == nil || *s[2].ActivityID != own {
 		t.Fatalf("the option's own activity_id is kept: %+v", s[2])
+	}
+	// Times and visit lengths come from the request, never from the planner.
+	if !s[0].Start.Equal(utc("18:24", 25)) || !s[0].End.Equal(utc("19:44", 25)) {
+		t.Fatalf("resolved stop time: %s–%s", s[0].Start, s[0].End)
+	}
+	doc, err := srv.Store.Itineraries().Get(context.Background(), it.ID)
+	if err != nil || doc.Items[1].DurationMin != 80 || doc.Items[1].ActivityID != "64b000000000000000000001" {
+		t.Fatalf("stored stop: %v %+v", err, doc.Items[1])
 	}
 }
 
@@ -362,6 +371,8 @@ func seedGroup(t *testing.T, srv *testutil.Server, itineraryID string, members .
 			Status: models.JoinAccepted, CreatedAt: now, UpdatedAt: now})
 	}
 	insert(store.CollJoinRequests, joins...)
+	insert(store.CollPlanTogether, models.PlanTogether{ID: models.PairID(itineraryID, ids[1]), PostID: itineraryID, UserID: ids[1],
+		ThreadID: otherThread, CreatedAt: now})
 	for _, group := range []string{threadID, otherThread} {
 		if err := srv.Store.Photos().Put(ctx, &models.Photo{OwnerID: ids[0], Kind: models.PhotoKindGroup, GroupID: group,
 			ContentType: "image/jpeg", Bytes: []byte{0xff, 0xd8, 0xff}}); err != nil {
@@ -415,7 +426,7 @@ func TestDeleteRemovesThePlanAndItsGroup(t *testing.T) {
 	}
 	if count(t, srv, store.CollThreads, bson.M{"_id": thread}) != 0 || count(t, srv, store.CollMessages, bson.M{"threadId": thread}) != 0 ||
 		count(t, srv, store.CollExpenses, bson.M{"groupId": thread}) != 0 || count(t, srv, store.CollPhotos, bson.M{"groupId": thread}) != 0 ||
-		count(t, srv, store.CollJoinRequests, bson.M{"itineraryId": it.ID}) != 0 {
+		count(t, srv, store.CollJoinRequests, bson.M{"itineraryId": it.ID}) != 0 || count(t, srv, store.CollPlanTogether, bson.M{"postId": it.ID}) != 0 {
 		t.Error("the group thread and its content must go with the plan")
 	}
 	if count(t, srv, store.CollThreads, bson.M{"_id": other}) != 1 || count(t, srv, store.CollMessages, bson.M{"threadId": other}) != 1 ||

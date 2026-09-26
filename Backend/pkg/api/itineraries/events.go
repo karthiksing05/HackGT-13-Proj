@@ -9,8 +9,15 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gorilla/mux"
+)
+
+// Notes are short: shared ones live inside the itinerary document.
+const (
+	maxNoteRunes   = 2000
+	MsgNoteTooLong = "Keep notes under 2,000 characters."
 )
 
 // routeItem resolves the item of /itineraries/{id}/items/{itemId} or
@@ -64,6 +71,10 @@ func (h *H) PatchNotes(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.NotesScope != nil && !req.NotesScope.Valid() {
 		httpx.Error(w, http.StatusBadRequest, httpx.GenericBadRequest)
+		return
+	}
+	if utf8.RuneCountInString(req.Notes) > maxNoteRunes {
+		httpx.Error(w, http.StatusBadRequest, MsgNoteTooLong)
 		return
 	}
 	ctx, uid := r.Context(), api.UserID(r)

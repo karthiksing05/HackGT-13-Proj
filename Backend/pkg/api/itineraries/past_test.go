@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -285,6 +286,17 @@ func TestRatingsMoveTasteAndProfiles(t *testing.T) {
 		if res.Message() != itineraries.MsgStars {
 			t.Errorf("%d stars: %q", stars, res.Message())
 		}
+	}
+	tooMany := make([]string, 13)
+	for i := range tooMany {
+		tooMany[i] = fmt.Sprintf("tag %d", i)
+	}
+	if res := srv.Do(t, "PUT", "/ratings/"+sunrise, contract.Rating{Stars: 4, Tags: tooMany}, a).Expect(t, http.StatusBadRequest); res.Message() != itineraries.MsgRatingTag {
+		t.Errorf("13 tags: %q", res.Message())
+	}
+	longNote := strings.Repeat("a", 2001)
+	if res := srv.Do(t, "PUT", "/ratings/"+sunrise, contract.Rating{Stars: 4, Tags: []string{}, Note: &longNote}, a).Expect(t, http.StatusBadRequest); res.Message() != itineraries.MsgNoteTooLong {
+		t.Errorf("a long note: %q", res.Message())
 	}
 	srv.Do(t, "PUT", "/ratings/"+sunrise, contract.Rating{Stars: 4, Tags: []string{}}, b).Expect(t, http.StatusNotFound)
 	srv.Do(t, "PUT", "/ratings/nope", contract.Rating{Stars: 4, Tags: []string{}}, a).Expect(t, http.StatusNotFound)
