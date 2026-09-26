@@ -8,10 +8,13 @@ import (
 	"fmt"
 	"image/color"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 // techSquare is where the Atlanta accounts plan from (they have no home base).
@@ -193,6 +196,22 @@ func TestFriendsAndInvites(t *testing.T) {
 		t.Error("not friends after accepting the invite")
 	}
 	fails(t, bob, "POST", "/invites/no-such-code/accept", nil, http.StatusBadRequest)
+
+	// A new status reaches friends as friend.status.
+	busy, open := contract.StatusBusy, contract.StatusOpen
+	send[contract.User](t, bob, "PATCH", "/me", contract.UserPatch{Status: &busy}, http.StatusOK)
+	expectEvent(t, aws, "friend.status", 10*time.Second, &status, func(v struct {
+		UserID     string `json:"user_id"`
+		StatusLine string `json:"status_line"`
+	}) bool {
+		return v.UserID == bob.UserID && strings.Contains(strings.ToLower(v.StatusLine), "busy")
+	})
+	for _, f := range get[[]contract.Friend](t, alice, "/friends") {
+		if f.Person.ID == bob.UserID && f.Activity != contract.ActivityBusy {
+			t.Errorf("Bob is busy but his row says %s (%q)", f.Activity, f.StatusLine)
+		}
+	}
+	send[contract.User](t, bob, "PATCH", "/me", contract.UserPatch{Status: &open}, http.StatusOK)
 }
 
 // TestDirectMessages sends messages between the two accounts and checks
@@ -528,10 +547,42 @@ func TestSharedPlan(t *testing.T) {
 	}
 }
 
-// TestRealtimeAuth checks the websocket handshake rules.
+// TestRealtimeAuth checks the websocket handshake rules and the socket cap.
 func TestRealtimeAuth(t *testing.T) {
+	c := config(t)
 	alice, _ := people(t)
 	dial(t, alice) // the bearer header works (hello asserted in dial)
+
+	// ?token= is the fallback for clients that cannot set headers.
+	conn, _, err := websocket.DefaultDialer.Dial(c.WSURL+"?token="+url.QueryEscape(alice.Access), nil)
+	if err != nil {
+		t.Fatalf("dial with ?token=: %v", err)
+	}
+	conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	var hello wsEvent
+	if err := conn.ReadJSON(&hello); err != nil || hello.Type != "connected" {
+		t.Errorf("hello over ?token=: %+v %v", hello, err)
+	}
+	conn.Close()
+
+	// Five sockets per account: a sixth closes the oldest.
+	var socks []*WS
+	for i := 0; i < 6; i++ {
+		socks = append(socks, dial(t, alice))
+		time.Sleep(50 * time.Millisecond) // keep the order of arrival
+	}
+	select {
+	case <-socks[0].done:
+	case <-time.After(10 * time.Second):
+		t.Error("the oldest of six sockets stayed open")
+	}
+	for i, w := range socks[1:] {
+		select {
+		case <-w.done:
+			t.Errorf("socket %d closed too", i+1)
+		default:
+		}
+	}
 	res := doWith(t, nil, "GET", "/ws", nil, map[string]string{"Authorization": "Bearer garbage"})
 	if res.Status != http.StatusUnauthorized {
 		t.Errorf("a bad token on /ws: %s", res)
