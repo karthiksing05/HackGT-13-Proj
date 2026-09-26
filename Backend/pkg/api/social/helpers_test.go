@@ -6,6 +6,7 @@ import (
 	"Backend/pkg/store"
 	"Backend/pkg/testutil"
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -141,6 +142,20 @@ func eventsFor[T any](t *testing.T, srv *testutil.Server, userID, typ string) []
 		}
 	}
 	return out
+}
+
+// canonical re-encodes JSON with sorted keys so two documents compare by value.
+func canonical(t *testing.T, raw []byte) string {
+	t.Helper()
+	var v any
+	if err := json.Unmarshal(raw, &v); err != nil {
+		t.Fatalf("canonical %s: %v", raw, err)
+	}
+	out, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
 }
 
 // broadcasts counts recorded broadcasts of a type.

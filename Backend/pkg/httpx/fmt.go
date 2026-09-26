@@ -41,15 +41,22 @@ func MonthDay(t time.Time) string { return t.Format("Jan 2") }
 // Weekday is "Thu".
 func Weekday(t time.Time) string { return t.Format("Mon") }
 
+// DayDiff is the number of calendar days from now's date to t's, both read
+// in now's zone (tomorrow is 1, yesterday -1). It counts dates, not 24-hour
+// spans, so a DST night of 23 or 25 hours is still one day.
+func DayDiff(t, now time.Time) int {
+	y1, m1, d1 := now.Date()
+	y2, m2, d2 := t.In(now.Location()).Date()
+	from := time.Date(y1, m1, d1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(y2, m2, d2, 0, 0, 0, 0, time.UTC)
+	return int(to.Sub(from).Hours() / 24)
+}
+
 // DayLabel is "Today", "Tomorrow", a weekday within the week, else "Oct 3"
-// (forum "when", group subtitles). now and t are in the same zone.
+// (forum "when", group subtitles), by calendar days in now's zone.
 func DayLabel(t, now time.Time) string {
-	day := func(x time.Time) time.Time {
-		return time.Date(x.Year(), x.Month(), x.Day(), 0, 0, 0, 0, x.Location())
-	}
-	d := day(t)
-	n := day(now)
-	switch diff := int(d.Sub(n).Hours() / 24); {
+	t = t.In(now.Location())
+	switch diff := DayDiff(t, now); {
 	case diff == 0:
 		return "Today"
 	case diff == 1:

@@ -376,3 +376,39 @@ func TestSearchPosts(t *testing.T) {
 		t.Fatalf("empty query: %+v", found)
 	}
 }
+
+// TestSearchIncludesForumPosts goes through GET /search (the itineraries
+// area), which gets its posts from this area through itineraries.UseSocial.
+func TestSearchIncludesForumPosts(t *testing.T) {
+	srv := testutil.New(t)
+	sandy := srv.Signup(t, "Sandy Byte")
+	marin := srv.Signup(t, "Marin Okafor")
+	stranger := srv.Signup(t, "Sol Stranger")
+	befriend(t, srv, sandy, marin)
+	setUser(t, srv, sandy, home(midtown))
+	setUser(t, srv, stranger, home(midtown))
+	var free contract.MyFreePost
+	srv.Do(t, "POST", "/forum/posts", freeNow(contract.PostFriends, techSquare, "Seaside Market", nil), marin).Expect(t, http.StatusCreated).JSON(t, &free)
+	walk := insertPlan(t, srv, plan(marin.UserID, srv.Clock.Now().Add(3*time.Hour), techSquare, func(it *models.Itinerary) { it.Title = "Golden hour walk" }))
+	search := func(s *testutil.Session, q string) []string {
+		t.Helper()
+		var res contract.SearchResults
+		srv.Do(t, "GET", "/search?q="+q, nil, s).Expect(t, http.StatusOK).JSON(t, &res)
+		return ids(res.Posts)
+	}
+	for _, tc := range []struct {
+		who  *testutil.Session
+		q    string
+		want []string
+	}{
+		{sandy, "market", []string{free.ID}}, // "Free until … near Seaside Market"
+		{sandy, "GOLDEN", []string{walk.ID}},
+		{sandy, "marin", []string{free.ID, walk.ID}}, // the author's name, soonest first
+		{stranger, "market", nil},                    // friends-only: not for a stranger
+		{stranger, "golden", []string{walk.ID}},      // open, 0.6 mi from their home
+	} {
+		if got := search(tc.who, tc.q); strings.Join(got, ",") != strings.Join(tc.want, ",") {
+			t.Errorf("%s searching %q: posts %v, want %v", tc.who.User.Name, tc.q, got, tc.want)
+		}
+	}
+}

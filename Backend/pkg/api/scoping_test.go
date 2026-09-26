@@ -24,8 +24,6 @@ type scope struct {
 var scopes = []scope{
 	{"GET /itineraries/{id} of A", createItineraryForA, http.StatusNotFound},
 	{"PATCH /itineraries/{id} by a member", joinAsMemberThenPatch, http.StatusForbidden},
-	// backend-C: {"GET /threads/{id} of A", startDMForA, 404},
-	// backend-D: {"GET /checkout/intents/{id} of A", createIntentForA, 404},
 	{"DELETE /me/payment-methods/{id} of A", func(t *testing.T, srv *testutil.Server, a *testutil.Session) (string, string, any) {
 		var card contract.PaymentMethod
 		srv.Do(t, "POST", "/me/payment-methods", contract.AddPaymentMethod{Token: "tok_visa_4242"}, a).Expect(t, http.StatusCreated).JSON(t, &card)

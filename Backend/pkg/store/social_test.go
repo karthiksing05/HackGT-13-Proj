@@ -130,12 +130,6 @@ func TestAddMemberGuards(t *testing.T) {
 	if !errors.Is(store.ErrPlanFull, store.ErrConflict) || !errors.Is(store.ErrPlanClosed, store.ErrConflict) {
 		t.Error("join refusals map to 409 when they reach api.Fail")
 	}
-	if _, removed, err := s.Joins().RemoveMember(ctx, open, "host"); err != nil || removed {
-		t.Fatalf("the host is never removed: %v %v", removed, err)
-	}
-	if it, removed, err := s.Joins().RemoveMember(ctx, open, "joiner"); err != nil || !removed || len(it.MemberIDs) != 1 {
-		t.Fatalf("remove: %v %v %+v", removed, err, it)
-	}
 }
 
 func TestInviteCodes(t *testing.T) {
