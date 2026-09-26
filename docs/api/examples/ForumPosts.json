@@ -1,0 +1,82 @@
+[
+  {
+    "author": {
+      "color_hex": "#0F766E",
+      "id": "u-dp",
+      "initials": "DP",
+      "name": "Dev P."
+    },
+    "day": "today",
+    "distance_mi": 0.3,
+    "friends_only": true,
+    "going": [],
+    "going_count": 0,
+    "id": "p2",
+    "interested_count": 0,
+    "is_friend": true,
+    "join_status": "none",
+    "meta": "Free now · 0.3 mi away",
+    "plan_together_sent": false,
+    "posted_minutes_ago": 8,
+    "price_tier": 0,
+    "starts_in_minutes": 0,
+    "tags": [
+      "Outdoors",
+      "Games"
+    ],
+    "text": "Free 2–6 near Tech Square. Down for anything outside or a board game café.",
+    "type": "free_now"
+  },
+  {
+    "author": {
+      "color_hex": "#1D4ED8",
+      "id": "u-mr",
+      "initials": "MR",
+      "name": "Maya R."
+    },
+    "capacity": 6,
+    "day": "today",
+    "distance_mi": 0.4,
+    "friends_only": false,
+    "going": [
+      {
+        "color_hex": "#0F766E",
+        "id": "u-dp",
+        "initials": "DP",
+        "name": "Dev P."
+      },
+      {
+        "color_hex": "#B45309",
+        "id": "u-ak",
+        "initials": "AK",
+        "name": "Ava K."
+      },
+      {
+        "color_hex": "#4338CA",
+        "id": "u-cn",
+        "initials": "CN",
+        "name": "Chris N."
+      }
+    ],
+    "going_count": 4,
+    "id": "p1",
+    "interested_count": 2,
+    "is_friend": true,
+    "join_status": "none",
+    "lock_label": "Locks 5:00 PM",
+    "meta": "Hosting · 0.4 mi away",
+    "plan_together_sent": false,
+    "posted_minutes_ago": 25,
+    "price_tier": 1,
+    "route": "3 stops along the Eastside Trail",
+    "spots_left": 2,
+    "starts_in_minutes": 210,
+    "tags": [
+      "Outdoors",
+      "Food"
+    ],
+    "title": "Sunset + tacos on the BeltLine",
+    "type": "plan",
+    "when": "Today · 5:30–8 PM"
+  }
+]

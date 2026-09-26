@@ -1,0 +1,29 @@
+{
+  "back_by": "2026-09-25T22:30:00Z",
+  "end": {
+    "coordinate": {
+      "lat": 33.771,
+      "lng": -84.3918
+    },
+    "name": "Home · North Ave Apts"
+  },
+  "modes": [
+    "marta",
+    "walk"
+  ],
+  "option_id": "opt-a",
+  "ride": "none",
+  "start": {
+    "coordinate": {
+      "lat": 33.7766,
+      "lng": -84.389
+    },
+    "name": "Tech Square (current location)"
+  },
+  "start_time": "2026-09-25T18:10:00Z",
+  "stop_order": [
+    "opt-a-0",
+    "opt-a-1",
+    "opt-a-2"
+  ]
+}

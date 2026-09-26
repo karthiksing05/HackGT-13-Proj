@@ -1,0 +1,18 @@
+[
+  {
+    "company": "with 3 others",
+    "date": "2026-09-24T23:00:00Z",
+    "id": "x1",
+    "kind": "group",
+    "place": "Tech Square",
+    "title": "Board game café"
+  },
+  {
+    "company": "solo",
+    "date": "2026-09-24T20:00:00Z",
+    "id": "x2",
+    "kind": "sidequest",
+    "place": "BeltLine",
+    "title": "Eastside Trail walk"
+  }
+]

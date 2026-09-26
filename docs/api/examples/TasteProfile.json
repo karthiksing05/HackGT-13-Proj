@@ -1,0 +1,24 @@
+{
+  "bars": [
+    {
+      "label": "Outdoors",
+      "value": 0.82
+    },
+    {
+      "label": "Food",
+      "value": 0.7
+    },
+    {
+      "label": "Art",
+      "value": 0.55
+    },
+    {
+      "label": "Social",
+      "value": 0.64
+    },
+    {
+      "label": "Nightlife",
+      "value": 0.28
+    }
+  ]
+}

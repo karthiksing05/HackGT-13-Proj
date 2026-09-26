@@ -1,0 +1,147 @@
+{
+  "cursor": "batch-0",
+  "done": false,
+  "options": [
+    {
+      "id": "opt-a",
+      "meta": "~$ · 1.8 mi walking · 2 transit legs",
+      "name": "Rooftop + murals",
+      "stops": [
+        {
+          "duration_minutes": 80,
+          "id": "opt-a-0",
+          "place": {
+            "coordinate": {
+              "lat": 33.7727,
+              "lng": -84.3653
+            },
+            "name": "Skyline Park rooftop"
+          },
+          "subtitle": "Games + views · $",
+          "title": "Skyline Park rooftop"
+        },
+        {
+          "duration_minutes": 60,
+          "id": "opt-a-1",
+          "place": {
+            "coordinate": {
+              "lat": 33.7535,
+              "lng": -84.363
+            },
+            "name": "Krog Street Tunnel murals"
+          },
+          "subtitle": "Street art · Free",
+          "title": "Krog Street Tunnel murals"
+        },
+        {
+          "duration_minutes": 35,
+          "id": "opt-a-2",
+          "place": {
+            "coordinate": {
+              "lat": 33.7571,
+              "lng": -84.364
+            },
+            "name": "Krog Street Market"
+          },
+          "subtitle": "Food hall · $",
+          "title": "Krog Street Market"
+        }
+      ],
+      "tag": "Best match"
+    },
+    {
+      "id": "opt-b",
+      "meta": "~$ · 2.3 mi walking · 1 transit leg",
+      "name": "Park + food hall",
+      "stops": [
+        {
+          "duration_minutes": 75,
+          "id": "opt-b-0",
+          "place": {
+            "coordinate": {
+              "lat": 33.787,
+              "lng": -84.374
+            },
+            "name": "Piedmont Park loop"
+          },
+          "subtitle": "Walk · Free",
+          "title": "Piedmont Park loop"
+        },
+        {
+          "duration_minutes": 60,
+          "id": "opt-b-1",
+          "place": {
+            "coordinate": {
+              "lat": 33.777,
+              "lng": -84.388
+            },
+            "name": "Board game café"
+          },
+          "subtitle": "Games · $",
+          "title": "Board game café"
+        },
+        {
+          "duration_minutes": 50,
+          "id": "opt-b-2",
+          "place": {
+            "coordinate": {
+              "lat": 33.7725,
+              "lng": -84.3657
+            },
+            "name": "Ponce City Market food hall"
+          },
+          "subtitle": "Food hall · $$",
+          "title": "Ponce City Market food hall"
+        }
+      ],
+      "tag": "Chill"
+    },
+    {
+      "id": "opt-c",
+      "meta": "~$$ · 1.1 mi walking · 2 transit legs",
+      "name": "Downtown loop",
+      "stops": [
+        {
+          "duration_minutes": 60,
+          "id": "opt-c-0",
+          "place": {
+            "coordinate": {
+              "lat": 33.7603,
+              "lng": -84.3932
+            },
+            "name": "Centennial Olympic Park"
+          },
+          "subtitle": "Park · Free",
+          "title": "Centennial Olympic Park"
+        },
+        {
+          "duration_minutes": 50,
+          "id": "opt-c-1",
+          "place": {
+            "coordinate": {
+              "lat": 33.759,
+              "lng": -84.3925
+            },
+            "name": "SkyView Ferris wheel"
+          },
+          "subtitle": "Views · $$",
+          "title": "SkyView Ferris wheel"
+        },
+        {
+          "duration_minutes": 75,
+          "id": "opt-c-2",
+          "place": {
+            "coordinate": {
+              "lat": 33.7575,
+              "lng": -84.3645
+            },
+            "name": "Open group dinner (Forum)"
+          },
+          "subtitle": "3 going · $",
+          "title": "Open group dinner (Forum)"
+        }
+      ],
+      "tag": "Meet people"
+    }
+  ]
+}

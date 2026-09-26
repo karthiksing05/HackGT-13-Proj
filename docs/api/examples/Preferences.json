@@ -1,0 +1,17 @@
+{
+  "answers": {},
+  "company": "small_group",
+  "flexibility": "bit_over_ok",
+  "instant_checkout": false,
+  "instant_checkout_limit_cents": 5000,
+  "pace": "balanced",
+  "prefer_free": true,
+  "ratings": {
+    "food": 4,
+    "museums": 3,
+    "nightlife": 2,
+    "outdoors": 5
+  },
+  "spend": "under_15",
+  "split_style": "equally"
+}

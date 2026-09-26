@@ -1,0 +1,159 @@
+{
+  "back_by": "2026-09-26T00:00:00Z",
+  "date": "2026-09-25T04:00:00Z",
+  "end_place": {
+    "coordinate": {
+      "lat": 33.771,
+      "lng": -84.3918
+    },
+    "name": "Home · North Ave Apts"
+  },
+  "going_count": 3,
+  "id": "itin-fri",
+  "is_host": true,
+  "items": [
+    {
+      "bookable": false,
+      "description": "From your Google Calendar. SideQuests plans around it.",
+      "end": "2026-09-25T17:50:00Z",
+      "extra_going": 0,
+      "id": "a1",
+      "interested": [],
+      "kind": "busy",
+      "people": [],
+      "place": {
+        "name": "Klaus Advanced Computing Building"
+      },
+      "start": "2026-09-25T17:00:00Z",
+      "title": "CS 3510 lecture"
+    },
+    {
+      "bookable": false,
+      "description": "Route options below. Times update live if you run late.",
+      "end": "2026-09-25T18:25:00Z",
+      "extra_going": 0,
+      "id": "a2",
+      "interested": [],
+      "kind": "transit",
+      "people": [],
+      "place": {
+        "name": "Tech Square → Ponce City Market"
+      },
+      "start": "2026-09-25T18:00:00Z",
+      "title": "Transit to Ponce City Market"
+    },
+    {
+      "bookable": true,
+      "description": "Mini golf, carnival games and skyline views on the roof.",
+      "end": "2026-09-25T20:00:00Z",
+      "extra_going": 0,
+      "id": "a3",
+      "interested": [],
+      "kind": "sidequest",
+      "people": [],
+      "place": {
+        "coordinate": {
+          "lat": 33.7727,
+          "lng": -84.3653
+        },
+        "name": "Ponce City Market, rooftop"
+      },
+      "start": "2026-09-25T18:30:00Z",
+      "title": "Skyline Park rooftop",
+      "website_url": "https://poncecitymarket.com"
+    },
+    {
+      "bookable": false,
+      "description": "Route options below. Times update live if you run late.",
+      "end": "2026-09-25T20:20:00Z",
+      "extra_going": 0,
+      "id": "a4",
+      "interested": [],
+      "kind": "transit",
+      "people": [],
+      "place": {
+        "name": "BeltLine Eastside Trail"
+      },
+      "start": "2026-09-25T20:00:00Z",
+      "title": "Walk the Eastside Trail"
+    },
+    {
+      "bookable": false,
+      "description": "Self-guided street art walk. Free.",
+      "end": "2026-09-25T21:30:00Z",
+      "extra_going": 0,
+      "id": "a5",
+      "interested": [],
+      "kind": "sidequest",
+      "people": [],
+      "place": {
+        "coordinate": {
+          "lat": 33.7535,
+          "lng": -84.363
+        },
+        "name": "Krog Street Tunnel, Cabbagetown"
+      },
+      "start": "2026-09-25T20:20:00Z",
+      "title": "Krog Street Tunnel murals",
+      "website_url": "https://atlantabeltline.org"
+    },
+    {
+      "bookable": false,
+      "description": "3 people joined your open plan. Joining locked at 5 PM.",
+      "end": "2026-09-25T23:30:00Z",
+      "extra_going": 0,
+      "id": "a6",
+      "interested": [
+        {
+          "color_hex": "#B45309",
+          "id": "u-ak",
+          "initials": "AK",
+          "name": "Ava K."
+        }
+      ],
+      "kind": "group",
+      "people": [
+        {
+          "color_hex": "#18211C",
+          "id": "u-jl",
+          "initials": "JL",
+          "name": "Jordan Lee"
+        },
+        {
+          "color_hex": "#1D4ED8",
+          "id": "u-mr",
+          "initials": "MR",
+          "name": "Maya R."
+        },
+        {
+          "color_hex": "#0F766E",
+          "id": "u-dp",
+          "initials": "DP",
+          "name": "Dev P."
+        }
+      ],
+      "place": {
+        "coordinate": {
+          "lat": 33.7571,
+          "lng": -84.364
+        },
+        "name": "Krog Street Market"
+      },
+      "start": "2026-09-25T22:00:00Z",
+      "title": "Group dinner, Krog Street Market",
+      "website_url": "https://krogstreetmarket.com"
+    }
+  ],
+  "lock_at": "2026-09-25T21:00:00Z",
+  "max_group_size": 6,
+  "start": "2026-09-25T17:00:00Z",
+  "start_place": {
+    "coordinate": {
+      "lat": 33.7766,
+      "lng": -84.389
+    },
+    "name": "Tech Square (current location)"
+  },
+  "title": "Free Friday afternoon",
+  "visibility": "open"
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "person": {
+      "color_hex": "#1D4ED8",
+      "id": "u-mr",
+      "initials": "MR",
+      "name": "Maya R."
+    },
+    "relation": "friend"
+  },
+  {
+    "person": {
+      "color_hex": "#B45309",
+      "id": "u-ak",
+      "initials": "AK",
+      "name": "Ava K."
+    },
+    "relation": "friend"
+  },
+  {
+    "person": {
+      "color_hex": "#BE185D",
+      "id": "u-st",
+      "initials": "ST",
+      "name": "Sam T."
+    },
+    "relation": "friend"
+  },
+  {
+    "person": {
+      "color_hex": "#9D174D",
+      "id": "u-pk",
+      "initials": "PK",
+      "name": "Priya K."
+    },
+    "relation": "none"
+  }
+]

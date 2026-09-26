@@ -1,0 +1,127 @@
+{
+  "lock_at": "2026-09-25T17:30:00Z",
+  "max_group_size": 6,
+  "option": {
+    "id": "opt-a",
+    "meta": "~$ · 1.8 mi walking · 2 transit legs",
+    "name": "Rooftop + murals",
+    "stops": [
+      {
+        "duration_minutes": 80,
+        "id": "opt-a-0",
+        "place": {
+          "coordinate": {
+            "lat": 33.7727,
+            "lng": -84.3653
+          },
+          "name": "Skyline Park rooftop"
+        },
+        "subtitle": "Games + views · $",
+        "title": "Skyline Park rooftop"
+      },
+      {
+        "duration_minutes": 60,
+        "id": "opt-a-1",
+        "place": {
+          "coordinate": {
+            "lat": 33.7535,
+            "lng": -84.363
+          },
+          "name": "Krog Street Tunnel murals"
+        },
+        "subtitle": "Street art · Free",
+        "title": "Krog Street Tunnel murals"
+      },
+      {
+        "duration_minutes": 35,
+        "id": "opt-a-2",
+        "place": {
+          "coordinate": {
+            "lat": 33.7571,
+            "lng": -84.364
+          },
+          "name": "Krog Street Market"
+        },
+        "subtitle": "Food hall · $",
+        "title": "Krog Street Market"
+      }
+    ],
+    "tag": "Best match"
+  },
+  "plan": {
+    "back_by": "2026-09-25T22:30:00Z",
+    "budget": 1,
+    "date": "2026-09-25T18:10:00Z",
+    "end": {
+      "coordinate": {
+        "lat": 33.771,
+        "lng": -84.3918
+      },
+      "name": "Home · North Ave Apts"
+    },
+    "modes": [
+      "marta",
+      "walk"
+    ],
+    "mood_text": "Something chill and outside, then cheap food after.",
+    "pace": "balanced",
+    "range": "transit",
+    "ride": "none",
+    "start": {
+      "coordinate": {
+        "lat": 33.7766,
+        "lng": -84.389
+      },
+      "name": "Tech Square (current location)"
+    },
+    "start_time": "2026-09-25T18:10:00Z",
+    "tags": [
+      "Outdoors",
+      "Food",
+      "Meet people"
+    ],
+    "who": "friends"
+  },
+  "route": {
+    "arrival": "2026-09-25T21:57:00Z",
+    "legs": [
+      {
+        "minutes": 14,
+        "mode": "marta"
+      },
+      {
+        "minutes": 14,
+        "mode": "marta"
+      },
+      {
+        "minutes": 3,
+        "mode": "walk"
+      },
+      {
+        "minutes": 21,
+        "mode": "marta"
+      }
+    ],
+    "minutes_late": 0,
+    "stop_times": [
+      {
+        "end": "2026-09-25T19:44:00Z",
+        "start": "2026-09-25T18:24:00Z"
+      },
+      {
+        "end": "2026-09-25T20:58:00Z",
+        "start": "2026-09-25T19:58:00Z"
+      },
+      {
+        "end": "2026-09-25T21:36:00Z",
+        "start": "2026-09-25T21:01:00Z"
+      }
+    ]
+  },
+  "stop_order": [
+    "opt-a-0",
+    "opt-a-1",
+    "opt-a-2"
+  ],
+  "visibility": "friends"
+}

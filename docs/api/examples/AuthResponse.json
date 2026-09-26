@@ -1,0 +1,18 @@
+{
+  "tokens": {
+    "access_token": "eyJ…",
+    "expires_at": "2026-09-25T18:10:00Z",
+    "refresh_token": "r1"
+  },
+  "user": {
+    "age_bracket": "adult",
+    "avatar_color": "ink",
+    "email": "jordan@gatech.edu",
+    "id": "u-jl",
+    "name": "Jordan Lee",
+    "school": "Georgia Tech",
+    "setup_complete": true,
+    "status": "open",
+    "username": "jordanlee"
+  }
+}

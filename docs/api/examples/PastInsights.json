@@ -1,0 +1,39 @@
+{
+  "based_on": 3,
+  "headline": "You like afternoon sidequests on your own.",
+  "highlights": [
+    {
+      "detail": "1 of your 2 favorites",
+      "id": "time",
+      "symbol": "moon.stars",
+      "title": "Favorite time",
+      "value": "Afternoons"
+    },
+    {
+      "detail": "1 of your 2 favorites",
+      "id": "company",
+      "symbol": "person.2",
+      "title": "Company",
+      "value": "On your own"
+    },
+    {
+      "detail": "1 of your 2 favorites",
+      "id": "area",
+      "symbol": "mappin.and.ellipse",
+      "title": "Favorite area",
+      "value": "Decatur Square"
+    },
+    {
+      "detail": "5 stars",
+      "id": "best",
+      "symbol": "star",
+      "title": "Top rated",
+      "value": "Jazz night in Decatur"
+    }
+  ],
+  "top_tags": [
+    "Good value",
+    "Great people",
+    "Would go again"
+  ]
+}

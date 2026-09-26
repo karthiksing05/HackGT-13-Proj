@@ -1,0 +1,68 @@
+{
+  "balances": [
+    {
+      "net_cents": 250,
+      "user_id": "u-mr"
+    },
+    {
+      "net_cents": -1150,
+      "user_id": "u-dp"
+    }
+  ],
+  "expenses": [
+    {
+      "amount_cents": 4200,
+      "created_by": "u-dp",
+      "id": "ex-14",
+      "payer_id": "u-dp",
+      "shares": [
+        1400,
+        1400,
+        1400
+      ],
+      "split_among": [
+        "u-jl",
+        "u-mr",
+        "u-dp"
+      ],
+      "what": "Dumplings"
+    },
+    {
+      "amount_cents": 750,
+      "created_by": "u-jl",
+      "id": "ex-15",
+      "payer_id": "u-jl",
+      "shares": [
+        250,
+        250,
+        250
+      ],
+      "split_among": [
+        "u-jl",
+        "u-mr",
+        "u-dp"
+      ],
+      "what": "MARTA fares"
+    }
+  ],
+  "members": [
+    {
+      "color_hex": "#18211C",
+      "id": "u-jl",
+      "initials": "JL",
+      "name": "Jordan Lee"
+    },
+    {
+      "color_hex": "#1D4ED8",
+      "id": "u-mr",
+      "initials": "MR",
+      "name": "Maya R."
+    },
+    {
+      "color_hex": "#0F766E",
+      "id": "u-dp",
+      "initials": "DP",
+      "name": "Dev P."
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "card_brand": "Visa",
+  "card_last4": "4242",
+  "id": "ci-47",
+  "instant": false,
+  "item_id": "a3",
+  "item_title": "Skyline Park rooftop",
+  "payment_method_id": "pm-4242",
+  "quantity": 1,
+  "state": "awaiting_approval",
+  "steps": [
+    {
+      "done": true,
+      "text": "Found tickets on the official site"
+    },
+    {
+      "done": true,
+      "text": "Filled in your name and email"
+    },
+    {
+      "done": false,
+      "text": "Waiting for your approval"
+    }
+  ]
+}

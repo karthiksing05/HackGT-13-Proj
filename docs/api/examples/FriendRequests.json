@@ -1,0 +1,13 @@
+[
+  {
+    "id": "fr-chris",
+    "note": "Met on Stone Mountain sunrise",
+    "outgoing": false,
+    "person": {
+      "color_hex": "#4338CA",
+      "id": "u-cn",
+      "initials": "CN",
+      "name": "Chris N."
+    }
+  }
+]

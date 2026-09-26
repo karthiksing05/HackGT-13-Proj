@@ -1,0 +1,10 @@
+{
+  "amount_cents": 4000,
+  "payer_id": "u-jl",
+  "split_among": [
+    "u-jl",
+    "u-mr",
+    "u-dp"
+  ],
+  "what": "Pizza"
+}

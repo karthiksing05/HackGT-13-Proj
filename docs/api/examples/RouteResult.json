@@ -1,0 +1,36 @@
+{
+  "arrival": "2026-09-25T21:57:00Z",
+  "legs": [
+    {
+      "minutes": 14,
+      "mode": "marta"
+    },
+    {
+      "minutes": 14,
+      "mode": "marta"
+    },
+    {
+      "minutes": 3,
+      "mode": "walk"
+    },
+    {
+      "minutes": 21,
+      "mode": "marta"
+    }
+  ],
+  "minutes_late": 0,
+  "stop_times": [
+    {
+      "end": "2026-09-25T19:44:00Z",
+      "start": "2026-09-25T18:24:00Z"
+    },
+    {
+      "end": "2026-09-25T20:58:00Z",
+      "start": "2026-09-25T19:58:00Z"
+    },
+    {
+      "end": "2026-09-25T21:36:00Z",
+      "start": "2026-09-25T21:01:00Z"
+    }
+  ]
+}

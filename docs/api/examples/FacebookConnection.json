@@ -1,0 +1,48 @@
+{
+  "connected": true,
+  "declined_scopes": [],
+  "last_import": {
+    "friends_on_app": [
+      {
+        "person": {
+          "color_hex": "#9D174D",
+          "id": "u-pk",
+          "initials": "PK",
+          "name": "Priya K."
+        },
+        "relation": "none"
+      },
+      {
+        "person": {
+          "color_hex": "#4338CA",
+          "id": "u-cn",
+          "initials": "CN",
+          "name": "Chris N."
+        },
+        "relation": "incoming",
+        "request_id": "fr-chris"
+      }
+    ],
+    "home_area": "Atlanta, Georgia",
+    "imported_at": "2026-09-25T18:10:00Z",
+    "interests": [
+      "Hiking",
+      "Indie rock",
+      "Coffee",
+      "Street food",
+      "Board games"
+    ],
+    "liked_pages": 48,
+    "suggested_ratings": {
+      "food": 5,
+      "live_music": 5,
+      "long_walks": 4,
+      "museums": 3,
+      "nightlife": 2,
+      "outdoors": 5,
+      "sports": 3
+    }
+  },
+  "name": "Jordan Lee",
+  "needs_reconnect": false
+}

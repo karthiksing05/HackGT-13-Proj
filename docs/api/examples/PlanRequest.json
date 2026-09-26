@@ -1,0 +1,34 @@
+{
+  "back_by": "2026-09-25T22:30:00Z",
+  "budget": 1,
+  "date": "2026-09-25T18:10:00Z",
+  "end": {
+    "coordinate": {
+      "lat": 33.771,
+      "lng": -84.3918
+    },
+    "name": "Home · North Ave Apts"
+  },
+  "modes": [
+    "marta",
+    "walk"
+  ],
+  "mood_text": "Something chill and outside, then cheap food after.",
+  "pace": "balanced",
+  "range": "transit",
+  "ride": "none",
+  "start": {
+    "coordinate": {
+      "lat": 33.7766,
+      "lng": -84.389
+    },
+    "name": "Tech Square (current location)"
+  },
+  "start_time": "2026-09-25T18:10:00Z",
+  "tags": [
+    "Outdoors",
+    "Food",
+    "Meet people"
+  ],
+  "who": "friends"
+}

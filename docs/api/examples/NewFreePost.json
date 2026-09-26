@@ -1,0 +1,13 @@
+{
+  "area": {
+    "coordinate": {
+      "lat": 33.7838,
+      "lng": -84.3833
+    },
+    "is_current_location": false,
+    "name": "Midtown Atlanta"
+  },
+  "radius_mi": 2,
+  "until": "2026-09-25T22:30:00Z",
+  "visibility": "everyone"
+}

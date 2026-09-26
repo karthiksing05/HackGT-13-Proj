@@ -1,0 +1,66 @@
+[
+  {
+    "reason": "Also art to see · 0.9 mi away",
+    "stop": {
+      "duration_minutes": 45,
+      "id": "alt-cabbagetown-murals",
+      "place": {
+        "coordinate": {
+          "lat": 33.7507,
+          "lng": -84.361
+        },
+        "name": "Cabbagetown murals"
+      },
+      "subtitle": "Street art · Free",
+      "title": "Cabbagetown murals"
+    }
+  },
+  {
+    "reason": "Also art to see · 2.4 mi away",
+    "stop": {
+      "duration_minutes": 90,
+      "id": "alt-high-museum-of-art",
+      "place": {
+        "coordinate": {
+          "lat": 33.7901,
+          "lng": -84.3856
+        },
+        "name": "High Museum of Art"
+      },
+      "subtitle": "Museum · $$",
+      "title": "High Museum of Art"
+    }
+  },
+  {
+    "reason": "Also art to see · 2.7 mi away",
+    "stop": {
+      "duration_minutes": 50,
+      "id": "alt-castleberry-hill-galleries",
+      "place": {
+        "coordinate": {
+          "lat": 33.7487,
+          "lng": -84.4007
+        },
+        "name": "Castleberry Hill galleries"
+      },
+      "subtitle": "Galleries · Free",
+      "title": "Castleberry Hill galleries"
+    }
+  },
+  {
+    "reason": "Also art to see · 3.6 mi away",
+    "stop": {
+      "duration_minutes": 60,
+      "id": "alt-atlanta-contemporary",
+      "place": {
+        "coordinate": {
+          "lat": 33.7839,
+          "lng": -84.4153
+        },
+        "name": "Atlanta Contemporary"
+      },
+      "subtitle": "Art gallery · Free",
+      "title": "Atlanta Contemporary"
+    }
+  }
+]

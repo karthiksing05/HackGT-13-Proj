@@ -1,0 +1,50 @@
+{
+  "album_subtitle": "9 photos · 3 people",
+  "album_title": "Krog St dinner · Sep 25",
+  "chips": [
+    "3 people",
+    "You owe $9",
+    "9 photos"
+  ],
+  "faces": [
+    {
+      "color_hex": "#1D4ED8",
+      "id": "u-mr",
+      "initials": "MR",
+      "name": "Maya R."
+    },
+    {
+      "color_hex": "#0F766E",
+      "id": "u-dp",
+      "initials": "DP",
+      "name": "Dev P."
+    }
+  ],
+  "id": "g1",
+  "is_group": true,
+  "last_message": "Maya: photo dump in the album after pls",
+  "last_time": "5:12 PM",
+  "members": [
+    {
+      "color_hex": "#18211C",
+      "id": "u-jl",
+      "initials": "JL",
+      "name": "Jordan Lee"
+    },
+    {
+      "color_hex": "#1D4ED8",
+      "id": "u-mr",
+      "initials": "MR",
+      "name": "Maya R."
+    },
+    {
+      "color_hex": "#0F766E",
+      "id": "u-dp",
+      "initials": "DP",
+      "name": "Dev P."
+    }
+  ],
+  "subtitle": "3 people · Today 6 PM",
+  "title": "Krog St dinner crew",
+  "unread": 2
+}

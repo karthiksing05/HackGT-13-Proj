@@ -1,0 +1,16 @@
+[
+  {
+    "cost_cents": 0,
+    "minutes": 18,
+    "mode": "walk"
+  },
+  {
+    "cost_cents": 250,
+    "minutes": 12,
+    "mode": "marta"
+  },
+  {
+    "minutes": 8,
+    "mode": "rideshare"
+  }
+]

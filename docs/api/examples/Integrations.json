@@ -1,0 +1,10 @@
+[
+  {
+    "connected": true,
+    "provider": "google"
+  },
+  {
+    "connected": false,
+    "provider": "outlook"
+  }
+]
