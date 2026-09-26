@@ -76,9 +76,9 @@ func (h *H) Join(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, MsgJoinOwnPlan)
 		return
 	}
-	wasMember := it.IsMember(viewerID)
-	if !wasMember {
-		it, err = h.d.Store.Joins().AddMember(ctx, id, viewerID, now)
+	added := false
+	if !it.IsMember(viewerID) {
+		it, added, err = h.d.Store.Joins().AddMember(ctx, id, viewerID, now)
 		switch {
 		case errors.Is(err, store.ErrPlanClosed):
 			httpx.JSON(w, http.StatusOK, contract.JoinResult{Status: contract.JoinClosed})
@@ -98,7 +98,7 @@ func (h *H) Join(w http.ResponseWriter, r *http.Request) {
 	}
 	itineraryID, threadID := it.ID, th.ID
 	result := contract.JoinResult{Status: contract.JoinJoined, ItineraryID: &itineraryID, ThreadID: &threadID}
-	if !wasMember {
+	if added {
 		if err := h.d.Store.Joins().Record(ctx, it.ID, viewerID); err != nil {
 			api.Fail(w, r, err)
 			return

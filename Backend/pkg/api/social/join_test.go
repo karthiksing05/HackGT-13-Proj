@@ -278,8 +278,8 @@ func TestPlanTogether(t *testing.T) {
 	srv.Do(t, "POST", "/forum/posts/"+post.ID+"/plan-together", nil, asker).Expect(t, http.StatusOK).JSON(t, &again)
 	var messages []contract.Message
 	srv.Do(t, "GET", "/threads/"+dm.ID+"/messages", nil, asker).Expect(t, http.StatusOK).JSON(t, &messages)
-	if again.ID != dm.ID || len(messages) != 1 {
-		t.Fatalf("second plan-together: %s, %d messages", again.ID, len(messages))
+	if again.ID != dm.ID || len(messages) != 1 || messages[0].ClientID != nil {
+		t.Fatalf("second plan-together: %s, %+v", again.ID, messages)
 	}
 	posts := feed(t, srv, asker, midtown, "type=free_now")
 	if p := find(posts, post.ID); p == nil || !p.PlanTogetherSent {

@@ -51,9 +51,9 @@ func JoinSpotsLeft(it *models.Itinerary) *int {
 
 // AddMember adds userID to an active shared itinerary, atomically refusing a
 // locked, started or full one (ErrPlanClosed, ErrPlanFull). A user who is
-// already a member gets the itinerary back unchanged; a missing or
-// unshared itinerary is ErrNotFound.
-func (j Joins) AddMember(ctx context.Context, itineraryID, userID string, now time.Time) (*models.Itinerary, error) {
+// already a member gets the itinerary back unchanged (added false); a
+// missing or unshared itinerary is ErrNotFound.
+func (j Joins) AddMember(ctx context.Context, itineraryID, userID string, now time.Time) (it *models.Itinerary, added bool, err error) {
 	filter := forumSharedFilter()
 	filter["_id"] = itineraryID
 	filter["memberIds"] = bson.M{"$ne": userID}
@@ -66,29 +66,29 @@ func (j Joins) AddMember(ctx context.Context, itineraryID, userID string, now ti
 		}},
 	}
 	update := bson.M{"$addToSet": bson.M{"memberIds": userID}, "$set": bson.M{"updatedAt": j.s.Now()}}
-	var it models.Itinerary
-	err := j.plans().FindOneAndUpdate(ctx, filter, update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&it)
+	var doc models.Itinerary
+	err = j.plans().FindOneAndUpdate(ctx, filter, update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&doc)
 	if err == nil {
-		return &it, nil
+		return &doc, true, nil
 	}
 	if !errors.Is(err, mongo.ErrNoDocuments) {
-		return nil, err
+		return nil, false, err
 	}
 	// Say why: gone, already in, locked or full.
 	current, err := j.s.Forum().SharedPlan(ctx, itineraryID)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	switch {
 	case current.IsMember(userID):
-		return current, nil
+		return current, false, nil
 	case JoinClosed(current, now):
-		return nil, ErrPlanClosed
+		return nil, false, ErrPlanClosed
 	}
 	if left := JoinSpotsLeft(current); left != nil && *left == 0 {
-		return nil, ErrPlanFull
+		return nil, false, ErrPlanFull
 	}
-	return nil, ErrConflict
+	return nil, false, ErrConflict
 }
 
 // RemoveMember takes userID out of an itinerary they joined (never its

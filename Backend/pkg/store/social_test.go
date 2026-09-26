@@ -109,12 +109,12 @@ func TestAddMemberGuards(t *testing.T) {
 		return it.ID
 	}
 	open := insert(func(*models.Itinerary) {})
-	it, err := s.Joins().AddMember(ctx, open, "joiner", now)
-	if err != nil || len(it.MemberIDs) != 2 {
-		t.Fatalf("join: %v %+v", err, it)
+	it, added, err := s.Joins().AddMember(ctx, open, "joiner", now)
+	if err != nil || !added || len(it.MemberIDs) != 2 {
+		t.Fatalf("join: %v %v %+v", err, added, it)
 	}
-	if again, err := s.Joins().AddMember(ctx, open, "joiner", now); err != nil || len(again.MemberIDs) != 2 {
-		t.Fatalf("joining twice: %v %+v", err, again)
+	if again, added, err := s.Joins().AddMember(ctx, open, "joiner", now); err != nil || added || len(again.MemberIDs) != 2 {
+		t.Fatalf("joining twice: %v %v %+v", err, added, again)
 	}
 	full := insert(func(it *models.Itinerary) { it.MaxGroupSize = testutil.Ptr(1) })
 	locked := insert(func(it *models.Itinerary) { it.LockAt = testutil.Ptr(now) })
@@ -123,7 +123,7 @@ func TestAddMemberGuards(t *testing.T) {
 	past := insert(func(it *models.Itinerary) { it.Status = models.ItineraryPast })
 	for id, want := range map[string]error{full: store.ErrPlanFull, locked: store.ErrPlanClosed, started: store.ErrPlanClosed,
 		private: store.ErrNotFound, past: store.ErrNotFound, "missing": store.ErrNotFound} {
-		if _, err := s.Joins().AddMember(ctx, id, "joiner", now); !errors.Is(err, want) {
+		if _, _, err := s.Joins().AddMember(ctx, id, "joiner", now); !errors.Is(err, want) {
 			t.Errorf("AddMember(%s) = %v, want %v", id, err, want)
 		}
 	}

@@ -145,7 +145,8 @@ func minutesBetween(a, b time.Time) int {
 // ---- messages, photos, expenses ------------------------------------------
 
 // messageView renders a message for one viewer: "You" for their own, the
-// sender's first name otherwise.
+// sender's first name otherwise. client_id echoes what a device sent; the
+// server's own ("Plan together") stays off the wire.
 func messageView(m *models.Message, viewerID string, ppl people) contract.Message {
 	name := "You"
 	if m.SenderID != viewerID {
@@ -153,9 +154,13 @@ func messageView(m *models.Message, viewerID string, ppl people) contract.Messag
 			name = "Someone"
 		}
 	}
+	clientID := m.ClientID
+	if strings.HasPrefix(clientID, planTogetherTag) {
+		clientID = ""
+	}
 	return contract.Message{
 		ID: m.ID, SenderID: m.SenderID, SenderName: name, Text: m.Text,
-		SentAt: contract.NewTime(m.SentAt), ClientID: view.StrPtr(m.ClientID),
+		SentAt: contract.NewTime(m.SentAt), ClientID: view.StrPtr(clientID),
 	}
 }
 
