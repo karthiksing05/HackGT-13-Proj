@@ -2,6 +2,7 @@ package main
 
 import (
 	"Backend/pkg/api"
+	"Backend/pkg/api/checkout"
 	"Backend/pkg/config"
 	"Backend/pkg/datastore"
 	"Backend/pkg/ml"
@@ -53,6 +54,7 @@ func main() {
 	deps.Profiles = profiles.New(st, deps.ML, time.Now)
 	hub := realtime.NewHub(deps.Auth().UserFromToken)
 	deps.Hub = hub
+	checkout.StartAgent(ctx, deps)
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

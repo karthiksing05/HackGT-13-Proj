@@ -27,7 +27,7 @@ commands:
   ensure-indexes                 create every index the server expects (idempotent)
   drop-ttl <collection> [--force] drop the TTL indexes of a collection ("activities" needs --force)
   reset-app-data --yes [--users] drop every app collection except the catalogs (--users adds users)
-  seed-demo                      (built by the checkout agent)
+  seed-demo                      create or refresh the demo account and its world (needs DEMO_PASSWORD; idempotent)
 
 The environment is the server's (MONGO_URI, MONGO_DB, JWT_SECRET, …);
 --env-file loads KEY=VALUE lines first without overriding what is set.
@@ -57,10 +57,6 @@ func run(args []string) int {
 		}
 	}
 	command, cmdArgs := rest[0], rest[1:]
-	if command == "seed-demo" {
-		fmt.Fprintln(os.Stderr, "seed-demo is built by the checkout agent")
-		return 2
-	}
 	cfg, err := config.FromEnv()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "configuration: %v\n", err)
@@ -83,6 +79,10 @@ func run(args []string) int {
 		return dropTTL(ctx, st, cmdArgs)
 	case "reset-app-data":
 		return resetAppData(ctx, st, cmdArgs)
+	case "seed-demo":
+		// Profiles (pkg/profiles over the ML client) is wired here once the ML
+		// rewrite lands; until then Sandy's vectors are reported as pending.
+		return runSeedDemo(ctx, st, cfg, nil)
 	}
 	fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", command, usage)
 	return 2
