@@ -249,12 +249,12 @@ func (f Facebook) FriendLinks(ctx context.Context, viewerID string, others []str
 		return nil, nil, err
 	}
 	for _, req := range requests {
-		other, incoming := req.ToID, false
+		other := req.ToID
 		if req.ToID == viewerID {
-			other, incoming = req.FromID, true
+			other = req.FromID
 		}
-		if existing, ok := pending[other]; ok && existing.ToID == viewerID && !incoming {
-			continue // keep the incoming one
+		if existing, ok := pending[other]; ok && existing.ToID == viewerID {
+			continue // an incoming request wins over an outgoing one
 		}
 		pending[other] = req
 	}
