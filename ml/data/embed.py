@@ -16,6 +16,7 @@ marked False in `<column>_present.npy`. Finished splits are skipped on re-runs,
 so a job that hits its walltime can simply be resubmitted.
 
     python -m data.embed --out runs/emb --users-repo owner/users-repo
+    python -m data.embed --out runs/emb --users-repo owner/repo --users-config users   # users as a config
     python -m data.embed --out runs/emb-test --limit 200   # quick check
 """
 
@@ -103,14 +104,15 @@ def main() -> None:
     parser.add_argument("--events-repo", default=DEFAULT_REPO)
     parser.add_argument("--event-columns", nargs="+", default=["embedding_text"])
     parser.add_argument("--users-repo", default=None, help="skipped when not given")
+    parser.add_argument("--users-config", default=None, help='config of --users-repo, e.g. "users"')
     parser.add_argument("--user-columns", nargs="+", default=["positive_text", "negative_text"])
     parser.add_argument("--limit", type=int, default=None, help="only the first N rows per split (testing)")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    jobs = [("events", args.events_repo, args.event_columns)]
+    jobs = [("events", args.events_repo, None, args.event_columns)]
     if args.users_repo:
-        jobs.append(("users", args.users_repo, args.user_columns))
+        jobs.append(("users", args.users_repo, args.users_config, args.user_columns))
 
     model = load_model(args.model, max_seq_length=args.max_seq_length)
     dim = embedding_dim(model)
@@ -123,8 +125,8 @@ def main() -> None:
     meta.update(model=args.model, dimension=dim, normalized=True, dtype="float32", max_seq_length=args.max_seq_length)
     meta.setdefault("datasets", {})
 
-    for name, repo, columns in jobs:
-        for split, ds in load_events(repo).items():
+    for name, repo, config, columns in jobs:
+        for split, ds in load_events(repo, name=config).items():
             split_dir = args.out / name / split
             if (split_dir / "ids.json").exists():
                 logger.info("%s already done, skipping", split_dir)
@@ -132,7 +134,8 @@ def main() -> None:
             if args.limit:
                 ds = ds.select(range(min(args.limit, ds.num_rows)))
             rows = embed_split(model, ds, columns, split_dir, args.batch_size)
-            meta["datasets"].setdefault(name, {"repo": repo, "columns": columns, "rows": {}})["rows"][split] = rows
+            entry = meta["datasets"].setdefault(name, {"repo": repo, "config": config, "columns": columns, "rows": {}})
+            entry["rows"][split] = rows
             meta["updated"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
             meta_path.write_text(json.dumps(meta, indent=2))
 

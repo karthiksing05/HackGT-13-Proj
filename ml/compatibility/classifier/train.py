@@ -10,7 +10,7 @@ import logging
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 import torch
@@ -114,8 +114,12 @@ def train_one_epoch(
     loss_fn: nn.Module,
     optimizer: torch.optim.Optimizer,
     device: torch.device,
+    on_batch_end: Callable[[float], None] | None = None,
 ) -> float:
-    """One pass over `loader`; returns the sample-weighted mean training loss."""
+    """One pass over `loader`; returns the sample-weighted mean training loss.
+
+    `on_batch_end`, if given, receives each batch's loss (e.g. for live logging).
+    """
     model.train()
     total, count = 0.0, 0
     for batch in loader:
@@ -124,8 +128,11 @@ def train_one_epoch(
         loss = loss_fn(model(pos, neg, event), label)
         loss.backward()
         optimizer.step()
-        total += loss.item() * label.shape[0]
+        batch_loss = loss.item()
+        total += batch_loss * label.shape[0]
         count += label.shape[0]
+        if on_batch_end is not None:
+            on_batch_end(batch_loss)
     if count == 0:
         raise ValueError("training loader produced no samples")
     return total / count
@@ -232,6 +239,9 @@ class TrainingHistory:
     best_epoch: int = -1
     best_val_loss: float = float("inf")
     stopped_early: bool = False
+    selection_metric: str = "val_loss"
+    val_selection: list[float] = field(default_factory=list)
+    """Per-epoch value of `selection_metric` (equal to `val_loss` in the default mode)."""
 
     @property
     def epochs_run(self) -> int:
@@ -244,7 +254,19 @@ class TrainingHistory:
             "best_epoch": self.best_epoch,
             "best_val_loss": self.best_val_loss,
             "stopped_early": self.stopped_early,
+            "selection_metric": self.selection_metric,
+            "val_selection": list(self.val_selection),
         }
+
+
+class TrainingCallback:
+    """Optional hooks into `train` for logging and monitoring; override what you need."""
+
+    def on_batch_end(self, step: int, loss: float) -> None:
+        """After every optimizer step; `step` counts from 0 across epochs."""
+
+    def on_epoch_end(self, epoch: int, history: TrainingHistory, model: nn.Module, improved: bool) -> None:
+        """After validation; `history` already includes this epoch."""
 
 
 @dataclass
@@ -262,8 +284,15 @@ def train(
     val_data: Dataset | DataLoader,
     checkpoint_path: str | Path | None = None,
     model: nn.Module | None = None,
+    callbacks: Sequence[TrainingCallback] | None = None,
+    val_score_fn: Callable[[nn.Module], float] | None = None,
 ) -> TrainingResult:
     """Train with early stopping on validation loss and keep the best weights.
+
+    With `config.selection_metric` other than "val_loss", `val_score_fn(model)` supplies that
+    validation metric each epoch (higher is better) and it replaces validation loss for
+    picking the best epoch and for early stopping. `callbacks` receive per-batch and
+    per-epoch hooks (see `TrainingCallback`).
 
     `train_data` / `val_data` may be Datasets (wrapped using
     `config.batch_size`; training is shuffled with a seeded generator) or
@@ -286,16 +315,31 @@ def train(
     loss_fn = build_loss(config)
     optimizer = build_optimizer(model, config)
     stopper = EarlyStopping(config.early_stopping_patience, config.early_stopping_min_delta)
-    history = TrainingHistory()
+    history = TrainingHistory(selection_metric=config.selection_metric)
     best_state: dict[str, torch.Tensor] | None = None
+    select_on_loss = config.selection_metric == "val_loss"
+    if not select_on_loss and val_score_fn is None:
+        raise ValueError(f"selection_metric={config.selection_metric!r} needs a val_score_fn")
+    callbacks = list(callbacks or [])
+    step = 0
+
+    def after_batch(loss: float) -> None:
+        nonlocal step
+        for cb in callbacks:
+            cb.on_batch_end(step, loss)
+        step += 1
 
     for epoch in range(config.max_epochs):
-        train_loss = train_one_epoch(model, train_loader, loss_fn, optimizer, device)
+        train_loss = train_one_epoch(model, train_loader, loss_fn, optimizer, device,
+                                     on_batch_end=after_batch if callbacks else None)
         val_loss = validate(model, val_loader, loss_fn, device)
         history.train_loss.append(train_loss)
         history.val_loss.append(val_loss)
+        selection = val_loss if select_on_loss else float(val_score_fn(model))
+        history.val_selection.append(selection)
 
-        improved = stopper.step(val_loss)
+        # EarlyStopping minimizes, so higher-is-better metrics are negated.
+        improved = stopper.step(selection if select_on_loss else -selection)
         if improved:
             history.best_epoch, history.best_val_loss = epoch, val_loss
             best_state = copy.deepcopy({k: v.detach().cpu() for k, v in model.state_dict().items()})
@@ -304,8 +348,12 @@ def train(
                     checkpoint_path, model, config, epoch=epoch, val_loss=val_loss, optimizer=optimizer, history=history
                 )
         logger.info(
-            "epoch %d: train_loss=%.5f val_loss=%.5f%s", epoch, train_loss, val_loss, " (best)" if improved else ""
+            "epoch %d: train_loss=%.5f val_loss=%.5f%s%s", epoch, train_loss, val_loss,
+            "" if select_on_loss else f" val_{config.selection_metric}={selection:.5f}",
+            " (best)" if improved else "",
         )
+        for cb in callbacks:
+            cb.on_epoch_end(epoch, history, model, improved)
 
         if stopper.should_stop:
             history.stopped_early = True

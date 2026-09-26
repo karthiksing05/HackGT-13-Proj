@@ -27,7 +27,12 @@ Split by user/persona, 80 / 10 / 10 train / validation / test, so no user appear
 - Each validation and test user needs several candidate events, or ranking metrics are skipped (groups smaller than 2 are dropped; `num_groups` reports how many were scored).
 - Never use the test set for model, architecture or hyperparameter selection.
 
-No split code exists yet; see [Implementation status](#implementation-status).
+The split is built into the data: the dataset's `users` config ships train / validation / test
+splits by user, made with a fixed seed (13) by `ml/datagen/select_candidates.py`, and
+`embed.py` saves each split's user-id list as `users/<split>/ids.json`. Each user split draws
+candidates from its own event pool: train users from the event train split minus 2,000
+held-out events, validation users from those held-out events, test users from the event test
+split. `classifier/data.py` asserts these rules when it loads the triples.
 
 ## Model architecture
 
@@ -173,22 +178,53 @@ Then repeat with `config.with_variant("flat")` and `with_variant("late_fusion")`
 
 ## Implementation status
 
-The model, loop, checkpointing, metrics and baseline comparison are built and tested; the data side between embeddings and `train()` is not.
+Everything the recipe needs is built; `train.sbatch` runs it end to end on one Raven node.
 
 | Piece | Status | Where |
 | --- | --- | --- |
 | Features, backbones, residual alpha | Done | `classifier/features.py`, `model.py` |
-| Training loop, early stopping, checkpoints | Done | `classifier/train.py` |
+| Training loop, early stopping, checkpoints | Done; optional callbacks and metric-based selection | `classifier/train.py` |
 | Metrics, baseline comparison, diagnostics | Done | `classifier/metrics.py`, `evaluate.py` |
-| Unit tests | Done | `classifier/tests/test_classifier.py` |
-| Event embeddings | Done, not yet run on full data | `ml/data/embed.py`, `embed.sbatch` |
-| User dataset (positive / negative text) | Missing | `embed.py` takes `--users-repo`, none exists yet |
-| Labels for (user, event) pairs | Missing | No labeling source defined |
-| Triple Dataset + persona split | Missing | Needs to join user and event embeddings by id |
-| Training / eval CLI or sbatch | Missing | Only the Python API exists |
+| Unit tests | Done | `classifier/tests/test_classifier.py`, `test_pipeline.py` |
+| Event embeddings | Done | `ml/data/embed.py`, run by `train.sbatch` |
+| User dataset (positive / negative text) | Done | `users` config of the dataset; `ml/datagen/generate_users.py`, `users.sbatch` |
+| Labels for (user, event) pairs | Done | LLM judge, `ml/datagen/judge.py` |
+| Triple Dataset + persona split | Done | `classifier/data.py` |
+| Training / eval CLI and sbatch | Done, logs to W&B | `classifier/experiment.py`, `train.sbatch` |
 
-**Open questions**
+**Open questions, resolved**
 
-- [ ] Where do labels come from, and are they continuous (Huber) or binary (BCE)?
-- [ ] How many candidate events per user in validation and test? At least 10 for NDCG@10 to be meaningful.
-- [ ] Should model selection move from validation loss to validation NDCG@10 inside `train()`?
+- [x] Where do labels come from, and are they continuous (Huber) or binary (BCE)? From an LLM judge
+  (`Qwen/Qwen3.5-9B`). It sees both preference texts and the event's embedding text, the same inputs as
+  the classifier, and rates each pair 0–3. The label is rating / 3, so labels lie in [0, 1], suit Huber,
+  and `label >= 0.5` (rating ≥ 2) means relevant.
+- [x] How many candidate events per user in validation and test? 20 for every user, in every split:
+  - 8 retrieved by `cos(positive, event)`;
+  - 4 hard negatives (dislike-like events among the top 300);
+  - 8 random.
+- [x] Should model selection move from validation loss to validation NDCG@10 inside `train()`? The default
+  stays validation loss, as the recipe specifies. `ClassifierConfig.selection_metric = "ndcg@10"` (with
+  a `val_score_fn`) selects epochs by validation NDCG@10 instead, and the tuning phase compares both.
+
+## Running it
+
+```bash
+# once, on a login node: embedding env (+ wandb) and cached models/data; the private dataset needs a token
+mpcdf.py run raven 'cd $BASE/HackGT-13/code/<version> && SHARED_DIR=$BASE/HackGT-13/shared USERS_CONFIG=users bash -l ml/data/setup_raven.sh'
+# the whole recipe on one node (4 GPUs); W&B key in $SHARED_DIR/secrets/wandb_api_key
+mpcdf.py submit raven ml/compatibility/classifier/train.sbatch
+```
+
+`experiment.py` runs these stages:
+
+1. **Embeddings** with `embed.py`.
+2. **Baseline:** the cosine baseline on validation for λ ∈ {0, 0.25, …, 2}.
+3. **Phase 1:** `residual`, `late_fusion`, `flat` and `residual` with MSE loss, each for seeds 0, 1 and 2.
+4. **Selection:** the variant with the best mean validation NDCG@10, then Recall@10, then Spearman.
+5. **Phase 2:** one change at a time around the phase-1 winner (learning rate, weight decay, batch size,
+   dropout, width, the tuned λ, patience, NDCG-based selection).
+6. **Final:** the best validation run is evaluated once on test, next to the baseline at the model's λ
+   and at the tuned λ.
+
+Every run logs per-batch and per-epoch losses, α, and validation NDCG@10 / Recall@10 / Spearman to W&B
+project `sidequestz-compatibility`, one group per job. The results land in `<run dir>/final/`.
