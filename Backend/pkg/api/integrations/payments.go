@@ -16,7 +16,8 @@ import (
 )
 
 // Simulated: saved cards are a brand and the last four digits. Nothing is
-// charged, and no card number reaches or leaves this server.
+// charged, and a card number (only ever one of the listed test numbers) is
+// never stored, logged or sent back.
 
 // maxCards caps the cards one account can save.
 const maxCards = 10
