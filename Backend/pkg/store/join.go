@@ -65,7 +65,7 @@ func (j Joins) AddMember(ctx context.Context, itineraryID, userID string, now ti
 			bson.M{"$expr": bson.M{"$lt": bson.A{bson.M{"$size": "$memberIds"}, "$maxGroupSize"}}},
 		}},
 	}
-	update := bson.M{"$addToSet": bson.M{"memberIds": userID}, "$set": bson.M{"updatedAt": j.s.Now()}}
+	update := bson.M{"$addToSet": bson.M{"memberIds": userID}, "$set": bson.M{"updatedAt": j.s.BusinessNow(ctx)}}
 	var doc models.Itinerary
 	err = j.plans().FindOneAndUpdate(ctx, filter, update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&doc)
 	if err == nil {
@@ -111,7 +111,7 @@ func (j Joins) Cancel(ctx context.Context, itineraryID, userID string) error {
 }
 
 func (j Joins) upsertRecord(ctx context.Context, itineraryID, userID, status string, upsert bool) error {
-	now := j.s.Now()
+	now := j.s.BusinessNow(ctx)
 	update := bson.M{
 		"$set":         bson.M{"status": status, "itineraryId": itineraryID, "updatedAt": now},
 		"$setOnInsert": bson.M{"_id": NewID(), "createdAt": now},

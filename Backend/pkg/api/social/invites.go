@@ -52,7 +52,7 @@ func (h *H) CreateInvite(w http.ResponseWriter, r *http.Request) {
 func (h *H) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 	viewerID := api.UserID(r)
 	ctx := r.Context()
-	now := h.d.Clock()
+	now := h.d.Clock() // the link's expiry is real time
 	inv, err := h.d.Store.Invites().Get(ctx, mux.Vars(r)["code"])
 	switch {
 	case errors.Is(err, store.ErrNotFound):
@@ -94,7 +94,7 @@ func (h *H) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	local := now.In(tz)
+	local := h.d.BusinessNow(ctx).In(tz)
 	facts, err := h.d.Store.Users().Presence(ctx, []string{inv.UserID}, local)
 	if err != nil {
 		api.Fail(w, r, err)

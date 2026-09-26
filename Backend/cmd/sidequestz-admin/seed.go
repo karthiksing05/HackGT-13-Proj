@@ -6,11 +6,15 @@ package main
 // ("seed-…"; users "5eed…" ObjectIDs), so running it again rewrites the same
 // documents instead of adding new ones, and restores the seeded state of
 // what a walkthrough changes (the unrated stop, Theo's pending request).
-// Times hang off the run in DEMO_TZ, so "tomorrow" stays tomorrow.
+// Times hang off the run in DEMO_TZ, so "tomorrow" stays tomorrow; with
+// DEMO_DATE set they hang off the demo date instead (the demo accounts'
+// business time, pkg/democlock), while account metadata and TTL expiries
+// stay on the wall clock.
 
 import (
 	"Backend/pkg/api"
 	"Backend/pkg/config"
+	"Backend/pkg/democlock"
 	"Backend/pkg/httpx"
 	"Backend/pkg/models"
 	"Backend/pkg/store"
@@ -118,6 +122,7 @@ type seedReport struct {
 	Counts   []seedCount
 	OpenPlan string
 	Vectors  string
+	Clock    string // the day the world hangs off
 }
 
 type seedCount struct {
@@ -132,11 +137,13 @@ func (r *seedReport) print(w io.Writer, db string) {
 	}
 	fmt.Fprintf(w, "seeded the demo in %s: Sandy Byte (%s, id %s), city %s, catalog %s\n", db, sandy.email, r.SandyID, demoCity, demoCatalog)
 	fmt.Fprintf(w, "  documents: %s\n", strings.Join(parts, ", "))
+	fmt.Fprintf(w, "  times hang off: %s\n", r.Clock)
 	fmt.Fprintf(w, "  Marin's open plan: %s\n", r.OpenPlan)
 	fmt.Fprintf(w, "  Sandy's taste vectors: %s\n", r.Vectors)
 }
 
-// seedDemo creates or refreshes the demo world as of now. It needs
+// seedDemo creates or refreshes the demo world as of now (the real time;
+// with DEMO_DATE, as of the demo date at now's time of day). It needs
 // DEMO_PASSWORD (Sandy's password) and the Saltlight catalog; the whole
 // world is built in memory first, so a missing catalog writes nothing.
 func seedDemo(ctx context.Context, st *store.Store, cfg *config.Config, profiles api.Profiles, now time.Time) (*seedReport, error) {
@@ -152,6 +159,18 @@ func seedDemo(ctx context.Context, st *store.Store, cfg *config.Config, profiles
 		return nil, fmt.Errorf("DEMO_TZ %q: %w", tzName, err)
 	}
 	now = now.UTC().Truncate(time.Millisecond)
+	// The world's times are the demo accounts' business time: the real time,
+	// or with DEMO_DATE the demo date at the real time of day.
+	worldNow, clock := now, "today in "+loc.String()+" (DEMO_DATE is unset)"
+	if strings.TrimSpace(cfg.DemoDate) != "" {
+		demo, err := democlock.New(cfg.DemoDate, tzName)
+		if err != nil {
+			return nil, err
+		}
+		worldNow = demo.Shift(now)
+		clock = fmt.Sprintf("the demo date %s in %s (DEMO_DATE): today is %s for Sandy and the bots, on any real day",
+			demo.Date(), loc, worldNow.In(loc).Format("Mon Jan 2"))
+	}
 
 	places, err := loadSeedPlaces(ctx, st)
 	if err != nil {
@@ -166,10 +185,11 @@ func seedDemo(ctx context.Context, st *store.Store, cfg *config.Config, profiles
 		accounts[p.username] = acct
 	}
 	ids := seedIDs{sandy: accounts[sandy.username].id.Hex(), marin: accounts[marin.username].id.Hex(), theo: accounts[theo.username].id.Hex()}
-	world, err := buildSeedWorld(ids, places, now, loc)
+	world, err := buildSeedWorld(ids, places, worldNow, loc)
 	if err != nil {
 		return nil, err
 	}
+	world.expireByWallClock(now.Sub(worldNow))
 	// A DM between Sandy and Marin may already exist (Plan together on
 	// Marin's post); the seeded messages go into that thread then.
 	if err := adoptExistingDM(ctx, st, world); err != nil {
@@ -185,7 +205,7 @@ func seedDemo(ctx context.Context, st *store.Store, cfg *config.Config, profiles
 	if err != nil {
 		return nil, err
 	}
-	report := &seedReport{SandyID: ids.sandy, Counts: counts, OpenPlan: world.openPlanSummary}
+	report := &seedReport{SandyID: ids.sandy, Counts: counts, OpenPlan: world.openPlanSummary, Clock: clock}
 
 	// Last: the refresh reads the preferences and rated stops written above.
 	report.Vectors = "pending (no ML profile refresher is wired into sidequestz-admin; the ML wiring or Sandy's next PUT /me/preferences computes them)"
@@ -326,7 +346,8 @@ func loadSeedPlaces(ctx context.Context, st *store.Store) ([]*models.Activity, e
 		return nil, fmt.Errorf("read %s: %w", demoCatalog, err)
 	}
 	if len(places) < 3 {
-		return nil, fmt.Errorf("%s has %d %s places; import dataingestion/demo/saltlight_harbor.json first", demoCatalog, len(places), demoCity)
+		return nil, fmt.Errorf("%s has %d %s places; the demo_activities collection (the embedded Saltlight catalog) must be present, "+
+			"e.g. copied from production with Backend/scripts/pull-demo-catalog.sh", demoCatalog, len(places), demoCity)
 	}
 	return places, nil
 }
@@ -371,7 +392,8 @@ func findPlace(places []*models.Activity, name, category string) (*models.Activi
 		}
 	}
 	if len(same) == 0 {
-		return nil, fmt.Errorf("%s has neither %q nor any %s place; import dataingestion/demo/saltlight_harbor.json", demoCatalog, name, category)
+		return nil, fmt.Errorf("%s has neither %q nor any %s place; the demo_activities collection must hold the embedded Saltlight catalog "+
+			"(Backend/scripts/pull-demo-catalog.sh copies it from production)", demoCatalog, name, category)
 	}
 	return nearestPlaces(same, homePoint, 1)[0], nil
 }
@@ -584,6 +606,15 @@ func buildSeedWorld(ids seedIDs, places []*models.Activity, now time.Time, loc *
 		ID: seedCardID, UserID: ids.sandy, Brand: "Visa", Last4: "4242", IsDefault: true, DemoToken: "tok_visa_4242", CreatedAt: friendsSince,
 	})
 	return w, nil
+}
+
+// expireByWallClock moves the TTL expiry of each business deadline (the
+// free-now post's until) by offset, real minus business time: MongoDB's TTL
+// monitor compares expiresAt with the wall clock.
+func (w *seedWorld) expireByWallClock(offset time.Duration) {
+	for i := range w.posts {
+		w.posts[i].ExpiresAt = w.posts[i].Until.Add(offset).UTC()
+	}
 }
 
 func homePlace() models.PlaceDoc {

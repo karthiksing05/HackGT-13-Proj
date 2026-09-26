@@ -23,7 +23,7 @@ func (h *H) PastEvents(w http.ResponseWriter, r *http.Request) {
 	ctx, uid := r.Context(), api.UserID(r)
 	q := r.URL.Query()
 	limit := httpx.Limit(r, pastPage, pastPage)
-	query := store.PastStopsQuery{UserID: uid, Now: h.d.Clock(), Limit: limit + 1}
+	query := store.PastStopsQuery{UserID: uid, Now: h.d.BusinessNow(ctx), Limit: limit + 1}
 	if raw := q.Get("cursor"); raw != "" {
 		after, ok := parsePastCursor(httpx.Cursor(r))
 		if !ok {

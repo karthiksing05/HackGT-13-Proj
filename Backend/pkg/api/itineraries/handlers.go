@@ -32,7 +32,8 @@ type H struct{ d *api.Deps }
 // List is GET /itineraries?status=active (the default) or past → [Itinerary]:
 // the viewer's plans, soonest first (past: most recent first).
 func (h *H) List(w http.ResponseWriter, r *http.Request) {
-	ctx, uid, now := r.Context(), api.UserID(r), h.d.Clock()
+	ctx, uid := r.Context(), api.UserID(r)
+	now := h.d.BusinessNow(ctx)
 	var docs []*models.Itinerary
 	var err error
 	switch r.URL.Query().Get("status") {
@@ -92,7 +93,7 @@ func (h *H) Patch(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, httpx.Forbidden(MsgHostOnly))
 		return
 	}
-	set, err := edit(it, req, httpx.TZ(r), h.d.Clock())
+	set, err := edit(it, req, httpx.TZ(r), h.d.BusinessNow(ctx))
 	if err != nil {
 		api.Fail(w, r, err)
 		return

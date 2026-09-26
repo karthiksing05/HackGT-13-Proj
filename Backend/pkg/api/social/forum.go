@@ -189,7 +189,7 @@ func homePoint(u *models.User) *travel.Point {
 func (h *H) feed(ctx context.Context, viewer *models.User, q forumQuery, tz *time.Location) ([]feedItem, error) {
 	st := h.d.Store
 	viewerID := viewer.ID.Hex()
-	now := h.d.Clock().In(tz)
+	now := h.d.BusinessNow(ctx).In(tz)
 	friendIDs, err := st.Friends().IDs(ctx, viewerID)
 	if err != nil {
 		return nil, err
@@ -433,7 +433,7 @@ func SearchPosts(ctx context.Context, d *api.Deps, viewer *models.User, q string
 
 // MyPost is GET /forum/posts/mine → MyFreePost, or 204 without a live one.
 func (h *H) MyPost(w http.ResponseWriter, r *http.Request) {
-	post, err := h.d.Store.Forum().LiveFreePost(r.Context(), api.UserID(r), h.d.Clock())
+	post, err := h.d.Store.Forum().LiveFreePost(r.Context(), api.UserID(r), h.d.BusinessNow(r.Context()))
 	if errors.Is(err, store.ErrNotFound) {
 		httpx.NoContent(w)
 		return
@@ -472,7 +472,7 @@ func (h *H) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tz := httpx.TZ(r)
-	now := h.d.Clock()
+	now := h.d.BusinessNow(r.Context())
 	until := now.Add(freeNowDefault).Truncate(time.Minute)
 	if req.Until != nil {
 		until = req.Until.Time

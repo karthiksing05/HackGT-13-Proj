@@ -44,6 +44,7 @@ type Config struct {
 
 	DemoPassword string
 	DemoTZ       string
+	DemoDate     string // DEMO_DATE (YYYY-MM-DD): demo accounts live on this date (demo.go); empty = real time
 
 	DevResetCodes     bool          // DEV_RESET_CODES=1 returns the reset code in the forgot response
 	CheckoutStepDelay time.Duration // CHECKOUT_STEP_DELAY, 1.5 s (tests use 0)
@@ -126,6 +127,7 @@ func Parse(getenv func(string) string) (*Config, error) {
 		FBTokenKey:          get("FB_TOKEN_KEY", ""),
 		DemoPassword:        get("DEMO_PASSWORD", ""),
 		DemoTZ:              get("DEMO_TZ", "America/New_York"),
+		DemoDate:            get("DEMO_DATE", ""),
 		DevResetCodes:       boolean(get("DEV_RESET_CODES", "0")),
 		CheckoutStepDelay:   dur("CHECKOUT_STEP_DELAY", "1500ms"),
 		TrustProxy:          boolean(get("TRUST_PROXY", "0")),
@@ -205,6 +207,9 @@ func (c *Config) Validate() error {
 	}
 	if c.CheckoutStepDelay < 0 {
 		errs = append(errs, errors.New("CHECKOUT_STEP_DELAY must not be negative"))
+	}
+	if err := c.validateDemoDate(); err != nil {
+		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
 }

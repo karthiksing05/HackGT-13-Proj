@@ -23,7 +23,7 @@ const insightsMaxEvents = 500
 // the top rated one, their rating tags).
 func (h *H) Insights(w http.ResponseWriter, r *http.Request) {
 	ctx, uid := r.Context(), api.UserID(r)
-	rows, err := h.d.Store.Itineraries().PastStops(ctx, store.PastStopsQuery{UserID: uid, Now: h.d.Clock(), Limit: insightsMaxEvents})
+	rows, err := h.d.Store.Itineraries().PastStops(ctx, store.PastStopsQuery{UserID: uid, Now: h.d.BusinessNow(ctx), Limit: insightsMaxEvents})
 	if err != nil {
 		api.Fail(w, r, err)
 		return

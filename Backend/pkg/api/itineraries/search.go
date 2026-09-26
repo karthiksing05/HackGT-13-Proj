@@ -45,7 +45,7 @@ func (h *H) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, uid := r.Context(), user.ID.Hex()
 
-	its, err := h.d.Store.Itineraries().SearchActive(ctx, uid, q, h.d.Clock(), searchSidequests)
+	its, err := h.d.Store.Itineraries().SearchActive(ctx, uid, q, h.d.BusinessNow(ctx), searchSidequests)
 	if err != nil {
 		api.Fail(w, r, err)
 		return

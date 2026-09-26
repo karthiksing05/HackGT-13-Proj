@@ -166,7 +166,7 @@ func (h *H) Signup(w http.ResponseWriter, r *http.Request) {
 	// No profile refresh here: a fresh account has no preferences, ratings or
 	// interests, so its profile would be empty (a zero vector). The first
 	// refresh happens on PUT /me/preferences (pkg/api/me).
-	httpx.JSON(w, http.StatusCreated, contract.AuthResponse{User: view.User(user, h.d.Cfg.PublicBaseURL, now), Tokens: tokens})
+	httpx.JSON(w, http.StatusCreated, contract.AuthResponse{User: h.d.UserView(user), Tokens: tokens})
 }
 
 // Login is POST /auth/login → AuthResponse; 401 with one sentence for every failure.
@@ -202,5 +202,5 @@ func (h *H) Login(w http.ResponseWriter, r *http.Request) {
 	if err := h.d.Store.Users().Touch(r.Context(), user.ID.Hex()); err != nil {
 		log.Warn().Err(err).Msg("touch lastActiveAt")
 	}
-	httpx.JSON(w, http.StatusOK, contract.AuthResponse{User: view.User(user, h.d.Cfg.PublicBaseURL, h.d.Clock()), Tokens: tokens})
+	httpx.JSON(w, http.StatusOK, contract.AuthResponse{User: h.d.UserView(user), Tokens: tokens})
 }

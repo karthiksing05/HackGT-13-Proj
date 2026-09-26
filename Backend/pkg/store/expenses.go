@@ -58,7 +58,7 @@ func (e Expenses) Insert(ctx context.Context, expenses ...*models.Expense) error
 	if len(expenses) == 0 {
 		return nil
 	}
-	now := e.s.Now()
+	now := e.s.BusinessNow(ctx)
 	docs := make([]any, 0, len(expenses))
 	for _, exp := range expenses {
 		exp.ID = NewID()

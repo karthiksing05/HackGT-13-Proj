@@ -24,7 +24,7 @@ const (
 func (h *H) CalendarDays(w http.ResponseWriter, r *http.Request) {
 	ctx, uid, tz := r.Context(), api.UserID(r), httpx.TZ(r)
 	q := r.URL.Query()
-	from := httpx.LocalMidnight(h.d.Clock(), tz)
+	from := httpx.LocalMidnight(h.d.BusinessNow(ctx), tz)
 	if s := q.Get("from"); s != "" {
 		day, err := httpx.ParseDay(s, tz)
 		if err != nil {

@@ -32,12 +32,14 @@ func (f Forum) coll() *mongo.Collection { return f.s.db.Collection(CollForumPost
 func (f Forum) plans() *mongo.Collection { return f.s.db.Collection(CollItineraries) }
 
 // ReplaceFreePost makes post the author's only free-now post, assigning its
-// id, type, expiry (the TTL index removes it at Until) and createdAt.
+// id, type, expiry and createdAt. Until and createdAt are the author's
+// business time; the TTL index removes the post by the wall clock, so
+// expiresAt is the real instant of Until (Store.RealAt).
 func (f Forum) ReplaceFreePost(ctx context.Context, post *models.ForumPost) error {
 	post.ID = NewID()
 	post.Type = models.PostFreeNow
-	post.ExpiresAt = post.Until
-	post.CreatedAt = f.s.Now()
+	post.ExpiresAt = f.s.RealAt(ctx, post.Until)
+	post.CreatedAt = f.s.BusinessNow(ctx)
 	// Each lost race means a concurrent post by the same author was stored
 	// (and that request finished), so n simultaneous posts need n attempts.
 	for attempt := 0; attempt < 8; attempt++ {

@@ -50,10 +50,11 @@ func (h *H) Get(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, view.User(user, h.d.Cfg.PublicBaseURL, h.d.Clock()))
+	httpx.JSON(w, http.StatusOK, h.d.UserView(user))
 }
 
-// Patch is PATCH /me (UserPatch) → User. Only present fields change.
+// Patch is PATCH /me (UserPatch) → User. Only present fields change; the
+// under-13 rule reads the real date.
 func (h *H) Patch(w http.ResponseWriter, r *http.Request) {
 	var patch contract.UserPatch
 	if !httpx.Decode(w, r, &patch) {
@@ -108,5 +109,5 @@ func (h *H) Patch(w http.ResponseWriter, r *http.Request) {
 			socialapi.StatusChanged(r.Context(), h.d, user, httpx.TZ(r))
 		}
 	}
-	httpx.JSON(w, http.StatusOK, view.User(user, h.d.Cfg.PublicBaseURL, now))
+	httpx.JSON(w, http.StatusOK, h.d.UserView(user))
 }

@@ -53,9 +53,11 @@ type Deps struct {
 
 	authOnce sync.Once
 	auth     *middleware.Auth
+	demo     demoState // DEMO_DATE's clock and who is a demo account (democlock.go)
 }
 
-// Clock is the current time from the testable clock.
+// Clock is the current real time from the testable clock (tokens, rate
+// limits, sessions, expiries); BusinessNow is the account's own time.
 func (d *Deps) Clock() time.Time {
 	if d.Now == nil {
 		return time.Now()
@@ -79,11 +81,13 @@ func (d *Deps) Auth() *middleware.Auth {
 	return d.auth
 }
 
-// Protect requires a bearer access token (401 otherwise).
-func (d *Deps) Protect(h http.HandlerFunc) http.Handler { return d.Auth().Bearer(h) }
+// Protect requires a bearer access token (401 otherwise) and puts the
+// account's clock on the request (withClock).
+func (d *Deps) Protect(h http.HandlerFunc) http.Handler { return d.Auth().Bearer(d.withClock(h)) }
 
-// Optional attaches the user when a valid token is present and continues anonymously otherwise.
-func (d *Deps) Optional(h http.HandlerFunc) http.Handler { return d.Auth().Optional(h) }
+// Optional attaches the user (and their clock) when a valid token is present
+// and continues anonymously otherwise.
+func (d *Deps) Optional(h http.HandlerFunc) http.Handler { return d.Auth().Optional(d.withClock(h)) }
 
 // UserID is the authenticated user's id ("" on public routes without a token).
 func UserID(r *http.Request) string { return middleware.UserID(r) }
