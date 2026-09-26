@@ -13,3 +13,5 @@ DerivedData/
 mpcdf-skills
 
 hf_token
+
+__pycache__/
