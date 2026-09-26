@@ -25,9 +25,19 @@ class QuotaExceeded(RuntimeError):
     pass
 
 
+def key_api(api: str, key_index: int) -> str:
+    """Quota row for one API key: each account has its own cap. The first key keeps the plain
+    name so counts from before rotation still apply."""
+    return api if key_index == 0 else f"{api}@{key_index + 1}"
+
+
+def _cap(api: str) -> tuple[str, int]:
+    return CAPS[api.split("@")[0]]
+
+
 def period_key(api: str, now: datetime | None = None) -> str:
     now = now or datetime.now(timezone.utc)
-    period, _ = CAPS[api]
+    period, _ = _cap(api)
     return now.strftime("%Y-%m") if period == "month" else now.strftime("%Y-%m-%d")
 
 
@@ -35,7 +45,7 @@ def _ensure_row(db: Database, api: str, period: str) -> None:
     try:
         db.quota.update_one(
             {"api": api, "period": period},
-            {"$setOnInsert": {"used": 0, "cap": CAPS[api][1]}},
+            {"$setOnInsert": {"used": 0, "cap": _cap(api)[1]}},
             upsert=True,
         )
     except DuplicateKeyError:
@@ -46,7 +56,7 @@ def reserve(db: Database, api: str, n: int = 1) -> int:
     """Atomically take n calls from the current period. Returns the new used count."""
     period = period_key(api)
     _ensure_row(db, api, period)
-    cap = CAPS[api][1]
+    cap = _cap(api)[1]
     doc = db.quota.find_one_and_update(
         {"api": api, "period": period, "used": {"$lte": cap - n}},
         {"$inc": {"used": n}},
@@ -59,11 +69,16 @@ def reserve(db: Database, api: str, n: int = 1) -> int:
 
 def remaining(db: Database, api: str) -> int:
     doc = db.quota.find_one({"api": api, "period": period_key(api)})
-    return CAPS[api][1] - (doc["used"] if doc else 0)
+    return _cap(api)[1] - (doc["used"] if doc else 0)
 
 
 def usage(db: Database) -> list[dict]:
+    """One row per API, plus one per extra key that has been used this period."""
+    apis = []
+    for api in CAPS:
+        extra = db.quota.distinct("api", {"api": {"$regex": f"^{api}@"}, "period": period_key(api)})
+        apis += [api] + sorted(extra)
     return [
-        {"api": api, "period": period_key(api), "used": CAPS[api][1] - remaining(db, api), "cap": cap}
-        for api, (_, cap) in CAPS.items()
+        {"api": api, "period": period_key(api), "used": _cap(api)[1] - remaining(db, api), "cap": _cap(api)[1]}
+        for api in apis
     ]

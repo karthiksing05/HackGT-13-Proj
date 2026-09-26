@@ -80,9 +80,12 @@ class Http:
         headers: dict | None = None,
         cache_ttl: float | None = None,
         before_network: Callable[[], None] | None = None,
+        auth: Callable[[], dict] | None = None,
     ) -> Any:
         """Return parsed JSON. `before_network` runs only on a cache miss, so quota
-        is reserved for real calls only. Raises httpx.HTTPStatusError on non-2xx."""
+        is reserved for real calls only. `auth` headers are added at send time (after
+        `before_network`, which may rotate keys) and are not part of the cache key.
+        Raises httpx.HTTPStatusError on non-2xx."""
         key = self._cache_key(method, url, params, body, headers)
         if cache_ttl:
             cached = self._cache_read(key, cache_ttl)
@@ -91,6 +94,8 @@ class Http:
                 return cached
         if before_network:
             before_network()
+        if auth:
+            headers = {**(headers or {}), **auth()}
         data = self._send(method, url, params, body, headers)
         self.network_calls += 1
         if cache_ttl:

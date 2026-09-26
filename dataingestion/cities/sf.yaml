@@ -1,0 +1,36 @@
+slug: sf
+name: San Francisco
+country_code: US              # ISO 3166-1 alpha-2
+default_region: CA            # fallback for address.region
+language: en                  # SerpApi hl, Places languageCode
+timezone: America/Los_Angeles
+currency: USD                 # prices stored in local currency; no FX conversion
+price_tiers: [0, 15, 40, 80]  # upper bounds for tiers 0-3; above the last = tier 4
+center: { lat: 37.7879, lng: -122.4075 }                          # Union Square, downtown SF
+bbox: { south: 37.70, west: -122.52, north: 37.90, east: -122.18 } # SF + Oakland/Berkeley; ~30 x 22 km, much of it bay
+hikes_radius_km: 50
+elevation_dataset: ned10m     # OpenTopoData; ned10m is US-only
+neighborhoods: [Mission, SoMa, North Beach, Haight-Ashbury, Castro, Hayes Valley, Downtown Oakland]
+demo:                         # used by `blurb --top` and the acceptance checks
+  start: { lat: null, lng: null }   # fill in from a map
+  window_local: ["Sun 13:00", "Sun 17:00"]
+query_terms:
+  places: [rooftop bars, live music venues, board game cafe, escape room, things to do]
+  events: [concerts, comedy, free events, art exhibitions, markets, nightlife, trivia night, workshops]
+ticketmaster: { radius_km: 30 }
+resident_advisor:                                    # area_id verified 2026-09-26 via ra.co/graphql area(areaUrlName: "sanfrancisco", countryUrlCode: "us") -> id 218 "San Francisco/Oakland"
+  area_id: 218
+  referer: https://ra.co/events/us/sanfrancisco
+adapters:
+  ticketmaster: true
+  google_places: true         # needs billing (§5.2)
+  osm_places: false
+  serpapi_events: false
+  web_calendar: false
+  resident_advisor: true
+  eventbrite: false
+  osm_trails: true            # §5.10; Overpass + OpenTopoData, both free
+  google_typical_time: false
+  predicthq: false
+  nps: false
+  fsq_os: false

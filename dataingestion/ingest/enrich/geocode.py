@@ -15,16 +15,18 @@ from dataclasses import dataclass
 
 from pymongo.database import Database
 
-from ..config import CACHE_DIR, City, MissingConfig, require_env
+from ..config import CACHE_DIR, City, MissingConfig
 from ..http import Http
 from ..models import Activity, Address, GeoPoint
-from ..quota import QuotaExceeded, reserve
+from ..keys import KeyRing
+from ..quota import QuotaExceeded
 
 log = logging.getLogger(__name__)
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 CACHE_TTL = 90 * 24 * 3600
 CACHEABLE = {"OK", "ZERO_RESULTS"}  # never cache REQUEST_DENIED / OVER_QUERY_LIMIT
+ROTATE_ON = {"OVER_QUERY_LIMIT", "OVER_DAILY_LIMIT", "REQUEST_DENIED"}
 # APPROXIMATE means Google only matched a city or neighborhood centroid: useless for a venue.
 PRECISE_TYPES = {"ROOFTOP", "RANGE_INTERPOLATED", "GEOMETRIC_CENTER"}
 
@@ -94,7 +96,7 @@ class Geocoder:
     def __init__(self, city: City, db: Database | None):
         self.city = city
         self.db = db
-        self.api_key = require_env("GOOGLE_MAPS_API_KEY", "Geocoding needs a key with the Geocoding API enabled.")
+        self.keys = KeyRing("GOOGLE_MAPS_API_KEY", db, "Geocoding needs a key with the Geocoding API enabled.")
         self.http = Http("google_geocode")
         self.cache_dir = CACHE_DIR / "google_geocode"
         self.lookups = 0
@@ -132,14 +134,19 @@ class Geocoder:
         bbox = self.city.bbox
         params = {
             "address": text,
-            "key": self.api_key,
             "bounds": f"{bbox.south},{bbox.west}|{bbox.north},{bbox.east}",
             "region": self.city.country_code.lower(),
             "language": self.city.language,
         }
-        data = self.http.get_json(GEOCODE_URL, params, before_network=lambda: reserve(self.db, "google_geocode"))
-        self.lookups += 1
-        status = data.get("status")
+        while True:
+            self.keys.reserve("google_geocode")
+            data = self.http.get_json(GEOCODE_URL, {**params, "key": self.keys.key})
+            self.lookups += 1
+            status = data.get("status")
+            # Quota or billing trouble on this account (reported with HTTP 200): try the next key.
+            if status in ROTATE_ON and self.keys.rotate(f"Google Geocoding {status}"):
+                continue
+            break
         if status not in CACHEABLE:
             raise GeocodeError(f"Google Geocoding {status}: {data.get('error_message') or 'no message'}")
         self.cache_dir.mkdir(parents=True, exist_ok=True)

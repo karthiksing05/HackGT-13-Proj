@@ -39,7 +39,8 @@ BROWSER_UA = (
 LATE_NIGHT_HOUR = 21
 MAX_GEOCODE_DISAGREEMENT_KM = 2.0  # 2-decimal rounding is off by <1 km; beyond this the geocode matched elsewhere
 
-_TIME_OF_DAY = re.compile(r"\d{1,2}(?::\d{2})?\s*(?:am|pm)\b", re.I)
+_TIME_OF_DAY = re.compile(r"\d{1,2}(?::\d{2})?\s*(?:am|pm)\b|\b\d{1,2}:\d{2}\b", re.I)  # 11pm, 23:00
+_DECIMAL_COMMA = re.compile(r"(\d),(\d{2})(?!\d)")  # "25,00 €" -> 25.00; "1,500" stays a thousands separator
 _AMOUNT = re.compile(r"\d+(?:\.\d+)?")
 
 
@@ -57,7 +58,7 @@ def _clean(value: str | None) -> str | None:
 
 def parse_cost(cost: str | None) -> tuple[float | None, float | None]:
     """Free-text cost -> (min, max). Times of day ("10 before 11pm") are not prices."""
-    text = _TIME_OF_DAY.sub(" ", (cost or "").replace(",", ""))
+    text = _TIME_OF_DAY.sub(" ", _DECIMAL_COMMA.sub(r"\1.\2", cost or "").replace(",", ""))
     amounts = [float(a) for a in _AMOUNT.findall(text)]
     if amounts:
         return min(amounts), max(amounts)

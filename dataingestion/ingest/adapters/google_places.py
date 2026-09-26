@@ -12,12 +12,13 @@ from typing import Iterable
 
 import httpx
 
-from ..config import MissingConfig, require_env
+from ..config import MissingConfig
 from ..enrich.classify import google_category
 from ..geo import Cell, grid
 from ..http import Http
 from ..models import Activity, Address, GeoPoint, HoursInterval, Price, SourceRef
-from ..quota import QuotaExceeded, remaining, reserve
+from ..keys import KeyRing
+from ..quota import QuotaExceeded
 from .base import Adapter
 
 log = logging.getLogger(__name__)
@@ -111,10 +112,10 @@ class GooglePlacesAdapter(Adapter):
         self.cells = grid(**self.city.bbox.model_dump(), cell_km=self.gp["cell_km"])
         self._seen: set[str] = set()
         self.http = Http(self.name)
-        self.api_key: str | None = None
+        self.keys: KeyRing | None = None
         try:
-            self.api_key = require_env(
-                "GOOGLE_MAPS_API_KEY",
+            self.keys = KeyRing(
+                "GOOGLE_MAPS_API_KEY", self.db,
                 "Google Places needs a key on a GCP project with billing enabled. "
                 "Until then, switch adapters.osm_places on in the city config (§5.2).",
             )
@@ -143,9 +144,9 @@ class GooglePlacesAdapter(Adapter):
         return {"google_nearby": nearby, "google_text": text * self.gp["text_max_pages"]}
 
     def _cached(self, url: str, body: dict, mask: str) -> bool:
-        if self.api_key is None:
+        if self.keys is None:
             return False
-        headers = {"X-Goog-Api-Key": self.api_key, "X-Goog-FieldMask": mask}
+        headers = {"X-Goog-Api-Key": self.keys.cache_key, "X-Goog-FieldMask": mask}
         return self.http.is_cached("POST", url, None, body, headers, CACHE_TTL)
 
     # ---- fetch ----
@@ -216,13 +217,20 @@ class GooglePlacesAdapter(Adapter):
                 yield p
 
     def _post(self, url: str, body: dict, mask: str, sku: str) -> dict:
-        headers = {"X-Goog-Api-Key": self.api_key, "X-Goog-FieldMask": mask}
-        try:
-            return self.http.post_json(
-                url, body, headers=headers, cache_ttl=CACHE_TTL, before_network=lambda: reserve(self.db, sku)
-            )
-        except httpx.HTTPStatusError as e:
-            raise GooglePlacesError(self._explain(e)) from None
+        # Cached under key 1 whichever key sends it (keys.py), so rotation never refetches.
+        headers = {"X-Goog-Api-Key": self.keys.cache_key, "X-Goog-FieldMask": mask}
+        while True:
+            try:
+                return self.http.post_json(
+                    url, body, headers=headers, cache_ttl=CACHE_TTL,
+                    before_network=lambda: self.keys.reserve(sku),
+                    auth=lambda: {"X-Goog-Api-Key": self.keys.key},
+                )
+            except httpx.HTTPStatusError as e:
+                # Out of quota or refused (billing, API not enabled) on this account: try the next one.
+                if e.response.status_code in (403, 429) and self.keys.rotate(self._explain(e)):
+                    continue
+                raise GooglePlacesError(self._explain(e)) from None
 
     @staticmethod
     def _explain(e: httpx.HTTPStatusError) -> str:

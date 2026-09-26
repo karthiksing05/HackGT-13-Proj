@@ -4,6 +4,10 @@ Verified on our key (2026-09-25): Google Search grounding works on gemini-2.5-fl
 gemini-flash-latest / flash-lite-latest / 3.5-flash return 429 with the search tool (no
 free-tier grounding), but work without tools. A 429 body doesn't say whether the
 per-minute or per-day limit was hit, so we back off a couple of times and then give up.
+
+GEMINI_API_KEY may hold several comma-separated keys (one per account). Each key has its own
+free-tier limits, so each (key, model) is paced separately and a call goes to whichever key is
+free soonest; a key that runs out for a model is dropped for that model for the rest of the run.
 """
 
 import logging
@@ -16,7 +20,7 @@ import httpx
 from google import genai
 from google.genai import errors, types
 
-from ..config import env, require_env
+from ..config import env, require_keys
 
 log = logging.getLogger(__name__)
 
@@ -40,13 +44,17 @@ class Result:
 
 class Gemini:
     def __init__(self, rpm: dict[str, float] | None = None):
-        self.client = genai.Client(
-            api_key=require_env("GEMINI_API_KEY", "Get one from AI Studio."),
-            # Our own retry loop below handles 429/503; the SDK's would hammer a spent quota.
-            http_options=types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=1)),
-        )
+        self.clients = [
+            genai.Client(
+                api_key=key,
+                # Our own retry loop below handles 429/503; the SDK's would hammer a spent quota.
+                http_options=types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=1)),
+            )
+            for key in require_keys("GEMINI_API_KEY", "Get one from AI Studio.")
+        ]
         self.rpm = rpm or {}
-        self._last: dict[str, float] = {}
+        self._next: dict[tuple[int, str], float] = {}  # (key, model) -> monotonic time it's free again
+        self._spent: set[tuple[int, str]] = set()
         self._lock = threading.Lock()
         self._http = httpx.Client(timeout=10, follow_redirects=False)
 
@@ -74,36 +82,48 @@ class Gemini:
         return out
 
     def _call(self, model: str, prompt: str, config: types.GenerateContentConfig):
-        waits_429, waits_5xx = list(RETRY_WAITS_429), list(RETRY_WAITS_5XX)
+        waits_429 = {i: list(RETRY_WAITS_429) for i in range(len(self.clients))}
+        waits_5xx = list(RETRY_WAITS_5XX)
         while True:
-            self._pace(model)
+            i = self._acquire(model)  # raises GeminiQuotaExhausted once every key is spent
             try:
-                return self.client.models.generate_content(model=model, contents=prompt, config=config)
+                return self.clients[i].models.generate_content(model=model, contents=prompt, config=config)
             except errors.APIError as e:
                 if e.code == 429:
-                    if "PerDay" in str(e.details):  # daily cap: waiting won't help today
-                        raise GeminiQuotaExhausted(f"{model}: daily free-tier limit reached") from None
-                    if not waits_429:
-                        raise GeminiQuotaExhausted(f"{model}: {e.message or 'quota exhausted'}") from None
-                    wait = waits_429.pop(0)
+                    daily = "PerDay" in str(e.details)  # daily cap: waiting won't help today
+                    if daily or not waits_429[i]:
+                        self._spent.add((i, model))
+                        why = "daily free-tier limit reached" if daily else e.message or "quota exhausted"
+                        log.warning("%s: key %d/%d out of quota (%s)", model, i + 1, len(self.clients), why)
+                        continue
+                    wait = waits_429[i].pop(0)
+                    self._hold(i, model, wait)  # other keys keep working meanwhile
                 elif e.code and e.code >= 500:
                     if not waits_5xx:
                         raise
                     wait = waits_5xx.pop(0)
+                    time.sleep(wait)
                 else:
                     raise
-                log.info("%s: HTTP %s, retrying in %ss", model, e.code, wait)
-                time.sleep(wait)
+                log.info("%s: key %d HTTP %s, retrying in %ss", model, i + 1, e.code, wait)
 
-    def _pace(self, model: str) -> None:
-        rpm = self.rpm.get(model)
-        if not rpm:
-            return
+    def _acquire(self, model: str) -> int:
+        """The live key that is free soonest for this model; waits out its pacing gap."""
         with self._lock:
-            wait = self._last.get(model, 0) + 60 / rpm - time.monotonic()
+            live = [i for i in range(len(self.clients)) if (i, model) not in self._spent]
+            if not live:
+                raise GeminiQuotaExhausted(f"{model}: every key is out of quota")
+            i = min(live, key=lambda k: self._next.get((k, model), 0))
+            wait = self._next.get((i, model), 0) - time.monotonic()
             if wait > 0:
                 time.sleep(wait)
-            self._last[model] = time.monotonic()
+            rpm = self.rpm.get(model)
+            self._next[(i, model)] = time.monotonic() + (60 / rpm if rpm else 0)
+            return i
+
+    def _hold(self, i: int, model: str, seconds: float) -> None:
+        with self._lock:
+            self._next[(i, model)] = max(self._next.get((i, model), 0), time.monotonic() + seconds)
 
     def _grounding(self, cand) -> tuple[list[str], list[dict]]:
         sources: dict[str, dict] = {}

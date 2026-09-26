@@ -241,8 +241,11 @@ class Researcher:
             except GeminiQuotaExhausted as e:
                 # Out of quota won't recover mid-run; stop paying the backoff on every activity.
                 log.warning("%s is out of quota; dropping it for the rest of this run", model)
-                if len(self.write_models) > 1:
-                    self.write_models.remove(model)
+                if len(self.write_models) > 1 and model in self.write_models:  # another worker may have dropped it
+                    try:
+                        self.write_models.remove(model)
+                    except ValueError:
+                        pass
                 last = e
             except errors.ServerError as e:
                 log.info("%s unavailable (%s); trying the next write model", model, str(e)[:80])

@@ -106,30 +106,32 @@ def _select(city: Optional[str], kind: str, limit: int, activity_id: Optional[st
     return c, db, list(cursor)
 
 
-def _run_batch(agent, docs, force: bool, dry_run: bool, out_name: str, record) -> None:
-    """Run an agent over docs, failing soft per activity. `record(doc, outcome)` -> dry-run row."""
+def _run_batch(agent, docs, force: bool, dry_run: bool, out_name: str, record, workers: int = 1) -> None:
+    """Run an agent over docs, failing soft per activity. `record(doc, outcome)` -> dry-run row.
+    With workers > 1, calls overlap; Gemini's per-key pacing still bounds the request rate."""
     import json
+    from concurrent.futures import ThreadPoolExecutor
 
     from .config import OUT_DIR
 
+    def attempt(doc):
+        try:
+            return agent.run(doc, force=force)
+        except Exception as e:  # one bad activity doesn't stop the batch
+            return e
+
     counts = {"written": 0, "skipped": 0, "failed": 0}
     grounded, rows = 0, []
-    for i, doc in enumerate(docs, 1):
-        label = f"[{i}/{len(docs)}] {doc['name'][:50]}"
-        try:
-            res = agent.run(doc, force=force)
-        except Exception as e:  # one bad activity doesn't stop the batch
-            counts["failed"] += 1
-            typer.secho(f"{label}: {type(e).__name__}: {str(e)[:200]}", fg=typer.colors.RED)
-            continue
-        counts[res.status] += 1
-        if res.status == "written":
-            n_sources = len((res.research or {}).get("sources") or [])
-            grounded += bool(res.research)
-            typer.echo(f"{label} ({n_sources} sources)")
-            rows.append(record(doc, res))
-        elif res.status == "failed":
-            typer.secho(f"{label}: failed checks ({res.reason})", fg=typer.colors.YELLOW)
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        results = pool.map(attempt, docs)  # yields in order as they finish
+        for i, (doc, res) in enumerate(zip(docs, results), 1):
+            label = f"[{i}/{len(docs)}] {doc['name'][:50]}"
+            if isinstance(res, Exception):
+                counts["failed"] += 1
+                typer.secho(f"{label}: {type(res).__name__}: {str(res)[:200]}", fg=typer.colors.RED)
+                continue
+            _report(res, label, counts, rows, record, doc)
+            grounded += res.status == "written" and bool(res.research)
     if dry_run and rows:
         OUT_DIR.mkdir(exist_ok=True)
         path = OUT_DIR / out_name
@@ -140,7 +142,18 @@ def _run_batch(agent, docs, force: bool, dry_run: bool, out_name: str, record) -
         typer.secho(f"grounded research stopped early: {agent.grounded_off}", fg=typer.colors.YELLOW)
 
 
+def _report(res, label: str, counts: dict, rows: list, record, doc) -> None:
+    counts[res.status] += 1
+    if res.status == "written":
+        n_sources = len((res.research or {}).get("sources") or [])
+        typer.echo(f"{label} ({n_sources} sources)")
+        rows.append(record(doc, res))
+    elif res.status == "failed":
+        typer.secho(f"{label}: failed checks ({res.reason})", fg=typer.colors.YELLOW)
+
+
 KindOpt = typer.Option("event", "--kind", help="event, place or all")
+WorkersOpt = typer.Option(1, "--workers", help="Overlapping Gemini calls (per-key pacing still applies); ~4 with 2 keys")
 LimitOpt = typer.Option(0, "--limit", help="0 = every matching activity")
 IdOpt = typer.Option(None, "--id", help="One activity by _id")
 ResearchOpt = typer.Option(None, "--research-provider", help="muse, gemini or claude; overrides config.yaml. "
@@ -163,6 +176,7 @@ def blurb(
     force: bool = typer.Option(False, "--force", help="Rewrite even if the blurb is current"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Write blurbs to out/ instead of the DB (research is still cached)"),
     research_provider: Optional[str] = ResearchOpt,
+    workers: int = WorkersOpt,
 ):
     """Research activities on the web and write their detail-screen paragraph (§6.6)."""
     from .agent.blurb import BlurbAgent
@@ -172,7 +186,7 @@ def blurb(
     _run_batch(agent, docs, force, dry_run, f"blurbs_{c.slug}_dryrun.json", lambda doc, res: {
         "_id": str(doc["_id"]), "name": doc["name"], **res.blurb,
         "researchNotes": (res.research or {}).get("notes"),
-    })
+    }, workers=workers)
 
 
 @app.command("embed-text")
@@ -184,6 +198,7 @@ def embed_text(
     force: bool = typer.Option(False, "--force", help="Regenerate even if current"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Write results to out/ instead of the DB (research is still cached)"),
     research_provider: Optional[str] = ResearchOpt,
+    workers: int = WorkersOpt,
 ):
     """Web-research activities and write structured embedding text for the ML model."""
     from .agent.embed_text import EmbedTextAgent
@@ -193,7 +208,7 @@ def embed_text(
     _run_batch(agent, docs, force, dry_run, f"embed_text_{c.slug}_dryrun.json", lambda doc, res: {
         "_id": str(doc["_id"]), "name": doc["name"], "embeddingText": res.text,
         "eventData": res.event_data, "sources": [s["url"] for s in (res.research or {}).get("sources", [])],
-    })
+    }, workers=workers)
 
 
 PIPELINE_SOURCES = ["ticketmaster", "google_places", "resident_advisor", "osm_trails"]

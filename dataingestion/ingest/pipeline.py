@@ -14,7 +14,7 @@ from .db import upsert_activity
 from .enrich import duration
 from .enrich.geocode import fill_region, locate, make_geocoder
 from .models import Activity, RunStats
-from .quota import remaining
+from .quota import key_api, remaining
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +44,8 @@ def run_adapter(
         geocoder = make_geocoder(city, db)
         est = adapter.estimate()
         if est is not None:
-            _check_budget(est, db, stats)
+            keys = getattr(adapter, "keys", None)
+            _check_budget(est, db, stats, len(keys.keys) if keys else 1)
             if dry_run:
                 return stats  # paid API: dry run only estimates, never fetches
         for raw in adapter.fetch():
@@ -85,9 +86,9 @@ def run_adapter(
     return stats
 
 
-def _check_budget(est: dict[str, int], db: Database | None, stats: RunStats) -> None:
+def _check_budget(est: dict[str, int], db: Database | None, stats: RunStats, n_keys: int = 1) -> None:
     for api, calls in est.items():
-        left = remaining(db, api) if db is not None else None
+        left = sum(remaining(db, key_api(api, i)) for i in range(n_keys)) if db is not None else None
         msg = f"{api}: ~{calls} calls estimated, {left if left is not None else '?'} left this period"
         log.info(msg)
         if left is not None and calls > left:

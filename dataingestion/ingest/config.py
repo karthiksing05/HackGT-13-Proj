@@ -26,7 +26,10 @@ def env(name: str, default: str | None = None) -> str | None:
 
 
 # Alternate names teammates have used for the same key.
-ENV_ALIASES = {"GOOGLE_MAPS_API_KEY": ["GOOGLE_CLOUD_API_KEY"]}
+ENV_ALIASES = {
+    "GOOGLE_MAPS_API_KEY": ["GOOGLE_MAPS_API_KEYS", "GOOGLE_CLOUD_API_KEYS", "GOOGLE_CLOUD_API_KEY"],
+    "GEMINI_API_KEY": ["GEMINI_API_KEYS"],
+}
 
 
 def require_env(name: str, hint: str = "") -> str:
@@ -34,6 +37,15 @@ def require_env(name: str, hint: str = "") -> str:
     if not value:
         raise MissingConfig(f"{name} is not set in .env. {hint}".strip())
     return value
+
+
+def require_keys(name: str, hint: str = "") -> list[str]:
+    """A comma-separated list of API keys (one per account) for rotation; a single key works too."""
+    keys = list(dict.fromkeys(k.strip().strip("'\"") for k in require_env(name, hint).split(",")))
+    keys = [k for k in keys if k]
+    if not keys:
+        raise MissingConfig(f"{name} is empty in .env. {hint}".strip())
+    return keys
 
 
 class LatLng(BaseModel):

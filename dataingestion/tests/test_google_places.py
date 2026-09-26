@@ -85,5 +85,7 @@ def test_estimate_fits_free_caps(adapter):
 def test_missing_key_fails_fast(city, monkeypatch):
     monkeypatch.delenv("GOOGLE_MAPS_API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_CLOUD_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_CLOUD_API_KEYS", raising=False)
+    monkeypatch.delenv("GOOGLE_MAPS_API_KEYS", raising=False)
     with pytest.raises(MissingConfig, match="billing"):
         GooglePlacesAdapter(city)
