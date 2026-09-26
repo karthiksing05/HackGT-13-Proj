@@ -1,0 +1,92 @@
+{
+ "_note": "Hand-built from the documented Places API (New) response shape; not a live response. Replace with a real one once billing is on (spec §2.3).",
+ "places": [
+  {
+   "id": "FIXTURE_museum_1",
+   "displayName": {"text": "Example History Museum", "languageCode": "en"},
+   "primaryType": "history_museum",
+   "types": ["history_museum", "museum", "tourist_attraction", "point_of_interest", "establishment"],
+   "location": {"latitude": 33.7701, "longitude": -84.3876},
+   "formattedAddress": "100 Example St NW, Atlanta, GA 30308, USA",
+   "addressComponents": [
+    {"longText": "100", "shortText": "100", "types": ["street_number"], "languageCode": "en"},
+    {"longText": "Example Street Northwest", "shortText": "Example St NW", "types": ["route"], "languageCode": "en"},
+    {"longText": "Atlanta", "shortText": "Atlanta", "types": ["locality", "political"], "languageCode": "en"},
+    {"longText": "Georgia", "shortText": "GA", "types": ["administrative_area_level_1", "political"], "languageCode": "en"},
+    {"longText": "United States", "shortText": "US", "types": ["country", "political"], "languageCode": "en"},
+    {"longText": "30308", "shortText": "30308", "types": ["postal_code"], "languageCode": "en"}
+   ],
+   "regularOpeningHours": {
+    "openNow": false,
+    "periods": [
+     {"open": {"day": 2, "hour": 10, "minute": 0}, "close": {"day": 2, "hour": 17, "minute": 0}},
+     {"open": {"day": 0, "hour": 12, "minute": 0}, "close": {"day": 0, "hour": 17, "minute": 30}}
+    ],
+    "weekdayDescriptions": ["Monday: Closed", "Tuesday: 10:00 AM – 5:00 PM", "Wednesday: Closed", "Thursday: Closed", "Friday: Closed", "Saturday: Closed", "Sunday: 12:00 – 5:30 PM"]
+   },
+   "priceLevel": "PRICE_LEVEL_MODERATE",
+   "priceRange": {"startPrice": {"currencyCode": "USD", "units": "20"}, "endPrice": {"currencyCode": "USD", "units": "30"}},
+   "rating": 4.6,
+   "userRatingCount": 1834,
+   "websiteUri": "https://example.org/museum",
+   "googleMapsUri": "https://maps.google.com/?cid=1",
+   "businessStatus": "OPERATIONAL"
+  },
+  {
+   "id": "FIXTURE_park_24h",
+   "displayName": {"text": "Example Park", "languageCode": "en"},
+   "primaryType": "park",
+   "types": ["park", "point_of_interest", "establishment"],
+   "location": {"latitude": 33.7851, "longitude": -84.3738},
+   "formattedAddress": "Example Park, Atlanta, GA 30309, USA",
+   "regularOpeningHours": {"openNow": true, "periods": [{"open": {"day": 0, "hour": 0, "minute": 0}}]},
+   "priceLevel": "PRICE_LEVEL_FREE",
+   "rating": 4.8,
+   "userRatingCount": 25000,
+   "googleMapsUri": "https://maps.google.com/?cid=2",
+   "businessStatus": "OPERATIONAL"
+  },
+  {
+   "id": "FIXTURE_bar_wraps",
+   "displayName": {"text": "Example Late Bar", "languageCode": "en"},
+   "primaryType": "cocktail_bar",
+   "types": ["cocktail_bar", "bar", "point_of_interest", "establishment"],
+   "location": {"latitude": 33.7612, "longitude": -84.3589},
+   "formattedAddress": "5 Example Ave NE, Atlanta, GA 30307, USA",
+   "regularOpeningHours": {
+    "periods": [{"open": {"day": 6, "hour": 18, "minute": 0}, "close": {"day": 0, "hour": 2, "minute": 0}}]
+   },
+   "priceLevel": "PRICE_LEVEL_EXPENSIVE",
+   "rating": 4.4,
+   "userRatingCount": 512,
+   "googleMapsUri": "https://maps.google.com/?cid=3",
+   "businessStatus": "OPERATIONAL"
+  },
+  {
+   "id": "FIXTURE_restaurant_generic",
+   "displayName": {"text": "Example Trattoria", "languageCode": "en"},
+   "primaryType": "italian_restaurant",
+   "types": ["italian_restaurant", "restaurant", "food", "point_of_interest", "establishment"],
+   "location": {"latitude": 33.7801, "longitude": -84.3884},
+   "userRatingCount": 240,
+   "businessStatus": "OPERATIONAL"
+  },
+  {
+   "id": "FIXTURE_salon",
+   "displayName": {"text": "Example Braiding Salon", "languageCode": "en"},
+   "primaryType": "hair_salon",
+   "types": ["hair_salon", "art_gallery", "beauty_salon", "point_of_interest", "establishment"],
+   "location": {"latitude": 33.66, "longitude": -84.45},
+   "userRatingCount": 300,
+   "businessStatus": "OPERATIONAL"
+  },
+  {
+   "id": "FIXTURE_closed",
+   "displayName": {"text": "Example Closed Gallery", "languageCode": "en"},
+   "primaryType": "art_gallery",
+   "types": ["art_gallery"],
+   "location": {"latitude": 33.77, "longitude": -84.39},
+   "businessStatus": "CLOSED_PERMANENTLY"
+  }
+ ]
+}

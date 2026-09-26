@@ -1,0 +1,96 @@
+# Source category -> our category (§4.3). Unmapped values fall back to "other"
+# and are left for the LLM classifier (§6.3).
+
+ticketmaster:
+  # genre wins over segment when both map
+  segment:
+    Music: live_music
+    Sports: sports_event
+    Arts & Theatre: theater
+    Film: cinema
+  genre:
+    Comedy: comedy
+    Theatre: theater
+    Musical: theater
+    Dance: theater
+    Opera: theater
+    Classical: live_music
+    Children's Theatre: theater
+    Magic & Illusion: theater
+    Circus & Specialty Acts: theater
+    Spectacular: theater
+    Ice Shows: theater
+    Performance Art: theater
+    Puppetry: theater
+    Fine Art: gallery
+    Fashion: community_event
+    Multimedia: other
+    Cultural: community_event
+    Fairs & Festivals: festival
+    Food & Drink: festival
+    Community/Civic: community_event
+    Community/Cultural: community_event
+    Family: community_event
+    Hobby/Special Interest Expos: community_event
+    Lecture/Seminar: class_workshop
+    Health/Wellness: class_workshop
+    Casino/Gaming: rec_venue
+    Miscellaneous: other
+
+google:
+  # matched against primaryType (types[] only when primaryType is missing).
+  # Food places (restaurants, cafes, bakeries) are deliberately unmapped, so they're skipped.
+  museum: museum
+  art_museum: museum
+  history_museum: museum
+  art_gallery: gallery
+  performing_arts_theater: theater
+  concert_hall: live_music
+  opera_house: theater
+  comedy_club: comedy
+  tourist_attraction: landmark
+  historical_landmark: landmark
+  monument: landmark
+  cultural_landmark: landmark
+  observation_deck: viewpoint
+  park: park
+  city_park: park
+  national_park: park
+  state_park: park
+  dog_park: park
+  hiking_area: park
+  botanical_garden: garden
+  garden: garden
+  zoo: zoo_aquarium
+  aquarium: zoo_aquarium
+  wildlife_park: zoo_aquarium
+  bowling_alley: rec_venue
+  amusement_center: rec_venue
+  amusement_park: rec_venue
+  video_arcade: rec_venue
+  karaoke: rec_venue
+  escape_room: rec_venue
+  miniature_golf_course: rec_venue
+  movie_theater: cinema
+  bar: bar
+  pub: bar
+  wine_bar: bar
+  cocktail_bar: bar
+  lounge_bar: bar
+  sports_bar: bar
+  brewery: bar
+  night_club: nightclub
+  market: market
+  farmers_market: market
+  shopping_mall: shopping
+  book_store: shopping
+
+resident_advisor:
+  # Genre slugs as RA returns them (genres[].slug). Most RA listings are DJ nights,
+  # so anything unmapped is a nightclub; isFestival events become festival.
+  default: nightclub
+  # Slugs verified against ra.co/graphql `genres`. Only genres that usually mean a live band.
+  genre:
+    jazz: live_music
+    classical: live_music
+    krautrock: live_music

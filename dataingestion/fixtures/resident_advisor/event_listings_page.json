@@ -1,0 +1,1134 @@
+{
+ "data": {
+  "eventListings": {
+   "data": [
+    {
+     "id": "12521019",
+     "listingDate": "2026-09-25T00:00:00.000",
+     "event": {
+      "id": "2521019",
+      "title": "BRAINWASH PRESENTS: O.B.I. , Per Pleks",
+      "date": "2026-09-25T00:00:00.000",
+      "startTime": "2026-09-25T22:00:00.000",
+      "endTime": "2026-09-26T04:00:00.000",
+      "contentUrl": "/events/2521019",
+      "content": "ATLANTA!!! On September 25, we welcome two forces from Germany to our warehouse \u2014 the legendary O.B.I. makes his ATLANTA debut, while PER PLEKS returns after joining us earlier this year.\nFor decades, O.B.I. has been part of the foundation of Germany\u2019s harder techno sound, staying true to it through every shift and evolution of the scene. His music has been moving dancefloors for a long time, and this September, we finally get to experience it in Atlanta. Alongside him, we welcome back PER PLEKS. His first time with us left no question about bringing him back. The connection between him and our dancefloor was immediate, and we knew that night wouldn\u2019t be the last one.\n\nBRAINWASH RULES\n\u2022 No photos or videos on the dancefloor.\n\u2022 Respect the space and the people around you.\u2028\n\u2022 No harassment, discrimination, or unwanted behavior of any kind.\u2028\n\u2022 Look out for one another \u2014 we're all responsible for the atmosphere we create together.\u2028\n\u2022 Be present. Respect the music. Respect the moment.\n\nFull lineup:\nO.B.I.\nPER PLEKS\n+SUPPORT TBA\n\nWhat we continue to build has always been centered around the music and the people who genuinely connect to it. September 25 is another chapter of that \u2014 two generations of German techno meeting in one warehouse, with nowhere for the energy to go but through the dancefloor.\n\nSEPTEMBER 25 | ATLANTA\nTHE WAREHOUSE \nDOORS 10PM\n\nTickets:\nVery limited early birds \u2014 available now.\nGroup bundle deal \u2014 limited availability.\n\nOverall capacity is limited. Hit the link in our BIO and come be part of it.\nNO REFUNDS.",
+      "cost": "30",
+      "minimumAge": 18,
+      "isTicketed": true,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 9,
+      "interestedCount": 9,
+      "images": [
+       {
+        "filename": "https://images.ra.co/96d472393043410a0c687a2599bcc149639a345c.png",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Techno",
+        "slug": "techno"
+       }
+      ],
+      "artists": [
+       {
+        "id": "106409",
+        "name": "O.B.I. (DE)"
+       },
+       {
+        "id": "121549",
+        "name": "Per Pleks"
+       }
+      ],
+      "venue": {
+       "id": "278480",
+       "name": "DWH Studio ATL",
+       "address": "2339 Brannen Rd SE, Atlanta, GA 30316",
+       "contentUrl": "/clubs/278480",
+       "location": {
+        "latitude": 33.71,
+        "longitude": -84.31
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12522066",
+     "listingDate": "2026-09-25T00:00:00.000",
+     "event": {
+      "id": "2522066",
+      "title": "Desire X Ritmo Presents: Mel\u00e8",
+      "date": "2026-09-25T00:00:00.000",
+      "startTime": "2026-09-25T22:00:00.000",
+      "endTime": "2026-09-26T05:00:00.000",
+      "contentUrl": "/events/2522066",
+      "content": "Mel\u00e9 2024\nRenowned for invigorating the dancefloor with fuel injected dynamism, Mel\u00e9 (AKA Krissy \nPeers) is an artist who has worked tirelessly to achieve his position as a revered selector \nand producer. Over the past decade Mel\u00e9 has developed a niche sound of his own that \nutilises a mesh of world music-influenced house, transatlantic hip hop, broader UK sounds \nand classic Chicago grooves. The Liverpool native has gained worldwide recognition, while \nmaintaining a humble and hard working eth",
+      "cost": "$12 - $23",
+      "minimumAge": 21,
+      "isTicketed": false,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 2,
+      "interestedCount": 2,
+      "images": [
+       {
+        "filename": "https://images.ra.co/035bad7470640e537316f22f20cc6e22c607ca39.png",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "House",
+        "slug": "house"
+       },
+       {
+        "name": "Disco",
+        "slug": "disco"
+       }
+      ],
+      "artists": [
+       {
+        "id": "16677",
+        "name": "Mel\u00e9"
+       }
+      ],
+      "venue": {
+       "id": "222339",
+       "name": "TBA - Secret Location",
+       "address": null,
+       "contentUrl": null,
+       "location": {
+        "latitude": 0,
+        "longitude": 0
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12522070",
+     "listingDate": "2026-09-25T00:00:00.000",
+     "event": {
+      "id": "2522070",
+      "title": "Club De Vampiros Presents... Road To Vamp Fest: Part Two",
+      "date": "2026-09-25T00:00:00.000",
+      "startTime": "2026-09-25T22:00:00.000",
+      "endTime": "2026-09-26T02:30:00.000",
+      "contentUrl": "/events/2522070",
+      "content": "We\u2019re getting close to Vamp Fest 2026! \n\n\nAnd what\u2019s a better way to celebrate in anticipation of our biggest event yet than with not one, but TWO nights across TWO weekends at TWO different venues? \n\nWe\u2019ll be kicking things off on FRIDAY, SEPTEMBER 11th as we make our long-awaited return to Lunchbox Atlanta with darkwave, cold wave, and EBM DJ sets by TWINS, Pippi Maraschino, and Astrid Aesthetic!\n\nThen we\u2019ll be returning to Sunset Atlanta on FRIDAY, SEPTEMBER 25th for a night of goth, post-punk, and deathrock DJ sets by DJ Ordo Amoris (of Academy Order), Sxft Chains, and DJ Dead Parrot!\n\nWe\u2019ll also have vendors, Vampire Vixens, drink specials, and more! \n\nYou can sleep when you\u2019re dead. Until then, come out and dance, win, and get ready for Vamp Fest!$12-\n",
+      "cost": "$12-$14",
+      "minimumAge": 21,
+      "isTicketed": false,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 0,
+      "interestedCount": 0,
+      "images": [
+       {
+        "filename": "https://images.ra.co/779158b3834152d3159230678158b9aeb8eede89.png",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "EBM",
+        "slug": "ebm"
+       },
+       {
+        "name": "Post-Punk",
+        "slug": "postpunk"
+       }
+      ],
+      "artists": [],
+      "venue": {
+       "id": "278050",
+       "name": "Sunset Atlanta",
+       "address": "728 Monroe Dr NE Suite B, Atlanta, GA 30308",
+       "contentUrl": "/clubs/278050",
+       "location": {
+        "latitude": 33.77,
+        "longitude": -84.37
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12530443",
+     "listingDate": "2026-09-25T00:00:00.000",
+     "event": {
+      "id": "2530443",
+      "title": "AFTER DARK ATL - Late Night RnB & Trap Soul Party",
+      "date": "2026-09-25T00:00:00.000",
+      "startTime": "2026-09-25T22:00:00.000",
+      "endTime": "2026-09-26T03:00:00.000",
+      "contentUrl": "/events/2530443",
+      "content": "\nNew late-night experience built around for those who love late nights in the city.\nWelcome to AFTER DARK\nNew late-night experience built around for those who love late nights in the city.\nEnjoy the new era of R&B, Trap Soul, Slow Songs and the kind of records that hit different after midnight.\nThink late nights and a room full of people who came to catch a vibe.\nFrom the sounds of Brent Faiyaz, PARTYNEXTDOOR, Summer Walker and Bryson Tiller to Drake, SZA, Jhen\u00e9 Aiko, Giveon and more expect R&B from start to finish, with Trap Soul and late-night classics mixed throughout.\n\nFrom the team behind some of NYC\u2019s busiest R&B events.\nMUSIC POLICY: R&B \u2022 Slow Jams \u2022 Neo Soul \u2022 90s & 00s \u2022 Contemporary R&B\n\nContact: Info@whatsthemotiveus.com\n\n\nMUSIC POLICY: R&B \u2022 Slow Jams \u2022 Neo Soul \u2022 90s & 00s \u2022 Contemporary R&B\n\nContact: Info@whatsthemotiveus.com\nVIP + BIRTHDAYS e-mail info@whatsthemotiveuk.com\nTERMS & CONDITIONS FOR TICKET PURCHASES\n21+ Physical ID Required!\nDoors close at 2am sharp. No Excuses or Exceptions. Please leave to arrive on time. Queuing times will be extremely long up to 1 and a half hours in key periods. Please factor this into your travelling time.\nNo refunds under any circumstances outside of event cancellation.\nDate and location subject to change, we will not refund tickets if you do not want to attend the new location.\nIf 10 days before the event, please note if you have any symptoms we will be unable to take your booking however if you have already purchased a ticket / or have a reservation, we will be able to rebook you for a future date\nOn arrival at the venue, please bring your e-mail confirmation and ID (Passport, driving license, or any GOV-approved ID)\n",
+      "cost": "10",
+      "minimumAge": 21,
+      "isTicketed": true,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 0,
+      "interestedCount": 0,
+      "images": [
+       {
+        "filename": "https://images.ra.co/dab6ca32097c7daaf44c7048581864047ca4f6bc.png",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Hip-Hop",
+        "slug": "hiphop"
+       },
+       {
+        "name": "R&B",
+        "slug": "rnb"
+       }
+      ],
+      "artists": [],
+      "venue": {
+       "id": "301960",
+       "name": "Flo Bar Atlanta",
+       "address": "2196B Cheshire Bridge Road Northeast Atlanta, GA 30324",
+       "contentUrl": null,
+       "location": {
+        "latitude": 33.81,
+        "longitude": -84.35
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12540250",
+     "listingDate": "2026-09-25T00:00:00.000",
+     "event": {
+      "id": "2540250",
+      "title": "Batu",
+      "date": "2026-09-25T00:00:00.000",
+      "startTime": "2026-09-25T22:00:00.000",
+      "endTime": "2026-09-26T03:00:00.000",
+      "contentUrl": "/events/2540250",
+      "content": "",
+      "cost": "10",
+      "minimumAge": 21,
+      "isTicketed": true,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 154,
+      "interestedCount": 154,
+      "images": [
+       {
+        "filename": "https://images.ra.co/b1a6906c25611d54a5043c4bf978a970c8c569da.jpg",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Electronica",
+        "slug": "electronica"
+       }
+      ],
+      "artists": [
+       {
+        "id": "15229",
+        "name": "Batu"
+       }
+      ],
+      "venue": {
+       "id": "248652",
+       "name": "Pisces",
+       "address": "483 Edgewood Ave SE, Atlanta Ga 30312",
+       "contentUrl": "/clubs/248652",
+       "location": {
+        "latitude": 33.75,
+        "longitude": -84.37
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12522069",
+     "listingDate": "2026-09-26T00:00:00.000",
+     "event": {
+      "id": "2522069",
+      "title": "Afterlife Atlanta: Cyberpunk Night @ Lore",
+      "date": "2026-09-26T00:00:00.000",
+      "startTime": "2026-09-26T19:00:00.000",
+      "endTime": "2026-09-27T21:30:00.000",
+      "contentUrl": "/events/2522069",
+      "content": "Step into the Afterlife for a one-night celebration of all things Cyberpunk! \n\nJoin fellow fans for an evening of themed cocktails, cosplay, giveaways, and immersive Cyberpunk vibes inspired by Night City itself.\n\n No Cover | Cosplay Welcome",
+      "cost": "$0",
+      "minimumAge": 21,
+      "isTicketed": false,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 3,
+      "interestedCount": 3,
+      "images": [
+       {
+        "filename": "https://images.ra.co/706799b69c22881d0de0dbae9e1b86078f8133b4.png",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Trance",
+        "slug": "trance"
+       },
+       {
+        "name": "Techno",
+        "slug": "techno"
+       }
+      ],
+      "artists": [],
+      "venue": {
+       "id": "260450",
+       "name": "Lore",
+       "address": "466 Edgewood Ave SE UNIT B, Atlanta, GA 30312",
+       "contentUrl": "/clubs/260450",
+       "location": {
+        "latitude": 33.75,
+        "longitude": -84.37
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12524690",
+     "listingDate": "2026-09-26T00:00:00.000",
+     "event": {
+      "id": "2524690",
+      "title": "333BALL RAVE",
+      "date": "2026-09-26T00:00:00.000",
+      "startTime": "2026-09-26T23:00:00.000",
+      "endTime": "2026-09-27T04:00:00.000",
+      "contentUrl": "/events/2524690",
+      "content": "A Pump, a BOOT, a primal oath to the rhythm, welcome to the age of Tribalera! Every nocturne rising the release of your chaos emerges, a duel between your stomping soles and the shadowy dance floor collide.\n\nIn honor of Hispanic heritage month we must highlight M\u0113xihco\u2019s everlasting influence on the world. Taste the sounds of tribal guarachero, reggaeton, and aleteo with industrial hard techno and absolutely more!\n\nYour sound sorcerers and sorceress\u2019 for this full moon:\n\nJaguar @jagu444r\nKupida @kupidslatex\nXahfiro @xahfiro\nEscuincle @pinche.escuincle\nEaster Egg @3ast3r3gg\n\nDate: \n\nSeptember 26th, 2026\n11 PM - LATE\n21+ ID\u2019s required\n\nCoordinates:\n\nLunchbox\n50 Lower Alabama Street, Atlanta, GA 30303\n\nArmor up our dear nocturnal fiercelings.\n\n",
+      "cost": "$8",
+      "minimumAge": 21,
+      "isTicketed": true,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 58,
+      "interestedCount": 58,
+      "images": [
+       {
+        "filename": "https://images.ra.co/9b1d0080d2fe868552da342020b219750750dc1a.jpg",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Guaracha",
+        "slug": "guaracha"
+       },
+       {
+        "name": "Neo Perreo",
+        "slug": "neoperreo"
+       }
+      ],
+      "artists": [
+       {
+        "id": "111107",
+        "name": "JAGU4R"
+       }
+      ],
+      "venue": {
+       "id": "253649",
+       "name": "Lunchbox",
+       "address": "50 Lower Alabama Street, Atlanta, GA 30303",
+       "contentUrl": "/clubs/253649",
+       "location": {
+        "latitude": 34,
+        "longitude": -84
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12542315",
+     "listingDate": "2026-09-26T00:00:00.000",
+     "event": {
+      "id": "2542315",
+      "title": "Planet Pisces",
+      "date": "2026-09-26T00:00:00.000",
+      "startTime": "2026-09-26T22:00:00.000",
+      "endTime": "2026-09-27T03:00:00.000",
+      "contentUrl": "/events/2542315",
+      "content": "90s House/Eurodance/2000s Dance",
+      "cost": "10",
+      "minimumAge": 21,
+      "isTicketed": true,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 147,
+      "interestedCount": 147,
+      "images": [
+       {
+        "filename": "https://images.ra.co/0378d241816f2ffbd623b65447e2c3bc8b14e1ee.jpg",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Electronica",
+        "slug": "electronica"
+       }
+      ],
+      "artists": [
+       {
+        "id": "81157",
+        "name": "Taradactyl"
+       },
+       {
+        "id": "112434",
+        "name": "Ree de la Vega"
+       }
+      ],
+      "venue": {
+       "id": "248652",
+       "name": "Pisces",
+       "address": "483 Edgewood Ave SE, Atlanta Ga 30312",
+       "contentUrl": "/clubs/248652",
+       "location": {
+        "latitude": 33.75,
+        "longitude": -84.37
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "22522069",
+     "listingDate": "2026-09-27T00:00:00.000",
+     "event": {
+      "id": "2522069",
+      "title": "Afterlife Atlanta: Cyberpunk Night @ Lore",
+      "date": "2026-09-26T00:00:00.000",
+      "startTime": "2026-09-26T19:00:00.000",
+      "endTime": "2026-09-27T21:30:00.000",
+      "contentUrl": "/events/2522069",
+      "content": "Step into the Afterlife for a one-night celebration of all things Cyberpunk! \n\nJoin fellow fans for an evening of themed cocktails, cosplay, giveaways, and immersive Cyberpunk vibes inspired by Night City itself.\n\n No Cover | Cosplay Welcome",
+      "cost": "$0",
+      "minimumAge": 21,
+      "isTicketed": false,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 3,
+      "interestedCount": 3,
+      "images": [
+       {
+        "filename": "https://images.ra.co/706799b69c22881d0de0dbae9e1b86078f8133b4.png",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Trance",
+        "slug": "trance"
+       },
+       {
+        "name": "Techno",
+        "slug": "techno"
+       }
+      ],
+      "artists": [],
+      "venue": {
+       "id": "260450",
+       "name": "Lore",
+       "address": "466 Edgewood Ave SE UNIT B, Atlanta, GA 30312",
+       "contentUrl": "/clubs/260450",
+       "location": {
+        "latitude": 33.75,
+        "longitude": -84.37
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12522072",
+     "listingDate": "2026-09-27T00:00:00.000",
+     "event": {
+      "id": "2522072",
+      "title": "Elevated Rhythms - Sunday, September 27",
+      "date": "2026-09-27T00:00:00.000",
+      "startTime": "2026-09-27T13:00:00.000",
+      "endTime": "2026-09-27T19:00:00.000",
+      "contentUrl": "/events/2522072",
+      "content": "Presented by the City of East Point Public Arts Division + Tambor Party\n\nJoin us for the summer edition of Elevated Rhythms, an uplifting celebration of house music, art, and community!  This is a free outdoor dance experience on the front lawn of East Point City Hall.\n\nDATE: Sunday, September 27, 1:00 PM - 7:00 PM\n LOCATION: 2757 East Point Street, East Point, GA 30344 (front lawn of City Hall)  \n ADMISSION: Free to attend \u2022 Free parking \u2022 Family-friendly\n\nWhat to Expect: \n Deejay performances spinning house music\n Food trucks, local vendors, and a live paint station by MOSAIC Moon\n\ud83e\ude91 Bring your crew, your chairs, your blankets, your tents\u2014make it yours.\n\nGather your family and friends to be part of this vibrant experience where the community comes together as one.  Don\u2019t miss out on an unforgettable day of fun and connection. \n",
+      "cost": "$0",
+      "minimumAge": null,
+      "isTicketed": false,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 0,
+      "interestedCount": 0,
+      "images": [
+       {
+        "filename": "https://images.ra.co/8dc29882d841c54fbdf25440e2e1838c438bc205.png",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Deep House",
+        "slug": "deephouse"
+       },
+       {
+        "name": "Afro House",
+        "slug": "afrohouse"
+       }
+      ],
+      "artists": [
+       {
+        "id": "2788",
+        "name": "StanZeff"
+       }
+      ],
+      "venue": {
+       "id": "290596",
+       "name": "TBA - East Point City Hall",
+       "address": null,
+       "contentUrl": null,
+       "location": {
+        "latitude": 0,
+        "longitude": 0
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12535046",
+     "listingDate": "2026-09-27T00:00:00.000",
+     "event": {
+      "id": "2535046",
+      "title": "Chaka Khan Hacienda: Only Fire",
+      "date": "2026-09-27T00:00:00.000",
+      "startTime": "2026-09-27T17:00:00.000",
+      "endTime": "2026-09-27T22:00:00.000",
+      "contentUrl": "/events/2535046",
+      "content": "",
+      "cost": "10",
+      "minimumAge": 21,
+      "isTicketed": true,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 515,
+      "interestedCount": 515,
+      "images": [
+       {
+        "filename": "https://images.ra.co/6d4539ca43c848a514d39ca7521bb5c789fb0baa.jpg",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [],
+      "artists": [
+       {
+        "id": "112902",
+        "name": "Only Fire"
+       }
+      ],
+      "venue": {
+       "id": "194116",
+       "name": "Underground Atlanta",
+       "address": "50 Upper Alabama St, Atlanta, GA 30303",
+       "contentUrl": "/clubs/194116",
+       "location": {
+        "latitude": 34,
+        "longitude": -84
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12543537",
+     "listingDate": "2026-09-27T00:00:00.000",
+     "event": {
+      "id": "2543537",
+      "title": "Dance All Day V2",
+      "date": "2026-09-27T00:00:00.000",
+      "startTime": "2026-09-27T15:00:00.000",
+      "endTime": "2026-09-27T22:00:00.000",
+      "contentUrl": "/events/2543537",
+      "content": "THE EVOLUTION.  HOUSE EVOLVES. WE EVOLVE.\n\nTHE ROOTS\nHOUSE MUSIC WAS BORN IN CHICAGO'S BLACK, LATINO AND QUEER CLUBS. DJS TRANSFORMED DISCO, SOUL, GOSPEL, FUNK AND ELECTRONIC RHYTHMS INTO A NEW LANGUAGE OF FREEDOM.\nTHE DANCE FLOOR BECAME A PLACE TO GATHER AND RELEASE.\n\nHOUSE + HIP-HOP\nHOUSE GREW IN CHICAGO AS HIP-HOP ROSE IN THE BRONX.\nBOTH WERE BUILT BY DJS, TURNTABLES, BREAKS, SAMPLES AND COMMUNITIES CREATING THEIR OWN FUTURE. HIP-HOP MADE THE BEAT SPEAK HOUSE MADE THE BEAT MOVE.\n\nTHE SELF\nEVOLUTION IS PERSONAL. RHYTHM BECOMES RELEASE.\nMOVEMENT BECOMES MEDICINE. THROUGH MUSIC, WE LET GO OF THE PAST AND MEET THE PERSON WE ARE BECOMING.\n\nTHE LIVING LINEAGE\nEVOLUTION IS PERSONAL. RHYTHM BECOMES RELEASE.\nMOVEMENT BECOMES MEDICINE. THROUGH MUSIC, WE LET GO OF THE PAST AND MEET THE PERSON WE ARE BECOMING.",
+      "cost": "$22-$33",
+      "minimumAge": 21,
+      "isTicketed": false,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 1,
+      "interestedCount": 1,
+      "images": [
+       {
+        "filename": "https://images.ra.co/3291d30e292ab9e4b654ce6475d795215b0c68bb.png",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "House",
+        "slug": "house"
+       },
+       {
+        "name": "Hip-Hop",
+        "slug": "hiphop"
+       }
+      ],
+      "artists": [
+       {
+        "id": "342",
+        "name": "Felix Da Housecat"
+       },
+       {
+        "id": "650",
+        "name": "Junior Sanchez"
+       },
+       {
+        "id": "149348",
+        "name": "DJ Kemit"
+       },
+       {
+        "id": "111153",
+        "name": "Espee"
+       }
+      ],
+      "venue": {
+       "id": "236345",
+       "name": "Westside Motor Lounge",
+       "address": "25 Echo St NW, Atlanta, GA 30318",
+       "contentUrl": "/clubs/236345",
+       "location": {
+        "latitude": 34,
+        "longitude": -84
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12489287",
+     "listingDate": "2026-10-01T00:00:00.000",
+     "event": {
+      "id": "2489287",
+      "title": "RIRIA",
+      "date": "2026-10-01T00:00:00.000",
+      "startTime": "2026-10-01T22:00:00.000",
+      "endTime": "2026-10-02T03:00:00.000",
+      "contentUrl": "/events/2489287",
+      "content": "",
+      "cost": "10",
+      "minimumAge": 21,
+      "isTicketed": true,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 182,
+      "interestedCount": 182,
+      "images": [
+       {
+        "filename": "https://images.ra.co/92913d94429dac97545a7004e7b54a87e65d0272.jpg",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Club",
+        "slug": "club"
+       }
+      ],
+      "artists": [
+       {
+        "id": "145253",
+        "name": "RIRIA"
+       }
+      ],
+      "venue": {
+       "id": "248652",
+       "name": "Pisces",
+       "address": "483 Edgewood Ave SE, Atlanta Ga 30312",
+       "contentUrl": "/clubs/248652",
+       "location": {
+        "latitude": 33.75,
+        "longitude": -84.37
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12540958",
+     "listingDate": "2026-10-01T00:00:00.000",
+     "event": {
+      "id": "2540958",
+      "title": "DC TAKOVER V1.0",
+      "date": "2026-10-01T00:00:00.000",
+      "startTime": "2026-10-01T21:00:00.000",
+      "endTime": "2026-10-02T02:00:00.000",
+      "contentUrl": "/events/2540958",
+      "content": "",
+      "cost": "0",
+      "minimumAge": 21,
+      "isTicketed": false,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 0,
+      "interestedCount": 0,
+      "images": [],
+      "genres": [
+       {
+        "name": "Hip-Hop",
+        "slug": "hiphop"
+       }
+      ],
+      "artists": [],
+      "venue": {
+       "id": "281928",
+       "name": "TBA - WAREHOUSE ",
+       "address": null,
+       "contentUrl": null,
+       "location": {
+        "latitude": 0,
+        "longitude": 0
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12514343",
+     "listingDate": "2026-10-02T00:00:00.000",
+     "event": {
+      "id": "2514343",
+      "title": "Lu2k",
+      "date": "2026-10-02T00:00:00.000",
+      "startTime": "2026-10-02T22:00:00.000",
+      "endTime": "2026-10-03T03:00:00.000",
+      "contentUrl": "/events/2514343",
+      "content": "",
+      "cost": "10",
+      "minimumAge": 21,
+      "isTicketed": true,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 13,
+      "interestedCount": 13,
+      "images": [
+       {
+        "filename": "https://images.ra.co/4d8e542efca2b05924368914ea250cb43d42297f.jpg",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Techno",
+        "slug": "techno"
+       },
+       {
+        "name": "Club",
+        "slug": "club"
+       }
+      ],
+      "artists": [
+       {
+        "id": "104738",
+        "name": "Lu2k"
+       }
+      ],
+      "venue": {
+       "id": "248652",
+       "name": "Pisces",
+       "address": "483 Edgewood Ave SE, Atlanta Ga 30312",
+       "contentUrl": "/clubs/248652",
+       "location": {
+        "latitude": 33.75,
+        "longitude": -84.37
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12532263",
+     "listingDate": "2026-10-02T00:00:00.000",
+     "event": {
+      "id": "2532263",
+      "title": "Bratcity: XXX HR. Ft: CONSTANTINE",
+      "date": "2026-10-02T00:00:00.000",
+      "startTime": "2026-10-02T23:00:00.000",
+      "endTime": "2026-10-03T03:00:00.000",
+      "contentUrl": "/events/2532263",
+      "content": "After a long hiatus from Brat City\u2019s birthplace, we\u2019re finally coming home to Atlanta.\n\nOn October 2, Brat City takes over Lore ATL with something sexy, hard, and guaranteed to make that booty BOUNCE! Constantine joins us from Chicago alongside Bratattack, SYR, JAGU4R, Ganja Kitty, Novaskai, and Jasper for a night of deconstructed club, hard club, techno, Latin-core, footwork, and plenty of bass.\n\nBorn and raised on Chicago\u2019s South Side, Constantine is a DJ and producer whose sound travels through juke, ghetto house, Jersey club, house, baile funk, and techno. He\u2019s also the force behind Chicago party series Digital Affair, celebrating the originators of these sounds while spotlighting the artists pushing them forward.\n\nCome dressed like you're ready to seduce..see you there :) ",
+      "cost": "15",
+      "minimumAge": 21,
+      "isTicketed": true,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 41,
+      "interestedCount": 41,
+      "images": [
+       {
+        "filename": "https://images.ra.co/d361ddabf597e37c61cd742ecaf69e420e323804.png",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Techno",
+        "slug": "techno"
+       },
+       {
+        "name": "Club",
+        "slug": "club"
+       }
+      ],
+      "artists": [
+       {
+        "id": "142299",
+        "name": "Constantine (US)"
+       },
+       {
+        "id": "169982",
+        "name": "BRATATTACK"
+       },
+       {
+        "id": "111107",
+        "name": "JAGU4R"
+       }
+      ],
+      "venue": {
+       "id": "260450",
+       "name": "Lore",
+       "address": "466 Edgewood Ave SE UNIT B, Atlanta, GA 30312",
+       "contentUrl": "/clubs/260450",
+       "location": {
+        "latitude": 33.75,
+        "longitude": -84.37
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12540041",
+     "listingDate": "2026-10-02T00:00:00.000",
+     "event": {
+      "id": "2540041",
+      "title": "Too Far Out x Soul Service present Rahaan",
+      "date": "2026-10-02T00:00:00.000",
+      "startTime": "2026-10-02T20:00:00.000",
+      "endTime": "2026-10-03T02:00:00.000",
+      "contentUrl": "/events/2540041",
+      "content": "Chicago legend RAHAAN comes to Atlanta for the first time ahead of his forthcoming release on the Soul Service imprint. Disco, house, vibes!\nToo Far Out & Soul Service invite you to the Atlanta debut of legendary Chicago DJ/Producer, RAHAAN. He'll be bringing his signature sound to Barrel Proof Atlanta in West Midtown for one night only.\nFriday, October 2nd, 8:00 PM to 2:00 AM\nStarting early and ending late to really let these sounds breathe and simmer.\nExpect: Chicago-style disco, house, vibes.\nWarm up by: DrmPeopls, Jon Q, Mike Zarin, Ralo & Wahine\n21+ / No cover / Donations welcome\n\nABOUT RAHAAN\nRahaan has been dropping disco and electrohouse beats to retro music heads since the 80's and now he is a well respected DJ and artist in his own right with a global following.\nRahaan Young is among a class of DJs who picked up the torch from the first wave of disco, house and soul selectors and carried it forwards to the present day. He could almost be thought of as the connecting tissue between the original Chicago and New York DJing legends and contemporary acts like Motor City Drum Ensemble, Floating Points and Hunee. During the '80s in Chicago, his hometown, Young soaked up the sounds of pioneering DJs like Ron Hardy and the Hot Mix 5, and got behind the decks himself towards the end of that decade. He spent the '90s gigging in Chicago, building his record collection and his reputation and playing some of the city's leading venues. But it wasn't until the late '00s that he began appearing on international lineups\u2014a reflection, perhaps, of the internet generation becoming wise to his extraordinary tastes and skills. It probably also helped that his stylish edits started regularly hitting record shelves. In 2011, he bundled some of them up on Edits Vol. 1, a compilation that featured ten of his funk and soul reworks, and went to have a string of releases on labels like Lumberjacks In Hell and Dopeness Galore. (The Black Madonna, who cites Rahaan as a key influence, appeared with him on a split 12-inch around this time, naming her track \"We Don't Need No Music (Thank You Rahaan).\") These days Rahaan is spreading his message of disco, soul and boogie at clubs and festivals around the world. The calibre of his bookings show the regard he's held in: Panorama Bar, XOYO, Dekmantel, Dimensions, Concrete, Kaiku and Corsica Studios have all been on his itinerary over the last couple years. We get further proof on his RA podcast, which starts with Dazzle's \"Reaching,\" and keeps the good times rolling from there.",
+      "cost": "0",
+      "minimumAge": 21,
+      "isTicketed": false,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 1,
+      "interestedCount": 1,
+      "images": [
+       {
+        "filename": "https://images.ra.co/7670e0f703dbfa3f3530c46d4fb7553c9576cec0.png",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "House",
+        "slug": "house"
+       },
+       {
+        "name": "Disco",
+        "slug": "disco"
+       }
+      ],
+      "artists": [
+       {
+        "id": "9091",
+        "name": "DJ rahaan"
+       },
+       {
+        "id": "38188",
+        "name": "Ralo"
+       },
+       {
+        "id": "88517",
+        "name": "Wahine"
+       },
+       {
+        "id": "31937",
+        "name": "Mike Zarin"
+       }
+      ],
+      "venue": {
+       "id": "303030",
+       "name": "TBA - Barrel Proof",
+       "address": null,
+       "contentUrl": null,
+       "location": {
+        "latitude": 0,
+        "longitude": 0
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12496418",
+     "listingDate": "2026-10-03T00:00:00.000",
+     "event": {
+      "id": "2496418",
+      "title": "The Glitch Mob",
+      "date": "2026-10-03T00:00:00.000",
+      "startTime": "2026-10-03T22:00:00.000",
+      "endTime": "2026-10-04T03:00:00.000",
+      "contentUrl": "/events/2496418",
+      "content": "",
+      "cost": "20",
+      "minimumAge": 21,
+      "isTicketed": true,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 216,
+      "interestedCount": 216,
+      "images": [
+       {
+        "filename": "https://images.ra.co/af2dc2ae522b2310eb69d74cc5288df4e1fcfa3d.jpg",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Bass",
+        "slug": "bass"
+       },
+       {
+        "name": "Electronica",
+        "slug": "electronica"
+       }
+      ],
+      "artists": [
+       {
+        "id": "15346",
+        "name": "The Glitch Mob"
+       },
+       {
+        "id": "110417",
+        "name": "Dee Belvedere"
+       }
+      ],
+      "venue": {
+       "id": "248652",
+       "name": "Pisces",
+       "address": "483 Edgewood Ave SE, Atlanta Ga 30312",
+       "contentUrl": "/clubs/248652",
+       "location": {
+        "latitude": 33.75,
+        "longitude": -84.37
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12532546",
+     "listingDate": "2026-10-08T00:00:00.000",
+     "event": {
+      "id": "2532546",
+      "title": "Goldie",
+      "date": "2026-10-08T00:00:00.000",
+      "startTime": "2026-10-08T22:00:00.000",
+      "endTime": "2026-10-09T03:00:00.000",
+      "contentUrl": "/events/2532546",
+      "content": "",
+      "cost": "25",
+      "minimumAge": 21,
+      "isTicketed": true,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 225,
+      "interestedCount": 225,
+      "images": [
+       {
+        "filename": "https://images.ra.co/eb06c965fdb0c42d2c4cd274c267cfdc923b2ad5.jpg",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Drum & Bass",
+        "slug": "drumandbass"
+       }
+      ],
+      "artists": [
+       {
+        "id": "13",
+        "name": "Goldie"
+       }
+      ],
+      "venue": {
+       "id": "248652",
+       "name": "Pisces",
+       "address": "483 Edgewood Ave SE, Atlanta Ga 30312",
+       "contentUrl": "/clubs/248652",
+       "location": {
+        "latitude": 33.75,
+        "longitude": -84.37
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    },
+    {
+     "id": "12497800",
+     "listingDate": "2026-10-09T00:00:00.000",
+     "event": {
+      "id": "2497800",
+      "title": "Mission Underground Tour Atlanta",
+      "date": "2026-10-09T00:00:00.000",
+      "startTime": "2026-10-09T20:00:00.000",
+      "endTime": "2026-10-09T23:59:00.000",
+      "contentUrl": "/events/2497800",
+      "content": "Mission Underground Tour: Paul Oakenfold x The Crystal Method\nCenter Stage Theatre Atlanta\nFriday, October 09th, 2026\n\nDoors: 7:00 pm  Show: 8:00 pm",
+      "cost": "$47.70",
+      "minimumAge": null,
+      "isTicketed": false,
+      "isFestival": false,
+      "flyerFront": null,
+      "attending": 5,
+      "interestedCount": 5,
+      "images": [
+       {
+        "filename": "https://images.ra.co/a96386d2467b5b89df279250e6ff85f75087f37f.jpg",
+        "type": "FLYERFRONT"
+       }
+      ],
+      "genres": [
+       {
+        "name": "Breakbeat",
+        "slug": "breakbeat"
+       },
+       {
+        "name": "Electronica",
+        "slug": "electronica"
+       }
+      ],
+      "artists": [
+       {
+        "id": "14",
+        "name": "Paul Oakenfold"
+       },
+       {
+        "id": "675",
+        "name": "The Crystal Method"
+       }
+      ],
+      "venue": {
+       "id": "84476",
+       "name": "Center Stage Theater",
+       "address": "1374 West Peachtree St NW, Atlanta, GA 30309",
+       "contentUrl": "/clubs/84476",
+       "location": {
+        "latitude": 33.792085,
+        "longitude": -84.388001
+       }
+      },
+      "area": {
+       "id": "532",
+       "name": "Atlanta",
+       "ianaTimeZone": "America/New_York"
+      }
+     }
+    }
+   ],
+   "totalResults": 31
+  }
+ }
+}

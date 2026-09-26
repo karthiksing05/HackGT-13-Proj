@@ -1,0 +1,58 @@
+# Data ingestion
+
+Fills MongoDB with activities (events + places) for the planner. The full design is in
+[DATA_COLLECTION_SPEC.md](DATA_COLLECTION_SPEC.md).
+
+## Setup
+
+```sh
+cd dataingestion
+python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
+```
+
+Keys live in the repo-root `.env` (see `.env.example`). Mongo defaults to
+`mongodb://localhost:27017`, db `freetime`; set `MONGODB_URI` for Atlas.
+
+## Commands
+
+```sh
+.venv/bin/python -m ingest init-db                          # indexes (idempotent)
+.venv/bin/python -m ingest run ticketmaster                 # next 7 days of events
+.venv/bin/python -m ingest run ticketmaster --dry-run       # normalize to out/ without writing
+.venv/bin/python -m ingest run google_places --dry-run      # estimate paid calls vs quota, no requests
+.venv/bin/python -m ingest run google_places                # needs GOOGLE_MAPS_API_KEY with billing on
+.venv/bin/python -m ingest run-all                          # every adapter enabled in cities/<slug>.yaml
+.venv/bin/python -m ingest stats | quota
+.venv/bin/python -m ingest blurb --kind event             # web research + paragraph for every event (Gemini)
+.venv/bin/python -m ingest blurb --limit 3 --dry-run       # try a few; blurbs go to out/, not the DB
+.venv/bin/python -m ingest embed-text --kind event        # structured text for the ML embeddings (same web research)
+.venv/bin/python -m ingest snapshot export out/sample.json --limit 50
+.venv/bin/python -m pytest                                  # fixture tests; Mongo tests skip if Mongo is down
+```
+
+Responses are cached under `cache/<adapter>/` (Ticketmaster 1h, Resident Advisor 1h, Google 7 days,
+geocoding 90 days), so reruns while developing don't spend quota. Geocoding (Google Geocoding API,
+counted against the `google_geocode` quota) only calls the network when Mongo is reachable.
+
+## Web research, blurbs and embedding text
+
+Research and writing are separate steps:
+
+1. **Research (Muse):** `ingest/agent/muse.py` calls Muse Spark on the Meta Model API
+   (`POST /v1/responses` with the `web_search` tool) to look up each event, its performers and
+   venue. It returns factual notes plus cited source URLs, cached in the `research` collection
+   (one per activity per provider; quota: `muse_research`, see `ingest quota`).
+2. **Writing (Gemini):** the Muse notes and the event's own fields fill `{{EVENT_DATA}}` in
+   `ingest/agent/prompts/event_embedding_text.md`, and Gemini writes the ML text.
+   - `embed-text` -> `activities.embeddingText` (+ `embeddingTextHash`, `embeddingTextMeta`).
+     Output is checked in code (allowed sections only, no placeholders/URLs/sentences, no empty
+     sections) and regenerated once on failure. Editing the prompt file regenerates everything.
+   - `blurb` -> `activities.blurb` (the 50-90 word paragraph for the detail screen).
+
+`config.yaml` -> `blurb.research_provider` switches research between `muse` (default) and
+`gemini` (Google Search grounding, 20 requests/day per model on the free tier). Writes use
+`gemini-3.5-flash-lite` (fallback `gemini-flash-latest`).
+
+The Muse key needs billing on the Meta developer account: without it every call returns
+`402 billing_not_configured`, research turns off for the run, and Gemini writes from our own
+fields only. Those outputs regenerate automatically once research exists.

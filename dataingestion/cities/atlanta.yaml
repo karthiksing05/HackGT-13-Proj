@@ -1,0 +1,40 @@
+slug: atlanta
+name: Atlanta
+country_code: US              # ISO 3166-1 alpha-2
+default_region: GA            # fallback for address.region; null if the bbox spans several states
+language: en                  # SerpApi hl, Places languageCode
+timezone: America/New_York
+currency: USD                 # prices stored in local currency; no FX conversion
+price_tiers: [0, 15, 40, 80]  # upper bounds for tiers 0-3; above the last = tier 4
+center: { lat: 33.7490, lng: -84.3880 }
+bbox: { south: 33.62, west: -84.55, north: 33.92, east: -84.25 }
+hikes_radius_km: 60
+elevation_dataset: ned10m     # OpenTopoData; ned10m is US-only
+neighborhoods: [Midtown, Downtown, Old Fourth Ward, Inman Park, West Midtown, Decatur, Buckhead]
+demo:                         # used by `blurb --top` and the acceptance checks
+  start: { lat: null, lng: null }   # Klaus building; fill in from a map
+  window_local: ["Sun 13:00", "Sun 17:00"]
+query_terms:
+  places: [rooftop bars, live music venues, board game cafe, escape room, things to do]
+  events: [concerts, comedy, free events, art exhibitions, markets, nightlife, trivia night, workshops]
+ticketmaster: { radius_km: 40 }
+resident_advisor:                                    # §5.5; area_id verified via ra.co/graphql area(areaUrlName: "atlanta", countryUrlCode: "us")
+  area_id: 532
+  referer: https://ra.co/events/us/atlanta
+eventbrite:
+  slug: ga--atlanta                                  # VERIFY
+  categories: [all-events, music--events, food-and-drink--events, arts--events, nightlife--events]   # VERIFY slugs
+nps_park_codes: []
+adapters:
+  ticketmaster: true
+  google_places: true         # needs billing (§5.2)
+  osm_places: false           # fallback when Google billing is off (§5.2)
+  serpapi_events: true
+  web_calendar: true
+  resident_advisor: true
+  eventbrite: true
+  osm_trails: false
+  google_typical_time: false
+  predicthq: false
+  nps: false
+  fsq_os: false

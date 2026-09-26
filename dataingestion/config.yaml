@@ -1,0 +1,39 @@
+default_city: atlanta
+events_horizon_days: 7
+series_detection_days: 28     # fetch this far ahead to spot recurring series; only the horizon is inserted (§6.7)
+refresh:                      # only used by the stretch scheduler (§8)
+  events_every_hours: 6
+  places_every_days: 7
+
+# Blurb + embedding-text agents (§6.6). Verified on our key 2026-09-26: only gemini-2.5-flash has
+# free-tier Google Search grounding (gemini-3.5-flash-lite and the other 3.x models return 429 with the
+# search tool), so research stays on it until billing is on. Writes don't need grounding.
+blurb:
+  research_provider: muse       # muse (Meta Model API web_search) or gemini (Google Search grounding)
+  muse:
+    model: muse-spark-1.3
+    search_context_size: medium # low | medium | high
+    daily_cap: 300              # quota counter cap; Muse is pay-as-you-go, this bounds the spend
+    timeout_s: 180
+  research_models: [gemini-2.5-flash, gemini-2.5-flash-lite]   # free tier: 20 requests/day EACH; switch to gemini-3.5-flash-lite once the key has billing
+  write_model: gemini-3.5-flash-lite # overrides GEMINI_MODEL
+  write_fallback_models: [gemini-flash-latest]   # used when the write model is overloaded (503) or out of quota
+  grounded_daily_cap: 40        # 20/day per research model on the free tier (verified from the 429 quotaId)
+  research_rpm: 8               # free tier is ~10 RPM; stay under it
+  write_rpm: 12
+  min_words: 50
+  max_words: 90
+  skip_research_min_chars: null # spec §6.6 step 2 suggests 300; null = research every activity
+
+# Google Places (New) crawl settings (§5.2). Type groups are VERIFY against "Table A".
+google_places:
+  cell_km: 3.0
+  min_cell_km: 0.75
+  text_page_size: 20
+  text_max_pages: 3
+  min_rating_count: 10          # fewer ratings = too little signal to recommend
+  type_groups:
+    culture:    { recurse: true,  types: [museum, art_gallery, performing_arts_theater, tourist_attraction, historical_landmark] }
+    outdoors:   { recurse: true,  types: [park, hiking_area, botanical_garden, zoo, aquarium] }
+    fun:        { recurse: true,  types: [bowling_alley, amusement_center, movie_theater, video_arcade, karaoke] }
+    drinks:     { recurse: false, types: [bar, night_club] }   # food (restaurants, cafes) deliberately excluded

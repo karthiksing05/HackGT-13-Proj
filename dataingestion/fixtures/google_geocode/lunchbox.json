@@ -1,0 +1,93 @@
+{
+ "results": [
+  {
+   "address_components": [
+    {
+     "long_name": "50",
+     "short_name": "50",
+     "types": [
+      "street_number"
+     ]
+    },
+    {
+     "long_name": "Lower Alabama Street",
+     "short_name": "Lower Alabama Street",
+     "types": [
+      "route"
+     ]
+    },
+    {
+     "long_name": "South Downtown",
+     "short_name": "South Downtown",
+     "types": [
+      "neighborhood",
+      "political"
+     ]
+    },
+    {
+     "long_name": "Atlanta",
+     "short_name": "Atlanta",
+     "types": [
+      "locality",
+      "political"
+     ]
+    },
+    {
+     "long_name": "Fulton County",
+     "short_name": "Fulton County",
+     "types": [
+      "administrative_area_level_2",
+      "political"
+     ]
+    },
+    {
+     "long_name": "Georgia",
+     "short_name": "GA",
+     "types": [
+      "administrative_area_level_1",
+      "political"
+     ]
+    },
+    {
+     "long_name": "United States",
+     "short_name": "US",
+     "types": [
+      "country",
+      "political"
+     ]
+    },
+    {
+     "long_name": "30303",
+     "short_name": "30303",
+     "types": [
+      "postal_code"
+     ]
+    }
+   ],
+   "formatted_address": "50 Lower Alabama Street, Atlanta, GA 30303, USA",
+   "geometry": {
+    "location": {
+     "lat": 33.7523792,
+     "lng": -84.390056
+    },
+    "location_type": "ROOFTOP",
+    "viewport": {
+     "northeast": {
+      "lat": 33.7537597302915,
+      "lng": -84.3887643197085
+     },
+     "southwest": {
+      "lat": 33.7510617697085,
+      "lng": -84.3914622802915
+     }
+    }
+   },
+   "place_id": "ChIJnWMXGoQD9YgRuOr1nV5CkHA",
+   "types": [
+    "street_address",
+    "subpremise"
+   ]
+  }
+ ],
+ "status": "OK"
+}

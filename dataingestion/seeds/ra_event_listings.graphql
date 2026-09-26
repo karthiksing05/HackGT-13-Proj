@@ -1,0 +1,46 @@
+# Resident Advisor event listings (§5.5). POST https://ra.co/graphql
+# Built 2026-09-25 against a live introspection of ra.co/graphql (the events page itself sits
+# behind a DataDome bot wall, so it couldn't be copied from DevTools). If RA changes its schema,
+# replace this with the GET_EVENT_LISTINGS query from the browser's Network tab.
+query GET_EVENT_LISTINGS(
+  $filters: FilterInputDtoInput
+  $filterOptions: FilterOptionsInputDtoInput
+  $page: Int
+  $pageSize: Int
+  $sort: SortInputDtoInput
+) {
+  eventListings(filters: $filters, filterOptions: $filterOptions, pageSize: $pageSize, page: $page, sort: $sort) {
+    data {
+      id
+      listingDate
+      event {
+        id
+        title
+        date
+        startTime
+        endTime
+        contentUrl
+        content
+        cost
+        minimumAge
+        isTicketed
+        isFestival
+        flyerFront
+        attending
+        interestedCount
+        images { filename type }
+        genres { name slug }
+        artists { id name }
+        venue {
+          id
+          name
+          address
+          contentUrl
+          location { latitude longitude }
+        }
+        area { id name ianaTimeZone }
+      }
+    }
+    totalResults
+  }
+}
