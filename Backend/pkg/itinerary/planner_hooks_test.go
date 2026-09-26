@@ -132,8 +132,8 @@ func TestUtilityHook(t *testing.T) {
 		}
 		return 0
 	}
-	if u := utility(&a, cfg); u < 0.59 || u > 0.61 {
-		t.Errorf("hook 0.9 -> %.2f, want 0.6", u)
+	if u := utility(&a, cfg); u < 0.79 || u > 0.81 { // (0.9 - 0.5) / (1 - 0.5)
+		t.Errorf("hook 0.9 -> %.2f, want 0.8", u)
 	}
 	other := event("y", techSquare, at(19, 0), 60, 0.9)
 	if u := utility(&other, cfg); u != 0 {

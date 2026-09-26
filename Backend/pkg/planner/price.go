@@ -132,9 +132,9 @@ type AgeRules struct {
 func AgeRulesFor(bracket string) AgeRules {
 	switch NormalizeAgeBracket(bracket) {
 	case "18_20":
-		return AgeRules{ExcludeTags: []string{"21_plus"}, ExcludeCategories: []string{"bar", "nightclub"}, NamePattern: adultName21, nameRe: name21Re}
+		return AgeRules{ExcludeTags: []string{"21_plus"}, ExcludeCategories: []string{"bar", "brewery", "nightclub"}, NamePattern: adultName21, nameRe: name21Re}
 	case "13_17":
-		return AgeRules{ExcludeTags: []string{"21_plus", "drinks"}, ExcludeCategories: []string{"bar", "nightclub"}, NamePattern: adultName18, nameRe: name18Re}
+		return AgeRules{ExcludeTags: []string{"21_plus", "drinks"}, ExcludeCategories: []string{"bar", "brewery", "nightclub"}, NamePattern: adultName18, nameRe: name18Re}
 	}
 	return AgeRules{}
 }

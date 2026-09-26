@@ -101,7 +101,7 @@ func Solve(g *Graph, w Window, cfg Config) []Itinerary {
 				}
 			}
 		}
-		labels[j] = topK(next, cfg.K)
+		labels[j] = topK(dominant(next), cfg.K)
 	}
 
 	var finished []*label
@@ -125,6 +125,33 @@ func Solve(g *Graph, w Window, cfg Config) []Itinerary {
 	out := make([]Itinerary, 0, len(finished))
 	for _, l := range finished {
 		out = append(out, build(g, w, cfg, l))
+	}
+	return out
+}
+
+// dominant drops partial paths that another path into the same node beats
+// with the same visited series, categories, cost and stop count: every
+// extension open to one is open to the other, so the lower utility can
+// never win. (Without it the K slots fill up with the same stops at
+// shifted times.)
+func dominant(ls []*label) []*label {
+	type key struct {
+		series, cats mask
+		cost         int64
+		stops        int
+	}
+	best := make(map[key]int, len(ls))
+	out := ls[:0]
+	for _, l := range ls {
+		k := key{l.series, l.cats, l.cost, l.stops}
+		if i, ok := best[k]; ok {
+			if l.utility > out[i].utility {
+				out[i] = l
+			}
+			continue
+		}
+		best[k] = len(out)
+		out = append(out, l)
 	}
 	return out
 }

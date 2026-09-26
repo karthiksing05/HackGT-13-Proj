@@ -9,7 +9,14 @@ import (
 
 // PlanMetrics describes one itinerary (§5.2).
 type PlanMetrics struct {
-	Fit           float64  `bson:"fit" json:"fit"`
+	Fit float64 `bson:"fit" json:"fit"` // mean score of the stops
+	// Fill is how much above-the-bar value the plan holds against the
+	// pace's target: the stops' solver scores past Tau, rescaled to 0..1,
+	// summed and divided by the target stop count. Stops at or below the
+	// bar (weak stops) add nothing, so padding a plan never fills it.
+	Fill          float64  `bson:"fill" json:"fill"`
+	GoodStops     int      `bson:"goodStops" json:"good_stops"`
+	WeakStops     int      `bson:"weakStops" json:"weak_stops"`
 	Coverage      float64  `bson:"coverage" json:"coverage"`
 	Variety       float64  `bson:"variety" json:"variety"`
 	PaceFit       float64  `bson:"paceFit" json:"pace_fit"`
@@ -37,25 +44,37 @@ func (r *Run) evaluate(it itinerary.Itinerary) ScoredPlan {
 		return ScoredPlan{It: it, Metrics: m, Signature: signature(it)}
 	}
 
-	fit := 0.0
+	fit, fill := 0.0, 0.0
+	tau := r.Cfg.Itinerary.Tau
+	base := r.utilityFn() // the solver's view: raw score plus facet boosts
+	good := make([]bool, len(it.Stops))
 	cats := map[string]bool{}
-	for _, s := range it.Stops {
+	for i, s := range it.Stops {
+		raw := r.Cfg.Itinerary.DefaultUtility
 		if c := r.Pool.Get(s.Node.Act.ID.Hex()); c != nil {
-			fit += c.Raw()
+			raw = c.Raw()
+		}
+		fit += raw
+		if b := clamp01(base(s.Node.Act)); b > tau && tau < 1 {
+			good[i] = true
+			m.GoodStops++
+			fill += (b - tau) / (1 - tau)
 		} else {
-			fit += r.Cfg.Itinerary.DefaultUtility
+			m.WeakStops++
 		}
 		cats[strings.ToLower(s.Node.Act.Category)] = true
 	}
 	m.Fit = fit / float64(len(it.Stops))
 
+	// A facet counts as covered only by a stop above the bar: a weak match
+	// nearby does not answer the request.
 	if len(r.Spec.Facets) == 0 {
 		m.Coverage = 1
 	} else {
 		for _, f := range r.Spec.Facets {
 			covered := false
-			for _, s := range it.Stops {
-				if f.Covers(s.Node.Act) {
+			for i, s := range it.Stops {
+				if good[i] && f.Covers(s.Node.Act) {
 					covered = true
 					break
 				}
@@ -71,7 +90,8 @@ func (r *Run) evaluate(it itinerary.Itinerary) ScoredPlan {
 	m.Variety = float64(len(cats)) / float64(len(it.Stops))
 
 	target := paceTarget(r.Spec.Pace)
-	m.PaceFit = clamp01(1 - math.Abs(float64(len(it.Stops)-target))/float64(target))
+	m.Fill = clamp01(fill / float64(target))
+	m.PaceFit = clamp01(1 - math.Abs(float64(m.GoodStops-target))/float64(target))
 
 	if span := it.Arrival.Sub(it.Depart).Minutes(); span > 0 {
 		m.TravelShare = clamp01(float64(it.TravelMin) / span)
@@ -87,13 +107,61 @@ func (r *Run) evaluate(it itinerary.Itinerary) ScoredPlan {
 
 // planScore is the weighted sum of §5.2, clamped to 0..1.
 func planScore(m PlanMetrics, w ScoreWeights) float64 {
-	s := w.Fit*m.Fit + w.Coverage*m.Coverage + w.Variety*m.Variety + w.PaceFit*m.PaceFit +
+	s := w.Fit*m.Fit + w.Fill*m.Fill + w.Coverage*m.Coverage + w.Variety*m.Variety + w.PaceFit*m.PaceFit +
 		w.Travel*(1-m.TravelShare) + w.Idle*(1-m.IdleShare)
 	if m.LateRisk {
 		s -= w.LateRisk
 	}
+	s -= w.WeakStop * float64(m.WeakStops)
 	s -= w.OverBudget * math.Max(0, m.BudgetUse-0.9) * 10
 	return clamp01(s)
+}
+
+// preferStrong leaves out plans with a stop at or below the bar when at
+// least keep plans have none, so weak stops only appear when nothing better
+// fills the page. It returns how many it left out.
+func preferStrong(plans []ScoredPlan, keep int) ([]ScoredPlan, int) {
+	strong := 0
+	for _, p := range plans {
+		if p.Metrics.WeakStops == 0 {
+			strong++
+		}
+	}
+	if keep <= 0 || strong < keep || strong == len(plans) {
+		return plans, 0
+	}
+	out := make([]ScoredPlan, 0, strong)
+	for _, p := range plans {
+		if p.Metrics.WeakStops == 0 {
+			out = append(out, p)
+		}
+	}
+	return out, len(plans) - len(out)
+}
+
+// withinTravelShare leaves out plans that spend more than max of their
+// time travelling, as long as at least one plan does not. It returns how
+// many it left out.
+func withinTravelShare(plans []ScoredPlan, max float64) ([]ScoredPlan, int) {
+	if max <= 0 {
+		return plans, 0
+	}
+	fine := 0
+	for _, p := range plans {
+		if p.Metrics.TravelShare <= max {
+			fine++
+		}
+	}
+	if fine == 0 || fine == len(plans) {
+		return plans, 0
+	}
+	out := make([]ScoredPlan, 0, fine)
+	for _, p := range plans {
+		if p.Metrics.TravelShare <= max {
+			out = append(out, p)
+		}
+	}
+	return out, len(plans) - len(out)
 }
 
 // signature identifies a plan by the series it visits, order-free.

@@ -50,6 +50,22 @@ func (c *Candidate) Raw() float64 {
 	return clamp01(0.6*c.CosRank + 0.4*c.Prior)
 }
 
+// inherit copies the scores of the series representative rep: siblings
+// are the same experience at another time.
+func (c *Candidate) inherit(rep *Candidate) {
+	c.Cos, c.Dislike, c.Prior, c.CosRank, c.HasVec = rep.Cos, rep.Dislike, rep.Prior, rep.CosRank, rep.HasVec
+	c.ML, c.Jev = copyScore(rep.ML), copyScore(rep.Jev)
+	c.Source, c.Round = rep.Source, rep.Round
+}
+
+func copyScore(v *float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	x := *v
+	return &x
+}
+
 // covers reports whether the candidate satisfies a facet.
 func (c *Candidate) covers(f Facet) bool {
 	return f.Covers(&c.Act)

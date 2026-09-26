@@ -1,5 +1,5 @@
 {
-  "Title": "Brine and Bivalve + Crow's Nest Rooftop",
+  "Title": "Sunset Jazz + Siren Song Lounge + 1 more",
   "Date": "2026-09-26T00:00:00-04:00",
   "Start": "2026-09-26T22:00:00Z",
   "BackBy": "2026-09-27T03:00:00Z",
@@ -25,11 +25,11 @@
     {
       "ID": "id-0002",
       "Kind": "transit",
-      "Title": "Walk to Brine and Bivalve Oyster Bar",
+      "Title": "Walk to Sunset Jazz on Pier Nine",
       "Place": {
-        "name": "Seaside Market Square → Brine and Bivalve Oyster Bar"
+        "name": "Seaside Market Square → Pier Nine Bandstand"
       },
-      "Start": "2026-09-26T22:18:00Z",
+      "Start": "2026-09-26T22:09:00Z",
       "End": "2026-09-26T22:30:00Z",
       "Description": "Route options below. Times update live if you run late.",
       "WebsiteURL": "",
@@ -43,14 +43,137 @@
       "Flexible": false,
       "Leg": {
         "Mode": "walk",
-        "Minutes": 12,
-        "DistanceKm": 0.87
+        "Minutes": 21,
+        "DistanceKm": 1.54
       },
       "StopID": "",
-      "DurationMin": 12
+      "DurationMin": 21
     },
     {
       "ID": "id-0003",
+      "Kind": "sidequest",
+      "Title": "Sunset Jazz on Pier Nine",
+      "Place": {
+        "name": "Pier Nine Bandstand",
+        "coordinate": {
+          "lat": 31.376524,
+          "lng": -81.41746
+        }
+      },
+      "Start": "2026-09-26T22:30:00Z",
+      "End": "2026-09-26T23:30:00Z",
+      "Description": "The Brass Barnacles quartet plays standards as the sun drops behind the moored sailboats.",
+      "WebsiteURL": "https://saltlight.example/sunset-jazz-on-pier-nine",
+      "ImageURL": "",
+      "Bookable": true,
+      "PriceCents": 1200,
+      "PriceKnown": true,
+      "ActivityID": "9bdbbc5e9aab712a5b769f72",
+      "Category": "live_music",
+      "Tags": [
+        "outdoor",
+        "cheap",
+        "music",
+        "date",
+        "drinks",
+        "low_energy"
+      ],
+      "Flexible": false,
+      "Leg": null,
+      "StopID": "stop_9bdbbc5e9aab712a5b769f72_0",
+      "DurationMin": 60
+    },
+    {
+      "ID": "id-0004",
+      "Kind": "transit",
+      "Title": "Walk to Siren Song Lounge",
+      "Place": {
+        "name": "Pier Nine Bandstand → Siren Song Lounge"
+      },
+      "Start": "2026-09-26T23:30:00Z",
+      "End": "2026-09-26T23:41:00Z",
+      "Description": "Route options below. Times update live if you run late.",
+      "WebsiteURL": "",
+      "ImageURL": "",
+      "Bookable": false,
+      "PriceCents": null,
+      "PriceKnown": false,
+      "ActivityID": "",
+      "Category": "",
+      "Tags": null,
+      "Flexible": false,
+      "Leg": {
+        "Mode": "walk",
+        "Minutes": 11,
+        "DistanceKm": 0.82
+      },
+      "StopID": "",
+      "DurationMin": 11
+    },
+    {
+      "ID": "id-0005",
+      "Kind": "sidequest",
+      "Title": "Siren Song Lounge",
+      "Place": {
+        "name": "Siren Song Lounge",
+        "coordinate": {
+          "lat": 31.37104,
+          "lng": -81.419068
+        }
+      },
+      "Start": "2026-09-27T00:00:00Z",
+      "End": "2026-09-27T00:45:00Z",
+      "Description": "A speakeasy behind a fake fishmonger's freezer door.",
+      "WebsiteURL": "https://saltlight.example/siren-song-lounge",
+      "ImageURL": "",
+      "Bookable": true,
+      "PriceCents": 1300,
+      "PriceKnown": true,
+      "ActivityID": "6a31ffa8d4ca54aa5578259f",
+      "Category": "bar",
+      "Tags": [
+        "indoor",
+        "drinks",
+        "date",
+        "late_night",
+        "21_plus",
+        "music",
+        "low_energy"
+      ],
+      "Flexible": true,
+      "Leg": null,
+      "StopID": "stop_6a31ffa8d4ca54aa5578259f_1",
+      "DurationMin": 45
+    },
+    {
+      "ID": "id-0006",
+      "Kind": "transit",
+      "Title": "Walk to Brine and Bivalve Oyster Bar",
+      "Place": {
+        "name": "Siren Song Lounge → Brine and Bivalve Oyster Bar"
+      },
+      "Start": "2026-09-27T00:45:00Z",
+      "End": "2026-09-27T01:05:00Z",
+      "Description": "Route options below. Times update live if you run late.",
+      "WebsiteURL": "",
+      "ImageURL": "",
+      "Bookable": false,
+      "PriceCents": null,
+      "PriceKnown": false,
+      "ActivityID": "",
+      "Category": "",
+      "Tags": null,
+      "Flexible": false,
+      "Leg": {
+        "Mode": "walk",
+        "Minutes": 20,
+        "DistanceKm": 1.53
+      },
+      "StopID": "",
+      "DurationMin": 20
+    },
+    {
+      "ID": "id-0007",
       "Kind": "sidequest",
       "Title": "Brine and Bivalve Oyster Bar",
       "Place": {
@@ -60,8 +183,8 @@
           "lng": -81.425564
         }
       },
-      "Start": "2026-09-26T22:30:00Z",
-      "End": "2026-09-26T23:45:00Z",
+      "Start": "2026-09-27T01:30:00Z",
+      "End": "2026-09-27T02:45:00Z",
       "Description": "Eight kinds of local oysters on crushed ice, with half-price dozens from 3 to 5.",
       "WebsiteURL": "https://saltlight.example/brine-and-bivalve-oyster-bar",
       "ImageURL": "",
@@ -80,80 +203,18 @@
       ],
       "Flexible": true,
       "Leg": null,
-      "StopID": "stop_bd670883e140022274fe9e2f_0",
+      "StopID": "stop_bd670883e140022274fe9e2f_2",
       "DurationMin": 75
     },
     {
-      "ID": "id-0004",
-      "Kind": "transit",
-      "Title": "Walk to The Crow's Nest Rooftop",
-      "Place": {
-        "name": "Brine and Bivalve Oyster Bar → The Crow's Nest Rooftop"
-      },
-      "Start": "2026-09-26T23:45:00Z",
-      "End": "2026-09-27T00:11:00Z",
-      "Description": "Route options below. Times update live if you run late.",
-      "WebsiteURL": "",
-      "ImageURL": "",
-      "Bookable": false,
-      "PriceCents": null,
-      "PriceKnown": false,
-      "ActivityID": "",
-      "Category": "",
-      "Tags": null,
-      "Flexible": false,
-      "Leg": {
-        "Mode": "walk",
-        "Minutes": 26,
-        "DistanceKm": 1.95
-      },
-      "StopID": "",
-      "DurationMin": 26
-    },
-    {
-      "ID": "id-0005",
-      "Kind": "sidequest",
-      "Title": "The Crow's Nest Rooftop",
-      "Place": {
-        "name": "The Crow's Nest Rooftop",
-        "coordinate": {
-          "lat": 31.371952,
-          "lng": -81.41488
-        }
-      },
-      "Start": "2026-09-27T00:30:00Z",
-      "End": "2026-09-27T02:00:00Z",
-      "Description": "Cocktails five stories above the marina with heat lamps and string lights.",
-      "WebsiteURL": "https://saltlight.example/the-crow-s-nest-rooftop",
-      "ImageURL": "",
-      "Bookable": true,
-      "PriceCents": 1400,
-      "PriceKnown": true,
-      "ActivityID": "ad4f58795ec3ba0d008af20a",
-      "Category": "bar",
-      "Tags": [
-        "outdoor",
-        "drinks",
-        "date",
-        "late_night",
-        "21_plus",
-        "splurge",
-        "low_energy"
-      ],
-      "Flexible": true,
-      "Leg": null,
-      "StopID": "stop_ad4f58795ec3ba0d008af20a_1",
-      "DurationMin": 90
-    },
-    {
-      "ID": "id-0006",
+      "ID": "id-0008",
       "Kind": "transit",
       "Title": "Walk to Home",
       "Place": {
-        "name": "The Crow's Nest Rooftop → Home"
+        "name": "Brine and Bivalve Oyster Bar → Home"
       },
-      "Start": "2026-09-27T02:00:00Z",
-      "End": "2026-09-27T02:18:00Z",
+      "Start": "2026-09-27T02:45:00Z",
+      "End": "2026-09-27T02:57:00Z",
       "Description": "Route options below. Times update live if you run late.",
       "WebsiteURL": "",
       "ImageURL": "",
@@ -166,18 +227,19 @@
       "Flexible": false,
       "Leg": {
         "Mode": "walk",
-        "Minutes": 18,
-        "DistanceKm": 1.37
+        "Minutes": 12,
+        "DistanceKm": 0.87
       },
       "StopID": "",
-      "DurationMin": 18
+      "DurationMin": 12
     }
   ],
   "PlanRunID": "id-0001",
   "OptionID": "id-0001-0",
   "StopOrder": [
-    "stop_bd670883e140022274fe9e2f_0",
-    "stop_ad4f58795ec3ba0d008af20a_1"
+    "stop_9bdbbc5e9aab712a5b769f72_0",
+    "stop_6a31ffa8d4ca54aa5578259f_1",
+    "stop_bd670883e140022274fe9e2f_2"
   ],
   "PoolMissing": false
 }

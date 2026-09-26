@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"Backend/pkg/itinerary"
 	"Backend/pkg/models"
 	"Backend/pkg/travel"
 	"context"
@@ -10,6 +11,11 @@ import (
 // EventStartMargin: fixed-start events must begin at least this long before
 // the window (or slot) closes.
 const EventStartMargin = 15 * time.Minute
+
+// EventLateStart: a fixed-start event may have begun this long before the
+// window (or slot) opens and still be a candidate; the Go-side check keeps
+// it only when a late arrival is fine for it (itinerary.Clippable).
+const EventLateStart = itinerary.LateArrival
 
 // CandidateQuery is a guaranteed pre-filter: every field is a hard
 // condition the store applies before anything is scored. MatchesQuery is
@@ -38,6 +44,9 @@ type CandidateQuery struct {
 	ExcludeIDs        []string // hex ids
 
 	PlaceCategories []string // place categories that can become a stop
+	// MinPlaceRating keeps places rated at least this, and unrated hikes;
+	// 0 means no rating rule.
+	MinPlaceRating float64
 
 	LimitEvents int
 	LimitPlaces int
@@ -91,12 +100,17 @@ func MatchesQuery(a *models.Activity, q *CandidateQuery) bool {
 				return false
 			}
 		} else {
-			if start.Before(q.From) || start.After(q.To.Add(-EventStartMargin)) {
+			if start.Before(q.From.Add(-EventLateStart)) || start.After(q.To.Add(-EventStartMargin)) {
 				return false
 			}
 		}
-	} else if len(q.PlaceCategories) > 0 && !containsString(q.PlaceCategories, a.Category) {
-		return false
+	} else {
+		if len(q.PlaceCategories) > 0 && !containsString(q.PlaceCategories, a.Category) {
+			return false
+		}
+		if !ratingAllowed(a, q.MinPlaceRating) {
+			return false
+		}
 	}
 	if AgeRulesFor(q.AgeBracket).Blocks(a) {
 		return false
@@ -125,6 +139,19 @@ func MatchesQuery(a *models.Activity, q *CandidateQuery) bool {
 		return false
 	}
 	return !containsString(q.ExcludeIDs, a.ID.Hex())
+}
+
+// ratingAllowed is the place-quality rule: rated at least min, or an
+// unrated hike (trails rarely have ratings). It mirrors the store's query
+// (mongosource.ratingClause).
+func ratingAllowed(a *models.Activity, min float64) bool {
+	if min <= 0 || a.Kind != "place" {
+		return true
+	}
+	if a.Rating == nil {
+		return a.Category == "hike"
+	}
+	return *a.Rating >= min
 }
 
 // priceAllowed is the price clause: a null price is unknown, never free.
