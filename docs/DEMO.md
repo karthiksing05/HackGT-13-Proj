@@ -31,7 +31,7 @@ tomorrow after a reseed.
 | **Marin Okafor** (`@marinokafor`, bot) | Sandy's friend. Hosts an **open plan tomorrow 17:30–20:00** built from the three demo places nearest the market: `max_group_size 6`, joining locks at 17:00, members Marin and Theo, so it is on the Forum with spots left. Also has a **free-now post** for today |
 | **Theo Park** (`@theopark`, bot) | a **pending friend request** to Sandy, note "Met at the market" |
 | Past group sidequest (last Saturday) | Sandy, Marin and Theo; two stops rated by Sandy: 5 stars "Great people", "Would go again" and 4 stars "Good value" |
-| Past solo sidequest | one **unrated** stop, so Home shows "1 past event to rate" and Past shows a Rate pill |
+| Past solo sidequest | one **unrated** stop, so Home shows the "past events to rate" card and Past shows a Rate pill |
 | Group thread **"Saturday market crew"** | 3 messages; expenses Marin $24.00 "Coffee" and Sandy $9.00 "Bus fares", split three ways, so Splits shows Sandy owing Marin $5.00 and Theo owing both |
 | DM Sandy ↔ Marin | 2 messages, 1 unread |
 | Payment method | a demo Visa •••• 4242 (nothing real behind it) |
@@ -46,7 +46,8 @@ Market, Kelp Hollow, Tidepool Heights, Lanternfall Beach. Details in [DATA.md](D
 Sign-in screen → **Use the demo account**. Home loads from the live server; a skeleton shows first and
 the S logo appears only if the request takes more than 2 s.
 
-1. **Home** (0:00). "1 past event to rate" at the top; no active sidequest yet, just "+ New sidequest".
+1. **Home** (0:00). The "past events to rate" card at the top (one unrated stop); no active sidequest
+   yet, just "+ New sidequest".
    Tap **Past** to show the rated Saturday stops and the unrated one; tap **Rate**, pick stars, save
    (this nudges her taste profile). Back to **Sidequests**.
 2. **Create** (0:30). Tap **+**. *Where*: the start is already **Seaside Market Square**, her home base;
@@ -63,7 +64,7 @@ the S logo appears only if the request takes more than 2 s.
    block**: the Event sheet with the time, place, description, **Getting there** (walk / MARTA /
    rideshare estimates), Website, notes, and "Rate it after".
 5. **Forum** (2:10). The area defaults to Saltlight Harbor around the market. Marin's open plan for
-   tomorrow shows "2 of 6 spots left · Locks 5:00 PM"; **Request to join** answers instantly with
+   tomorrow shows "4 of 6 spots left" and a "Locks … 5 PM" label; **Request to join** answers instantly with
    "Joined": the plan appears on Home for tomorrow and a group chat exists. Marin's free-now post shows
    **Plan together**, which opens a DM with a first message already sent.
 6. **Groups › Splits** (2:35). "Saturday market crew": Chat with the seeded messages, Album, and Splits
@@ -93,7 +94,8 @@ Atlanta demo data (user Jordan Lee), without the live planner.
   mode; the demo does not go through it.
 - **One catalog per account.** Sandy sees Saltlight; a new account sees the real Atlanta catalog and
   gets no seeded friends.
-- Two judges signing in as Sandy at once share the same account; each has up to 5 live sockets.
+- Two judges signing in as Sandy at once share the same account, its plans and its realtime events;
+  the account can hold at most 5 live sockets in total.
 
 ## Reset
 
