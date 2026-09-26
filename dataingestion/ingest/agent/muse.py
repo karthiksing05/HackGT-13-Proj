@@ -4,8 +4,9 @@ Request/response shape from https://dev.meta.ai/docs/search-grounding (web_searc
 POST /v1/responses, not chat completions). The answer is in output[type=message].content[
 type=output_text].text, citations in its `annotations` (type url_citation: url, title), and
 raw search hits in output[type=web_search_call].results when "web_search_call.results" is
-requested. VERIFY against a live response once billing is on: as of 2026-09-26 every call
-from our key returns 402 billing_not_configured.
+requested. Verified against a live response on 2026-09-26 (fixtures/muse/web_search_live.json):
+the answer comes as several `message` items, and all but the last carry `phase: "commentary"`
+(progress notes between searches), so those are skipped.
 """
 
 import logging
@@ -19,6 +20,7 @@ from .gemini import Result
 log = logging.getLogger(__name__)
 
 RESPONSES_URL = "https://api.meta.ai/v1/responses"
+MAX_FALLBACK_SOURCES = 5
 
 
 class MuseError(RuntimeError):
@@ -36,6 +38,8 @@ def parse_response(data: dict, model: str) -> Result:
     for item in data.get("output") or []:
         kind = item.get("type")
         if kind == "message":
+            if item.get("phase") == "commentary":
+                continue  # progress chatter between searches ("That link didn't open..."), not findings
             for part in item.get("content") or []:
                 if part.get("type") == "output_text" and part.get("text"):
                     texts.append(part["text"].strip())
@@ -46,11 +50,16 @@ def parse_response(data: dict, model: str) -> Result:
             query = (item.get("action") or {}).get("query")
             if query:
                 queries.append(query)
-    # Cited URLs are what the notes rest on; the raw hits are only kept when nothing was cited.
+    # Cited URLs are what the notes rest on; raw hits are only a fallback when nothing was cited.
+    # A live call returned 68 hits (including spam pages), so keep the top hit of each search in
+    # turn, up to MAX_FALLBACK_SOURCES.
     if not sources:
-        for item in data.get("output") or []:
-            for hit in item.get("results") or [] if item.get("type") == "web_search_call" else []:
-                if hit.get("url"):
+        per_search = [[h for h in item.get("results") or [] if h.get("url")]
+                      for item in data.get("output") or [] if item.get("type") == "web_search_call"]
+        for rank in range(max(map(len, per_search), default=0)):
+            for hits in per_search:
+                if rank < len(hits) and len(sources) < MAX_FALLBACK_SOURCES:
+                    hit = hits[rank]
                     sources.setdefault(hit["url"], {"title": hit.get("title"), "url": hit["url"]})
     usage = data.get("usage") or {}
     return Result(

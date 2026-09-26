@@ -21,6 +21,15 @@ def test_parse_documented_response():
     assert (r.tokens_in, r.tokens_out) == (412, 230)
 
 
+def test_parse_live_response_skips_commentary():
+    data = load_fixture("muse/web_search_live.json")
+    res = parse_response(data, "muse-spark-1.3")
+    assert res.text.startswith("- Live-music concert")
+    assert "didn't open directly" not in res.text and "Researching your" not in res.text
+    assert {s["url"] for s in res.sources} >= {"https://en.wikipedia.org/wiki/Castle_Rat"}
+    assert len(res.search_queries) == 6
+
+
 def test_parse_falls_back_to_raw_hits_when_nothing_cited():
     data = load_fixture("muse/responses_web_search_documented_shape.json")
     for item in data["output"]:
@@ -28,6 +37,18 @@ def test_parse_falls_back_to_raw_hits_when_nothing_cited():
             part["annotations"] = []
     r = parse_response(data, "m")
     assert len(r.sources) == 2
+
+
+def test_uncited_fallback_takes_top_hit_per_search_up_to_cap():
+    data = load_fixture("muse/web_search_live.json")
+    for item in data["output"]:
+        for part in item.get("content") or []:
+            part["annotations"] = []
+    searches = [o for o in data["output"] if o["type"] == "web_search_call" and o.get("results")]
+    r = parse_response(data, "m")
+    assert len(r.sources) == 5
+    assert r.sources[0]["url"] == searches[0]["results"][0]["url"]
+    assert r.sources[1]["url"] == searches[1]["results"][0]["url"]
 
 
 def test_billing_error_is_explained(city, monkeypatch):
