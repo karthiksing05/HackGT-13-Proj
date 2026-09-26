@@ -60,6 +60,7 @@ const (
 	CollFacebookImports  = "facebook_imports"
 	CollPlanPools        = "plan_pools"
 	CollPlanRuns         = "plan_runs"
+	CollPlanTogether     = "plan_together"
 	CollActivities       = "activities"
 	CollDemoActivities   = "demo_activities"
 )
@@ -73,7 +74,7 @@ var AppCollections = []string{
 	CollRefreshTokens, CollResetCodes, CollWebSessions, CollDevices, CollPaymentMethods, CollPhotos,
 	CollItineraries, CollItemStates, CollRatings, CollCheckoutIntents, CollForumPosts, CollJoinRequests,
 	CollThreads, CollMessages, CollExpenses, CollFriendships, CollFriendRequests, CollInvites,
-	CollFacebookAccounts, CollFacebookImports, CollPlanPools, CollPlanRuns,
+	CollFacebookAccounts, CollFacebookImports, CollPlanPools, CollPlanRuns, CollPlanTogether,
 }
 
 // Store wraps the database and the clock used for createdAt/updatedAt.
