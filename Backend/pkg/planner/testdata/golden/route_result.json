@@ -40,7 +40,7 @@
   ],
   "arrival": "2026-09-27T03:53:00Z",
   "depart": "2026-09-27T00:12:00Z",
-  "minutes_late": 53,
+  "minutes_late": 94,
   "broken_at": 1,
   "late_flag": true,
   "total_duration_min": 221

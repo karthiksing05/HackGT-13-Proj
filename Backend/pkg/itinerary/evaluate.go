@@ -1,7 +1,6 @@
 package itinerary
 
 import (
-	"Backend/pkg/models"
 	"Backend/pkg/travel"
 	"context"
 	"time"
@@ -33,22 +32,7 @@ type EvalStop struct {
 // Fixed-time stops keep their scheduled times and count as late when the
 // user can't get there in time. Flexible stops start on arrival, but never
 // before their planned time, which is known to be open.
-func Evaluate(ctx context.Context, w Window, stops []models.PlanStop, tp travel.Provider) Evaluation {
-	es := make([]EvalStop, len(stops))
-	for i, s := range stops {
-		es[i] = EvalStop{
-			Loc:         travel.Point{Lat: s.Lat, Lng: s.Lng},
-			Arrive:      s.ArriveTime,
-			Depart:      s.DepartTime,
-			DurationMin: s.DurationMin,
-			Flexible:    s.Flexible,
-		}
-	}
-	return EvaluateStops(ctx, w, es, tp)
-}
-
-// EvaluateStops is Evaluate over the optimizer's own stop type.
-func EvaluateStops(ctx context.Context, w Window, stops []EvalStop, tp travel.Provider) Evaluation {
+func Evaluate(ctx context.Context, w Window, stops []EvalStop, tp travel.Provider) Evaluation {
 	ev := Evaluation{BrokenAt: -1}
 
 	points := make([]*travel.Point, 0, len(stops)+2)

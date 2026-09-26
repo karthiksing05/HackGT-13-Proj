@@ -196,10 +196,14 @@ func BuildSpec(req Request, tzHeader string, now time.Time, user *UserContext, c
 	}
 	spec.Catalog = catalog
 
-	// Start point: request → last known location → the city's default. The
-	// name always describes the point actually used.
+	// Start point: request → home base → last known location → the city's
+	// default. The name always describes the point actually used.
+	home := homeBase(user)
 	if p := req.Start.Point(); p != nil {
 		spec.Start, spec.StartName = p, req.Start.Name
+	} else if home != nil {
+		p := home.Point()
+		spec.Start, spec.StartName = p, home.Name
 	} else if user.LastLocation != nil && validCoord(user.LastLocation.Lat, user.LastLocation.Lng) {
 		p := *user.LastLocation
 		spec.Start, spec.StartName = &p, "Current location"
@@ -231,11 +235,14 @@ func BuildSpec(req Request, tzHeader string, now time.Time, user *UserContext, c
 	}
 
 	// Demo snap: a phone far from the user's catalog city plans from the
-	// city's default point instead.
+	// user's home base when it is in that city, else the city's default point.
 	if _, ok := CityBySlug(user.City); ok && travel.HaversineKm(*spec.Start, city.Center) > cfg.CitySnapKm {
-		p := city.Start
+		p, name := city.Start, city.StartName
+		if home != nil && travel.HaversineKm(*home.Point(), city.Center) <= cfg.CitySnapKm {
+			p, name = *home.Point(), home.Name
+		}
 		spec.Start, spec.End = &p, &p
-		spec.StartName, spec.EndName = city.StartName, city.StartName
+		spec.StartName, spec.EndName = name, name
 		spec.SnappedStart = true
 	}
 
@@ -314,6 +321,19 @@ func BuildSpec(req Request, tzHeader string, now time.Time, user *UserContext, c
 	spec.AgeBracket = NormalizeAgeBracket(user.AgeBracket)
 	spec.Flexible = user.Prefs.Flexible
 	return spec, nil
+}
+
+// homeBase is the user's home base when it has a usable coordinate.
+func homeBase(user *UserContext) *Place {
+	hb := user.HomeBase
+	if hb == nil || !hb.HasCoord || !validCoord(hb.Lat, hb.Lng) {
+		return nil
+	}
+	out := *hb
+	if strings.TrimSpace(out.Name) == "" {
+		out.Name = "Home base"
+	}
+	return &out
 }
 
 func loadTZ(cityTZ, header string) *time.Location {

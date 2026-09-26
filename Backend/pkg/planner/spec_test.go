@@ -125,8 +125,18 @@ func TestParseAppRequestFallbacksAndErrors(t *testing.T) {
 	// No coordinates: last location wins, then the city's default point.
 	body := []byte(`{"start":{"name":"Somewhere"},"end":{"name":"Home"},"start_time":"2026-09-26T22:00:00Z","back_by":"2026-09-27T03:00:00Z","range":"walkable","ride":"none","budget":1,"pace":"balanced","who":"just_me","modes":["walk"],"mood_text":"","tags":[]}`)
 	u := sandy()
+	u.HomeBase = &Place{Name: "Lighthouse Point", Lat: 31.3902, Lng: -81.4102, HasCoord: true}
 	u.LastLocation = &travel.Point{Lat: 31.3801, Lng: -81.4301}
 	spec, err := ParsePlanRequest(body, "", testNow, u, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The home base comes first.
+	if spec.Start.Lat != 31.3902 || spec.StartName != "Lighthouse Point" || spec.EndName != "Lighthouse Point" {
+		t.Errorf("home base start: %+v %q", spec.Start, spec.StartName)
+	}
+	u.HomeBase = nil
+	spec, err = ParsePlanRequest(body, "", testNow, u, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,6 +202,19 @@ func TestSnapRuleForDemoUser(t *testing.T) {
 	}
 	if !spec.SnappedStart || *spec.Start != seasideMkt || *spec.End != seasideMkt || spec.StartName != "Seaside Market Square" {
 		t.Errorf("snap: %+v %+v %v", spec.Start, spec.End, spec.SnappedStart)
+	}
+	// A home base in the city is the snap target; one outside it is not.
+	lighthouse := travel.Point{Lat: 31.3902, Lng: -81.4102}
+	withHome := sandy()
+	withHome.HomeBase = &Place{Name: "Lighthouse Point", Lat: lighthouse.Lat, Lng: lighthouse.Lng, HasCoord: true}
+	spec, _ = ParsePlanRequest(appRequestJSON(o), "", testNow, withHome, testConfig())
+	if !spec.SnappedStart || *spec.Start != lighthouse || spec.StartName != "Lighthouse Point" {
+		t.Errorf("snap to the home base: %+v %q", spec.Start, spec.StartName)
+	}
+	withHome.HomeBase = &Place{Name: "Midtown", Lat: techSquare.Lat, Lng: techSquare.Lng, HasCoord: true}
+	spec, _ = ParsePlanRequest(appRequestJSON(o), "", testNow, withHome, testConfig())
+	if !spec.SnappedStart || *spec.Start != seasideMkt {
+		t.Errorf("a home base outside the city is not a snap target: %+v", spec.Start)
 	}
 	// A user without a city is never snapped.
 	u := sandy()

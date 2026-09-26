@@ -90,14 +90,14 @@ func countReasons(drops []Drop) map[string]int {
 	return out
 }
 
-// planStops converts an itinerary the way the handler does, for Evaluate.
-func planStops(it Itinerary) []models.PlanStop {
-	out := make([]models.PlanStop, len(it.Stops))
+// planStops is an itinerary's stops as Evaluate takes them.
+func planStops(it Itinerary) []EvalStop {
+	out := make([]EvalStop, len(it.Stops))
 	for i, s := range it.Stops {
 		start, end := s.Node.Start, s.Node.End
-		out[i] = models.PlanStop{
-			Lat: s.Node.Loc.Lat, Lng: s.Node.Loc.Lng,
-			ArriveTime: &start, DepartTime: &end,
+		out[i] = EvalStop{
+			Loc:    s.Node.Loc,
+			Arrive: &start, Depart: &end,
 			DurationMin: int(end.Sub(start).Minutes()),
 			Flexible:    s.Node.Flexible,
 		}

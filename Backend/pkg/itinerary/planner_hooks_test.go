@@ -140,26 +140,3 @@ func TestUtilityHook(t *testing.T) {
 		t.Errorf("hook 0 -> %.2f, want 0", u)
 	}
 }
-
-func TestEvaluateStopsMatchesEvaluate(t *testing.T) {
-	w := window(at(18, 0), at(23, 0))
-	p1, p2 := offset(0.5, 0), offset(0.6, 0.2)
-	s1, e1 := at(19, 0).UTC(), at(20, 0).UTC()
-	s2, e2 := at(20, 30).UTC(), at(21, 30).UTC()
-	legacy := []models.PlanStop{
-		{Lat: p2.Lat, Lng: p2.Lng, ArriveTime: &s2, DepartTime: &e2, DurationMin: 60},
-		{Lat: p1.Lat, Lng: p1.Lng, ArriveTime: &s1, DepartTime: &e1, DurationMin: 60},
-	}
-	stops := []EvalStop{
-		{Loc: p2, Arrive: &s2, Depart: &e2, DurationMin: 60},
-		{Loc: p1, Arrive: &s1, Depart: &e1, DurationMin: 60},
-	}
-	a := Evaluate(context.Background(), w, legacy, travel.Heuristic{})
-	b := EvaluateStops(context.Background(), w, stops, travel.Heuristic{})
-	if a.BrokenAt != b.BrokenAt || a.MinutesLate != b.MinutesLate || !a.Arrival.Equal(b.Arrival) || len(a.Legs) != len(b.Legs) {
-		t.Errorf("Evaluate %+v != EvaluateStops %+v", a, b)
-	}
-	if b.BrokenAt != 1 || b.MinutesLate <= 0 {
-		t.Errorf("swapped order should be late at stop 1: %+v", b)
-	}
-}
