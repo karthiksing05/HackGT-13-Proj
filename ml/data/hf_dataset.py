@@ -31,7 +31,9 @@ def load_events(
     """
     load_dotenv(find_dotenv(usecwd=True))
     token = os.environ.get("HF_TOKEN")  # None falls back to a `hf auth login` token
-    return load_dataset(repo_id, name, split=split, revision=revision, token=token)
+    # Name the default config explicitly: offline, with several configs cached, `datasets` refuses
+    # to guess ("There are multiple ... configurations in the cache").
+    return load_dataset(repo_id, name or "default", split=split, revision=revision, token=token)
 
 
 def _length_stats(values: list[int]) -> str:
