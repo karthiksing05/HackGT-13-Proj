@@ -52,7 +52,7 @@ func announcePresence(ctx context.Context, d *api.Deps, userID string, tz *time.
 	if err != nil || len(friendships) == 0 {
 		return err
 	}
-	now := d.Clock().In(tz)
+	now := d.BusinessNow(ctx).In(tz)
 	facts, err := d.Store.Users().Presence(ctx, []string{userID}, now)
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func StatusChanged(ctx context.Context, d *api.Deps, user *models.User, tz *time
 	defer cancel()
 	userID := user.ID.Hex()
 	logEventError(realtime.EventFriendStatus, announcePresence(ctx, d, userID, tz))
-	if _, err := d.Store.Forum().LiveFreePost(ctx, userID, d.Clock()); err == nil {
+	if _, err := d.Store.Forum().LiveFreePost(ctx, userID, d.BusinessNow(ctx)); err == nil {
 		realtime.ForumUpdate(d.Publish())
 	}
 }

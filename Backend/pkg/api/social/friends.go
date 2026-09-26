@@ -54,7 +54,7 @@ func (h *H) ListFriends(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	now := h.d.Clock().In(httpx.TZ(r))
+	now := h.d.BusinessNow(ctx).In(httpx.TZ(r))
 	facts, err := h.d.Store.Users().Presence(ctx, ids, now)
 	if err != nil {
 		api.Fail(w, r, err)
@@ -133,7 +133,7 @@ func (h *H) ListRequests(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	now := h.d.Clock()
+	now := h.d.BusinessNow(r.Context())
 	out := make([]contract.FriendRequest, 0, len(incoming)+len(outgoing))
 	for _, req := range append(incoming, outgoing...) {
 		if view, ok := requestView(req, viewerID, ppl, now); ok {
@@ -175,7 +175,7 @@ func (h *H) SendRequest(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	now := h.d.Clock()
+	now := h.d.BusinessNow(ctx)
 	// They asked first: sending back means yes.
 	theirs, err := h.d.Store.Friends().PendingFrom(ctx, req.UserID, viewerID)
 	switch {

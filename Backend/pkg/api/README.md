@@ -42,7 +42,7 @@ if !httpx.Decode(w, r, &req) { return }          // 1 MB cap, unknown keys ok, 4
 user, err := h.d.CurrentUser(r)                  // *models.User of the token (401 when gone); api.UserID(r) for just the id
 if err != nil { api.Fail(w, r, err); return }
 tz := httpx.TZ(r)                                // *time.Location from X-Time-Zone (default America/New_York)
-now := h.d.Clock()                               // the testable clock; never time.Now() in handlers or stores
+now := h.d.BusinessNow(r.Context())              // the account's time (see "Two clocks"); never time.Now() in handlers or stores
 …
 httpx.JSON(w, http.StatusOK, view)               // httpx.NoContent(w) for 204
 httpx.Error(w, http.StatusBadRequest, "Give your sidequest a name.")   // {"error":"bad_request","message":…}
@@ -53,6 +53,26 @@ httpx.Error(w, http.StatusBadRequest, "Give your sidequest a name.")   // {"erro
 sentence, anything else → 500 logged with the request id. Unowned resources are 404; host-only itinerary
 edits by a member are 403. Every 400/409 message is a sentence the app shows verbatim; unknown enum
 values are 400 (`contract.Visibility("x").Valid()`). `httpx.DecodeOptional` for bodies that may be empty.
+
+## Two clocks
+
+With `DEMO_DATE` set (YYYY-MM-DD, `pkg/democlock`), accounts of the demo catalog (`demo_activities`: Sandy
+and her bots) live on that date in `DEMO_TZ` at the real time of day, on any real day; everyone else, and
+everything with `DEMO_DATE` unset, lives in real time. `d.Protect` / `d.Optional` put the signed-in
+account's clock on the request context (a cached catalog lookup, only while `DEMO_DATE` is set).
+
+- **Business time** (`h.d.BusinessNow(ctx)`, `s.BusinessNow(ctx)` in stores) for whatever decides or shows
+  what is upcoming, past or now: plan windows, active/past, calendar "today", past events, the Forum's
+  labels and started/locked checks, free-now `until`, presence, chat times, and the `createdAt` / `sentAt`
+  of what people see (plans, messages, posts, expenses, ratings, friendships, photos, checkout intents).
+  Realtime payloads render with the acting request's business time.
+- **Real time** (`h.d.Clock()`, `s.Now()`) for tokens, rate limits, reset codes, web sessions, invites,
+  Facebook, the checkout agent's step timing, account metadata, logs, and every TTL `expiresAt` (MongoDB
+  expires documents by the wall clock). A TTL expiry derived from a business deadline is stored at its
+  real instant (`s.RealAt(ctx, until)`).
+- The owner's `User` (`h.d.UserView(user)`: GET/PATCH /me, sign-up, log-in) carries `demo_date` for a demo
+  account, so the app puts its "today" there too. Background work for a user takes their clock with
+  `d.ForUser(ctx, userID)`.
 
 ## Contract types and time
 
@@ -79,7 +99,8 @@ that converts `models.*` → `contract.*` for one viewer (`is_host`, `unread`, `
 `d.Store.Users()`, `.Tokens()`, `.Resets()`, `.WebSessions()`, `.Photos()` are namespaces (value types
 with a `*Store` inside). Add yours in your own file: `type Itineraries struct{ s *Store }` +
 `func (s *Store) Itineraries() Itineraries`; add methods to an existing namespace in your own file
-(`users_prefs.go`: `func (u Users) SavePrefs(…)`). Use `s.Now()` for timestamps, `store.NewID()` for
+(`users_prefs.go`: `func (u Users) SavePrefs(…)`). Use `s.BusinessNow(ctx)` or `s.Now()` for timestamps ([two
+clocks](#two-clocks)), `store.NewID()` for
 `_id`s, return the sentinels (wrap with `%w`), never `_ =` a write (a test greps for it). Indexes: add
 rows to `appIndexes` only through the foundation agent; `EnsureIndexes` runs at startup and in
 `sidequestz-admin ensure-indexes`. Users: `ByID`, `ByIDs` (map), `ByEmail`, `ByUsername`,
@@ -153,5 +174,5 @@ cross-user cases to `scopes` in `pkg/api/scoping_test.go`.
 ## Config
 
 `d.Cfg` (`pkg/config`): `PublicBaseURL`, `JWTSecret`, token TTLs, `MLServiceURL` + `ML*` timeouts,
-`Planner`, `FB*`, `Demo*`, `DevResetCodes`, `CheckoutStepDelay` (0 in tests), `TrustProxy`,
+`Planner`, `FB*`, `Demo*` (`DemoDate`: `DEMO_DATE`, `Cfg.DemoClock()`), `DevResetCodes`, `CheckoutStepDelay` (0 in tests), `TrustProxy`,
 `MaxPhotoBytes`, `MaxJSONBytes`, `DisableRateLimits`. `sidequestz-admin --env-file` reads the same names.

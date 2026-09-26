@@ -4,6 +4,7 @@ import (
 	"Backend/pkg/api"
 	"Backend/pkg/api/view"
 	"Backend/pkg/contract"
+	"Backend/pkg/democlock"
 	"Backend/pkg/httpx"
 	"Backend/pkg/models"
 	"Backend/pkg/store"
@@ -37,13 +38,16 @@ func NewService(p *Planner) *Service { return &Service{P: p} }
 // Generate is POST /plans/generate. A request the planner cannot serve
 // (the window already ended, times missing) is an empty batch whose reason
 // starts with "invalid_request: ", which the app has its own sentence for.
+// The window is judged at the account's business time (a demo account's
+// demo date, pkg/democlock); pools and runs expire by the real clock.
 func (s *Service) Generate(ctx context.Context, user *models.User, req contract.PlanRequest, tz *time.Location) (contract.PlanBatch, error) {
-	uc := UserFromModel(user, s.P.Clock.Now())
+	now := s.now(ctx)
+	uc := UserFromModel(user, now)
 	tzName := ""
 	if tz != nil {
 		tzName = tz.String()
 	}
-	spec, err := BuildSpec(RequestFromContract(req), tzName, s.P.Clock.Now(), uc, s.P.Cfg)
+	spec, err := BuildSpec(RequestFromContract(req), tzName, now, uc, s.P.Cfg)
 	var invalid *RequestError
 	if errors.As(err, &invalid) {
 		return emptyBatch(invalid.Error()), nil
@@ -61,7 +65,7 @@ func (s *Service) Generate(ctx context.Context, user *models.User, req contract.
 // More is POST /plans/generate/more; an unknown, expired or foreign cursor
 // is the last, empty page.
 func (s *Service) More(ctx context.Context, user *models.User, cursor string) (contract.PlanBatch, error) {
-	batch, err := s.P.More(ctx, UserFromModel(user, s.P.Clock.Now()), cursor)
+	batch, err := s.P.More(ctx, UserFromModel(user, s.now(ctx)), cursor)
 	if err != nil {
 		return contract.PlanBatch{}, err
 	}
@@ -146,6 +150,11 @@ func planError(err error) error {
 	}
 	return err
 }
+
+// now is the planner clock at the request's business time: Route,
+// Alternatives and ResolveStop read no clock of their own (a pool's window
+// is fixed and its expiry is real time), so only Generate and More need it.
+func (s *Service) now(ctx context.Context) time.Time { return democlock.Now(ctx, s.P.Clock.Now()) }
 
 func emptyBatch(reason string) contract.PlanBatch {
 	return contract.PlanBatch{Options: []contract.PlanOption{}, Done: true, Reason: &reason}

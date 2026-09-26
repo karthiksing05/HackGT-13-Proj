@@ -21,31 +21,47 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-// demoCatalogFile is the Saltlight snapshot the VPS imports into demo_activities.
-const demoCatalogFile = "../../../dataingestion/demo/saltlight_harbor.json"
-
 const demoPassword = "tidepool-2026"
 
-func readDemoCatalog(t *testing.T) []models.Activity {
+// readDemoCatalog is the embedded Saltlight catalog of record,
+// freetime.demo_activities on the test MongoDB server (read only; copy it
+// there with Backend/scripts/pull-demo-catalog.sh): the raw documents and
+// the same decoded. Without it the test skips, unless CI=1.
+func readDemoCatalog(t *testing.T) ([]bson.Raw, []models.Activity) {
 	t.Helper()
-	raw, err := os.ReadFile(demoCatalogFile)
+	ctx := t.Context()
+	cursor, err := testutil.DB(t).Client().Database("freetime").Collection(store.CollDemoActivities).Find(ctx, bson.M{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var docs []models.Activity
-	if err := bson.UnmarshalExtJSON(raw, false, &docs); err != nil {
+	var raws []bson.Raw
+	if err := cursor.All(ctx, &raws); err != nil {
 		t.Fatal(err)
 	}
-	return docs
+	if len(raws) == 0 {
+		if os.Getenv("CI") == "1" {
+			t.Fatal("freetime.demo_activities is empty; copy it with Backend/scripts/pull-demo-catalog.sh")
+		}
+		t.Skip("freetime.demo_activities is empty (Backend/scripts/pull-demo-catalog.sh copies it)")
+	}
+	acts := make([]models.Activity, len(raws))
+	for i, raw := range raws {
+		if err := bson.Unmarshal(raw, &acts[i]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return raws, acts
 }
 
-// seedServer is a test server whose database holds the demo catalog.
-func seedServer(t *testing.T) (*testutil.Server, *config.Config) {
+// seedServer is a test server whose database holds a copy of the demo
+// catalog.
+func seedServer(t *testing.T, opts ...testutil.Option) (*testutil.Server, *config.Config) {
 	t.Helper()
-	srv := testutil.New(t)
-	var docs []any
-	for _, a := range readDemoCatalog(t) {
-		docs = append(docs, a)
+	raws, _ := readDemoCatalog(t)
+	srv := testutil.New(t, opts...)
+	docs := make([]any, len(raws))
+	for i, raw := range raws {
+		docs[i] = raw
 	}
 	if _, err := srv.Store.Collection(store.CollDemoActivities).InsertMany(t.Context(), docs); err != nil {
 		t.Fatal(err)
@@ -192,7 +208,8 @@ func TestSeedDemo(t *testing.T) {
 	var nearest []string
 	{
 		places := []models.Activity{}
-		for _, a := range readDemoCatalog(t) {
+		_, catalog := readDemoCatalog(t)
+		for _, a := range catalog {
 			if a.Kind == "place" {
 				places = append(places, a)
 			}
@@ -505,10 +522,11 @@ func TestDemoDays(t *testing.T) {
 	}
 }
 
-// TestSeedWorldOpenPlan pins Marin's plan on the shipped Saltlight snapshot.
+// TestSeedWorldOpenPlan pins Marin's plan on the Saltlight catalog of record.
 func TestSeedWorldOpenPlan(t *testing.T) {
 	var places []*models.Activity
-	for _, a := range readDemoCatalog(t) {
+	_, catalog := readDemoCatalog(t)
+	for _, a := range catalog {
 		if a.Kind == "place" {
 			places = append(places, &a)
 		}
@@ -541,5 +559,97 @@ func TestSeedWorldOpenPlan(t *testing.T) {
 	}
 	if post := w.posts[0]; post.Text != "Free until 9 PM near Seaside Market" {
 		t.Fatalf("free post text %q", post.Text)
+	}
+}
+
+// TestSeedDemoOnTheDemoDate: with DEMO_DATE the world hangs off the demo date
+// whatever the real day, Sandy lives on it, and the free-now post still
+// expires by the wall clock. Sep 24 is a Thursday; Sep 27, the date the
+// server runs with, is a Sunday, so "last Saturday" and "yesterday" are the
+// same day.
+func TestSeedDemoOnTheDemoDate(t *testing.T) {
+	ny, _ := time.LoadLocation("America/New_York")
+	for _, tc := range []struct {
+		date                          string
+		real                          time.Time
+		tomorrow, saturday, yesterday string
+	}{
+		{"2026-09-24", time.Date(2026, 9, 27, 14, 0, 0, 0, ny), "2026-09-25", "2026-09-19", "2026-09-23"},
+		{"2026-09-27", time.Date(2026, 9, 29, 14, 0, 0, 0, ny), "2026-09-28", "2026-09-26", "2026-09-26"},
+	} {
+		t.Run(tc.date, func(t *testing.T) {
+			srv, cfg := seedServer(t, testutil.WithNow(tc.real.UTC()), testutil.WithConfig(func(c *config.Config) { c.DemoDate = tc.date }))
+			st := srv.Store
+			report, err := seedDemo(t.Context(), st, cfg, nil, srv.Clock.Now())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(report.Clock, tc.date) {
+				t.Fatalf("report clock %q", report.Clock)
+			}
+			day := func(key string) time.Time {
+				d, err := time.ParseInLocation("2006-01-02", key, ny)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return d
+			}
+
+			// Marin's plan: tomorrow of the demo date, 5:30–8 PM, locking at 5.
+			open := findDoc[models.Itinerary](t, st, store.CollItineraries, bson.M{"_id": seedOpenPlanID})
+			tomorrow := day(tc.tomorrow)
+			if open.DateKey != tc.tomorrow || !open.Start.Equal(at(tomorrow, 17, 30)) || !open.BackBy.Equal(at(tomorrow, 20, 0)) ||
+				!open.LockAt.Equal(at(tomorrow, 17, 0)) || open.Status != models.ItineraryActive {
+				t.Fatalf("open plan %s %s–%s", open.DateKey, open.Start.In(ny), open.BackBy.In(ny))
+			}
+			crew := findDoc[models.Itinerary](t, st, store.CollItineraries, bson.M{"_id": seedCrewPlanID})
+			solo := findDoc[models.Itinerary](t, st, store.CollItineraries, bson.M{"_id": seedSoloPlanID})
+			if crew.DateKey != tc.saturday || solo.DateKey != tc.yesterday || crew.Date.In(ny).Weekday() != time.Saturday {
+				t.Fatalf("crew outing %s, solo walk %s", crew.DateKey, solo.DateKey)
+			}
+
+			// The free-now post: until 9 PM on the demo date, expiring at 9 PM real time.
+			post := findDoc[models.ForumPost](t, st, store.CollForumPosts, bson.M{"_id": seedFreePostID})
+			if !post.Until.Equal(at(day(tc.date), 21, 0)) || !post.ExpiresAt.Equal(at(tc.real, 21, 0)) || !post.ExpiresAt.After(srv.Clock.Now()) {
+				t.Fatalf("free post until %s, expires %s", post.Until.In(ny), post.ExpiresAt.In(ny))
+			}
+			msgs := findDocs[models.Message](t, st, store.CollMessages, bson.M{"_id": "seed-msg-dm-2"})
+			if len(msgs) != 1 || msgs[0].SentAt.In(ny).Format("2006-01-02") != tc.date {
+				t.Fatalf("Marin's DM: %+v", msgs)
+			}
+
+			// Sandy signs in on the demo date and sees the world from it.
+			sess := srv.Login(t, sandy.email, demoPassword)
+			if sess.User.DemoDate == nil || *sess.User.DemoDate != tc.date {
+				t.Fatalf("Sandy's demo_date: %v", sess.User.DemoDate)
+			}
+			var feed contract.Page[contract.ForumPost]
+			srv.Do(t, "GET", "/forum/posts", nil, sess).Expect(t, http.StatusOK).JSON(t, &feed)
+			var plan, free *contract.ForumPost
+			for i := range feed.Items {
+				switch feed.Items[i].ID {
+				case seedOpenPlanID:
+					plan = &feed.Items[i]
+				case seedFreePostID:
+					free = &feed.Items[i]
+				}
+			}
+			if plan == nil || plan.When == nil || !strings.HasPrefix(*plan.When, "Tomorrow · ") || plan.JoinStatus != contract.JoinNone ||
+				plan.SpotsLeft == nil || *plan.SpotsLeft != 4 || free == nil {
+				t.Fatalf("Sandy's forum: plan %+v, free-now post %+v", plan, free)
+			}
+			var past contract.Page[contract.PastEvent]
+			srv.Do(t, "GET", "/me/past-events?unrated=true", nil, sess).Expect(t, http.StatusOK).JSON(t, &past)
+			if len(past.Items) != 1 || past.Items[0].Title != "Heron Creek Greenway" {
+				t.Fatalf("Sandy's stops to rate: %+v", past.Items)
+			}
+			var joined contract.JoinResult
+			srv.Do(t, "POST", "/forum/posts/"+seedOpenPlanID+"/join-requests", nil, sess).Expect(t, http.StatusOK).JSON(t, &joined)
+			var active []contract.Itinerary
+			srv.Do(t, "GET", "/itineraries", nil, sess).Expect(t, http.StatusOK).JSON(t, &active)
+			if joined.Status != contract.JoinJoined || len(active) != 1 || active[0].ID != seedOpenPlanID {
+				t.Fatalf("after joining Marin's plan: %+v, active %d", joined, len(active))
+			}
+		})
 	}
 }

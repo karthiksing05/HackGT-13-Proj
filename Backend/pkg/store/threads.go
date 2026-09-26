@@ -107,7 +107,7 @@ func (t Threads) ByItinerary(ctx context.Context, itineraryIDs []string) (map[st
 // true) when they have none.
 func (t Threads) EnsureDM(ctx context.Context, a, b string) (*models.Thread, bool, error) {
 	key := models.DMKey(a, b)
-	now := t.s.Now()
+	now := t.s.BusinessNow(ctx)
 	update := bson.M{"$setOnInsert": bson.M{
 		"_id": NewID(), "isGroup": false, "memberIds": []string{a, b}, "createdBy": a,
 		"lastMessageAt": now, "unread": bson.M{}, "readAt": bson.M{}, "createdAt": now, "updatedAt": now,
@@ -118,7 +118,7 @@ func (t Threads) EnsureDM(ctx context.Context, a, b string) (*models.Thread, boo
 // EnsureGroup returns the group thread of an itinerary, creating it (titled
 // after the itinerary) when missing, and adds every itinerary member to it.
 func (t Threads) EnsureGroup(ctx context.Context, it *models.Itinerary) (*models.Thread, bool, error) {
-	now := t.s.Now()
+	now := t.s.BusinessNow(ctx)
 	update := bson.M{
 		"$setOnInsert": bson.M{
 			"_id": NewID(), "isGroup": true, "title": it.Title, "createdBy": it.HostID,
@@ -151,7 +151,7 @@ func (t Threads) upsert(ctx context.Context, filter, update bson.M) (*models.Thr
 func (t Threads) AddMembers(ctx context.Context, threadID string, userIDs ...string) (*models.Thread, error) {
 	return t.update(ctx, threadID, bson.M{
 		"$addToSet": bson.M{"memberIds": bson.M{"$each": forumIDs(userIDs)}},
-		"$set":      bson.M{"updatedAt": t.s.Now()},
+		"$set":      bson.M{"updatedAt": t.s.BusinessNow(ctx)},
 	})
 }
 
@@ -160,7 +160,7 @@ func (t Threads) RemoveMember(ctx context.Context, threadID, userID string) (*mo
 	return t.update(ctx, threadID, bson.M{
 		"$pull":  bson.M{"memberIds": userID},
 		"$unset": bson.M{"unread." + userID: "", "readAt." + userID: ""},
-		"$set":   bson.M{"updatedAt": t.s.Now()},
+		"$set":   bson.M{"updatedAt": t.s.BusinessNow(ctx)},
 	})
 }
 
@@ -169,7 +169,7 @@ func (t Threads) RemoveMember(ctx context.Context, threadID, userID string) (*mo
 func (t Threads) Touch(ctx context.Context, th *models.Thread, msg *models.Message) (*models.Thread, error) {
 	set := bson.M{
 		"lastMessageText": msg.Text, "lastSenderId": msg.SenderID, "lastMessageAt": msg.SentAt,
-		"updatedAt": t.s.Now(), "unread." + msg.SenderID: 0, "readAt." + msg.SenderID: msg.SentAt,
+		"updatedAt": t.s.BusinessNow(ctx), "unread." + msg.SenderID: 0, "readAt." + msg.SenderID: msg.SentAt,
 	}
 	update := bson.M{"$set": set}
 	inc := bson.M{}
@@ -186,7 +186,7 @@ func (t Threads) Touch(ctx context.Context, th *models.Thread, msg *models.Messa
 
 // MarkRead clears the user's unread count.
 func (t Threads) MarkRead(ctx context.Context, threadID, userID string) (*models.Thread, error) {
-	now := t.s.Now()
+	now := t.s.BusinessNow(ctx)
 	return t.update(ctx, threadID, bson.M{"$set": bson.M{"unread." + userID: 0, "readAt." + userID: now}})
 }
 

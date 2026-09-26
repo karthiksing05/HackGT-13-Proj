@@ -55,9 +55,11 @@ func (it Itineraries) findMany(ctx context.Context, filter bson.M, opts ...optio
 }
 
 // Insert stores a new itinerary, assigning its id (when empty), status
-// active, the host as the first member and the timestamps.
+// active, the host as the first member and the timestamps. Itineraries are
+// stamped in the account's business time (Store.BusinessNow), like the
+// rest of what people see; their times of day are the plan's own.
 func (it Itineraries) Insert(ctx context.Context, doc *models.Itinerary) error {
-	now := it.s.Now()
+	now := it.s.BusinessNow(ctx)
 	if doc.ID == "" {
 		doc.ID = NewID()
 	}
@@ -103,12 +105,12 @@ func (it Itineraries) ByIDs(ctx context.Context, ids []string) (map[string]*mode
 }
 
 // flipPast marks the member's active itineraries whose back-by time is
-// before now as past. Lists call it first, so "active" never includes a
-// plan that is over.
+// before now (the viewer's business time) as past. Lists call it first, so
+// "active" never includes a plan that is over.
 func (it Itineraries) flipPast(ctx context.Context, userID string, now time.Time) error {
 	_, err := it.coll().UpdateMany(ctx,
 		bson.M{"memberIds": userID, "status": models.ItineraryActive, "backBy": bson.M{"$lt": now}},
-		bson.M{"$set": bson.M{"status": models.ItineraryPast, "updatedAt": it.s.Now()}})
+		bson.M{"$set": bson.M{"status": models.ItineraryPast, "updatedAt": it.s.BusinessNow(ctx)}})
 	return err
 }
 
@@ -243,7 +245,7 @@ func (it Itineraries) PastStops(ctx context.Context, q PastStopsQuery) ([]PastSt
 // itinerary hostID hosts and returns the new document; ErrNotFound when it
 // is gone or not theirs.
 func (it Itineraries) UpdateHost(ctx context.Context, id, hostID string, set bson.M) (*models.Itinerary, error) {
-	fields := bson.M{"updatedAt": it.s.Now()}
+	fields := bson.M{"updatedAt": it.s.BusinessNow(ctx)}
 	for k, v := range set {
 		fields[k] = v
 	}
@@ -266,7 +268,7 @@ func (it Itineraries) findOneAndUpdate(ctx context.Context, filter, update bson.
 // SetSharedNotes writes the notes every member of the plan sees on one item
 // and who wrote them; nil notes clears them.
 func (it Itineraries) SetSharedNotes(ctx context.Context, id, itemID string, notes *string, by string) (*models.Itinerary, error) {
-	now := it.s.Now()
+	now := it.s.BusinessNow(ctx)
 	var update bson.M
 	if notes == nil {
 		update = bson.M{
@@ -282,7 +284,7 @@ func (it Itineraries) SetSharedNotes(ctx context.Context, id, itemID string, not
 // AddMember puts userID on a live itinerary (no duplicates) and returns it.
 func (it Itineraries) AddMember(ctx context.Context, id, userID string) (*models.Itinerary, error) {
 	return it.findOneAndUpdate(ctx, it.live(bson.M{"_id": id}),
-		bson.M{"$addToSet": bson.M{"memberIds": userID}, "$set": bson.M{"updatedAt": it.s.Now()}})
+		bson.M{"$addToSet": bson.M{"memberIds": userID}, "$set": bson.M{"updatedAt": it.s.BusinessNow(ctx)}})
 }
 
 // RemoveMember takes userID, never the host, off a live itinerary and
@@ -290,14 +292,14 @@ func (it Itineraries) AddMember(ctx context.Context, id, userID string) (*models
 func (it Itineraries) RemoveMember(ctx context.Context, id, userID string) (*models.Itinerary, error) {
 	return it.findOneAndUpdate(ctx,
 		it.live(bson.M{"_id": id, "memberIds": userID, "hostId": bson.M{"$ne": userID}}),
-		bson.M{"$pull": bson.M{"memberIds": userID}, "$set": bson.M{"updatedAt": it.s.Now()}})
+		bson.M{"$pull": bson.M{"memberIds": userID}, "$set": bson.M{"updatedAt": it.s.BusinessNow(ctx)}})
 }
 
 // SetThreadID records the plan's group thread (set by the social area when
 // it creates the thread).
 func (it Itineraries) SetThreadID(ctx context.Context, id, threadID string) error {
 	res, err := it.coll().UpdateOne(ctx, it.live(bson.M{"_id": id}),
-		bson.M{"$set": bson.M{"threadId": threadID, "updatedAt": it.s.Now()}})
+		bson.M{"$set": bson.M{"threadId": threadID, "updatedAt": it.s.BusinessNow(ctx)}})
 	if err != nil {
 		return err
 	}
@@ -339,7 +341,7 @@ func (it Itineraries) Leave(ctx context.Context, id, userID string) (*models.Iti
 	if err != nil {
 		return nil, "", err
 	}
-	now := it.s.Now()
+	now := it.s.BusinessNow(ctx)
 	threads, err := it.groupThreadIDs(ctx, doc)
 	if err != nil {
 		return nil, "", err
@@ -398,7 +400,7 @@ func (it Itineraries) DeleteHost(ctx context.Context, id, hostID string) (*model
 		return nil, err
 	}
 	res, err := it.coll().UpdateOne(ctx, it.live(bson.M{"_id": id, "hostId": hostID}),
-		bson.M{"$set": bson.M{"status": models.ItineraryDeleted, "updatedAt": it.s.Now()}})
+		bson.M{"$set": bson.M{"status": models.ItineraryDeleted, "updatedAt": it.s.BusinessNow(ctx)}})
 	if err != nil {
 		return nil, err
 	}

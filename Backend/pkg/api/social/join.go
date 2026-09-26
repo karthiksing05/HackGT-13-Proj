@@ -58,7 +58,7 @@ func (h *H) Join(w http.ResponseWriter, r *http.Request) {
 	viewerID := viewer.ID.Hex()
 	ctx := r.Context()
 	id := mux.Vars(r)["id"]
-	now := h.d.Clock()
+	now := h.d.BusinessNow(ctx)
 	switch _, err := h.d.Store.Forum().FreePost(ctx, id, now); {
 	case err == nil:
 		httpx.Error(w, http.StatusBadRequest, MsgJoinFreePost)
@@ -224,7 +224,7 @@ func (h *H) PlanTogether(w http.ResponseWriter, r *http.Request) {
 // postAuthor resolves a post id the viewer may see to its author: a live
 // free-now post (friends-only ones for friends) or a shared plan's host.
 func (h *H) postAuthor(ctx context.Context, id, viewerID string) (string, error) {
-	post, err := h.d.Store.Forum().FreePost(ctx, id, h.d.Clock())
+	post, err := h.d.Store.Forum().FreePost(ctx, id, h.d.BusinessNow(ctx))
 	switch {
 	case err == nil:
 		if post.Visibility == models.PostVisibilityFriends && post.AuthorID != viewerID {

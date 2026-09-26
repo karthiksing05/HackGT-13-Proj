@@ -25,6 +25,9 @@ type User struct {
 	SetupComplete bool           `json:"setup_complete"`
 	HomeBase      *Place         `json:"home_base,omitempty"`
 	City          *string        `json:"city,omitempty"`
+	// DemoDate is "2026-09-24" for a demo account while DEMO_DATE is set:
+	// the server's "today" for that account (pkg/democlock).
+	DemoDate *string `json:"demo_date,omitempty"`
 }
 
 // PersonRef is how everyone else appears (avatars, senders, members).

@@ -94,7 +94,7 @@ func (f Friends) Befriend(ctx context.Context, a, b string) (*models.Friendship,
 	id := models.FriendshipID(a, b)
 	ids := []string{a, b}
 	sort.Strings(ids)
-	now := f.s.Now()
+	now := f.s.BusinessNow(ctx)
 	res, err := f.coll().UpdateOne(ctx, bson.M{"_id": id},
 		bson.M{"$setOnInsert": bson.M{"userIds": ids, "createdAt": now}}, options.UpdateOne().SetUpsert(true))
 	if IsDuplicate(err) {
@@ -173,7 +173,7 @@ func (f Friends) PendingFrom(ctx context.Context, fromID, toID string) (*models.
 // CreateRequest stores a pending request; when one from fromID to toID is
 // already pending it is returned instead (created false).
 func (f Friends) CreateRequest(ctx context.Context, fromID, toID, note string) (*models.FriendRequest, bool, error) {
-	now := f.s.Now()
+	now := f.s.BusinessNow(ctx)
 	req := &models.FriendRequest{ID: NewID(), FromID: fromID, ToID: toID, Note: note, Status: models.RequestPending,
 		CreatedAt: now, UpdatedAt: now}
 	_, err := f.requests().InsertOne(ctx, req)
@@ -208,7 +208,7 @@ func (f Friends) transition(ctx context.Context, filter bson.M, status string) (
 	}
 	var req models.FriendRequest
 	err := f.requests().FindOneAndUpdate(ctx, pending,
-		bson.M{"$set": bson.M{"status": status, "updatedAt": f.s.Now()}},
+		bson.M{"$set": bson.M{"status": status, "updatedAt": f.s.BusinessNow(ctx)}},
 		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&req)
 	if err == nil {
 		return &req, nil
