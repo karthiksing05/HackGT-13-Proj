@@ -351,13 +351,13 @@ func randomHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
-// signup creates a fresh adult account (Atlanta catalog) named "E2E <first>".
+// signup creates a fresh adult account (Atlanta catalog) named "<first> TesterXXXX".
 func signup(t testing.TB, first string) *Session {
 	t.Helper()
 	n := accountSeq.Add(1)
 	email := fmt.Sprintf("e2e.%d.%s.%d@example.test", time.Now().Unix(), randomHex(3), n)
 	password := "wander-" + randomHex(4) + "9"
-	name := "E2E " + first + " " + strings.ToUpper(randomHex(2))
+	name := first + " Tester" + strings.ToUpper(randomHex(2))
 	born := contract.NewTime(time.Date(2000, 1, 15, 0, 0, 0, 0, time.UTC))
 	var out contract.AuthResponse
 	do(t, nil, "POST", "/auth/signup", contract.SignupRequest{Name: name, Email: email, Password: password, DateOfBirth: &born}).

@@ -498,4 +498,31 @@ func checkoutFlow(t *testing.T, s *Session, it contract.Itinerary) {
 	if got := get[contract.CheckoutIntent](t, s, "/checkout/intents/"+other.ID); got.State != contract.CheckoutCancelled {
 		t.Errorf("the agent moved a cancelled intent to %s", got.State)
 	}
+
+	// Instant checkout: on in the preferences and within the limit, the
+	// agent pays without asking; over the limit it asks as usual. The
+	// preferences are put back exactly as they were.
+	if item.PriceCents == nil {
+		t.Log("no priced stop in the saved plan; instant checkout not exercised")
+		return
+	}
+	saved := get[contract.Preferences](t, s, "/me/preferences")
+	t.Cleanup(func() { do(t, s, "PUT", "/me/preferences", saved).Expect(t, http.StatusOK) })
+	on := saved
+	on.InstantCheckout, on.InstantCheckoutLimitCents = true, *item.PriceCents
+	do(t, s, "PUT", "/me/preferences", on).Expect(t, http.StatusOK)
+	fast := send[contract.CheckoutIntent](t, s, "POST", "/checkout/intents", contract.CreateCheckoutIntent{ItemID: item.ID, Quantity: 1, Instant: true}, http.StatusCreated)
+	if !fast.Instant || fast.State != contract.CheckoutProcessing || fast.TotalCents == nil || *fast.TotalCents != *item.PriceCents || fast.Steps[2].Text == "" {
+		t.Errorf("instant checkout within the limit: %+v", fast)
+	}
+	expectEvent(t, ws, "checkout.status", 10*time.Second, &st, func(v checkoutStatus) bool { return v.IntentID == fast.ID && v.State == contract.CheckoutProcessing })
+	pollIntent(t, s, fast.ID, contract.CheckoutBooked)
+	if *item.PriceCents == 0 {
+		return // a free stop is always within the limit
+	}
+	over := send[contract.CheckoutIntent](t, s, "POST", "/checkout/intents", contract.CreateCheckoutIntent{ItemID: item.ID, Quantity: 2, Instant: true}, http.StatusCreated)
+	if over.Instant || over.State != contract.CheckoutPreparing {
+		t.Errorf("instant checkout over the limit should ask: %+v", over)
+	}
+	do(t, s, "POST", "/checkout/intents/"+over.ID+"/cancel", nil).NoContent(t)
 }

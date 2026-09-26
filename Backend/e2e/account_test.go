@@ -143,7 +143,7 @@ func TestAccount(t *testing.T) {
 	})
 
 	t.Run("profile", func(t *testing.T) {
-		newName := "E2E Casey Renamed"
+		newName := "Casey Renamed"
 		handle := "e2e_casey_" + randomHex(3)
 		status := contract.StatusBusy
 		me := send[contract.User](t, casey, "PATCH", "/me", contract.UserPatch{Name: &newName, Username: &handle, Status: &status}, http.StatusOK)
