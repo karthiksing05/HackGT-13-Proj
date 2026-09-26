@@ -97,10 +97,23 @@ typed helpers in `pkg/realtime/events.go`: `MessageNew`, `ThreadUpdated`, `Threa
 
 ## Planner seam
 
-`api.Planner` (`Generate`, `More`, `Route`, `Alternatives`, `ResolveStop → *api.StopDetail`) is set on
-`Deps.Planner` in `main.go` by the planner agent; `pkg/api/planning` answers 503 "Planning is warming up."
-while it is nil. `POST /itineraries` (backend-B) enriches stops through `d.Planner.ResolveStop` when the
-planner is present and falls back to `option.stops` otherwise.
+`api.Planner` (`Generate`, `More`, `Route`, `Alternatives`, `ResolveStop → *api.StopDetail`) is
+`planner.Service` (`pkg/planner/service.go`), built in `main.go` by `plannerwire.Planner(ctx, db, deps.ML)`:
+catalogs, `plan_pools` (6 h) and `plan_runs` (72 h) through `pkg/planner/mongosource`, scores and search
+vectors through the ML client, knobs from `PLANNER_*`. If it cannot start, `main` logs and leaves it nil,
+and `pkg/api/planning` answers 503 "Planning is warming up." Only `pkg/contract` fields go out: options
+carry `late_flag` and `total_cost_cents` (sum of the known prices), stops `arrive_time`, `depart_time`,
+`kind`, `flexible`, `activity_id`. An empty batch is a 200 with `reason` (`no_candidates_fit_window`,
+`no_feasible_itinerary`, `invalid_request: …`). `broken_at` is the first stop that no longer works (a fixed
+start reached late, or a place outside its hours) and `minutes_late` counts both. Expired or other users'
+plans are 404 "This plan expired. Generate again."; stop ids the plan does not know are 400 "That plan
+changed. Go back and try again." Ids: option `<runId>-<n>`, stop `stop_<activityId>_<i>` or
+`alt_<activityId>_<slot>`, cursor `dag_<runId>_<offset>`. `POST /itineraries` (backend-B) enriches stops
+through `d.Planner.ResolveStop` (newest live pool holding the id, else the catalog activity it names;
+unknown ids are `store.ErrNotFound`) and falls back to `option.stops` otherwise. Tests wire the real planner
+with `srv.Deps.Planner = planner.NewService(p)` over the test database (`pkg/planner/http_test.go`);
+`pkg/planner` also has fakes for every seam (`FakeSource`, `FakeScorer`, `MemPoolStore`). Design:
+`docs/design/planner.md`.
 
 ## Profiles seam (taste vectors)
 

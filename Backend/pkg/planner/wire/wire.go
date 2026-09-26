@@ -9,6 +9,7 @@ import (
 	"Backend/pkg/planner"
 	"Backend/pkg/planner/mongosource"
 	"context"
+	"errors"
 
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -19,6 +20,9 @@ import (
 // store's EnsureIndexes creates the TTL ones under the same names, so a
 // failure is logged, not fatal.
 func Planner(ctx context.Context, db *mongo.Database, mlc *ml.Client) (*planner.Service, error) {
+	if db == nil {
+		return nil, errors.New("planner: no database")
+	}
 	cfg := planner.FromEnv()
 	st := mongosource.New(db, nil)
 	if err := st.EnsureIndexes(ctx); err != nil {
