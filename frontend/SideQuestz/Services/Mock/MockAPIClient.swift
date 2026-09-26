@@ -9,6 +9,9 @@ final class MockAPIClient: APIClient {
     let clock: AppClock
     /// Multiplier for the artificial network delay (0 in tests).
     var latencyScale: Double
+    /// When set, every call waits this many seconds (× `latencyScale`) instead of its own realistic
+    /// latency, so loading states are easy to see. Info.plist `SQMockDelay` (5 for now).
+    var fixedDelay: Double?
     /// Endpoint groups that should fail (see `simulate(_:)` call sites for names).
     var failing: Set<String>
 
@@ -40,9 +43,10 @@ final class MockAPIClient: APIClient {
     /// Extra people behind the group chips ("12 people" for a 4-member split).
     private let groupPeopleCount = ["g1": 3, "g2": 12, "g3": 4]
 
-    init(clock: AppClock = .demo, latencyScale: Double = 1, failing: Set<String> = []) {
+    init(clock: AppClock = .demo, latencyScale: Double = 1, fixedDelay: Double? = nil, failing: Set<String> = []) {
         self.clock = clock
         self.latencyScale = latencyScale
+        self.fixedDelay = fixedDelay
         self.failing = failing
         self.user = MockData.user()
         seedThreads()
@@ -51,7 +55,8 @@ final class MockAPIClient: APIClient {
     // MARK: - Helpers
 
     private func simulate(_ group: String, _ milliseconds: Int = 180) async throws {
-        let ns = UInt64(Double(milliseconds) * latencyScale * 1_000_000)
+        let seconds = fixedDelay ?? Double(milliseconds) / 1000
+        let ns = UInt64(max(0, seconds * latencyScale) * 1_000_000_000)
         if ns > 0 { try? await Task.sleep(nanoseconds: ns) }
         if failing.contains(group) || failing.contains("all") {
             throw APIError.network("Simulated failure for \(group)")
@@ -145,6 +150,9 @@ final class MockAPIClient: APIClient {
         if let dob = request.dateOfBirth {
             user.ageBracket = Validation.ageBracket(age: Validation.age(birthDate: dob, on: clock.now, calendar: clock.calendar))
         }
+        // A brand-new account has no calendar connected and no saved card yet (Setup steps 2 and 4).
+        connected = [.google: false, .outlook: false]
+        cards = []
         return AuthResponse(user: user, tokens: mockTokens())
     }
 
@@ -688,6 +696,6 @@ final class MockAPIClient: APIClient {
 
     func createInvite() async throws -> URL {
         try await simulate("friends", 200)
-        return URL(string: "https://sidequestz.app/invite/\(user.username ?? "jordanlee")")!
+        return URL(string: "https://sidequests.app/invite/\(user.username ?? "jordanlee")")!
     }
 }

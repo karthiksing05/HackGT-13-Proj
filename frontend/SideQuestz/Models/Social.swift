@@ -3,7 +3,8 @@ import Foundation
 // MARK: - Forum
 
 enum ForumPostType: String, Codable {
-    case plan, freeNow
+    case plan
+    case freeNow = "free_now"
 }
 
 struct ForumPost: Codable, Identifiable, Hashable {
@@ -61,7 +62,8 @@ enum ForumScope: String, Codable, CaseIterable, Identifiable {
 }
 
 enum ForumTypeFilter: String, Codable, CaseIterable, Identifiable {
-    case all, plans, freeNow
+    case all, plans
+    case freeNow = "free_now"
     var id: String { rawValue }
     var label: String {
         switch self {
@@ -113,6 +115,14 @@ struct ForumQuery: Codable, Hashable {
     var hasFiltersOrSort: Bool { filterCount > 0 || sort != .soonest }
 
     static let areas = ["Current location", "Midtown Atlanta", "Georgia Tech campus", "Downtown Atlanta", "Decatur"]
+    /// Center of each area (sent as lat/lng with the feed query; drawn in the area map).
+    static let areaCenters: [String: Coordinate] = [
+        "Current location": Coordinate(lat: 33.7766, lng: -84.3890),
+        "Midtown Atlanta": Coordinate(lat: 33.7838, lng: -84.3833),
+        "Georgia Tech campus": Coordinate(lat: 33.7756, lng: -84.3963),
+        "Downtown Atlanta": Coordinate(lat: 33.7550, lng: -84.3900),
+        "Decatur": Coordinate(lat: 33.7748, lng: -84.2963),
+    ]
     static let radii = [1, 2, 5, 10]
     static let interestTags = ["Outdoors", "Food", "Art", "Music", "Active", "Games", "Shopping"]
 }

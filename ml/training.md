@@ -27,7 +27,12 @@ Split by user/persona, 80 / 10 / 10 train / validation / test, so no user appear
 - Each validation and test user needs several candidate events, or ranking metrics are skipped (groups smaller than 2 are dropped; `num_groups` reports how many were scored).
 - Never use the test set for model, architecture or hyperparameter selection.
 
-No split code exists yet; see [Implementation status](#implementation-status).
+The split is built into the data: the dataset's `users` config ships train / validation / test
+splits by user, made with a fixed seed (13) by `ml/datagen/select_candidates.py`, and
+`embed.py` saves each split's user-id list as `users/<split>/ids.json`. Each user split draws
+candidates from its own event pool: train users from the event train split minus 2,000
+held-out events, validation users from those held-out events, test users from the event test
+split. `classifier/data.py` asserts these rules when it loads the triples.
 
 ## Model architecture
 
@@ -173,22 +178,94 @@ Then repeat with `config.with_variant("flat")` and `with_variant("late_fusion")`
 
 ## Implementation status
 
-The model, loop, checkpointing, metrics and baseline comparison are built and tested; the data side between embeddings and `train()` is not.
+Everything the recipe needs is built; `train.sbatch` runs it end to end on one Raven node.
 
 | Piece | Status | Where |
 | --- | --- | --- |
 | Features, backbones, residual alpha | Done | `classifier/features.py`, `model.py` |
-| Training loop, early stopping, checkpoints | Done | `classifier/train.py` |
+| Training loop, early stopping, checkpoints | Done; optional callbacks and metric-based selection | `classifier/train.py` |
 | Metrics, baseline comparison, diagnostics | Done | `classifier/metrics.py`, `evaluate.py` |
-| Unit tests | Done | `classifier/tests/test_classifier.py` |
-| Event embeddings | Done, not yet run on full data | `ml/data/embed.py`, `embed.sbatch` |
-| User dataset (positive / negative text) | Missing | `embed.py` takes `--users-repo`, none exists yet |
-| Labels for (user, event) pairs | Missing | No labeling source defined |
-| Triple Dataset + persona split | Missing | Needs to join user and event embeddings by id |
-| Training / eval CLI or sbatch | Missing | Only the Python API exists |
+| Unit tests | Done | `classifier/tests/test_classifier.py`, `test_pipeline.py` |
+| Event embeddings | Done | `ml/data/embed.py`, run by `train.sbatch` |
+| User dataset (positive / negative text) | Done | `users` config of the dataset; `ml/datagen/generate_users.py`, `users.sbatch` |
+| Labels for (user, event) pairs | Done | LLM judge, `ml/datagen/judge.py` |
+| Triple Dataset + persona split | Done | `classifier/data.py` |
+| Training / eval CLI and sbatch | Done, logs to W&B | `classifier/experiment.py`, `train.sbatch` |
 
-**Open questions**
+**Open questions, resolved**
 
-- [ ] Where do labels come from, and are they continuous (Huber) or binary (BCE)?
-- [ ] How many candidate events per user in validation and test? At least 10 for NDCG@10 to be meaningful.
-- [ ] Should model selection move from validation loss to validation NDCG@10 inside `train()`?
+- [x] Where do labels come from, and are they continuous (Huber) or binary (BCE)? From an LLM judge
+  (`Qwen/Qwen3.5-9B`). It sees both preference texts and the event's embedding text, the same inputs as
+  the classifier, and rates each pair 0–3. The label is rating / 3, so labels lie in [0, 1], suit Huber,
+  and `label >= 0.5` (rating ≥ 2) means relevant.
+- [x] How many candidate events per user in validation and test? 20 for every user, in every split:
+  - 8 retrieved by `cos(positive, event)`;
+  - 4 hard negatives (dislike-like events among the top 300);
+  - 8 random.
+- [x] Should model selection move from validation loss to validation NDCG@10 inside `train()`? The default
+  stays validation loss, as the recipe specifies. `ClassifierConfig.selection_metric = "ndcg@10"` (with
+  a `val_score_fn`) selects epochs by validation NDCG@10 instead, and the tuning phase compares both.
+
+## Running it
+
+```bash
+# once, on a login node: embedding env (+ wandb) and cached models/data; the private dataset needs a token
+mpcdf.py run raven 'cd $BASE/HackGT-13/code/<version> && SHARED_DIR=$BASE/HackGT-13/shared USERS_CONFIG=users bash -l ml/data/setup_raven.sh'
+# the whole recipe on one node (4 GPUs); W&B key in $SHARED_DIR/secrets/wandb_api_key
+mpcdf.py submit raven ml/compatibility/classifier/train.sbatch
+```
+
+`experiment.py` runs these stages:
+
+1. **Embeddings** with `embed.py`.
+2. **Baseline:** the cosine baseline on validation for λ ∈ {0, 0.25, …, 2}.
+3. **Phase 1:** `residual`, `late_fusion`, `flat` and `residual` with MSE loss, each for seeds 0, 1 and 2.
+4. **Selection:** the variant with the best mean validation NDCG@10, then Recall@10, then Spearman.
+5. **Phase 2:** one change at a time around the phase-1 winner (learning rate, weight decay, batch size,
+   dropout, width, the tuned λ, patience, NDCG-based selection).
+6. **Final:** the best validation run is evaluated once on test, next to the baseline at the model's λ
+   and at the tuned λ.
+
+Every run logs per-batch and per-epoch losses, α, and validation NDCG@10 / Recall@10 / Spearman to W&B
+project `sidequestz-compatibility`, one group per job. The results land in `<run dir>/final/`.
+
+## Results: first full run (2026-09-26)
+
+One Raven node ran for 12 minutes on the `users` config: 8,000 / 1,000 / 1,000 users with 20 LLM-rated
+candidate events each.
+
+- Curves and every run: [W&B](https://wandb.ai/karthiksing05-Independent/sidequestz-compatibility)
+  (group `recipe-20260926-031750-compat-train`).
+- Checkpoints and the model card:
+  [`karthiksing05/sidequestz-compatibility-classifier`](https://huggingface.co/karthiksing05/sidequestz-compatibility-classifier)
+  (private).
+
+**Validation.** Phase 1 variants, NDCG@10 as mean ± std over seeds 0–2:
+
+| Variant | NDCG@10 |
+| --- | --- |
+| `late_fusion` | 0.8938 ± 0.0004 |
+| `flat` | 0.8923 ± 0.0010 |
+| `residual` + MSE | 0.8890 ± 0.0014 |
+| `residual` | 0.8888 ± 0.0019 |
+| cosine baseline, λ = 1 | 0.8337 |
+
+The tuned baseline λ is 0.5. Phase 2 changes stayed within seed noise; the best was selecting epochs by
+validation NDCG@10 (0.8942).
+
+**Test** (evaluated once), chosen model `p2-late_fusion-select-ndcg`:
+
+| | NDCG@10 | Recall@10 | Spearman |
+| --- | --- | --- | --- |
+| classifier | **0.8969** | **0.8829** | **0.6968** |
+| cosine baseline, λ = 0.5 (tuned on validation) | 0.8494 | 0.8168 | 0.5012 |
+| cosine baseline, λ = 1 | 0.8411 | 0.8023 | 0.4583 |
+
+Takeaways:
+- The learned head beats the tuned cosine baseline by about 4.8 NDCG@10 points, 6.6 Recall@10 points and
+  0.20 Spearman.
+- The residual prior didn't help on this data: its alpha stayed near 1, and the plain late-fusion head was
+  as good or better.
+- The tuned λ (0.5) matches the production `CosineCompatibilityModel` default.
+- These labels come from an LLM judge on synthetic users, so re-check against real interaction data once
+  it exists.

@@ -64,6 +64,7 @@ struct StarPicker: View {
                     rating = n
                 } label: {
                     StarGlyph(filled: n <= rating, size: size, emptyStroke: emptyStroke, lineWidth: lineWidth)
+                        .sqBounce(when: n <= rating, scale: 1.2)
                         .frame(width: target.width, height: target.height)
                         .contentShape(Rectangle())
                 }
@@ -72,24 +73,54 @@ struct StarPicker: View {
                 .accessibilityAddTraits(n == rating ? .isSelected : [])
             }
         }
+        .animation(Motion.quick, value: rating)
         .sensoryFeedback(.selection, trigger: rating)
     }
 }
 
-/// The checkmark stroke from the prototype ("M5 12.5 10 17.5 19 7").
+/// The checkmark path from the prototype ("M5 12.5 10 17.5 19 7") in a square frame.
+struct CheckShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let s = min(rect.width, rect.height) / 24
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX + 5 * s, y: rect.minY + 12.5 * s))
+        p.addLine(to: CGPoint(x: rect.minX + 10 * s, y: rect.minY + 17.5 * s))
+        p.addLine(to: CGPoint(x: rect.minX + 19 * s, y: rect.minY + 7 * s))
+        return p
+    }
+}
+
+/// The checkmark stroke from the prototype.
+/// `lineWidth` is the SVG stroke-width in the 24-unit viewBox (it scales with the frame, like the SVG).
 struct CheckGlyph: View {
     var lineWidth: CGFloat = 2.6
 
     var body: some View {
         GeometryReader { proxy in
             let s = min(proxy.size.width, proxy.size.height) / 24
-            Path { p in
-                p.move(to: CGPoint(x: 5 * s, y: 12.5 * s))
-                p.addLine(to: CGPoint(x: 10 * s, y: 17.5 * s))
-                p.addLine(to: CGPoint(x: 19 * s, y: 7 * s))
-            }
-            .stroke(style: StrokeStyle(lineWidth: lineWidth * s * 24 / 14, lineCap: .round, lineJoin: .round))
+            CheckShape()
+                .stroke(style: StrokeStyle(lineWidth: lineWidth * s, lineCap: .round, lineJoin: .round))
         }
+        .accessibilityHidden(true)
+    }
+}
+
+/// The prototype's outline calendar (Create › When, Setup › Connect): a 17×15 rounded rect, a
+/// header rule and two rings. `lineWidth` is in 24-unit viewBox units, like the SVG's.
+struct CalendarGlyph: View {
+    var size: CGFloat = 20
+    var lineWidth: CGFloat = 1.8
+
+    var body: some View {
+        Canvas { context, canvas in
+            let s = canvas.width / 24
+            var path = Path(roundedRect: CGRect(x: 3.5 * s, y: 5 * s, width: 17 * s, height: 15 * s), cornerRadius: 2.5 * s)
+            path.move(to: CGPoint(x: 3.5 * s, y: 10 * s)); path.addLine(to: CGPoint(x: 20.5 * s, y: 10 * s))
+            path.move(to: CGPoint(x: 8 * s, y: 3 * s)); path.addLine(to: CGPoint(x: 8 * s, y: 7 * s))
+            path.move(to: CGPoint(x: 16 * s, y: 3 * s)); path.addLine(to: CGPoint(x: 16 * s, y: 7 * s))
+            context.stroke(path, with: .foreground, style: StrokeStyle(lineWidth: lineWidth * s, lineCap: .round, lineJoin: .round))
+        }
+        .frame(width: size, height: size)
         .accessibilityHidden(true)
     }
 }

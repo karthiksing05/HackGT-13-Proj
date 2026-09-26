@@ -41,6 +41,17 @@
                ReferencedContainer = "container:SideQuestz.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "5E0A001E2E90000100A1B001"
+               BuildableName = "SideQuestzUITests.xctest"
+               BlueprintName = "SideQuestzUITests"
+               ReferencedContainer = "container:SideQuestz.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

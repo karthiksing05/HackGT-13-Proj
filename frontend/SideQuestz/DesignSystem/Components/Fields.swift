@@ -23,6 +23,7 @@ struct SQTextField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label).sqFont(12, relativeTo: .caption).foregroundStyle(Theme.text3)
+                .frame(minHeight: 12 * 1.35, alignment: .leading)
             HStack(spacing: 8) {
                 input
                 if let revealed, isPassword {
@@ -33,9 +34,12 @@ struct SQTextField: View {
                         .accessibilityLabel(revealed.wrappedValue ? "Hide password" : "Show password")
                 }
             }
+            // CSS line box of a 17pt input (30pt Mono for the code field).
+            .frame(minHeight: kind == .numericCode ? 43.6 : 22.95)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, bordered ? 8 : 10)
+        // CSS: 8pt padding + 1pt border when bordered, 10pt padding when not.
+        .padding(.horizontal, bordered ? 15 : 14)
+        .padding(.vertical, bordered ? 9 : 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.white, in: RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous))
         .overlay {
@@ -127,7 +131,7 @@ struct SearchField: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 15, weight: .medium))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Theme.text3)
             TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Theme.text3))
                 .sqFont(15)
@@ -173,7 +177,7 @@ struct PasswordRulesView: View {
                     ZStack {
                         Circle().fill(rule.passed ? Theme.sageInk : Theme.lineStrong)
                         if rule.passed {
-                            CheckGlyph(lineWidth: 2.8).foregroundStyle(.white).frame(width: 14, height: 14)
+                            AnimatedCheck(lineWidth: 2.8).foregroundStyle(.white).frame(width: 14, height: 14)
                         }
                     }
                     .frame(width: 18, height: 18)
@@ -187,6 +191,6 @@ struct PasswordRulesView: View {
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 2)
-        .animation(.easeOut(duration: 0.15), value: Validation.passwordRules(password, confirm).map(\.passed))
+        .animation(Motion.quick, value: Validation.passwordRules(password, confirm).map(\.passed))
     }
 }

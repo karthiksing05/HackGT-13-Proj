@@ -2,7 +2,7 @@
 license: apache-2.0
 language:
 - en
-pretty_name: SideQuestz Synthetic Event Embedding Text
+pretty_name: SideQuests Synthetic Event Embedding Text
 size_categories:
 - 100K<n<1M
 task_categories:
@@ -21,11 +21,19 @@ configs:
     path: data/train-*
   - split: test
     path: data/test-*
+- config_name: users
+  data_files:
+  - split: train
+    path: users/train-*
+  - split: validation
+    path: users/validation-*
+  - split: test
+    path: users/test-*
 ---
 
-# SideQuestz synthetic event embedding text
+# SideQuests synthetic event embedding text
 
-100,000 synthetic events for the SideQuestz event recommender. Each pairs a messy, realistic raw
+100,000 synthetic events for the SideQuests event recommender. Each pairs a messy, realistic raw
 listing with its **embedding text**, the compact eight-section format defined in
 [`ml/description_generation.md`](https://github.com/karthiksing05/HackGT-13-Proj/blob/frontend/ml/description_generation.md)
 (Interests, Activities, Social, Environment, Pace, Cost, Timing, Experience). Everything was
@@ -231,6 +239,137 @@ Input format: `key_value` 63.0%, `json` 37.0%.
 
 </details>
 
+<!-- users:start -->
+## `users` config
+
+```python
+users = load_dataset("karthiksing05/sidequestz-event-embedding-text", "users")
+```
+
+10,000 synthetic users for training and evaluating compatibility models (see `ml/training.md`).
+Each user has preference texts in the same eight-section format as the events and
+20 candidate events rated by an LLM judge. The split is by user, so no user appears
+in two splits; the event pools behind the splits are disjoint as well.
+
+| Split | Users | Rated pairs | Distinct events |
+|---|---|---|---|
+| `train` | 8,000 | 160,000 | 64,988 |
+| `validation` | 1,000 | 20,000 | 1,991 |
+| `test` | 1,000 | 20,000 | 1,995 |
+
+### Fields
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | user id (`u00000`...) |
+| `positive_text` | string | what the user wants, in the eight-section format |
+| `negative_text` | string | what the user avoids; empty for the 15.6% of users with no dislikes |
+| `positive_sections`, `negative_sections` | struct of 8 lists | the same bullets, parsed |
+| `persona` | string (JSON) | the random brief the texts were written from |
+| `candidates` | list of structs | rated events: `event_id` (joins the default config's `id`), `event_split`, `pool`, `source`, `rating` (0-3), `label` (rating / 3), `reason` (the judge's one-line rationale), `cos_positive`, `cos_negative` |
+
+### How it was made
+
+1. **Persona briefs (code).** Interests are drawn from the event taxonomy (1-3 categories).
+   Each brief also has 1-3 dislikes (none for about 15%), plus optional social style,
+   budget, availability, setting, energy, experience, life context and a detail level.
+2. **Preference texts (model).** `Qwen/Qwen3.5-9B` writes `positive_text` and
+   `negative_text` from the brief in JSON-constrained decoding. The prompt turns life
+   context into preferences and forbids demographics. Both texts pass the same validator as
+   the event texts, plus a demographic-terms check. 10,500 of 15,264 attempts
+   passed; the top reject reasons were `positive_unsupported_cost` 2,194, `positive_stray_text` 971, `positive_unknown_section` 678, `truncated` 357, `positive_duplicate_section` 189, `negative_duplicate_section` 131.
+3. **Split and candidates (code and frozen encoder).** Users are split 80/10/10 with seed
+   13. Each split has its own event pool, so there's no leakage:
+   - train users use the events config's train split, minus 2,000 held-out events (96,000 events);
+   - validation users use those held-out events;
+   - test users use the events config's test split (2,000 events).
+
+   Candidates come from the pool, ranked with the classifier's frozen encoder
+   (`Qwen/Qwen3-Embedding-0.6B`, cosine to `positive_text`):
+   - 8 retrieved, sampled from the top 40;
+   - 4 hard negatives: the most dislike-like of the top 300, or ranks 40-300 for users with
+     no dislikes;
+   - 8 random.
+4. **Ratings (model).** `Qwen/Qwen3.5-9B` sees exactly what the classifier sees (both
+   preference texts and the event's embedding text). It gives a one-sentence reason, then a
+   0-3 rating: 3 = strong match, 2 = good, 1 = weak or conflicting, 0 = poor or hits a
+   dislike. Missing event details count as neutral. Sampling:
+   temperature=0.2, top_p=0.9, top_k=20, max_tokens=120. 0 pairs were
+   unparseable twice and dropped.
+
+### Statistics
+
+8.5 of each user's 20 candidates are relevant on average (`label` ≥ 0.5, i.e. rating ≥ 2).
+
+| Candidate source | Pairs | Rating 0 | Rating 1 | Rating 2 | Rating 3 |
+|---|---|---|---|---|---|
+| `retrieved` | 80,000 | 1.5% | 28.5% | 41.2% | 28.8% |
+| `hard_negative` | 40,000 | 13.0% | 42.6% | 28.3% | 16.1% |
+| `random` | 80,000 | 25.6% | 60.0% | 12.1% | 2.2% |
+| **all** | 200,000 | 13.4% | 43.9% | 27.0% | 15.6% |
+
+### Example (from `test`)
+
+`positive_text`:
+```text
+Interests:
+- zine fair
+- neighborhood safety walk
+- cybersecurity
+
+Activities:
+- hands-on workshop
+- interactive discussion
+- live demo
+- panel talk
+- group brainstorming
+- skill-building session
+
+Social:
+- small-group setting
+- low-key socializing
+- quiet conversation
+- focused interaction
+- collaborative work
+
+Pace:
+- high-energy event
+- intense activity
+- fast-moving program
+- dynamic atmosphere
+
+Experience:
+- beginner-friendly
+- skill-building
+- hands-on practice
+- active participation
+```
+
+`negative_text`:
+```text
+Social:
+- language exchange event
+- large crowds
+- loud noise
+- high-volume interaction
+```
+
+Three of its candidates:
+- rating 3 (retrieved): Strong match on neighborhood safety interests and active pace, though the user prefers high-energy events while this is a steady walk.
+- rating 1 (random): The event offers skill-building and education but lacks the user's preferred high-energy pace and interactive activities.
+- rating 0 (hard_negative): The event's focus on language exchange and mingling directly conflicts with the user's dislike of such events and preference for quiet, focused interaction.
+
+### Limitations
+
+- **Labels are LLM judgments, not behavior.** They encode one 9B model's reading of
+  compatibility, from texts written by the same model family. They're useful for bootstrapping
+  the learned models, but no substitute for real interaction labels.
+- **Retrieval bias.** Retrieved and hard-negative candidates were chosen with the same frozen
+  encoder the classifier uses, so candidates skew toward what cosine similarity already finds
+  plausible. Random candidates are there to temper this.
+- **Synthetic users.** Personas combine attributes at random, so some are unusual.
+<!-- users:end -->
+
 ## Limitations
 
 - **Synthetic.** Listings and conversions come from one 9B model, so its style, cultural
@@ -247,9 +386,9 @@ Input format: `key_value` 63.0%, `json` 37.0%.
   sneaker convention at a trailhead). That is deliberate for coverage, not realism.
 - **English only.** Events are fictional; any resemblance of names or venues to real ones is
   coincidental.
-- **No preference data.** There are no user preferences or user-event interaction labels, so
-  this doesn't replace behavioral data for the learned compatibility models (approaches B
-  and C).
+- **No behavioral data.** The `users` config adds synthetic preferences and LLM-judged
+  labels, not real interactions, so it doesn't replace behavioral data for the learned
+  compatibility models (approaches B and C).
 
 ## Reproducing
 

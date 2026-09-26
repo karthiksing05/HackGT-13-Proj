@@ -78,10 +78,10 @@ struct AvatarStack: View {
     var maxCount = 4
 
     var body: some View {
+        // Later faces draw on top, as in the prototype's CSS stacks.
         HStack(spacing: -overlap) {
-            ForEach(Array(people.prefix(maxCount).enumerated()), id: \.offset) { index, person in
+            ForEach(Array(people.prefix(maxCount).enumerated()), id: \.offset) { _, person in
                 Avatar(person: person, size: size, fontSize: fontSize ?? size * 0.4, ring: .white, ringWidth: 2)
-                    .zIndex(Double(maxCount - index))
             }
         }
         .accessibilityElement()

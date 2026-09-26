@@ -123,7 +123,7 @@ struct ValidationTests {
 
     @Test func ageNotes() {
         #expect(Validation.ageNote(age: nil).hasPrefix("Only used to recommend"))
-        #expect(Validation.ageNote(age: 12) == "You need to be 13 or older to use SideQuestz.")
+        #expect(Validation.ageNote(age: 12) == "You need to be 13 or older to use SideQuests.")
         #expect(Validation.ageNote(age: 16).hasPrefix("Age 16: we'll only suggest all-ages events"))
         #expect(Validation.ageNote(age: 19).hasPrefix("Age 19: we'll hide 21+ events"))
         #expect(Validation.ageNote(age: 22).hasPrefix("Age 22: 21+ events can show up"))

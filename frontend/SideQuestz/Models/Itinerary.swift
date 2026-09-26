@@ -6,7 +6,7 @@ enum BlockKind: String, Codable, CaseIterable {
 
 /// Who can see a plan (Create › Vibe › "Who's coming").
 enum Visibility: String, Codable, CaseIterable, Identifiable {
-    case justMe, friends, open
+    case justMe = "just_me", friends, open
     var id: String { rawValue }
     var label: String {
         switch self {
@@ -133,7 +133,7 @@ struct PastEvent: Codable, Identifiable, Hashable {
 // MARK: - Checkout (Visa agent)
 
 enum CheckoutState: String, Codable {
-    case awaitingApproval, booked, cancelled, failed
+    case awaitingApproval = "awaiting_approval", booked, cancelled, failed
 }
 
 struct CheckoutStep: Codable, Hashable {

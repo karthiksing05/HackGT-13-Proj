@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The SideQuestz mark, drawn in a 64×64 grid and scaled by `size / 64` (never an image).
+/// The SideQuests mark, drawn in a 64×64 grid and scaled by `size / 64` (never an image).
 ///
 /// The dotted line is the main road — the plan you already had. The S leaves it and comes back:
 /// a side quest is a detour worth taking. The S path is authored top → bottom so `drawProgress`
@@ -44,7 +44,7 @@ struct LogoMark: View {
         }
         .frame(width: size, height: size)
         .accessibilityElement()
-        .accessibilityLabel("SideQuestz logo")
+        .accessibilityLabel("SideQuests logo")
     }
 
     private var palette: (tile: Color, road: Color, route: Color, markerFill: Color, markerStroke: Color) {

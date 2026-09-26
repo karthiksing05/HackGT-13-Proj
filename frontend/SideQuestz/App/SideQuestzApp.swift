@@ -8,10 +8,15 @@ struct SideQuestzApp: App {
     init() {
         let env = AppEnvironment.makeDefault()
         let defaults = UserDefaults.standard
-        if defaults.bool(forKey: "SQResetIntro") { defaults.set(false, forKey: "hasSeenIntro") }
-        let hasSeenIntro = defaults.bool(forKey: "hasSeenIntro")
+        // The intro used to play only once per install; this flag is no longer used.
+        defaults.removeObject(forKey: "hasSeenIntro")
+        // UI tests start signed out: `-SQResetSession YES`.
+        if defaults.bool(forKey: "SQResetSession") { env.auth.clear() }
+        // The intro plays on every cold launch (not when returning from the background). UI tests
+        // and screenshots skip it with `-SQSkipIntro YES`; `-SQRoute` deep links skip it too.
+        let skipIntro = defaults.bool(forKey: "SQSkipIntro")
 
-        let router = Router(phase: !hasSeenIntro ? .splash : env.auth.isSignedIn ? .main : .auth)
+        let router = Router(phase: !skipIntro ? .splash : env.auth.isSignedIn ? .main : .auth)
         if let launch = LaunchRoute.fromLaunchArguments() {
             router.applyLaunch(launch, env: env)
         }

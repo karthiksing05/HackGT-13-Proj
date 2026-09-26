@@ -14,11 +14,19 @@
 			remoteGlobalIDString = 5E0A00092E90000100A1B001;
 			remoteInfo = SideQuestz;
 		};
+		5E0A00252E90000100A1B001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5E0A00012E90000100A1B001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5E0A00092E90000100A1B001;
+			remoteInfo = SideQuestz;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		5E0A00042E90000100A1B001 /* SideQuestz.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SideQuestz.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5E0A00052E90000100A1B001 /* SideQuestzTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SideQuestzTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E0A001C2E90000100A1B001 /* SideQuestzUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SideQuestzUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -45,9 +53,21 @@
 			path = SideQuestzTests;
 			sourceTree = "<group>";
 		};
+		5E0A001D2E90000100A1B001 /* SideQuestzUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SideQuestzUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		5E0A00202E90000100A1B001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5E0A000C2E90000100A1B001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -70,6 +90,7 @@
 			children = (
 				5E0A00062E90000100A1B001 /* SideQuestz */,
 				5E0A00072E90000100A1B001 /* SideQuestzTests */,
+				5E0A001D2E90000100A1B001 /* SideQuestzUITests */,
 				5E0A00032E90000100A1B001 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -79,6 +100,7 @@
 			children = (
 				5E0A00042E90000100A1B001 /* SideQuestz.app */,
 				5E0A00052E90000100A1B001 /* SideQuestzTests.xctest */,
+				5E0A001C2E90000100A1B001 /* SideQuestzUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -131,6 +153,29 @@
 			productReference = 5E0A00052E90000100A1B001 /* SideQuestzTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		5E0A001E2E90000100A1B001 /* SideQuestzUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E0A00222E90000100A1B001 /* Build configuration list for PBXNativeTarget "SideQuestzUITests" */;
+			buildPhases = (
+				5E0A001F2E90000100A1B001 /* Sources */,
+				5E0A00202E90000100A1B001 /* Frameworks */,
+				5E0A00212E90000100A1B001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5E0A00262E90000100A1B001 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5E0A001D2E90000100A1B001 /* SideQuestzUITests */,
+			);
+			name = SideQuestzUITests;
+			packageProductDependencies = (
+			);
+			productName = SideQuestzUITests;
+			productReference = 5E0A001C2E90000100A1B001 /* SideQuestzUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -145,6 +190,10 @@
 						CreatedOnToolsVersion = 26.0;
 					};
 					5E0A000A2E90000100A1B001 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 5E0A00092E90000100A1B001;
+					};
+					5E0A001E2E90000100A1B001 = {
 						CreatedOnToolsVersion = 26.0;
 						TestTargetID = 5E0A00092E90000100A1B001;
 					};
@@ -166,11 +215,19 @@
 			targets = (
 				5E0A00092E90000100A1B001 /* SideQuestz */,
 				5E0A000A2E90000100A1B001 /* SideQuestzTests */,
+				5E0A001E2E90000100A1B001 /* SideQuestzUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		5E0A00212E90000100A1B001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5E0A000D2E90000100A1B001 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -188,6 +245,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		5E0A001F2E90000100A1B001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5E0A000B2E90000100A1B001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -205,6 +269,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		5E0A00262E90000100A1B001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5E0A00092E90000100A1B001 /* SideQuestz */;
+			targetProxy = 5E0A00252E90000100A1B001 /* PBXContainerItemProxy */;
+		};
 		5E0A001B2E90000100A1B001 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 5E0A00092E90000100A1B001 /* SideQuestz */;
@@ -213,6 +282,46 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		5E0A00232E90000100A1B001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RBKLNCY6HZ;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.karthiksing05.SideQuestzUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = SideQuestz;
+			};
+			name = Debug;
+		};
+		5E0A00242E90000100A1B001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RBKLNCY6HZ;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.karthiksing05.SideQuestzUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = SideQuestz;
+			};
+			name = Release;
+		};
 		5E0A00142E90000100A1B001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -343,7 +452,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SideQuestz/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = SideQuestz;
+				INFOPLIST_KEY_CFBundleDisplayName = SideQuests;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take a profile photo or add photos to a group album.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Start a sidequest from where you are right now.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Describe what you're in the mood for by voice.";
@@ -379,7 +488,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SideQuestz/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = SideQuestz;
+				INFOPLIST_KEY_CFBundleDisplayName = SideQuests;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take a profile photo or add photos to a group album.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Start a sidequest from where you are right now.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Describe what you're in the mood for by voice.";
@@ -449,6 +558,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		5E0A00222E90000100A1B001 /* Build configuration list for PBXNativeTarget "SideQuestzUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E0A00232E90000100A1B001 /* Debug */,
+				5E0A00242E90000100A1B001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		5E0A00112E90000100A1B001 /* Build configuration list for PBXProject "SideQuestz" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

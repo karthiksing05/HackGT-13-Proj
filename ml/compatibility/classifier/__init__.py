@@ -24,6 +24,7 @@ from .scorer import ClassifierCompatibilityModel
 from .train import (
     EarlyStopping,
     TrainingHistory,
+    TrainingCallback,
     TrainingResult,
     load_checkpoint,
     resolve_device,
@@ -43,6 +44,7 @@ __all__ = [
     "ScoreComponents",
     "ScoredData",
     "TrainingHistory",
+    "TrainingCallback",
     "TrainingResult",
     "build_embedding_interaction_features",
     "build_features",

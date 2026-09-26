@@ -4,7 +4,6 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
-    @AppStorage("hasSeenIntro") private var hasSeenIntro = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -13,7 +12,6 @@ struct RootView: View {
                 switch router.phase {
                 case .splash:
                     SplashView {
-                        hasSeenIntro = true
                         if env.auth.isSignedIn { router.enterMain() } else { router.showLogin() }
                     }
                     .transition(.opacity)
@@ -23,6 +21,9 @@ struct RootView: View {
                 case .main:
                     MainShell()
                         .transition(.opacity)
+                }
+                if router.showsDesignGallery {
+                    DesignGalleryView().zIndex(10)
                 }
             }
             .environment(\.safeAreaTop, proxy.safeAreaInsets.top)

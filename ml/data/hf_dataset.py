@@ -20,15 +20,20 @@ DEFAULT_REPO = "karthiksing05/sidequestz-event-embedding-text"
 SECTIONS = ("Interests", "Activities", "Social", "Environment", "Pace", "Cost", "Timing", "Experience")
 
 
-def load_events(repo_id: str = DEFAULT_REPO, split: str | None = None, revision: str | None = None):
+def load_events(
+    repo_id: str = DEFAULT_REPO, split: str | None = None, revision: str | None = None, name: str | None = None
+):
     """Return a DatasetDict (or one Dataset when `split` is given).
 
-    The first call downloads into the HF cache (~/.cache/huggingface); later
-    calls are served from there.
+    `name` selects a config of the repo: None is the default (events), "users" the synthetic
+    users with rated candidate events. The first call downloads into the HF cache
+    (~/.cache/huggingface); later calls are served from there.
     """
     load_dotenv(find_dotenv(usecwd=True))
     token = os.environ.get("HF_TOKEN")  # None falls back to a `hf auth login` token
-    return load_dataset(repo_id, split=split, revision=revision, token=token)
+    # Name the default config explicitly: offline, with several configs cached, `datasets` refuses
+    # to guess ("There are multiple ... configurations in the cache").
+    return load_dataset(repo_id, name or "default", split=split, revision=revision, token=token)
 
 
 def _length_stats(values: list[int]) -> str:

@@ -73,6 +73,11 @@ class ClassifierConfig:
     ranking_ks: tuple[int, ...] = (5, 10)
     relevance_threshold: float = 0.5
 
+    # What picks the best epoch and drives early stopping: "val_loss" (lower is better; the
+    # default in training.md) or a validation ranking metric such as "ndcg@10" (higher is
+    # better; `train` then needs a `val_score_fn`).
+    selection_metric: str = "val_loss"
+
     device: str = "auto"
     seed: int = 0
 
@@ -115,6 +120,8 @@ class ClassifierConfig:
         self.ranking_ks = tuple(int(k) for k in self.ranking_ks)
         if any(k <= 0 for k in self.ranking_ks):
             raise ValueError(f"ranking_ks must be positive, got {self.ranking_ks}")
+        if not self.selection_metric:
+            raise ValueError("selection_metric must be 'val_loss' or a validation metric name such as 'ndcg@10'")
 
     @property
     def is_binary(self) -> bool:

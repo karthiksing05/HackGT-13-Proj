@@ -63,9 +63,11 @@ struct TabScreenHeader<Trailing: View>: View {
         HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 2) {
                 if let eyebrow {
-                    Text(eyebrow).eyebrowStyle()
+                    // The prototype's CSS line box (13 × 1.35).
+                    Text(eyebrow).eyebrowStyle().padding(.vertical, 1)
                 }
                 Text(title).largeTitleStyle().accessibilityAddTraits(.isHeader)
+                    .padding(.bottom, 0.67)
             }
             Spacer(minLength: 8)
             trailing
@@ -91,13 +93,14 @@ struct FlowHeader<Leading: View, Center: View, Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            leading.frame(width: sideWidth, alignment: .leading)
+            // Color.clear keeps each side column its full width even when that side is empty.
+            ZStack(alignment: .leading) { Color.clear; leading }.frame(width: sideWidth)
             center.frame(maxWidth: .infinity)
-            trailing.frame(width: sideWidth, alignment: .trailing)
+            ZStack(alignment: .trailing) { Color.clear; trailing }.frame(width: sideWidth)
         }
         .frame(minHeight: 44)
         .padding(.horizontal, 12)
-        .designTopPadding(50, minimum: 4)
+        .designTopPadding(50, minimum: 0)
     }
 }
 

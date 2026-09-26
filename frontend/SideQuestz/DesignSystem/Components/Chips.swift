@@ -63,6 +63,7 @@ struct SQChip: View {
             .contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         }
         .buttonStyle(.plain)
+        .animation(Motion.quick, value: isOn)
         .accessibilityAddTraits(isOn ? .isSelected : [])
         .sensoryFeedback(.selection, trigger: isOn)
     }
@@ -91,6 +92,7 @@ struct OptionCard: View {
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
+        .animation(Motion.quick, value: isOn)
         .accessibilityAddTraits(isOn ? .isSelected : [])
         .sensoryFeedback(.selection, trigger: isOn)
     }

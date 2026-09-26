@@ -305,16 +305,8 @@ final class LiveAPIClient: APIClient {
 
     // MARK: - Forum
 
-    private static let areaCoordinates: [String: Coordinate] = [
-        "Current location": Coordinate(lat: 33.7766, lng: -84.3890),
-        "Midtown Atlanta": Coordinate(lat: 33.7838, lng: -84.3833),
-        "Georgia Tech campus": Coordinate(lat: 33.7756, lng: -84.3963),
-        "Downtown Atlanta": Coordinate(lat: 33.7550, lng: -84.3900),
-        "Decatur": Coordinate(lat: 33.7748, lng: -84.2963),
-    ]
-
     func forumPosts(_ query: ForumQuery) async throws -> [ForumPost] {
-        let center = Self.areaCoordinates[query.area] ?? Self.areaCoordinates["Midtown Atlanta"]!
+        let center = ForumQuery.areaCenters[query.area] ?? ForumQuery.areaCenters["Midtown Atlanta"] ?? Coordinate(lat: 33.7838, lng: -84.3833)
         var items = [
             URLQueryItem(name: "lat", value: String(center.lat)), URLQueryItem(name: "lng", value: String(center.lng)),
             URLQueryItem(name: "radius", value: String(query.radiusMi)), URLQueryItem(name: "scope", value: query.scope.rawValue),
