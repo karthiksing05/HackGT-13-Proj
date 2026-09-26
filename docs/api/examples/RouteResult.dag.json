@@ -1,6 +1,6 @@
 {
   "arrival": "2026-09-25T21:57:00Z",
-  "broken_at": -1,
+  "broken_at": 1,
   "legs": [
     {
       "minutes": 14,
@@ -19,7 +19,7 @@
       "mode": "marta"
     }
   ],
-  "minutes_late": 0,
+  "minutes_late": 25,
   "stop_times": [
     {
       "end": "2026-09-25T19:44:00Z",

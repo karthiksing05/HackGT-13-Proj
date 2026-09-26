@@ -19,13 +19,13 @@
 		<true/>
 	</dict>
 	<key>SQAPIBaseURL</key>
-	<string>http://127.0.0.1:8000</string>
+	<string>https://api.sidequestz.tech</string>
 	<key>SQAPIMode</key>
-	<string>mock</string>
-	<key>SQMockDelay</key>
-	<string>5</string>
+	<string>live</string>
+	<key>SQDemoPassword</key>
+	<string>$(SQ_DEMO_PASSWORD)</string>
 	<key>SQWebSocketURL</key>
-	<string>ws://127.0.0.1:8000/ws</string>
+	<string>wss://api.sidequestz.tech/ws</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>JetBrainsMono-Medium.ttf</string>

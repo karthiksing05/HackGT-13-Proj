@@ -3,7 +3,8 @@ import SwiftUI
 /// Forum tab (GUI_PLAN.md §7.8): area pill, Everyone nearby | Friends, "Bored right now?",
 /// All / Open plans / Free now + Sort & filter, and the feed. Everything comes from `env.api`
 /// (`GET /forum/posts` does the filtering and sorting around the area's center; "Current location"
-/// is resolved on the device before the feed loads).
+/// is resolved on the device before the feed loads). The feed starts around the account's home
+/// base (the demo account has none and starts in Midtown).
 ///
 /// "I'm free" posts go up around the current area and radius, and the live card describes who
 /// sees it from the post itself. Joining an open plan shows where you stand (requested, in, full,
@@ -46,6 +47,8 @@ struct ForumView: View {
     @State private var joinThreadIds: [String: String] = [:]
     /// Why the feed isn't showing "Current location" (the device didn't give a location).
     @State private var areaNote: String?
+    /// The starting area has been taken from the home base (or the user picked one): it's theirs now.
+    @State private var areaResolved = false
     @State private var showArea = false
     @State private var showFilter = false
 
@@ -108,10 +111,15 @@ struct ForumView: View {
         .onChange(of: query) { _, newQuery in
             if !showFilter { pendingQuery = newQuery }
         }
-        // The note about a location that couldn't be found goes once you pick an area again.
+        // The note about a location that couldn't be found goes once you pick an area again, and
+        // from then on the area is the user's, not the home base's.
         .onChange(of: showArea) { _, shown in
-            if shown, areaNote != nil { withMotion(Motion.quick) { areaNote = nil } }
+            guard shown else { return }
+            areaResolved = true
+            if areaNote != nil { withMotion(Motion.quick) { areaNote = nil } }
         }
+        // The profile (and its home base) can arrive after the first feed.
+        .onChange(of: env.user?.homeBase) { _ = resolveArea() }
         .animation(Motion.standard, value: areaNote)
     }
 
@@ -376,6 +384,8 @@ struct ForumView: View {
 
     /// Runs for every query. The first load shows the skeleton; later ones keep the list on screen.
     private func loadPosts() async {
+        // The first feed comes from around the home base (the new area reloads the feed).
+        if resolveArea() { return }
         // "Current location" needs the device's coordinate first (the Area sheet normally has it).
         if query.area.isCurrentLocation, query.area.coordinate == nil {
             await resolveCurrentLocation()
@@ -392,6 +402,18 @@ struct ForumView: View {
         show(result, for: request)
     }
 
+    /// Once the profile is known, the feed's area comes from the home base (the demo account has
+    /// none and keeps Midtown). Not after the user opened the Area sheet: the area is theirs then.
+    /// Returns true when the area changed, which reloads the feed through `.task(id: query)`.
+    private func resolveArea() -> Bool {
+        guard !areaResolved, let user = env.user else { return false }
+        areaResolved = true
+        let home = ForumQuery.defaultArea(homeBase: user.homeBase)
+        guard home != query.area else { return false }
+        query.area = home
+        return true
+    }
+
     /// Fills in "Current location" (the new area reloads the feed), or goes back to the last area
     /// with a short note when the device can't say where it is.
     private func resolveCurrentLocation() async {
@@ -400,7 +422,7 @@ struct ForumView: View {
             query.area = ForumArea(name: ForumArea.currentLocation.name, coordinate: coordinate, isCurrentLocation: true)
         } else {
             guard !Task.isCancelled else { return }
-            let fallback = shownQuery.area.coordinate == nil ? ForumArea.midtown : shownQuery.area
+            let fallback = shownQuery.area.coordinate == nil ? ForumQuery.defaultArea(homeBase: env.user?.homeBase) : shownQuery.area
             query.area = fallback
             withMotion { areaNote = "Couldn't get your location. Showing \(fallback.name)." }
         }

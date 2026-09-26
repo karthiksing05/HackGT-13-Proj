@@ -5,11 +5,15 @@ import UIKit
 /// App-wide services and session state. One instance, injected with `.environment(env)` and read
 /// in views as `@Environment(AppEnvironment.self) private var env`.
 ///
-/// Mock is the default for the demo build. Switch to the real backend with `SQAPIMode = live` in
-/// Info.plist (plus `SQAPIBaseURL` / `SQWebSocketURL`), or at launch with `-SQAPIMode live`.
+/// Live is the default: the app talks to the server named in Info.plist (`SQAPIMode = live`,
+/// `SQAPIBaseURL`, `SQWebSocketURL`). The offline demo backend is one launch argument away
+/// (`-SQAPIMode mock`).
 @Observable
 final class AppEnvironment {
     enum Mode: String { case mock, live }
+
+    /// Sandy Byte, the account seeded on the live server (Login › "Use the demo account").
+    static let demoEmail = "demo@sidequestz.tech"
 
     let mode: Mode
     let clock: AppClock
@@ -19,6 +23,9 @@ final class AppEnvironment {
     let voice: VoiceInput
     let places: PlaceSearch
     let location: LocationService
+    /// The demo account's password when this build or launch was given one (`SQ_DEMO_PASSWORD`
+    /// build setting, `-SQDemoPassword`); nil hides the demo link on Login.
+    let demoPassword: String?
     @ObservationIgnored private let socket: WebSocketService?
     /// Screens that are alive right now and how each reloads its data (pull to refresh).
     @ObservationIgnored private var reloaders: [String: @MainActor () async -> Void] = [:]
@@ -33,11 +40,13 @@ final class AppEnvironment {
     var isMock: Bool { mode == .mock }
     var format: TimeFormat { TimeFormat(clock: clock) }
 
-    init(mode: Mode, clock: AppClock, api: any APIClient, auth: AuthStore, socketURL: URL?, forceVoiceDemo: Bool) {
+    init(mode: Mode, clock: AppClock, api: any APIClient, auth: AuthStore, socketURL: URL?, forceVoiceDemo: Bool,
+         demoPassword: String? = nil) {
         self.mode = mode
         self.clock = clock
         self.api = api
         self.auth = auth
+        self.demoPassword = demoPassword
         let hub = RealtimeHub()
         self.realtime = hub
         self.voice = VoiceInput(allowDemoFallback: mode == .mock, forceDemo: forceVoiceDemo)
@@ -50,14 +59,14 @@ final class AppEnvironment {
         (api as? LiveAPIClient)?.onUnauthorized = { [weak self] in self?.sessionDidExpire() }
     }
 
-    /// Reads Info.plist (`SQAPIMode`, `SQAPIBaseURL`, `SQWebSocketURL`, `SQMockDelay`) and launch
-    /// arguments (`-SQAPIMode live`, `-SQMockDelay 1`, `-SQMockFail forum`, `-SQMockLatency 0`,
-    /// `-SQVoiceDemo YES`).
+    /// Reads Info.plist (`SQAPIMode`, `SQAPIBaseURL`, `SQWebSocketURL`, `SQDemoPassword`) and launch
+    /// arguments (`-SQAPIMode mock`, `-SQMockFail forum`, `-SQMockLatency 0`, `-SQVoiceDemo YES`,
+    /// `-SQDemoPassword …`). A launch argument wins over the plist; both fall back to the live server.
     static func makeDefault() -> AppEnvironment {
         let info = Bundle.main.infoDictionary ?? [:]
         let defaults = UserDefaults.standard
-        let modeString = defaults.string(forKey: "SQAPIMode") ?? info["SQAPIMode"] as? String ?? "mock"
-        let mode = Mode(rawValue: modeString) ?? .mock
+        let modeString = defaults.string(forKey: "SQAPIMode") ?? info["SQAPIMode"] as? String ?? "live"
+        let mode = Mode(rawValue: modeString) ?? .live
         let auth = AuthStore()
         let clock: AppClock = mode == .mock ? .demo : .live
         let forceVoiceDemo = defaults.bool(forKey: "SQVoiceDemo")
@@ -67,22 +76,37 @@ final class AppEnvironment {
         case .mock:
             let failing = Set((defaults.string(forKey: "SQMockFail") ?? "").split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) })
             let latency = defaults.object(forKey: "SQMockLatency") != nil ? defaults.double(forKey: "SQMockLatency") : 1
-            // Every demo call waits this long (seconds) so loading states show; empty = per-call timings.
-            let delayText = defaults.string(forKey: "SQMockDelay") ?? info["SQMockDelay"] as? String ?? ""
-            api = MockAPIClient(clock: clock, latencyScale: latency, fixedDelay: Double(delayText), failing: failing)
+            api = MockAPIClient(clock: clock, latencyScale: latency, failing: failing)
         case .live:
-            let base = URL(string: defaults.string(forKey: "SQAPIBaseURL") ?? info["SQAPIBaseURL"] as? String ?? "") ?? URL(string: "http://127.0.0.1:8000")!
+            let base = URL(string: defaults.string(forKey: "SQAPIBaseURL") ?? info["SQAPIBaseURL"] as? String ?? "") ?? URL(string: "https://api.sidequestz.tech")!
             api = LiveAPIClient(baseURL: base, auth: auth, clock: clock)
         }
         let socketURL = URL(string: defaults.string(forKey: "SQWebSocketURL") ?? info["SQWebSocketURL"] as? String ?? "")
-        return AppEnvironment(mode: mode, clock: clock, api: api, auth: auth, socketURL: socketURL, forceVoiceDemo: forceVoiceDemo)
+            ?? URL(string: "wss://api.sidequestz.tech/ws")
+        let demoPassword = demoPassword(launch: defaults.string(forKey: "SQDemoPassword"), info: info["SQDemoPassword"] as? String)
+        return AppEnvironment(mode: mode, clock: clock, api: api, auth: auth, socketURL: socketURL, forceVoiceDemo: forceVoiceDemo,
+                              demoPassword: demoPassword)
     }
 
-    /// Test/preview environment: mock backend, no delay.
+    /// The demo account's password from `-SQDemoPassword` (`launch`), else Info.plist's
+    /// `SQDemoPassword` (`info`, the `SQ_DEMO_PASSWORD` build setting). Values are trimmed and a
+    /// blank one counts as not given, so an empty build setting leaves the demo link hidden.
+    static func demoPassword(launch: String?, info: String?) -> String? {
+        for candidate in [launch, info] {
+            if let value = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty { return value }
+        }
+        return nil
+    }
+
+    /// Test/preview environment: mock backend, no delay. Unlike the demo account, the preview user
+    /// has a home base, so previews and tests can show what one changes.
     static func preview() -> AppEnvironment {
         let env = AppEnvironment(mode: .mock, clock: .demo, api: MockAPIClient(clock: .demo, latencyScale: 0), auth: AuthStore(service: "preview"),
                                  socketURL: nil, forceVoiceDemo: true)
-        env.user = MockData.user()
+        var user = MockData.user()
+        user.homeBase = MockPlaces.home.place
+        user.city = "Atlanta"
+        env.user = user
         env.preferences = MockData.preferences
         return env
     }

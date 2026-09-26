@@ -1,16 +1,21 @@
 {
-  "cursor": "batch-0",
+  "cursor": "dag_run_7f3k_2",
   "done": false,
   "options": [
     {
-      "id": "opt-a",
+      "id": "run_7f3k-0",
       "late_flag": false,
-      "meta": "~$ · 1.8 mi walking · 2 transit legs",
+      "meta": "~$ · 1.8 mi walking · 2 marta legs",
       "name": "Rooftop + murals",
       "stops": [
         {
+          "activity_id": "act_rooftop",
+          "arrive_time": "2026-09-25T18:24:00Z",
+          "depart_time": "2026-09-25T19:44:00Z",
           "duration_minutes": 80,
-          "id": "opt-a-0",
+          "flexible": true,
+          "id": "stop_act_rooftop_0",
+          "kind": "place",
           "place": {
             "coordinate": {
               "lat": 33.7727,
@@ -22,8 +27,13 @@
           "title": "Skyline Park rooftop"
         },
         {
+          "activity_id": "act_murals",
+          "arrive_time": "2026-09-25T19:58:00Z",
+          "depart_time": "2026-09-25T20:58:00Z",
           "duration_minutes": 60,
-          "id": "opt-a-1",
+          "flexible": true,
+          "id": "stop_act_murals_1",
+          "kind": "place",
           "place": {
             "coordinate": {
               "lat": 33.7535,
@@ -35,8 +45,13 @@
           "title": "Krog Street Tunnel murals"
         },
         {
+          "activity_id": "act_krog",
+          "arrive_time": "2026-09-25T21:01:00Z",
+          "depart_time": "2026-09-25T21:36:00Z",
           "duration_minutes": 35,
-          "id": "opt-a-2",
+          "flexible": true,
+          "id": "stop_act_krog_2",
+          "kind": "place",
           "place": {
             "coordinate": {
               "lat": 33.7571,
@@ -48,65 +63,23 @@
           "title": "Krog Street Market"
         }
       ],
-      "tag": "Best match"
+      "tag": "Best match",
+      "total_cost_cents": 2400
     },
     {
-      "id": "opt-b",
-      "late_flag": false,
-      "meta": "~$ · 2.3 mi walking · 1 transit leg",
-      "name": "Park + food hall",
-      "stops": [
-        {
-          "duration_minutes": 75,
-          "id": "opt-b-0",
-          "place": {
-            "coordinate": {
-              "lat": 33.787,
-              "lng": -84.374
-            },
-            "name": "Piedmont Park loop"
-          },
-          "subtitle": "Walk · Free",
-          "title": "Piedmont Park loop"
-        },
-        {
-          "duration_minutes": 60,
-          "id": "opt-b-1",
-          "place": {
-            "coordinate": {
-              "lat": 33.777,
-              "lng": -84.388
-            },
-            "name": "Board game café"
-          },
-          "subtitle": "Games · $",
-          "title": "Board game café"
-        },
-        {
-          "duration_minutes": 50,
-          "id": "opt-b-2",
-          "place": {
-            "coordinate": {
-              "lat": 33.7725,
-              "lng": -84.3657
-            },
-            "name": "Ponce City Market food hall"
-          },
-          "subtitle": "Food hall · $$",
-          "title": "Ponce City Market food hall"
-        }
-      ],
-      "tag": "Chill"
-    },
-    {
-      "id": "opt-c",
-      "late_flag": false,
-      "meta": "~$$ · 1.1 mi walking · 2 transit legs",
+      "id": "run_7f3k-1",
+      "late_flag": true,
+      "meta": "~$$ · 1.1 mi walking · 2 marta legs",
       "name": "Downtown loop",
       "stops": [
         {
+          "activity_id": "act_centennial",
+          "arrive_time": "2026-09-25T18:32:00Z",
+          "depart_time": "2026-09-25T19:32:00Z",
           "duration_minutes": 60,
-          "id": "opt-c-0",
+          "flexible": true,
+          "id": "stop_act_centennial_0",
+          "kind": "place",
           "place": {
             "coordinate": {
               "lat": 33.7603,
@@ -118,8 +91,13 @@
           "title": "Centennial Olympic Park"
         },
         {
+          "activity_id": "act_skyview",
+          "arrive_time": "2026-09-25T19:35:00Z",
+          "depart_time": "2026-09-25T20:25:00Z",
           "duration_minutes": 50,
-          "id": "opt-c-1",
+          "flexible": true,
+          "id": "stop_act_skyview_1",
+          "kind": "place",
           "place": {
             "coordinate": {
               "lat": 33.759,
@@ -131,8 +109,13 @@
           "title": "SkyView Ferris wheel"
         },
         {
+          "activity_id": "act_dinner",
+          "arrive_time": "2026-09-25T21:42:00Z",
+          "depart_time": "2026-09-25T22:57:00Z",
           "duration_minutes": 75,
-          "id": "opt-c-2",
+          "flexible": false,
+          "id": "stop_act_dinner_2",
+          "kind": "event",
           "place": {
             "coordinate": {
               "lat": 33.7575,
@@ -140,11 +123,12 @@
             },
             "name": "Open group dinner (Forum)"
           },
-          "subtitle": "3 going · $",
+          "subtitle": "Community event · $ · 5:30 PM",
           "title": "Open group dinner (Forum)"
         }
       ],
-      "tag": "Meet people"
+      "tag": "Meet people",
+      "total_cost_cents": 3400
     }
   ]
 }

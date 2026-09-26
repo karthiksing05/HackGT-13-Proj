@@ -154,7 +154,14 @@ final class Router {
             authRoute = .setup
             setupStartStep = Int(parts.dropFirst().first ?? "1") ?? 1
         default:
+            // Screens past sign-in. Mock mode signs in the demo user; live mode has no one to sign
+            // in as, so without a stored session the link lands on Login and the route is dropped.
             env.startDemoSessionIfNeeded()
+            guard env.auth.isSignedIn else {
+                phase = .auth
+                authRoute = .login
+                return
+            }
             phase = .main
             switch head {
             case "home":
@@ -237,8 +244,9 @@ struct SetupEntry: Identifiable, Equatable {
 
 /// Demo deep links for screenshots and judging, like the prototype's gallery artboards.
 ///
-/// Launch with `-SQRoute <path>` (e.g. `xcrun simctl launch <device> com.karthiksing05.SideQuestz -SQRoute home/calendar`).
-/// Any route past auth signs in as the demo user. Paths:
+/// Launch with `-SQRoute <path>` (e.g. `xcrun simctl launch <device> com.karthiksing05.SideQuestz -SQAPIMode mock -SQRoute home/calendar`).
+/// Any route past auth signs in as the demo user, so these need mock mode (live and signed out,
+/// they land on Login). Paths:
 /// - `splash`, `login`, `forgot/1…4`, `setup/1…5`
 /// - `home`, `home/calendar`, `home/past`, `home/sheet/<blockId>`, `home/rate/<pastId>`, `home/checkout/<blockId>`
 /// - `create/1…4`, `create/2/calendar`, `create/4/more`, `create/4/swap`

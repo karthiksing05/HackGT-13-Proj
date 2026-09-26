@@ -14,10 +14,12 @@ struct CreateReviewStep: View {
     @Bindable var model: CreateFlowModel
     @Environment(AppEnvironment.self) private var env
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// The route status on screen: "Transit times updated" fades out a few seconds after it shows.
+    /// The route status on screen: "Transit times updated" fades out a few seconds after it shows
+    /// ("Some stops would be late" stays a little longer; the route card keeps marking the stop).
     @State private var shownStatus: CreateTransitStatus = .idle
 
     private static let updatedLingerSeconds = 3.0
+    private static let lateLingerSeconds = 5.0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -49,14 +51,21 @@ struct CreateReviewStep: View {
         .animation(Motion.standard, value: model.options.phase)
         .animation(Motion.standard, value: model.optionList.count)
         .onChange(of: model.transitStatus) { _, status in
-            if status == .updated {
-                AccessibilityNotification.Announcement("Transit times updated").post()
+            switch status {
+            case .updated: AccessibilityNotification.Announcement("Transit times updated").post()
+            case .updatedLate: AccessibilityNotification.Announcement("Some stops would be late").post()
+            case .idle, .recalculating: break
             }
             shownStatus = status
         }
         .task(id: shownStatus) {
-            guard shownStatus == .updated else { return }
-            try? await Task.sleep(for: .seconds(Self.updatedLingerSeconds))
+            let linger: Double
+            switch shownStatus {
+            case .updated: linger = Self.updatedLingerSeconds
+            case .updatedLate: linger = Self.lateLingerSeconds
+            case .idle, .recalculating: return
+            }
+            try? await Task.sleep(for: .seconds(linger))
             guard !Task.isCancelled else { return }
             shownStatus = .idle
         }
@@ -86,7 +95,8 @@ struct CreateReviewStep: View {
 
     @ViewBuilder private func loaded(_ options: [PlanOption]) -> some View {
         if options.isEmpty {
-            EmptyStateView(message: "No options fit this window. Try changing filters in More options.")
+            // The server says why when it can (nothing in the window, nothing fits, a bad request).
+            EmptyStateView(message: model.emptyReason?.message ?? PlanEmptyReason.defaultMessage)
                 .padding(.top, 12)
         } else {
             VStack(alignment: .leading, spacing: 0) {
@@ -159,6 +169,13 @@ struct CreateReviewStep: View {
                     }
                     .foregroundStyle(Theme.success)
                     .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 4)))
+                case .updatedLate:
+                    // This order reaches a fixed start too late; the route card marks the stop.
+                    Text("Some stops would be late")
+                        .sqFont(12, .semibold)
+                        .foregroundStyle(Theme.danger)
+                        .lineLimit(1)
+                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 4)))
                 }
             }
             .animation(Motion.standard, value: shownStatus)
@@ -194,7 +211,7 @@ struct CreateReviewStep: View {
 
 // MARK: - Plan loader
 
-/// Plan generation takes as long as the planner does (5 s in the demo). Ghost option cards
+/// Plan generation takes as long as the planner does. Ghost option cards
 /// shimmer where the real ones will land; under them the logo draws and erases its S on a loop
 /// over status lines that stay true whatever the backend is doing. VoiceOver reads "Loading" and
 /// the current line.
@@ -339,7 +356,9 @@ private struct CreateOptionCarousel: View {
 
 // MARK: - Option card
 
-/// 240pt option card: "OPTION A" + tag chip, name, stops in the current order, meta.
+/// 240pt option card: "OPTION A" + tag chip (none when the server sent no tag), name, stops in the
+/// current order, meta, and a "Tight timing" chip when the planner flagged a fixed start it would
+/// just miss (`lateFlag`).
 /// Selected: 2pt sage ring (springs in, and the card gives a small pop); others 1pt `line`.
 private struct CreateOptionCard: View {
     let letter: String
@@ -364,14 +383,21 @@ private struct CreateOptionCard: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                     Spacer(minLength: 0)
-                    TagLabel(text: option.tag, fill: Theme.sageTint, foreground: Theme.sageInk,
-                             fontSize: 12, horizontalPadding: 8, verticalPadding: 3, radius: 8)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
+                    if !option.tag.isEmpty {
+                        TagLabel(text: option.tag, fill: Theme.sageTint, foreground: Theme.sageInk,
+                                 fontSize: 12, horizontalPadding: 8, verticalPadding: 3, radius: 8)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                    }
                 }
                 CreateWrapText(text: option.name, face: .system(.bold), size: 17)
                 CreateWrapText(text: stopsLine, size: 13, color: Theme.text2)
                 CreateWrapText(text: option.meta, size: 12, textStyle: .caption1, color: Theme.text3)
+                if option.lateFlag {
+                    TagLabel(text: "Tight timing", fill: Theme.dangerBg, foreground: Theme.dangerText,
+                             fontSize: 12, horizontalPadding: 8, verticalPadding: 3, radius: 8)
+                        .padding(.top, 2)
+                }
             }
             .accessibilityHidden(true)
             .padding(14)
@@ -388,9 +414,18 @@ private struct CreateOptionCard: View {
         }
         .buttonStyle(.sqPressable)
         .sqBounce(when: isSelected, scale: 1.025)
-        .accessibilityLabel("Option \(letter), \(option.tag): \(option.name). \(stopsLine). \(option.meta)")
+        .accessibilityLabel(accessibilityText)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .sensoryFeedback(.selection, trigger: isSelected) { _, new in new }
+    }
+
+    /// "Option E, Social, tight timing: Games + views. A → B → C. ~$ · 1.4 mi walking · 2 transit legs"
+    private var accessibilityText: String {
+        var heading = ["Option \(letter)"]
+        if !option.tag.isEmpty { heading.append(option.tag) }
+        if option.lateFlag { heading.append("tight timing") }
+        let lines = [option.name, stopsLine, option.meta].filter { !$0.isEmpty }
+        return "\(heading.joined(separator: ", ")): \(lines.joined(separator: ". "))"
     }
 }
 
