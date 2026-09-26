@@ -1,26 +1,23 @@
 package middleware
 
 import (
-	"encoding/json"
+	"Backend/pkg/httpx"
 	"net/http"
 )
 
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message,omitempty"`
-}
+// ErrorResponse is the {error, message} body; httpx.ErrorBody is the same type.
+type ErrorResponse = httpx.ErrorBody
 
-func WriteJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if data != nil {
-		_ = json.NewEncoder(w).Encode(data)
+// WriteJSON is kept for older call sites; new code uses httpx.JSON.
+func WriteJSON(w http.ResponseWriter, status int, data any) {
+	if data == nil {
+		w.WriteHeader(status)
+		return
 	}
+	httpx.JSON(w, status, data)
 }
 
+// WriteError is kept for older call sites; new code uses httpx.Error.
 func WriteError(w http.ResponseWriter, status int, message string) {
-	WriteJSON(w, status, ErrorResponse{
-		Error:   http.StatusText(status),
-		Message: message,
-	})
+	httpx.Error(w, status, message)
 }

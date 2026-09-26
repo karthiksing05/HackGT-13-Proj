@@ -1,8 +1,9 @@
+// Package env holds thin environment helpers for packages that are configured
+// outside the main config (the planner and the ML client). The server itself
+// uses pkg/config.
 package env
 
-import (
-	"os"
-)
+import "os"
 
 func GetDB() string {
 	if db := os.Getenv("MONGO_DB"); db != "" {
@@ -16,27 +17,6 @@ func GetMongoURI() string {
 		return uri
 	}
 	return "mongodb://127.0.0.1:27017"
-}
-
-func GetHTTPAddr() string {
-	if port := os.Getenv("PORT"); port != "" {
-		if port[0] != ':' {
-			return ":" + port
-		}
-		return port
-	}
-	return ":8080"
-}
-
-func GetJWTSecret() string {
-	if secret := os.Getenv("JWT_SECRET"); secret != "" {
-		return secret
-	}
-	return "sidequestz-super-secret-jwt-key-2026"
-}
-
-func GetCookieSecure() bool {
-	return os.Getenv("COOKIE_SECURE") == "true"
 }
 
 func GetMLServiceURL() string {

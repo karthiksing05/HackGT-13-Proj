@@ -1,46 +1,25 @@
 package main
 
 import (
+	"Backend/pkg/config"
 	"Backend/pkg/datastore"
-	"Backend/pkg/env"
-	"Backend/pkg/realtime"
-	"Backend/pkg/router"
-	"net/http"
+	"context"
 	"os"
 
-	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
+// Temporary entry point while the foundation lands: the HTTP server, router
+// and graceful shutdown arrive with pkg/router in a later commit.
 func main() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{
-		Out:        os.Stdout,
-		TimeFormat: "02 Jan 3:04:05 PM MST",
-	})
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "02 Jan 3:04:05 PM MST"})
 
-	log.Info().Msg("Initializing SideQuestz Backend")
-
-	// Attempt connection to MongoDB
-	err := datastore.Connect()
+	cfg, err := config.FromEnv()
 	if err != nil {
-		log.Warn().Err(err).Msg("MongoDB connection not established; operating with in-memory store fallback")
-	} else {
-		log.Info().Str("uri", env.GetMongoURI()).Msg("Connected to MongoDB successfully")
-		defer datastore.Disconnect()
+		log.Fatal().Err(err).Msg("invalid configuration")
 	}
-
-	// Start WebSocket realtime event hub
-	go realtime.GlobalHub.Run()
-
-	// Initialize HTTP router with full endpoint specifications
-	r := mux.NewRouter().StrictSlash(true)
-	router.SetupRoutes(r)
-
-	appAddr := env.GetHTTPAddr()
-	log.Info().Str("addr", appAddr).Msg("SideQuestz API server starting")
-
-	if err := http.ListenAndServe(appAddr, r); err != nil && err != http.ErrServerClosed {
-		log.Fatal().Err(err).Msg("Server exited with error")
-	}
+	client := datastore.MustConnect(context.Background(), cfg)
+	defer datastore.Disconnect(client)
+	log.Info().Str("db", cfg.MongoDB).Msg("MongoDB connected")
 }
