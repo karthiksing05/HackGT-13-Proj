@@ -1,10 +1,14 @@
 package api_test
 
 import (
+	"Backend/pkg/api"
 	"Backend/pkg/contract"
 	"Backend/pkg/testutil"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/gorilla/mux"
 )
 
 // scope is one resource created by user A that user B must not reach. Area
@@ -68,8 +72,13 @@ func TestStubsAnswer501(t *testing.T) {
 	if res := srv.Do(t, "GET", "/itineraries", nil, nil); res.Status != http.StatusUnauthorized {
 		t.Fatalf("protected stub without a token: %d", res.Status)
 	}
-	if res := srv.Do(t, "GET", "/photos/nope", nil, nil); res.Status != http.StatusNotImplemented {
-		t.Fatalf("public stub: %d", res.Status)
+	// A public stub needs no token (on its own router: the real ones get built).
+	public := mux.NewRouter()
+	api.Stub(public, srv.Deps, "GET", "/public-stub", false)
+	rec := httptest.NewRecorder()
+	public.ServeHTTP(rec, httptest.NewRequest("GET", "/public-stub", nil))
+	if rec.Code != http.StatusNotImplemented {
+		t.Fatalf("public stub: %d", rec.Code)
 	}
 	if res := srv.Do(t, "POST", "/plans/generate", contract.PlanRequest{Range: "transit", Ride: "none", Who: "friends", Pace: "balanced", Budget: 1}, a); res.Status != http.StatusServiceUnavailable || res.Message() != "Planning is warming up. Try again in a moment." {
 		t.Fatalf("planning without a planner: %d %s", res.Status, res.Body)
