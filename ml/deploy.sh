@@ -49,19 +49,50 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-if [ -z "${SERVER_PASS}" ]; then
+# Setup non-interactive SSH authentication
+AUTH_MODE="none"
+ASKPASS_FILE=""
+
+cleanup() {
+    if [ -n "${ASKPASS_FILE}" ] && [ -f "${ASKPASS_FILE}" ]; then
+        rm -f "${ASKPASS_FILE}" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT INT TERM
+
+if [ -n "${SERVER_PASS}" ]; then
+    if command -v sshpass >/dev/null 2>&1; then
+        AUTH_MODE="sshpass"
+    else
+        AUTH_MODE="askpass"
+        ASKPASS_FILE=$(mktemp)
+        chmod 700 "${ASKPASS_FILE}"
+        cat << 'EOF' > "${ASKPASS_FILE}"
+#!/usr/bin/env bash
+echo "${DEPLOY_PASS_INTERNAL}"
+EOF
+        export DEPLOY_PASS_INTERNAL="${SERVER_PASS}"
+        export SSH_ASKPASS="${ASKPASS_FILE}"
+        export SSH_ASKPASS_REQUIRE="force"
+        export DISPLAY="${DISPLAY:-:0}"
+    fi
+else
     echo -e "${YELLOW}Warning: DEPLOY_PASSWORD not found in .env or environment.${NC}"
 fi
 
 echo -e "${BLUE}============================================================${NC}"
 echo -e "${BLUE}  SideQuestz ML Deploy: ${SERVER_USER}@${SERVER_IP}:${REMOTE_DIR}${NC}"
+echo -e "${BLUE}  Auth Mode: ${AUTH_MODE}${NC}"
 echo -e "${BLUE}============================================================${NC}"
 
 # Remote command execution helper
 run_ssh() {
     local cmd="$1"
-    if command -v sshpass >/dev/null 2>&1 && [ -n "${SERVER_PASS}" ]; then
+    if [ "${AUTH_MODE}" = "sshpass" ]; then
         SSHPASS="${SERVER_PASS}" sshpass -e ssh -o StrictHostKeyChecking=accept-new "${SERVER_USER}@${SERVER_IP}" "${cmd}"
+    elif [ "${AUTH_MODE}" = "askpass" ]; then
+        DISPLAY="${DISPLAY:-:0}" SSH_ASKPASS="${ASKPASS_FILE}" SSH_ASKPASS_REQUIRE="force" \
+            ssh -o StrictHostKeyChecking=accept-new "${SERVER_USER}@${SERVER_IP}" "${cmd}" < /dev/null
     else
         ssh -o StrictHostKeyChecking=accept-new "${SERVER_USER}@${SERVER_IP}" "${cmd}"
     fi
@@ -88,8 +119,14 @@ EXCLUDES=(
 
 if command -v rsync >/dev/null 2>&1; then
     echo -e "${GREEN}    Using rsync for delta transfer...${NC}"
-    if command -v sshpass >/dev/null 2>&1 && [ -n "${SERVER_PASS}" ]; then
+    if [ "${AUTH_MODE}" = "sshpass" ]; then
         SSHPASS="${SERVER_PASS}" sshpass -e rsync -avz \
+            "${EXCLUDES[@]}" \
+            -e "ssh -o StrictHostKeyChecking=accept-new" \
+            "${SCRIPT_DIR}/" "${SERVER_USER}@${SERVER_IP}:${REMOTE_DIR}/"
+    elif [ "${AUTH_MODE}" = "askpass" ]; then
+        DISPLAY="${DISPLAY:-:0}" SSH_ASKPASS="${ASKPASS_FILE}" SSH_ASKPASS_REQUIRE="force" \
+            rsync -avz \
             "${EXCLUDES[@]}" \
             -e "ssh -o StrictHostKeyChecking=accept-new" \
             "${SCRIPT_DIR}/" "${SERVER_USER}@${SERVER_IP}:${REMOTE_DIR}/"
@@ -101,11 +138,17 @@ if command -v rsync >/dev/null 2>&1; then
     fi
 else
     echo -e "${YELLOW}    rsync not found; bundling files with tar over SSH...${NC}"
-    if command -v sshpass >/dev/null 2>&1 && [ -n "${SERVER_PASS}" ]; then
+    if [ "${AUTH_MODE}" = "sshpass" ]; then
         tar --exclude="__pycache__" --exclude="*.pyc" --exclude=".pytest_cache" \
             --exclude=".venv" --exclude="venv" --exclude=".git" --exclude="runs" \
             -czf - -C "${SCRIPT_DIR}" . | \
             SSHPASS="${SERVER_PASS}" sshpass -e ssh -o StrictHostKeyChecking=accept-new "${SERVER_USER}@${SERVER_IP}" "tar -xzf - -C ${REMOTE_DIR}"
+    elif [ "${AUTH_MODE}" = "askpass" ]; then
+        tar --exclude="__pycache__" --exclude="*.pyc" --exclude=".pytest_cache" \
+            --exclude=".venv" --exclude="venv" --exclude=".git" --exclude="runs" \
+            -czf - -C "${SCRIPT_DIR}" . | \
+            DISPLAY="${DISPLAY:-:0}" SSH_ASKPASS="${ASKPASS_FILE}" SSH_ASKPASS_REQUIRE="force" \
+            ssh -o StrictHostKeyChecking=accept-new "${SERVER_USER}@${SERVER_IP}" "tar -xzf - -C ${REMOTE_DIR}"
     else
         tar --exclude="__pycache__" --exclude="*.pyc" --exclude=".pytest_cache" \
             --exclude=".venv" --exclude="venv" --exclude=".git" --exclude="runs" \
