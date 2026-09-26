@@ -91,7 +91,8 @@ appear in training. Relevant means label ≥ 0.5 (a judge rating of 2 or 3 out o
 {table(p1, ("ndcg@10", "recall@10", "spearman"))}
 
 3. **Phase 2, tuning the winner (validation, seed 0).** One change at a time. The best validation run
-   becomes the final model.
+   becomes the final model. For scale: across seeds, the phase-1 winner's NDCG@10 varied by
+   ±{phase1['table'][phase1['winner']]['ndcg@10_std']:.4f}, so smaller differences are noise.
 
 {table(p2, ("ndcg@10", "recall@10", "spearman", "mae"))}
 

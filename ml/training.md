@@ -228,3 +228,44 @@ mpcdf.py submit raven ml/compatibility/classifier/train.sbatch
 
 Every run logs per-batch and per-epoch losses, α, and validation NDCG@10 / Recall@10 / Spearman to W&B
 project `sidequestz-compatibility`, one group per job. The results land in `<run dir>/final/`.
+
+## Results: first full run (2026-09-26)
+
+One Raven node ran for 12 minutes on the `users` config: 8,000 / 1,000 / 1,000 users with 20 LLM-rated
+candidate events each.
+
+- Curves and every run: [W&B](https://wandb.ai/karthiksing05-Independent/sidequestz-compatibility)
+  (group `recipe-20260926-031750-compat-train`).
+- Checkpoints and the model card:
+  [`karthiksing05/sidequestz-compatibility-classifier`](https://huggingface.co/karthiksing05/sidequestz-compatibility-classifier)
+  (private).
+
+**Validation.** Phase 1 variants, NDCG@10 as mean ± std over seeds 0–2:
+
+| Variant | NDCG@10 |
+| --- | --- |
+| `late_fusion` | 0.8938 ± 0.0004 |
+| `flat` | 0.8923 ± 0.0010 |
+| `residual` + MSE | 0.8890 ± 0.0014 |
+| `residual` | 0.8888 ± 0.0019 |
+| cosine baseline, λ = 1 | 0.8337 |
+
+The tuned baseline λ is 0.5. Phase 2 changes stayed within seed noise; the best was selecting epochs by
+validation NDCG@10 (0.8942).
+
+**Test** (evaluated once), chosen model `p2-late_fusion-select-ndcg`:
+
+| | NDCG@10 | Recall@10 | Spearman |
+| --- | --- | --- | --- |
+| classifier | **0.8969** | **0.8829** | **0.6968** |
+| cosine baseline, λ = 0.5 (tuned on validation) | 0.8494 | 0.8168 | 0.5012 |
+| cosine baseline, λ = 1 | 0.8411 | 0.8023 | 0.4583 |
+
+Takeaways:
+- The learned head beats the tuned cosine baseline by about 4.8 NDCG@10 points, 6.6 Recall@10 points and
+  0.20 Spearman.
+- The residual prior didn't help on this data: its alpha stayed near 1, and the plain late-fusion head was
+  as good or better.
+- The tuned λ (0.5) matches the production `CosineCompatibilityModel` default.
+- These labels come from an LLM judge on synthetic users, so re-check against real interaction data once
+  it exists.
