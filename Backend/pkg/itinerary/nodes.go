@@ -37,12 +37,30 @@ type Drop struct {
 var unlimitedCategories = map[string]bool{"": true, "other": true}
 
 // Place categories we schedule. Venue types (theater, cinema, live_music,
-// comedy, nightclub) are left out: a visit only makes sense with a show,
-// and shows arrive as events.
+// comedy) are left out: a visit only makes sense with a show, and shows
+// arrive as events. Food and drink places (restaurant, cafe, bar,
+// nightclub) are drop-in venues; bars and nightclubs need real hours.
 var placeCategories = map[string]bool{
 	"park": true, "hike": true, "bar": true, "landmark": true, "museum": true,
 	"gallery": true, "garden": true, "shopping": true, "rec_venue": true,
 	"zoo_aquarium": true, "market": true, "viewpoint": true,
+	"restaurant": true, "cafe": true, "nightclub": true,
+}
+
+// PlaceCategories lists the place categories the optimizer schedules, sorted,
+// so a candidate query can restrict places to what could become a stop.
+func PlaceCategories() []string {
+	out := make([]string, 0, len(placeCategories))
+	for c := range placeCategories {
+		out = append(out, c)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// IsPlaceCategory reports whether places of this category can be scheduled.
+func IsPlaceCategory(category string) bool {
+	return placeCategories[category]
 }
 
 // Two activities within this distance, where the place's name matches the
@@ -98,7 +116,7 @@ func BuildNodes(w Window, acts []models.Activity, cfg Config) ([]Node, []Drop) {
 	}
 
 	nodes = assignSeries(nodes)
-	nodes, capped := capSeries(nodes, 64)
+	nodes, capped := capSeries(nodes, cfg.seriesCap())
 	for _, a := range capped {
 		drops = append(drops, Drop{ActivityID: a, Reason: "series_cap"})
 	}
@@ -227,16 +245,22 @@ func clampDur(d time.Duration, cfg Config) time.Duration {
 	return d
 }
 
-// utility maps ranker output to 0..1 and subtracts the baseline. The LLM
-// rerank score (0-4) is preferred when present; the model score is used
-// otherwise; unscored items get cfg.DefaultUtility.
+// utility maps ranker output to 0..1 and subtracts the baseline. With
+// cfg.Utility set, the caller supplies the base; otherwise the LLM rerank
+// score (0-4) is preferred when present, the model score is used next, and
+// unscored items get cfg.DefaultUtility.
 func utility(a *models.Activity, cfg Config) float64 {
 	base := cfg.DefaultUtility
 	switch {
+	case cfg.Utility != nil:
+		base = cfg.Utility(a)
 	case a.RerankScore != nil:
 		base = *a.RerankScore / 4
 	case a.Score != nil:
 		base = *a.Score
+	}
+	if math.IsNaN(base) {
+		base = cfg.DefaultUtility
 	}
 	base = math.Max(0, math.Min(1, base))
 	return math.Max(0, base-cfg.Tau)
@@ -293,7 +317,7 @@ func assignSeries(nodes []Node) []Node {
 }
 
 // capSeries keeps the `limit` series with the best utility; paths track
-// series in a 64-bit mask.
+// series in a 128-bit mask.
 func capSeries(nodes []Node, limit int) ([]Node, []string) {
 	best := map[string]float64{}
 	for _, n := range nodes {
@@ -351,7 +375,7 @@ func assignBits(nodes []Node) {
 			continue
 		}
 		if _, ok := cats[c]; !ok {
-			if len(cats) >= 64 {
+			if len(cats) >= maxMaskBits {
 				continue
 			}
 			cats[c] = len(cats)
@@ -360,12 +384,22 @@ func assignBits(nodes []Node) {
 	}
 }
 
+// sortNodes orders by start, then end, then activity id and fixed-before-
+// flexible, so the same candidates always give the same graph whatever
+// order they arrived in.
 func sortNodes(nodes []Node) {
 	sort.SliceStable(nodes, func(i, j int) bool {
-		if !nodes[i].Start.Equal(nodes[j].Start) {
-			return nodes[i].Start.Before(nodes[j].Start)
+		a, b := &nodes[i], &nodes[j]
+		if !a.Start.Equal(b.Start) {
+			return a.Start.Before(b.Start)
 		}
-		return nodes[i].End.Before(nodes[j].End)
+		if !a.End.Equal(b.End) {
+			return a.End.Before(b.End)
+		}
+		if ai, bi := a.Act.ID.Hex(), b.Act.ID.Hex(); ai != bi {
+			return ai < bi
+		}
+		return !a.Flexible && b.Flexible
 	})
 }
 

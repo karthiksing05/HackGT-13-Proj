@@ -1,6 +1,5 @@
 // Package me is the signed-in user's own profile (GET/PATCH /me here;
-// backend-A adds preferences.go, taste.go, devices.go, photo.go and replaces
-// the stubs below).
+// preferences, taste profile, devices, photo and avatar in their own files).
 package me
 
 import (
@@ -26,21 +25,21 @@ const (
 
 type H struct{ d *api.Deps }
 
-// Register mounts /me. Routes past GET/PATCH /me are backend-A's stubs.
+// Register mounts /me; the routes past GET/PATCH /me live in photo.go,
+// avatar.go, preferences.go, taste.go and devices.go.
 func Register(r *mux.Router, d *api.Deps) {
 	h := &H{d: d}
 	r.Handle("/me", d.Protect(h.Get)).Methods("GET")
 	r.Handle("/me", d.Protect(h.Patch)).Methods("PATCH")
 
-	// backend-A replaces these with real handlers in this package.
-	api.Stub(r, d, "POST", "/me/photo", true)
-	api.Stub(r, d, "DELETE", "/me/photo", true)
-	api.Stub(r, d, "PATCH", "/me/avatar", true)
-	api.Stub(r, d, "GET", "/me/preferences", true)
-	api.Stub(r, d, "PUT", "/me/preferences", true)
-	api.Stub(r, d, "GET", "/me/taste-profile", true)
-	api.Stub(r, d, "POST", "/me/devices", true)
-	api.Stub(r, d, "DELETE", "/me/devices/{token}", true)
+	r.Handle("/me/photo", d.Protect(h.UploadPhoto)).Methods("POST")
+	r.Handle("/me/photo", d.Protect(h.DeletePhoto)).Methods("DELETE")
+	r.Handle("/me/avatar", d.Protect(h.SetAvatarColor)).Methods("PATCH")
+	r.Handle("/me/preferences", d.Protect(h.GetPreferences)).Methods("GET")
+	r.Handle("/me/preferences", d.Protect(h.PutPreferences)).Methods("PUT")
+	r.Handle("/me/taste-profile", d.Protect(h.TasteProfile)).Methods("GET")
+	r.Handle("/me/devices", d.Protect(h.RegisterDevice)).Methods("POST")
+	r.Handle("/me/devices/{token}", d.Protect(h.UnregisterDevice)).Methods("DELETE")
 }
 
 // Get is GET /me → User.

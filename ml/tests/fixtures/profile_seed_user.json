@@ -1,0 +1,30 @@
+{
+  "request": {
+    "ratings": {
+      "outdoors": 5,
+      "long_walks": 5,
+      "live_music": 4,
+      "food": 4,
+      "early_mornings": 4,
+      "museums": 3,
+      "sports": 3,
+      "shopping": 2,
+      "nightlife": 2,
+      "big_crowds": 1
+    },
+    "company": "small_group",
+    "pace": "balanced",
+    "spend": "under_15",
+    "flexibility": "bit_over_ok",
+    "prefer_free": true,
+    "answers": {
+      "perfect_afternoon": "A long walk along the water, a snack from the market, then live music somewhere small while the sun goes down.",
+      "never_do": "Packed clubs, huge crowds, or anything that only gets going after midnight.",
+      "plan_around": "Sunrise swims, the Saturday market, and whoever's free to wander."
+    }
+  },
+  "template_version": "profile-v1",
+  "positive_text": "Interests:\n- outdoor recreation\n- local food\n- live music\n- live music somewhere small while the sun goes\n\nActivities:\n- park visit\n- guided hike\n- long walks\n- food tasting\n- live music performance\n\nSocial:\n- small-group setting\n- close friends\n- whoever's free to wander\n\nEnvironment:\n- outdoor setting\n- long walk along the water\n- snack from the market\n\nPace:\n- extended walking\n- early start\n- moderate pace\n\nCost:\n- free admission\n- under $15 admission\n\nTiming:\n- early morning\n- sunrise swims\n- saturday market",
+  "negative_text": "Interests:\n- nightlife\n- shopping\n\nActivities:\n- market browsing\n\nSocial:\n- large crowds\n- huge crowds\n\nEnvironment:\n- crowded venue\n- loud nightclub setting\n- packed clubs\n\nTiming:\n- late night\n- only gets going after midnight",
+  "profile_text_hash": "profile-v1:57d26c2ba9c39984cd03cd369738fb075f0a8395"
+}

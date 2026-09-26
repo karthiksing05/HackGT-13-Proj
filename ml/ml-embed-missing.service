@@ -1,0 +1,17 @@
+[Unit]
+Description=SideQuests ML: embed activities without a current vector (tools.embed_missing)
+After=network-online.target ml.service mongod.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/ml
+Environment=PYTHONPATH=/opt/ml
+EnvironmentFile=-/opt/ml/.env
+ExecStart=/opt/ml/.venv/bin/python -m tools.embed_missing --uri mongodb://127.0.0.1:27017/?directConnection=true --db freetime --collections activities demo_activities --ml-url http://127.0.0.1:8000
+TimeoutStartSec=900
+
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true

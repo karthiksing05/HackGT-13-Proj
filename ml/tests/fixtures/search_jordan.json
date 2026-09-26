@@ -1,0 +1,18 @@
+{
+  "request": {
+    "mood_text": "Something chill and outside, then cheap food after.",
+    "tags": [
+      "Outdoors",
+      "Food",
+      "Meet people"
+    ],
+    "who": "friends",
+    "pace": "balanced",
+    "budget": 1,
+    "start_time": "2026-09-25T18:10:00Z",
+    "back_by": "2026-09-25T22:30:00Z",
+    "timezone": "America/New_York"
+  },
+  "template_version": "profile-v1",
+  "search_text": "Interests:\n- outdoor recreation\n- local food\n\nActivities:\n- eating out\n- social mixer\n\nSocial:\n- meeting new people\n- small group of friends\n\nEnvironment:\n- outdoor setting\n- outside\n\nPace:\n- moderate pace\n- chill\n\nCost:\n- under $15 admission\n- cheap food\n\nTiming:\n- friday afternoon\n- weekday afternoon\n- multi-hour outing"
+}

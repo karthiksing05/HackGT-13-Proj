@@ -163,9 +163,9 @@ func (h *H) Signup(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	// Seam (backend-A + ml): kick off the async profile refresh here once
-	// ml.UserProfile exists; a fresh account has no preferences yet, so the
-	// first meaningful refresh happens on PUT /me/preferences.
+	// No profile refresh here: a fresh account has no preferences, ratings or
+	// interests, so its profile would be empty (a zero vector). The first
+	// refresh happens on PUT /me/preferences (pkg/api/me).
 	httpx.JSON(w, http.StatusCreated, contract.AuthResponse{User: view.User(user, h.d.Cfg.PublicBaseURL, now), Tokens: tokens})
 }
 
