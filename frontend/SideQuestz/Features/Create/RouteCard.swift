@@ -14,7 +14,7 @@ struct CreateRouteRow: Identifiable, Equatable {
     var subtitle: String?
     /// B row in red: "Arrive 6:45 PM · 15 min past 6:30 PM".
     var isLate = false
-    /// Legs while the server re-times the route ("Updating transit…").
+    /// Waiting on the server's timing: legs read "Updating transit…", stop times "…".
     var isPending = false
 
     /// Builds the rows for an option in its current order. While the timing is stale (first load,
@@ -34,15 +34,16 @@ struct CreateRouteRow: Identifiable, Equatable {
         var rows = [CreateRouteRow(id: "A", kind: .start, title: startName, subtitle: "Leave \(format.time(startTime))")]
         for (index, stop) in stops.enumerated() {
             rows.append(leg(index))
-            let time: String
+            let time: String?
             if let result, result.stopTimes.indices.contains(index) {
                 let interval = result.stopTimes[index]
                 time = format.fullRange(interval.start, interval.end)
             } else {
-                time = "…"
+                time = nil
             }
             rows.append(CreateRouteRow(id: "stop-\(stop.id)", kind: .stop(number: index + 1), stopId: stop.id,
-                                       title: stop.title, subtitle: "\(time) · \(stop.subtitle)"))
+                                       title: stop.title, subtitle: "\(time ?? "…") · \(stop.subtitle)",
+                                       isPending: time == nil))
         }
         rows.append(leg(stops.count))
 
@@ -66,6 +67,10 @@ struct CreateRouteRow: Identifiable, Equatable {
 /// their ☰ handle: the lifted row gets a white fill, shadow and a 2pt sage ring, rows swap live
 /// when the finger passes a neighbor's midpoint, and on drop the server re-times the route.
 /// VoiceOver: each handle is adjustable (swipe up/down moves the stop).
+///
+/// Motion: switching options cross-fades the rows. While the timing is pending the legs and stop
+/// times shimmer; when it arrives, leg modes and minutes, stop times and the arrival roll into
+/// place and the late B row eases to red (or back).
 struct CreateRouteCard: View {
     @Bindable var model: CreateFlowModel
     let option: PlanOption
@@ -87,17 +92,23 @@ struct CreateRouteCard: View {
         )
         VStack(alignment: .leading, spacing: 8) {
             VStack(spacing: 0) {
-                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                    rowView(row, isFirst: index == 0, isLast: index == rows.count - 1, stopCount: stops.count)
-                        .zIndex(row.stopId != nil && row.stopId == model.draggingStopId ? 2 : 0)
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                        rowView(row, isFirst: index == 0, isLast: index == rows.count - 1, stopCount: stops.count)
+                            .zIndex(row.stopId != nil && row.stopId == model.draggingStopId ? 2 : 0)
+                    }
                 }
+                // Rows swap live while dragging.
+                .animation(reduceMotion ? nil : Motion.quick, value: state.order)
+                // Another option: its rows cross-fade in.
+                .id(option.id)
+                .transition(.opacity)
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 14)
             .frame(maxWidth: .infinity)
             .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .coordinateSpace(.named(Self.space))
-            .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: state.order)
             .sensoryFeedback(.impact(weight: .medium), trigger: model.dropCount)
             .onChange(of: handleHeld) { _, held in
                 // Safety net: a cancelled gesture never reaches onEnded.
@@ -116,8 +127,12 @@ struct CreateRouteCard: View {
                     }
                     .buttonStyle(.sqLink(size: 13))
                 }
+                .sqTransition(.rise)
             }
         }
+        // The server's timing arriving (or failing) animates into place.
+        .animation(Motion.standard, value: rows)
+        .animation(Motion.standard, value: state.error)
     }
 
     // MARK: Rows
@@ -130,11 +145,15 @@ struct CreateRouteCard: View {
                     .sqFont(row.kind == .leg ? 13 : 16, row.kind == .leg ? .medium : .semibold)
                     .foregroundStyle(row.kind == .leg ? (row.isPending ? Theme.text3 : Theme.transitText) : Theme.ink)
                     .createLine(row.kind == .leg ? 13 : 16)
+                    .sqNumeric()
+                    .createPendingShimmer(row.kind == .leg && row.isPending)
                 if let subtitle = row.subtitle {
                     Text(subtitle)
                         .sqFont(12, relativeTo: .caption)
                         .foregroundStyle(row.isLate ? Theme.danger : Theme.text3)
                         .createLine(12, relativeTo: .caption)
+                        .sqNumeric()
+                        .createPendingShimmer(row.kind != .leg && row.isPending)
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -161,9 +180,12 @@ struct CreateRouteCard: View {
                             .strokeBorder(Theme.sage, lineWidth: 2)
                             .padding(-2)
                     }
+                    .transition(.opacity)
             }
         }
         .padding(.horizontal, -8)
+        // Picking a row up and setting it down fade the lift in and out.
+        .animation(Motion.quick, value: lifted)
         .onGeometryChange(for: CGRect.self) { proxy in
             proxy.frame(in: .named(Self.space))
         } action: { frame in
@@ -193,11 +215,14 @@ struct CreateRouteCard: View {
     private func marker(_ kind: CreateRouteRow.Kind) -> some View {
         switch kind {
         case .start, .end:
-            Text(kind == .start ? "A" : "B")
-                .sqFont(11, .bold)
-                .foregroundStyle(.white)
-                .frame(width: 22, height: 22)
-                .background(kind == .start ? Theme.sageInk : Theme.ink, in: Circle())
+            // The logo's ring (A) and diamond (B). The ring is smaller than its 22pt box, so the
+            // rail runs in behind it to meet its edge, like it met the old circle.
+            RouteMarker(kind: kind == .start ? .start : .end, size: 22)
+                .background(alignment: kind == .start ? .bottom : .top) {
+                    Rectangle()
+                        .fill(Theme.lineStrong)
+                        .frame(width: 2, height: 11)
+                }
         case .stop(let number):
             Text("\(number)")
                 .sqFont(11, .bold)

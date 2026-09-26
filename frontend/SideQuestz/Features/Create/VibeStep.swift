@@ -1,6 +1,9 @@
 import SwiftUI
 
-/// Create › Vibe: voice (Wispr Flow) or typed mood, quick picks, budget and who's coming.
+/// Create › Vibe: voice (Apple Speech) or typed mood, quick picks, budget and who's coming.
+///
+/// Motion: the mic's halo swells with your voice; the transcript rises in and its words settle as
+/// they update; quick picks pop when chosen; the who's-coming note cross-fades.
 struct CreateVibeStep: View {
     @Bindable var model: CreateFlowModel
     var focus: FocusState<CreateField?>.Binding
@@ -17,7 +20,9 @@ struct CreateVibeStep: View {
             CreateEyebrow(text: "QUICK PICKS", topMargin: 4)
             FlowLayout(spacing: 8) {
                 ForEach(CreateFlowModel.quickPicks, id: \.self) { tag in
-                    SQChip(label: tag, isOn: model.tags.contains(tag), style: .tag) { model.toggleTag(tag) }
+                    let isOn = model.tags.contains(tag)
+                    SQChip(label: tag, isOn: isOn, style: .tag) { model.toggleTag(tag) }
+                        .sqBounce(when: isOn, scale: 1.08)
                 }
             }
             CreateEyebrow(text: "BUDGET", topMargin: 4)
@@ -25,7 +30,9 @@ struct CreateVibeStep: View {
                              selection: model.budget, fontSize: 15) { model.budget = $0 }
             CreateEyebrow(text: "WHO'S COMING", topMargin: 4)
             CreateChoiceGrid(options: Visibility.allCases.map { ($0, $0.label) }, selection: model.who) { model.who = $0 }
-            CreateWrapText(text: model.who.note, size: 13, color: Theme.text2)
+            CreateCrossfade(value: model.who) {
+                CreateWrapText(text: model.who.note, size: 13, color: Theme.text2)
+            }
         }
     }
 
@@ -49,16 +56,19 @@ struct CreateVibeStep: View {
         VStack(spacing: 10) {
             MicButton(size: 76, isListening: isListening, idleFill: Theme.sage, idleIcon: Theme.ink,
                       idleHalo: Theme.sageTint, haloWidth: 8, iconSize: 26,
-                      label: "Start voice input", listeningLabel: "Stop voice input", action: toggleVoice)
+                      label: "Start voice input", listeningLabel: "Stop voice input",
+                      level: env.voice.level, action: toggleVoice)
             Text(isListening ? "Listening… tap to stop" : "Tap and say what you want")
                 .sqFont(14, .semibold)
                 .foregroundStyle(Theme.ink)
                 .createLine(14)
+                .contentTransition(.opacity)
             if let quote {
-                CreateWrapText(text: "“\(quote)”", size: 15, color: Theme.text2, lineHeight: 1.4, alignment: .center)
-                    .transition(.opacity)
+                // Wraps like the prototype; new words settle in as the transcript updates.
+                CreateLiveText(text: "“\(quote)”", size: 15, color: Theme.text2, lineHeight: 1.4, alignment: .center)
+                    .sqTransition(.rise)
             }
-            Text("Voice input · Wispr Flow")
+            Text("Voice input · Apple Speech")
                 .sqFont(12, relativeTo: .caption)
                 .foregroundStyle(Theme.text3)
                 .createLine(12, relativeTo: .caption)
@@ -67,7 +77,9 @@ struct CreateVibeStep: View {
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity)
         .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .animation(.easeOut(duration: 0.2), value: quote)
+        // The card eases to the transcript's height as it grows.
+        .animation(Motion.standard, value: quote)
+        .animation(Motion.standard, value: isListening)
     }
 
     private func toggleVoice() {

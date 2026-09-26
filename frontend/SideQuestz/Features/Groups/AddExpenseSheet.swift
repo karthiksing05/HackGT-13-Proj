@@ -4,6 +4,9 @@ import SwiftUI
 /// the server's math on the client (`SplitMath`) so it always adds up to the cent; saving posts the
 /// expense and the server's result is what the Splits tab shows.
 ///
+/// Motion: the preview's amounts roll as you type, people slide in and out of the split, and the
+/// "Add $…" button shows loading dots while the server saves.
+///
 /// Present with `.sqSheet(isPresented:, style: .cream(.fromTop(60)))`.
 struct AddExpenseSheet: View {
     struct Prefill: Equatable {
@@ -94,6 +97,7 @@ struct AddExpenseSheet: View {
             checkCard
             if !shownErrors.isEmpty {
                 ErrorBox(messages: shownErrors)
+                    .sqTransition(.rise)
             }
             saveButton
             Text("Everyone in the group gets a notification with the split.")
@@ -185,10 +189,12 @@ struct AddExpenseSheet: View {
             Text("Total ÷ \(count) \(count == 1 ? "person" : "people")")
                 .socialText(13)
                 .foregroundStyle(Theme.text3)
+                .sqNumeric()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .animation(Motion.quick, value: count)
         .accessibilityElement(children: .combine)
     }
 
@@ -209,6 +215,7 @@ struct AddExpenseSheet: View {
                 Text(!people.isEmpty && cents > 0 ? "\(Money.format(cents / people.count)) each" : "—")
                     .socialText(13, .semibold)
                     .foregroundStyle(Theme.ink)
+                    .sqNumeric()
             }
             ForEach(Array(people.enumerated()), id: \.element.id) { index, person in
                 HStack(spacing: 10) {
@@ -221,20 +228,24 @@ struct AddExpenseSheet: View {
                     Text(Money.format(index < shares.count ? shares[index] : 0))
                         .socialText(14, .bold)
                         .foregroundStyle(Theme.ink)
+                        .sqNumeric()
                 }
                 .accessibilityElement(children: .combine)
+                .sqTransition(.rise)
             }
             if extra > 0 {
                 Text("Rounded to the cent: the first \(extra == 1 ? "person pays" : "\(extra) people pay") 1¢ more so it adds up exactly.")
                     .socialText(12)
                     .foregroundStyle(Theme.text3)
                     .fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity)
             }
             HStack {
                 Text("Shares add up to")
                 Spacer(minLength: 8)
                 Text("\(Money.format(total)) of \(Money.format(cents))")
                     .foregroundStyle(balanced ? Theme.success : Theme.text3)
+                    .sqNumeric()
             }
             .socialText(13, .semibold)
             .foregroundStyle(Theme.ink)
@@ -248,7 +259,11 @@ struct AddExpenseSheet: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(isValid ? Theme.successBorder : Theme.line, lineWidth: 1.5)
         }
-        .animation(.easeOut(duration: 0.15), value: isValid)
+        // Amounts roll as you type; people slide in and out of the split.
+        .animation(Motion.quick, value: cents)
+        .animation(Motion.standard, value: splitIds)
+        .animation(Motion.standard, value: payerId)
+        .animation(Motion.quick, value: isValid)
     }
 
     /// "Your share (you paid)", "Maya owes you", "You owe Dev", "Dev's share (paid)", "Maya owes Dev".
@@ -267,25 +282,27 @@ struct AddExpenseSheet: View {
         let count = splitMembers.count
         let label = isValid ? "Add \(Money.format(cents)) · split \(count) \(count == 1 ? "way" : "ways")" : "Add expense"
         return Button(action: save) {
-            HStack(spacing: 8) {
-                if saving {
-                    ProgressView().controlSize(.small).tint(Theme.ink)
-                }
-                Text(label)
+            SocialBusyLabel(isBusy: saving, color: Theme.ink) {
+                Text(label).sqNumeric()
             }
         }
         .buttonStyle(.sq(fill: isValid ? Theme.sage : Theme.mutedStar, foreground: Theme.ink))
         .disabled(saving)
+        .animation(Motion.quick, value: cents)
+        .animation(Motion.quick, value: count)
+        .animation(Motion.quick, value: isValid)
+        .accessibilityLabel(label)
+        .accessibilityValue(saving ? "Loading" : "")
     }
 
     private func save() {
         guard isValid else {
-            withAnimation(.easeOut(duration: 0.15)) { tried = true }
+            withMotion(Motion.quick) { tried = true }
             return
         }
         focus = nil
         saving = true
-        serverError = nil
+        if serverError != nil { withMotion(Motion.quick) { serverError = nil } }
         let expense = NewExpense(what: what.trimmingCharacters(in: .whitespacesAndNewlines), amountCents: cents,
                                  payerId: payerId, splitAmong: splitMembers.map(\.id))
         Task {
@@ -293,7 +310,7 @@ struct AddExpenseSheet: View {
                 let saved = try await env.api.addExpense(groupId: groupId, expense)
                 onSaved(saved)
             } catch {
-                serverError = error.socialMessage
+                withMotion { serverError = error.socialMessage }
             }
             saving = false
         }

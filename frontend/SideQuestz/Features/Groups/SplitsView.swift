@@ -3,17 +3,25 @@ import SwiftUI
 /// Thread › Splits (GUI_PLAN.md §7.9, equal splits only): your balance, per-person balances, the
 /// expense list, "+ Add an expense" and "Settle up" with the default card. Balances and shares are
 /// the server's (`GET /groups/{id}/expenses` + `/balances`).
+///
+/// Loading: a skeleton of the balance card and expenses, then the rows arrive one after another.
+/// After adding an expense its row rises in right away (the server returned it) while the balance
+/// card waits, dimmed, for the server's new balances; then the amounts roll to the new values.
+/// "Settle up" shows loading dots until the server settles, then a banner confirms it.
 struct GroupSplitsView: View {
-    let thread: ChatThread
+    let groupId: String
     /// Set by the `thread/…/splits/expense` launch route: open Add expense once the ledger loads.
     @Binding var openExpenseOnLoad: Bool
 
     @Environment(AppEnvironment.self) private var env
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var ledger: Loadable<GroupLedger> = .loading
     @State private var card: PaymentMethod?
     @State private var banner: String?
+    /// The server is recomputing balances after a change (the balance card dims until they're back).
+    @State private var balancesRefreshing = false
+    /// Expenses from the load that replaced the skeleton: only these arrive one after another.
+    @State private var arrivingIds: Set<String> = []
     @State private var showAddExpense = false
     /// What the Add expense sheet opens with (kept until the next open so the sheet can animate out).
     @State private var expenseRequest: ExpenseSheetRequest?
@@ -22,26 +30,33 @@ struct GroupSplitsView: View {
     @State private var addedCount = 0
     @State private var settledCount = 0
 
+    private static let top = "splits.top"
     private var meId: String { env.user?.id ?? "" }
 
     var body: some View {
         // Read here (not only inside the sheet closure) so the sheet is built with the current request.
         let request = expenseRequest
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                if let banner {
-                    SuccessBanner(text: banner) { setBanner(nil) }
-                        .transition(.opacity)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    if let banner {
+                        SuccessBanner(text: banner) { setBanner(nil) }
+                            .sqTransition(.banner)
+                    }
+                    content
                 }
-                LoadableView(state: ledger, retry: { Task { await load(showLoading: true) } }) { ledger in
-                    ledgerContent(ledger)
-                }
+                .padding(.horizontal, 16)
+                .padding(.top, 15)
+                .padding(.bottom, 30)
+                .id(Self.top)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 15)
-            .padding(.bottom, 30)
+            .scrollIndicators(.hidden)
+            .sqPullToRefresh()
+            // A new banner scrolls into view if you were further down (Settle up is at the bottom).
+            .onChange(of: banner) { _, text in
+                if text != nil { withMotion(Motion.gentle) { proxy.scrollTo(Self.top, anchor: .top) } }
+            }
         }
-        .scrollIndicators(.hidden)
         .task {
             await load()
             if openExpenseOnLoad, ledger.value != nil {
@@ -51,9 +66,10 @@ struct GroupSplitsView: View {
                 openAddExpense(prefill: demo ? AddExpenseSheet.Prefill(what: "Pizza", amount: "40") : nil)
             }
         }
+        .sqReloadable("thread.\(groupId).splits") { await reload() }
         .sqSheet(isPresented: $showAddExpense, style: .cream(.fromTop(60))) {
             if let request {
-                AddExpenseSheet(groupId: thread.id, members: request.members, meId: meId, prefill: request.prefill,
+                AddExpenseSheet(groupId: groupId, members: request.members, meId: meId, prefill: request.prefill,
                                 onCancel: { showAddExpense = false }, onSaved: expenseAdded)
                     .id(request.id)
             }
@@ -62,11 +78,29 @@ struct GroupSplitsView: View {
         .sensoryFeedback(.success, trigger: settledCount)
     }
 
+    private var content: some View {
+        ZStack(alignment: .top) {
+            switch ledger {
+            case .loading:
+                SplitsSkeleton()
+                    .transition(.opacity)
+            case .failed(let message):
+                ErrorStateView(message: message) { Task { await retryLoad() } }
+                    .transition(.opacity)
+            case .loaded(let ledger):
+                ledgerContent(ledger)
+                    .transition(.opacity)
+            }
+        }
+        .animation(Motion.standard, value: ledger.phase)
+    }
+
     // MARK: Ledger
 
     private func ledgerContent(_ ledger: GroupLedger) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             balanceCard(ledger)
+                .sqRefreshing(balancesRefreshing)
             Text("EXPENSES · SPLIT EQUALLY")
                 .socialText(13, .semibold)
                 .tracking(0.4)
@@ -79,11 +113,13 @@ struct GroupSplitsView: View {
                 .accessibilityLabel("Add an expense")
             if ledger.netCents < 0 {
                 settleButton(amount: -ledger.netCents)
+                    .transition(.opacity)
             }
             if let settleError {
                 Text(settleError)
                     .socialText(12)
                     .foregroundStyle(Theme.dangerText)
+                    .sqTransition(.rise)
             }
         }
     }
@@ -103,9 +139,11 @@ struct GroupSplitsView: View {
                     .foregroundStyle(color)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+                    .sqNumeric()
                 Text("\(count) \(count == 1 ? "expense" : "expenses") · all split equally")
                     .socialText(12)
                     .foregroundStyle(Theme.text3)
+                    .sqNumeric()
             }
             .frame(maxWidth: .infinity)
             .accessibilityElement(children: .combine)
@@ -140,6 +178,7 @@ struct GroupSplitsView: View {
             Text(amount)
                 .socialText(15, .bold)
                 .foregroundStyle(color)
+                .sqNumeric()
         }
         .padding(.vertical, 10)
         .accessibilityElement(children: .ignore)
@@ -155,11 +194,15 @@ struct GroupSplitsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 13)
                     .padding(.horizontal, 14)
+                    .transition(.opacity)
             }
-            // Newest first.
-            ForEach(ledger.expenses.reversed()) { expense in
-                expenseRow(expense, members: ledger.members)
-                RowDivider(color: Theme.cream)
+            // Newest first; a new one rises in at the top.
+            ForEach(Array(ledger.expenses.reversed().enumerated()), id: \.element.id) { index, expense in
+                VStack(spacing: 0) {
+                    expenseRow(expense, members: ledger.members)
+                    RowDivider(color: Theme.cream)
+                }
+                .socialArrival(index, staggered: arrivingIds.contains(expense.id))
             }
         }
         .background(.white)
@@ -211,28 +254,54 @@ struct GroupSplitsView: View {
         let label = card.map { "Settle up \(Money.format(amount)) with \($0.brand) •••• \($0.last4)" }
             ?? "Settle up \(Money.format(amount))"
         return Button(action: settle) {
-            HStack(spacing: 8) {
-                if settling {
-                    ProgressView().controlSize(.small).tint(.white)
-                }
-                Text(label)
+            SocialBusyLabel(isBusy: settling, color: .white) {
+                Text(label).sqNumeric()
             }
         }
         .buttonStyle(.sq(fill: Theme.ink, foreground: .white, height: 48, fontSize: 15))
-        .disabled(settling)
+        .disabled(settling || balancesRefreshing)
+        .opacity(balancesRefreshing && !settling ? 0.5 : 1)
+        .animation(Motion.standard, value: balancesRefreshing)
         .accessibilityLabel(card.map { "Settle up \(Money.format(amount)) with \($0.brand) ending in \($0.last4)" } ?? label)
+        .accessibilityValue(settling ? "Loading" : "")
+    }
+
+    // MARK: Loading
+
+    private func load() async {
+        // The default card names the Settle up button; fetch it alongside the ledger.
+        let cards = Task { try? await env.api.paymentMethods() }
+        let result = await Loadable.run { try await env.api.ledger(groupId: groupId) }
+        if let methods = await cards.value { card = methods.first(where: \.isDefault) ?? methods.first }
+        show(result)
+    }
+
+    private func retryLoad() async {
+        withMotion { ledger = .loading }
+        await load()
+    }
+
+    /// Pull to refresh: the ledger stays on screen and the amounts roll to the fresh ones; a failed
+    /// call keeps what's there.
+    private func reload() async {
+        let cards = Task { try? await env.api.paymentMethods() }
+        let fresh = try? await env.api.ledger(groupId: groupId)
+        if let methods = await cards.value {
+            withMotion { card = methods.first(where: \.isDefault) ?? methods.first }
+        }
+        if let fresh { show(.loaded(fresh)) }
+    }
+
+    private func show(_ result: Loadable<GroupLedger>) {
+        let fromSkeleton = ledger.value == nil
+        arrivingIds = fromSkeleton ? Set(result.value?.expenses.map(\.id) ?? []) : []
+        withMotion(fromSkeleton ? Motion.standard : Motion.arrive) {
+            ledger = result
+            balancesRefreshing = false
+        }
     }
 
     // MARK: Actions
-
-    private func load(showLoading: Bool = false) async {
-        if showLoading || ledger.value == nil { ledger = .loading }
-        // The default card names the Settle up button; fetch it alongside the ledger.
-        let cards = Task { try? await env.api.paymentMethods() }
-        let result = await Loadable.run { try await env.api.ledger(groupId: thread.id) }
-        if let methods = await cards.value { card = methods.first(where: \.isDefault) ?? methods.first }
-        ledger = result
-    }
 
     private func openAddExpense(prefill: AddExpenseSheet.Prefill?) {
         guard let members = ledger.value?.members else { return }
@@ -240,37 +309,60 @@ struct GroupSplitsView: View {
         showAddExpense = true
     }
 
+    /// The server saved it: its row rises in now; the balances follow when the server has them.
     private func expenseAdded(_ expense: Expense) {
         showAddExpense = false
         addedCount += 1
         let people = max(expense.splitAmong.count, 1)
         let each = expense.shares.min() ?? expense.amountCents / people
         let ways = people == 1 ? "1 way" : "\(people) ways"
-        setBanner("Added \"\(expense.what)\" · \(Money.format(expense.amountCents)) split equally \(ways) (\(Money.format(each)) each). Everyone was notified.")
-        Task { await load() }
+        withMotion(Motion.arrive) {
+            if var current = ledger.value, !current.expenses.contains(where: { $0.id == expense.id }) {
+                current.expenses.append(expense)
+                ledger = .loaded(current)
+                balancesRefreshing = true
+            }
+            banner = "Added \"\(expense.what)\" · \(Money.format(expense.amountCents)) split equally \(ways) (\(Money.format(each)) each). Everyone was notified."
+        }
+        Task { await refreshBalances() }
+    }
+
+    private func refreshBalances() async {
+        if let fresh = try? await env.api.ledger(groupId: groupId) {
+            show(.loaded(fresh))
+        } else {
+            withMotion { balancesRefreshing = false }
+        }
     }
 
     private func settle() {
+        guard !settling, let owed = ledger.value.map({ -$0.netCents }), owed > 0 else { return }
         settling = true
-        settleError = nil
+        if settleError != nil { withMotion(Motion.quick) { settleError = nil } }
+        let method = card
         Task {
             do {
-                try await env.api.settleUp(groupId: thread.id)
-                await load()
+                try await env.api.settleUp(groupId: groupId)
+                // Settled: confirm now; the balances follow when the server has them (the button
+                // keeps its dots until then, and fades away once nothing is owed).
                 settledCount += 1
+                withMotion(Motion.arrive) {
+                    balancesRefreshing = true
+                    banner = "Settled up \(Money.format(owed))\(method.map { " with \($0.brand) •••• \($0.last4)" } ?? "")."
+                }
+                await refreshBalances()
+                withMotion { settling = false }
             } catch {
-                settleError = error.socialMessage
+                withMotion {
+                    settleError = error.socialMessage
+                    settling = false
+                }
             }
-            settling = false
         }
     }
 
     private func setBanner(_ text: String?) {
-        if reduceMotion {
-            banner = text
-        } else {
-            withAnimation(.easeInOut(duration: 0.2)) { banner = text }
-        }
+        withMotion(text == nil ? Motion.standard : Motion.arrive) { banner = text }
     }
 }
 
@@ -279,4 +371,68 @@ private struct ExpenseSheetRequest: Identifiable {
     let id = UUID()
     let members: [PersonRef]
     let prefill: AddExpenseSheet.Prefill?
+}
+
+/// First-load placeholder: the balance card (headline and two people) and two expense rows with
+/// their share chips, shimmering. Reads "Loading".
+private struct SplitsSkeleton: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(spacing: 12) {
+                VStack(spacing: 10) {
+                    SkeletonBlock(width: 160, height: 11)
+                    SkeletonBlock(width: 200, height: 30, radius: 8)
+                    SkeletonBlock(width: 150, height: 10)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 2)
+                VStack(spacing: 0) {
+                    RowDivider(color: Theme.cream)
+                    ForEach(0..<2, id: \.self) { index in
+                        HStack(spacing: 10) {
+                            Circle().fill(Theme.skeleton).frame(width: 30, height: 30)
+                            SkeletonBlock(width: index == 0 ? 112 : 92, height: 12)
+                            Spacer(minLength: 0)
+                            SkeletonBlock(width: 52, height: 12)
+                        }
+                        .padding(.vertical, 10)
+                        RowDivider(color: Theme.cream)
+                    }
+                }
+            }
+            .padding(16)
+            .background(.white, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+
+            SkeletonBlock(width: 176, height: 11, color: Theme.skeletonOnCream)
+                .padding(.vertical, 5)
+                .padding(.top, 4)
+
+            VStack(spacing: 0) {
+                ForEach(0..<2, id: \.self) { index in
+                    VStack(alignment: .leading, spacing: 9) {
+                        HStack {
+                            SkeletonBlock(width: index == 0 ? 110 : 96, height: 14)
+                            Spacer(minLength: 0)
+                            SkeletonBlock(width: 58, height: 14)
+                        }
+                        SkeletonBlock(width: 186, height: 10)
+                        HStack(spacing: 6) {
+                            ForEach(0..<3, id: \.self) { _ in
+                                SkeletonBlock(width: index == 0 ? 68 : 76, height: 22, radius: 8)
+                            }
+                        }
+                        .padding(.top, 2)
+                    }
+                    .padding(.vertical, 13)
+                    .padding(.horizontal, 14)
+                    RowDivider(color: Theme.cream)
+                }
+            }
+            .background(.white)
+            .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        }
+        .sqShimmer()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Loading")
+    }
 }

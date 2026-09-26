@@ -15,6 +15,19 @@ enum Loadable<Value> {
         if case .loading = self { return true }
         return false
     }
+
+    /// Which of the three states this is, for animating between them.
+    var phase: LoadablePhase {
+        switch self {
+        case .loading: .loading
+        case .loaded: .loaded
+        case .failed: .failed
+        }
+    }
+}
+
+enum LoadablePhase: Hashable {
+    case loading, loaded, failed
 }
 
 extension Loadable {
@@ -28,15 +41,22 @@ extension Loadable {
     }
 }
 
-/// Loading: a small logo with the S drawing in on a loop.
+/// Loading: the logo with its S drawing in on a loop, plus an optional caption. Pass several
+/// `lines` for long-running work (plans, routes) and they rotate while the request runs.
 struct LoadingStateView: View {
     var label: String? = nil
+    var lines: [String] = []
     var minHeight: CGFloat = 160
+    var logoSize: CGFloat = 40
 
     var body: some View {
-        VStack(spacing: 10) {
-            LogoLoadingView(size: 40)
-            if let label { Text(label).captionStyle(13) }
+        VStack(spacing: 12) {
+            LogoLoadingView(size: logoSize)
+            if lines.count > 1 {
+                CyclingStatusText(lines: lines).captionStyle(13)
+            } else if let text = label ?? lines.first {
+                Text(text).captionStyle(13)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: minHeight)
         .accessibilityElement(children: .combine)
@@ -78,34 +98,52 @@ struct EmptyStateView: View {
     }
 }
 
-/// Switches between loading / error / content for a `Loadable`.
+/// Switches between loading / error / content for a `Loadable`, cross-fading between them. While
+/// loading it shows `skeleton` (the content's shape, shimmering) or else the logo loader.
+/// Several views passed as content stack with no spacing: wrap rows in your own `VStack(spacing:)`.
 struct LoadableView<Value, Content: View>: View {
     let state: Loadable<Value>
     var loadingLabel: String? = nil
+    var skeleton: SkeletonLayout? = nil
     var minHeight: CGFloat = 160
     let retry: () -> Void
     @ViewBuilder var content: (Value) -> Content
 
     var body: some View {
-        switch state {
-        case .loading:
-            LoadingStateView(label: loadingLabel, minHeight: minHeight)
-        case .failed(let message):
-            ErrorStateView(message: message, minHeight: minHeight, retry: retry)
-        case .loaded(let value):
-            content(value)
+        // A VStack, not a ZStack, so several content views stack instead of overlapping; the
+        // cross-fade still overlaps because outgoing views no longer take layout space.
+        VStack(spacing: 0) {
+            switch state {
+            case .loading:
+                Group {
+                    if let skeleton {
+                        SkeletonView(layout: skeleton)
+                    } else {
+                        LoadingStateView(label: loadingLabel, minHeight: minHeight)
+                    }
+                }
+                .transition(.opacity)
+            case .failed(let message):
+                ErrorStateView(message: message, minHeight: minHeight, retry: retry)
+                    .transition(.opacity)
+            case .loaded(let value):
+                content(value)
+                    .transition(.opacity)
+            }
         }
+        .animation(Motion.standard, value: state.phase)
     }
 }
 
-/// Green confirmation banner with a check and an "OK" dismiss (Splits: 'Added "Pizza" · …').
+/// Green confirmation banner with a check that draws in and an "OK" dismiss (Splits: 'Added
+/// "Pizza" · …'). Insert it with `.sqTransition(.banner)` inside `withMotion(Motion.arrive)`.
 struct SuccessBanner: View {
     let text: String
     let dismiss: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            CheckGlyph(lineWidth: 2.8).frame(width: 14, height: 14).padding(.top, 2)
+            AnimatedCheck(lineWidth: 2.8, delay: 0.2).frame(width: 14, height: 14).padding(.top, 2)
             Text(text).sqFont(14).lineHeight(1.4, fontSize: 14).frame(maxWidth: .infinity, alignment: .leading)
             Button("OK", action: dismiss).buttonStyle(.plain).sqFont(13, .semibold).accessibilityLabel("Dismiss")
         }

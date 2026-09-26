@@ -94,8 +94,9 @@ final class SideQuestzUITests: XCTestCase {
         XCTAssertEqual(first.value as? String, "Stop 2 of 3")
     }
 
-    /// Home › Calendar: press and drag down an empty stretch → "Plan this window" → Create opens with
-    /// that window filled in. The window is too short for a full plan, so Review flags the route late.
+    /// Home › Calendar: press and hold an empty stretch, then drag down → "Plan this window" → Create
+    /// opens with that window filled in. The window is too short for a full plan, so Review flags the
+    /// route late.
     func testCalendarDragToPlanPrefillsCreate() {
         let app = launchSignedIn()
 
@@ -105,11 +106,12 @@ final class SideQuestzUITests: XCTestCase {
         expect(math)
         expect(lecture)
 
-        // 10:45 AM–1:00 PM is free: draw from just under MATH 3012 to just above the lecture.
+        // 10:45 AM–1:00 PM is free: hold just under MATH 3012 (0.4 s activates), then stretch the
+        // window to just above the lecture.
         let x = math.frame.midX
         let from = point(app, x: x, y: math.frame.maxY + 8)
         let to = point(app, x: x, y: lecture.frame.minY - 8)
-        from.press(forDuration: 0.2, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 0.2)
+        from.press(forDuration: 0.8, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 0.2)
 
         let plan = element(app, type: .button, labelBeginsWith: "Plan this window")
         expect(plan)
@@ -167,7 +169,7 @@ final class SideQuestzUITests: XCTestCase {
 
     private func launch() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments += ["-hasSeenIntro", "YES", "-SQResetSession", "YES",
+        app.launchArguments += ["-SQSkipIntro", "YES", "-SQResetSession", "YES",
                                 "-SQAPIMode", "mock", "-SQMockLatency", "0"]
         app.launch()
         return app

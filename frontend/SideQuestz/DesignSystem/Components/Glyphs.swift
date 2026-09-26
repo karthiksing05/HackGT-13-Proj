@@ -64,6 +64,7 @@ struct StarPicker: View {
                     rating = n
                 } label: {
                     StarGlyph(filled: n <= rating, size: size, emptyStroke: emptyStroke, lineWidth: lineWidth)
+                        .sqBounce(when: n <= rating, scale: 1.2)
                         .frame(width: target.width, height: target.height)
                         .contentShape(Rectangle())
                 }
@@ -72,11 +73,24 @@ struct StarPicker: View {
                 .accessibilityAddTraits(n == rating ? .isSelected : [])
             }
         }
+        .animation(Motion.quick, value: rating)
         .sensoryFeedback(.selection, trigger: rating)
     }
 }
 
-/// The checkmark stroke from the prototype ("M5 12.5 10 17.5 19 7").
+/// The checkmark path from the prototype ("M5 12.5 10 17.5 19 7") in a square frame.
+struct CheckShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let s = min(rect.width, rect.height) / 24
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX + 5 * s, y: rect.minY + 12.5 * s))
+        p.addLine(to: CGPoint(x: rect.minX + 10 * s, y: rect.minY + 17.5 * s))
+        p.addLine(to: CGPoint(x: rect.minX + 19 * s, y: rect.minY + 7 * s))
+        return p
+    }
+}
+
+/// The checkmark stroke from the prototype.
 /// `lineWidth` is the SVG stroke-width in the 24-unit viewBox (it scales with the frame, like the SVG).
 struct CheckGlyph: View {
     var lineWidth: CGFloat = 2.6
@@ -84,12 +98,8 @@ struct CheckGlyph: View {
     var body: some View {
         GeometryReader { proxy in
             let s = min(proxy.size.width, proxy.size.height) / 24
-            Path { p in
-                p.move(to: CGPoint(x: 5 * s, y: 12.5 * s))
-                p.addLine(to: CGPoint(x: 10 * s, y: 17.5 * s))
-                p.addLine(to: CGPoint(x: 19 * s, y: 7 * s))
-            }
-            .stroke(style: StrokeStyle(lineWidth: lineWidth * s, lineCap: .round, lineJoin: .round))
+            CheckShape()
+                .stroke(style: StrokeStyle(lineWidth: lineWidth * s, lineCap: .round, lineJoin: .round))
         }
         .accessibilityHidden(true)
     }

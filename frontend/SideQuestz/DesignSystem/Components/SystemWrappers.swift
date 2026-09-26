@@ -3,7 +3,7 @@ import SafariServices
 import SwiftUI
 import UIKit
 
-/// In-app browser (`SFSafariViewController`), shown as a sheet so you never leave SideQuestz.
+/// In-app browser (`SFSafariViewController`), shown as a sheet so you never leave SideQuests.
 struct SafariView: UIViewControllerRepresentable {
     let url: URL
 
@@ -118,7 +118,10 @@ struct MicButton: View {
     var iconSize: CGFloat = 20
     var label: String = "Answer by voice"
     var listeningLabel: String = "Stop voice input"
+    /// Mic loudness 0…1 while listening (`env.voice.level`): the halo swells with the voice.
+    var level: Double = 0
     let action: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: action) {
@@ -128,8 +131,15 @@ struct MicButton: View {
                 .frame(width: size, height: size)
                 .background(isListening ? Theme.danger : idleFill, in: Circle())
                 .background {
-                    if let halo = isListening ? Theme.danger.opacity(0.15) : idleHalo {
-                        Circle().fill(halo).padding(-haloWidth)
+                    if isListening {
+                        // Breathes gently, and swells with the voice when there's sound.
+                        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
+                            let breathe = reduceMotion ? 0 : (sin(timeline.date.timeIntervalSinceReferenceDate * 2 * .pi / 1.4) + 1) / 2
+                            let extra = max(CGFloat(level) * size * 0.2, CGFloat(breathe) * 4)
+                            Circle().fill(Theme.danger.opacity(0.15)).padding(-(haloWidth + extra))
+                        }
+                    } else if let idleHalo {
+                        Circle().fill(idleHalo).padding(-haloWidth)
                     }
                 }
                 .frame(minWidth: Metrics.minTouch, minHeight: Metrics.minTouch)

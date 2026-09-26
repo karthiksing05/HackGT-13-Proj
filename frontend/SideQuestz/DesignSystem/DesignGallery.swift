@@ -33,6 +33,23 @@ struct DesignGalleryView: View {
                         LogoLoadingView(size: 40)
                     }
                     Wordmark(size: 40)
+                    HStack(spacing: 18) {
+                        RouteMarker(kind: .start, size: 26)
+                        RouteMarker(kind: .end, size: 26)
+                        RouteMarker(kind: .start, size: 28, onMap: true)
+                        RouteMarker(kind: .end, size: 28, onMap: true)
+                    }
+                    .padding(8)
+                    .background(Theme.mapBackground, in: RoundedRectangle(cornerRadius: 12))
+                }
+
+                group("Motion") {
+                    HStack(spacing: 18) {
+                        LoadingDots()
+                        LoadingDots(color: Theme.sageInk, dotSize: 5)
+                        AnimatedCheck().foregroundStyle(Theme.success).frame(width: 22, height: 22)
+                    }
+                    SkeletonView(layout: .rows(count: 2))
                 }
 
                 group("Color") {
@@ -48,7 +65,7 @@ struct DesignGalleryView: View {
                 }
 
                 group("Type") {
-                    Text("Your sidequestz").largeTitleStyle()
+                    Text("Your SideQuests").largeTitleStyle()
                     Text("Let's set up your profile").setupTitleStyle()
                     Text("Where do you start and end?").stepTitleStyle()
                     Text("Active itineraries").sectionStyle()

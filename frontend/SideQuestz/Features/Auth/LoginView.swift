@@ -28,6 +28,8 @@ struct LoginView: View {
                 .designTopPadding(72)
                 .authDesignBottomPadding(36, minimum: 2)
                 .frame(minHeight: proxy.size.height)
+                // Errors rise in and the form makes room smoothly.
+                .authMotion(value: shownError)
             }
             .scrollBounceBehavior(.basedOnSize)
             .scrollDismissesKeyboard(.interactively)
@@ -81,6 +83,7 @@ struct LoginView: View {
 
             if let message = shownError {
                 AuthErrorText(message: message)
+                    .sqTransition(.rise)
             }
 
             Button("Forgot password?") {
@@ -91,7 +94,8 @@ struct LoginView: View {
             .authHitHeight(28)
             .frame(maxWidth: .infinity, alignment: .trailing)
 
-            AuthPrimaryButton(title: "Sign in", busy: submitting, action: signIn)
+            // Keeps its dots while the signed-in form fades out.
+            AuthPrimaryButton(title: "Sign in", busy: submitting || signedIn, action: signIn)
 
             AuthPromptButton(prompt: "New here?", action: "Create an account") {
                 router.authEmail = email.trimmingCharacters(in: .whitespaces)
@@ -149,7 +153,6 @@ struct LoginView: View {
     }
 
     private func replayIntro() {
-        UserDefaults.standard.set(false, forKey: "hasSeenIntro")
         withAnimation(.easeInOut(duration: 0.3)) { router.phase = .splash }
     }
 }

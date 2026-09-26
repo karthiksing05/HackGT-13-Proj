@@ -77,10 +77,11 @@ struct AuthField: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.white, in: RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous))
         .overlay {
-            if bordered || hasError {
-                RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous)
-                    .strokeBorder(hasError ? Theme.errorBorder : Theme.line, lineWidth: 1)
-            }
+            // Always drawn (clear when borderless) so an error border fades in instead of popping.
+            RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous)
+                .strokeBorder(hasError ? Theme.errorBorder : Theme.line, lineWidth: 1)
+                .opacity(bordered || hasError ? 1 : 0)
+                .authMotion(Motion.quick, value: hasError)
         }
     }
 
@@ -171,7 +172,8 @@ private struct AuthInputStyle: ViewModifier {
 
 // MARK: - Buttons and text
 
-/// Full-width 52pt button with a spinner while its request runs. Sage by default; the grey
+/// Full-width 52pt button whose label turns into `LoadingDots` while its request runs, and
+/// cross-fades when the title changes ("Continue" → "Finish setup"). Sage by default; the grey
 /// "not yet valid" fill keeps ink text (never white on sage).
 struct AuthPrimaryButton: View {
     let title: String
@@ -182,14 +184,19 @@ struct AuthPrimaryButton: View {
     var body: some View {
         Button(action: action) {
             ZStack {
-                Text(title).opacity(busy ? 0 : 1)
+                Text(title)
+                    .opacity(busy ? 0 : 1)
+                    .id(title)
+                    .transition(.opacity)
                 if busy {
-                    ProgressView().tint(Theme.ink)
+                    LoadingDots(color: Theme.ink)
+                        .sqTransition(.pop)
                 }
             }
         }
         .buttonStyle(.sq(fill: fill, foreground: Theme.ink))
         .disabled(busy)
+        .authMotion(Motion.quick, value: busy)
         .accessibilityLabel(title)
         .accessibilityValue(busy ? "In progress" : "")
     }
@@ -337,4 +344,86 @@ extension View {
 /// Turns any thrown error into the short sentence we show under a form.
 func authMessage(for error: Error, fallback: String = "Something went wrong. Try again.") -> String {
     (error as? LocalizedError)?.errorDescription ?? fallback
+}
+
+// MARK: - Motion
+
+/// `.animation(_:value:)` on the kit's curves; with Reduce Motion it becomes `Motion.reduced`,
+/// like `withMotion`.
+private struct AuthMotionModifier<Value: Equatable>: ViewModifier {
+    let animation: Animation
+    let value: Value
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.animation(reduceMotion ? Motion.reduced : animation, value: value)
+    }
+}
+
+extension View {
+    /// Animates whatever changes inside this view when `value` changes (errors rising in, the
+    /// layout below them moving down), respecting Reduce Motion.
+    func authMotion<Value: Equatable>(_ animation: Animation = Motion.standard, value: Value) -> some View {
+        modifier(AuthMotionModifier(animation: animation, value: value))
+    }
+
+    /// `.sqAppear(index)` only when `animated` (e.g. rows arriving with their first load, not rows
+    /// rebuilt later from data that was already on screen).
+    func authArrive(_ index: Int, animated: Bool) -> some View {
+        modifier(AuthArriveModifier(index: index, animated: animated))
+    }
+}
+
+private struct AuthArriveModifier: ViewModifier {
+    let index: Int
+    /// Fixed when the row is created, so later renders don't re-trigger it.
+    @State private var animated: Bool
+
+    init(index: Int, animated: Bool) {
+        self.index = index
+        _animated = State(initialValue: animated)
+    }
+
+    func body(content: Content) -> some View {
+        if animated {
+            content.sqAppear(index)
+        } else {
+            content
+        }
+    }
+}
+
+// MARK: - Loading
+
+/// Like the kit's `LoadableView`, but the loading state is a skeleton that echoes this section's own
+/// layout (shimmering while `shimmers`), cross-fading to the content or an error. Pass the content
+/// as one view (a `VStack` of rows): this container overlaps its children.
+struct AuthLoadable<Value, Skeleton: View, Content: View>: View {
+    let state: Loadable<Value>
+    var minHeight: CGFloat = 120
+    /// Off while the screen isn't visible (tabs stay alive underneath), so nothing animates offscreen.
+    var shimmers = true
+    let retry: () -> Void
+    @ViewBuilder var skeleton: () -> Skeleton
+    @ViewBuilder var content: (Value) -> Content
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            switch state {
+            case .loading:
+                skeleton()
+                    .sqShimmer(active: shimmers)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Loading")
+                    .transition(.opacity)
+            case .failed(let message):
+                ErrorStateView(message: message, minHeight: minHeight, retry: retry)
+                    .transition(.opacity)
+            case .loaded(let value):
+                content(value)
+                    .transition(.opacity)
+            }
+        }
+        .animation(Motion.standard, value: state.phase)
+    }
 }

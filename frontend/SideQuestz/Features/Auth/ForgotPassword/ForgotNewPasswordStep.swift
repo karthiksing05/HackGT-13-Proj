@@ -29,6 +29,7 @@ struct ForgotNewPasswordStep: View {
             PasswordRulesView(password: password, confirm: confirm)
             if let error {
                 AuthErrorText(message: error)
+                    .sqTransition(.rise)
             }
             AuthPrimaryButton(title: "Reset password", busy: busy, fill: rulesPass ? Theme.sage : Theme.mutedBorder,
                               action: onReset)

@@ -44,7 +44,7 @@ extension View {
 
     // MARK: Header styles (JetBrains Mono) — GUI_PLAN.md §4.2
 
-    /// 32 / ExtraBold, tracking −1. Tab screen titles ("Your sidequestz", "Forum", "Groups").
+    /// 32 / ExtraBold, tracking −1. Tab screen titles ("Your SideQuests", "Forum", "Groups").
     func largeTitleStyle() -> some View {
         font(.mono(32, .extraBold, relativeTo: .largeTitle)).tracking(-1).foregroundStyle(Theme.ink)
             .lineLimit(1).minimumScaleFactor(0.6)
@@ -83,16 +83,16 @@ extension View {
     }
 }
 
-/// "SideQuest" in ink + "z" in sage, JetBrains Mono ExtraBold, tracking −2. Never recolored.
+/// "Side" in sage + "Quests" in ink, JetBrains Mono ExtraBold, tracking −2. Never recolored.
 struct Wordmark: View {
     var size: CGFloat = 40
 
     var body: some View {
-        (Text("SideQuest").foregroundStyle(Theme.ink) + Text("z").foregroundStyle(Theme.sage))
+        (Text("Side").foregroundStyle(Theme.sage) + Text("Quests").foregroundStyle(Theme.ink))
             .font(.mono(size, .extraBold, relativeTo: .largeTitle))
             .tracking(-2)
             .lineLimit(1)
             .minimumScaleFactor(0.6)
-            .accessibilityLabel("SideQuestz")
+            .accessibilityLabel("SideQuests")
     }
 }

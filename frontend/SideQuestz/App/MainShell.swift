@@ -16,6 +16,8 @@ struct MainShell: View {
             SQTabBar(selection: router.tab, onSelect: { router.select($0) }, onPlan: { router.openCreate() })
                 .opacity(router.openThread == nil ? 1 : 0)
                 .allowsHitTesting(router.openThread == nil)
+                // Like a system tab bar, it stays at the bottom behind the keyboard.
+                .ignoresSafeArea(.keyboard, edges: .bottom)
                 .zIndex(1.5)
 
             if let thread = router.openThread {

@@ -46,12 +46,17 @@ struct SetupBasicsStep: View {
             if !errorMessages.isEmpty {
                 ErrorBox(messages: errorMessages)
                     .id(SetupScrollTarget.basicsErrors)
+                    .sqTransition(.rise)
             }
             Text("Friends can find you by name or username.")
                 .sqFont(12)
                 .foregroundStyle(Theme.text3)
                 .authLineHeight(1.35, size: 12)
         }
+        // The error box rises in and its lines update as you fix things; the age note recolors.
+        .authMotion(value: errorMessages)
+        .authMotion(Motion.quick, value: tooYoung)
+        .authMotion(Motion.quick, value: draft.birthDate == nil)
     }
 
     private var errorMessages: [String] {
@@ -69,6 +74,7 @@ struct SetupBasicsStep: View {
             VStack(alignment: .leading, spacing: 6) {
                 Button(hasPhoto ? "Change photo" : "Add a photo", action: onEditPhoto)
                     .buttonStyle(.sqPill)
+                    .authMotion(Motion.quick, value: hasPhoto)
                     .authHitHeight(34)
                     .accessibilityHint("Optional. Friends see it on plans and in chats.")
                 Text("Optional · friends see it on plans and in chats")
@@ -122,6 +128,7 @@ struct SetupBasicsStep: View {
                         .background(.white)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
+                        .transition(.opacity)
                 }
             }
             .padding(.vertical, -6)
@@ -139,9 +146,10 @@ struct SetupBasicsStep: View {
 
     private var age: Int? { draft.age(on: env.clock.now, calendar: env.clock.calendar) }
 
+    private var tooYoung: Bool { (age ?? 13) < 13 }
+
     private var ageNote: some View {
-        let tooYoung = (age ?? 13) < 13
-        return HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: "lock")
                 .font(.system(size: 12.5, weight: .semibold))
                 .foregroundStyle(tooYoung ? Theme.danger : Theme.sageInk)

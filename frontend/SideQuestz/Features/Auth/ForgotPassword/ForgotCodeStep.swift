@@ -28,6 +28,7 @@ struct ForgotCodeStep: View {
                 .onSubmit(onVerify)
             if let error {
                 AuthErrorText(message: error)
+                    .sqTransition(.rise)
             }
             if showsDemoHint {
                 Text("Demo: any 6 digits work.")
@@ -45,6 +46,7 @@ struct ForgotCodeStep: View {
                     .authLineHeight(1.35, size: 13)
                     .frame(maxWidth: .infinity)
                     .onAppear { AccessibilityNotification.Announcement("New code sent.").post() }
+                    .sqTransition(.rise)
             }
             AuthLinkButton(title: "Use a different email", action: onChangeEmail)
         }
@@ -59,7 +61,8 @@ struct ForgotCodeStep: View {
                 ZStack {
                     Text("resend code").opacity(resending ? 0 : 1)
                     if resending {
-                        ProgressView().controlSize(.small).tint(Theme.sageInk)
+                        LoadingDots(color: Theme.sageInk, dotSize: 5)
+                            .sqTransition(.pop)
                     }
                 }
                 .fontWeight(.semibold)
@@ -69,6 +72,8 @@ struct ForgotCodeStep: View {
             }
             .buttonStyle(.plain)
             .disabled(resending)
+            .accessibilityLabel("resend code")
+            .accessibilityValue(resending ? "In progress" : "")
             .authHitHeight(18.9)
         }
         .sqFont(14)

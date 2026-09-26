@@ -5,9 +5,10 @@ import SwiftUI
 struct ForgotPasswordFlow: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var step = 1
+    /// Which way the last step change went (steps slide in from the side you're heading to).
+    @State private var forward = true
     @State private var email = ""
     @State private var code = ""
     /// Short-lived token from `verifyResetCode`, spent by `resetPassword`.
@@ -36,16 +37,22 @@ struct ForgotPasswordFlow: View {
                 EmptyView()
             }
 
-            ScrollView {
-                stepContent
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
-                    .padding(.bottom, 40)
-                    .id(step)
-                    .transition(.opacity)
+            // Each step is its own scroll view; the ZStack lets the leaving and arriving steps
+            // overlap while they slide.
+            ZStack(alignment: .top) {
+                ScrollView {
+                    stepContent
+                        // Errors rise in and the step makes room smoothly.
+                        .authMotion(value: shownError)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 16)
+                        .padding(.bottom, 40)
+                }
+                .id(step)
+                .sqTransition(.step(forward: forward))
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollDismissesKeyboard(.interactively)
             }
-            .scrollBounceBehavior(.basedOnSize)
-            .scrollDismissesKeyboard(.interactively)
             .padding(.top, 16)
         }
         .background(Theme.cream.ignoresSafeArea())
@@ -121,7 +128,6 @@ struct ForgotPasswordFlow: View {
         busy = true
         let current = step
         Task {
-            defer { busy = false }
             do {
                 switch current {
                 case 1:
@@ -137,24 +143,36 @@ struct ForgotPasswordFlow: View {
                 guard step == current else { return }
                 go(to: current + 1)
             } catch {
-                serverError = authMessage(for: error)
+                guard step == current else { return }
+                withMotion {
+                    busy = false
+                    serverError = authMessage(for: error)
+                }
             }
         }
     }
 
     private func resend() {
         guard !resending else { return }
-        resending = true
-        serverError = nil
+        withMotion(Motion.quick) {
+            resending = true
+            resent = false
+            serverError = nil
+        }
         Task {
-            defer { resending = false }
             do {
                 try await env.api.resendResetCode(email: trimmedEmail)
-                code = ""
-                tried = false
-                resent = true
+                withMotion {
+                    resending = false
+                    code = ""
+                    tried = false
+                    resent = true
+                }
             } catch {
-                serverError = authMessage(for: error)
+                withMotion {
+                    resending = false
+                    serverError = authMessage(for: error)
+                }
             }
         }
     }
@@ -174,10 +192,25 @@ struct ForgotPasswordFlow: View {
 
     private func go(to newStep: Int) {
         focus = nil
-        tried = false
-        serverError = nil
-        resent = false
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { step = newStep }
+        let change = {
+            withMotion(Motion.gentle) {
+                // A request still running for the step we leave no longer holds the button.
+                busy = false
+                tried = false
+                serverError = nil
+                resent = false
+                step = newStep
+            }
+        }
+        let isForward = newStep > step
+        if isForward == forward {
+            change()
+        } else {
+            // The leaving step keeps the transition it last rendered with, so it has to render once
+            // with the new direction before it's removed (or it would slide out the wrong way).
+            forward = isForward
+            DispatchQueue.main.async(execute: change)
+        }
     }
 }
 

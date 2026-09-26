@@ -42,8 +42,10 @@ struct HomeTimelineLayout {
 }
 
 /// One itinerary's timeline (Home › Itineraries carousel): hour rules, blocks and the Now line.
+/// On first load (`arrives`) the blocks rise in one after another; later changes animate in place.
 struct HomeTimelineCard: View {
     let itinerary: Itinerary
+    var arrives = false
     let open: (ItineraryItem) -> Void
     @Environment(AppEnvironment.self) private var env
 
@@ -54,15 +56,18 @@ struct HomeTimelineCard: View {
                 hourRow(hour)
                     .offset(y: layout.y(hour: hour) - 7)
             }
-            ForEach(itinerary.items) { item in
+            ForEach(Array(itinerary.items.enumerated()), id: \.element.id) { index, item in
                 HomeTimelineBlock(item: item, time: env.format.range(item.start, item.end),
                                   height: layout.blockHeight(item)) { open(item) }
                     .padding(.leading, 62)
                     .padding(.trailing, 12)
+                    .homeArrival(index + 2, enabled: arrives)
+                    .sqTransition(.rise)
                     .offset(y: layout.y(item.start))
             }
             if env.clock.isToday(itinerary.date), layout.contains(env.clock.now) {
                 nowLine
+                    .homeArrival(itinerary.items.count + 2, enabled: arrives)
                     .offset(y: layout.y(env.clock.now) - 1 - 4)
             }
         }

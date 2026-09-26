@@ -2,6 +2,10 @@ import SwiftUI
 
 /// Home › Itineraries (GUI_PLAN.md §7.5a): the "past events to rate" card, the itinerary cards,
 /// and the swipeable timeline carousel.
+///
+/// Motion: a skeleton while the first load runs, then cards and timeline blocks arrive one after
+/// another; switching itineraries slides the header title and the active page dot; a plan you just
+/// made pops its card; new or removed itineraries animate in and out.
 struct HomeItinerariesView: View {
     @Bindable var store: HomeStore
     /// Full width of the Home screen (cards are this minus the 20pt side padding on each side).
@@ -11,6 +15,17 @@ struct HomeItinerariesView: View {
 
     @Environment(Router.self) private var router
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Cards and blocks arrive one after another only when they replace the skeleton.
+    @State private var arrival = HomeArrivalWindow()
+    /// The page the header showed last, so a new title slides in from the side you swiped toward.
+    @State private var headerIndex = 0
+
+    init(store: HomeStore, pageWidth: CGFloat, openBlock: @escaping (ItineraryItem, Itinerary) -> Void, retry: @escaping () -> Void) {
+        self.store = store
+        self.pageWidth = pageWidth
+        self.openBlock = openBlock
+        self.retry = retry
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -18,15 +33,22 @@ struct HomeItinerariesView: View {
                 rateCard
                     .padding(.horizontal, Metrics.side)
                     .padding(.top, 12)
+                    .homeTransition(.homeDrop)
             }
             SectionHeader(title: "Active itineraries")
                 .padding(.horizontal, Metrics.side)
                 .padding(.top, 20)
                 .padding(.bottom, 10)
-            LoadableView(state: store.itineraries, retry: retry) { list in
+            HomeLoadable(state: store.itineraries, retry: retry) {
+                HomeItinerariesSkeleton()
+            } content: { list in
                 content(list)
             }
+            // A plan you just made is on its way: keep these on screen, dimmed, until it lands.
+            .sqRefreshing(store.awaitsNewItinerary && store.itineraries.value != nil)
         }
+        .onAppear { arrival.begin(loading: store.itineraries.isLoading) }
+        .onChange(of: store.itineraries.phase) { _, phase in arrival.update(phase) }
     }
 
     @ViewBuilder
@@ -34,6 +56,7 @@ struct HomeItinerariesView: View {
         cardsRow(list)
         if list.isEmpty {
             EmptyStateView(message: "No active itineraries yet. Plan one and its timeline shows up here.")
+                .transition(.opacity)
         } else {
             timelineHeader(list)
             carousel(list)
@@ -75,7 +98,8 @@ struct HomeItinerariesView: View {
                     .frame(width: 40, height: 40)
                     .background(Theme.sageTint, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(title).sqFont(15, .semibold).foregroundStyle(Theme.ink).homeLine(15)
+                    // The count rolls when a rating lands.
+                    Text(title).sqFont(15, .semibold).foregroundStyle(Theme.ink).homeLine(15).sqNumeric()
                     Text("Ratings tune what we suggest next").sqFont(13).foregroundStyle(Theme.text3).homeLine(13)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -96,16 +120,21 @@ struct HomeItinerariesView: View {
 
     private func cardsRow(_ list: [Itinerary]) -> some View {
         let selected = selectedId(in: list)
+        let arrives = arrival.isOpen
         return ScrollViewReader { proxy in
             ScrollView(.horizontal) {
                 HStack(spacing: 12) {
-                    ForEach(list) { itinerary in
-                        HomeItineraryCard(itinerary: itinerary, isSelected: itinerary.id == selected) {
+                    ForEach(Array(list.enumerated()), id: \.element.id) { index, itinerary in
+                        HomeItineraryCard(itinerary: itinerary, isSelected: itinerary.id == selected,
+                                          highlight: store.cardHighlights[itinerary.id]) {
                             select(itinerary.id)
                         }
+                        .homeArrival(index, enabled: arrives)
+                        .sqTransition(.pop)
                         .id(itinerary.id)
                     }
                     newSidequestTile
+                        .homeArrival(list.count, enabled: arrives)
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, Metrics.side)
@@ -153,35 +182,45 @@ struct HomeItinerariesView: View {
     private func timelineHeader(_ list: [Itinerary]) -> some View {
         let selected = selectedId(in: list)
         let index = list.firstIndex { $0.id == selected } ?? 0
+        let itinerary = list[index]
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(list[index].title)
+            // An invisible copy lays the row out (and keeps its baseline for the dots); the visible
+            // title swaps on top of it, sliding in from the side you swiped toward.
+            Text(itinerary.title)
                 .sectionStyle()
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-                .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 0)
-            HStack(spacing: 5) {
-                ForEach(list) { itinerary in
-                    Circle()
-                        .fill(itinerary.id == selected ? Theme.sage : Theme.mutedBorder)
-                        .frame(width: 7, height: 7)
+                .hidden()
+                .overlay(alignment: .leading) {
+                    ZStack(alignment: .leading) {
+                        Text(itinerary.title)
+                            .sectionStyle()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .accessibilityAddTraits(.isHeader)
+                            .id(itinerary.id)
+                            .homeTransition(.homeSlide(forward: index >= headerIndex))
+                    }
                 }
-            }
-            .alignmentGuide(.firstTextBaseline) { $0[.bottom] }
-            .accessibilityElement()
-            .accessibilityLabel("Itinerary \(index + 1) of \(list.count)")
+            Spacer(minLength: 0)
+            HomePageDots(count: list.count, index: index)
+                .alignmentGuide(.firstTextBaseline) { $0[.bottom] }
         }
         .padding(.horizontal, Metrics.side)
         .padding(.top, 20)
         .padding(.bottom, 10)
+        .animation(reduceMotion ? Motion.reduced : Motion.standard, value: index)
+        .onChange(of: index) { _, new in headerIndex = new }
     }
 
     private func carousel(_ list: [Itinerary]) -> some View {
-        ScrollView(.horizontal) {
+        let arrives = arrival.isOpen
+        return ScrollView(.horizontal) {
             HStack(alignment: .top, spacing: 12) {
                 ForEach(list) { itinerary in
-                    HomeTimelineCard(itinerary: itinerary) { openBlock($0, itinerary) }
+                    HomeTimelineCard(itinerary: itinerary, arrives: arrives) { openBlock($0, itinerary) }
                         .frame(width: max(0, pageWidth - 2 * Metrics.side))
+                        .sqTransition(.pop)
                         .id(itinerary.id)
                 }
             }
@@ -195,12 +234,42 @@ struct HomeItinerariesView: View {
     }
 }
 
+/// 7pt page dots (active sage, others `mutedBorder`). The active dot slides to the new page.
+private struct HomePageDots: View {
+    let count: Int
+    let index: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<count, id: \.self) { page in
+                Circle()
+                    .fill(Theme.mutedBorder)
+                    .frame(width: 7, height: 7)
+                    .opacity(page == index ? 0 : 1)
+            }
+        }
+        .overlay(alignment: .leading) {
+            Circle()
+                .fill(Theme.sage)
+                .frame(width: 7, height: 7)
+                .offset(x: CGFloat(index) * 12)
+                .animation(reduceMotion ? Motion.reduced : Motion.arrive, value: index)
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Itinerary \(index + 1) of \(count)")
+    }
+}
+
 /// 212pt itinerary card: title, "Today · 1–8 PM", one 6pt bar per block, "3 stops · 3 going".
+/// The selection ring eases between cards; `highlight` pops the card with a sage glow.
 struct HomeItineraryCard: View {
     let itinerary: Itinerary
     let isSelected: Bool
+    var highlight: HomeCardHighlight? = nil
     let action: () -> Void
     @Environment(AppEnvironment.self) private var env
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous)
@@ -222,6 +291,7 @@ struct HomeItineraryCard: View {
                 Text(summary)
                     .sqFont(13, .semibold)
                     .homeLine(13)
+                    .sqNumeric()
             }
             .foregroundStyle(Theme.ink)
             .padding(14)
@@ -238,6 +308,8 @@ struct HomeItineraryCard: View {
             .contentShape(shape)
         }
         .buttonStyle(.sqPressable)
+        .animation(reduceMotion ? Motion.reduced : Motion.quick, value: isSelected)
+        .modifier(HomeCardPopModifier(highlight: highlight))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(itinerary.title), \(when), \(summary)")
         .accessibilityHint("Shows its timeline")
@@ -251,5 +323,47 @@ struct HomeItineraryCard: View {
     private var summary: String {
         let stops = itinerary.stopCount
         return "\(stops) \(stops == 1 ? "stop" : "stops") · \(itinerary.peopleLabel)"
+    }
+}
+
+/// The card's highlight pop: scale and the glow ring's strength (0 at rest).
+private nonisolated struct HomeCardPop {
+    var scale: CGFloat = 1
+    var glow: Double = 0
+}
+
+/// Once per `highlight.token`, after its delay: the card pops and a sage ring pulses around it.
+private struct HomeCardPopModifier: ViewModifier {
+    let highlight: HomeCardHighlight?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        let delay = max(0.01, highlight?.delay ?? 0)
+        let peak: CGFloat = reduceMotion ? 1 : 1.06
+        let ring = Theme.sage
+        let radius = Metrics.cardRadius + 4
+        return content.keyframeAnimator(initialValue: HomeCardPop(), trigger: highlight?.token ?? 0) { view, pop in
+            view
+                .scaleEffect(pop.scale)
+                .overlay {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .stroke(ring, lineWidth: 3)
+                        .padding(-4)
+                        .opacity(pop.glow * 0.6)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+        } keyframes: { _ in
+            KeyframeTrack(\.scale) {
+                LinearKeyframe(1, duration: delay)
+                SpringKeyframe(peak, duration: 0.2, spring: .snappy)
+                SpringKeyframe(1, duration: 0.5, spring: .bouncy)
+            }
+            KeyframeTrack(\.glow) {
+                LinearKeyframe(0, duration: delay)
+                CubicKeyframe(1, duration: 0.2)
+                CubicKeyframe(0, duration: 0.9)
+            }
+        }
     }
 }

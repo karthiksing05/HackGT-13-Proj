@@ -1,12 +1,13 @@
 import SwiftUI
 
 /// Rate a past event (GUI_PLAN.md §7.5c): stars, "What stood out?" tags, an optional note.
-/// Saving calls `PUT /ratings/{itemId}`.
+/// Saving calls `PUT /ratings/{itemId}`; the button shows loading dots while it runs, then the
+/// sheet closes and the Past row turns its "Rate" pill into the stars.
 struct HomeRateSheet: View {
     let event: PastEvent
     let close: () -> Void
-    /// Called after the server saved the rating.
-    let saved: () -> Void
+    /// Called with the rating after the server saved it.
+    let saved: (Rating) -> Void
 
     @Environment(AppEnvironment.self) private var env
     @State private var stars: Int
@@ -15,8 +16,9 @@ struct HomeRateSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @FocusState private var noteFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(event: PastEvent, close: @escaping () -> Void, saved: @escaping () -> Void) {
+    init(event: PastEvent, close: @escaping () -> Void, saved: @escaping (Rating) -> Void) {
         self.event = event
         self.close = close
         self.saved = saved
@@ -47,6 +49,8 @@ struct HomeRateSheet: View {
                     .sqFont(15, .semibold)
                     .foregroundStyle(stars > 0 ? Theme.sageInk : Theme.text3)
                     .homeLine(15)
+                    .contentTransition(.opacity)
+                    .animation(reduceMotion ? Motion.reduced : Motion.quick, value: stars)
             }
             .frame(maxWidth: .infinity)
             Text("WHAT STOOD OUT? (OPTIONAL)")
@@ -66,16 +70,27 @@ struct HomeRateSheet: View {
                     .sqFont(13)
                     .foregroundStyle(Theme.danger)
                     .accessibilityAddTraits(.isStaticText)
+                    .sqTransition(.rise)
             }
             Button(action: save) {
-                HStack(spacing: 8) {
-                    if isSaving { ProgressView().tint(Theme.ink) }
+                // Loading dots replace the label while the rating saves (same size, no jump).
+                ZStack {
                     Text(stars > 0 ? "Save rating" : "Pick a star rating")
+                        .contentTransition(.opacity)
+                        .opacity(isSaving ? 0 : 1)
+                    if isSaving {
+                        LoadingDots(color: Theme.ink, dotSize: 7)
+                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                    }
                 }
             }
             // Disabled: ink on grey (white on #A9AFA6 is only 2.2:1), same as Add expense.
             .buttonStyle(stars > 0 ? .sqPrimary : .sqDisabled(Theme.mutedStar))
             .disabled(stars == 0 || isSaving)
+            .animation(reduceMotion ? Motion.reduced : Motion.quick, value: stars > 0)
+            .animation(reduceMotion ? Motion.reduced : Motion.standard, value: isSaving)
+            .accessibilityLabel(stars > 0 ? "Save rating" : "Pick a star rating")
+            .accessibilityValue(isSaving ? "Saving" : "")
         }
     }
 
@@ -111,18 +126,20 @@ struct HomeRateSheet: View {
     private func save() {
         guard stars > 0, !isSaving else { return }
         isSaving = true
-        errorMessage = nil
+        withMotion { errorMessage = nil }
         noteFocused = false
         let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
         let rating = Rating(stars: stars, tags: tags, note: trimmed.isEmpty ? nil : trimmed)
         Task {
             do {
                 try await env.api.rate(itemId: event.id, rating: rating)
-                saved()
+                saved(rating)
                 close()
             } catch {
-                errorMessage = (error as? LocalizedError)?.errorDescription ?? "Couldn't save your rating. Try again."
-                isSaving = false
+                withMotion(Motion.arrive) {
+                    errorMessage = (error as? LocalizedError)?.errorDescription ?? "Couldn't save your rating. Try again."
+                    isSaving = false
+                }
             }
         }
     }

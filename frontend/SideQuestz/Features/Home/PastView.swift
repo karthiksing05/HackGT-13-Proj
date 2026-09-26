@@ -1,11 +1,22 @@
 import SwiftUI
 
 /// Home › Past (GUI_PLAN.md §7.5c): events you went to, grouped by day. Tap one to rate it.
+///
+/// Motion: skeleton rows while the first load runs, then the rows arrive one after another; when a
+/// rating is saved the row's "Rate" pill shrinks away and its stars fill in with a bounce.
 struct HomePastView: View {
     let store: HomeStore
     let rate: (PastEvent) -> Void
     let retry: () -> Void
     @Environment(AppEnvironment.self) private var env
+    /// Rows arrive one after another only when they replace the skeleton.
+    @State private var arrival = HomeArrivalWindow()
+
+    init(store: HomeStore, rate: @escaping (PastEvent) -> Void, retry: @escaping () -> Void) {
+        self.store = store
+        self.rate = rate
+        self.retry = retry
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -16,43 +27,50 @@ struct HomePastView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, Metrics.side)
                 .padding(.top, 14)
-            LoadableView(state: store.past, retry: retry) { events in
+            HomeLoadable(state: store.past, retry: retry) {
+                HomePastSkeleton()
+            } content: { events in
                 if events.isEmpty {
                     EmptyStateView(message: "Nothing here yet. Events you go to show up here to rate.")
                 } else {
+                    let arrives = arrival.isOpen
                     ForEach(groups(events), id: \.key) { group in
-                        section(title: group.title, events: group.events)
+                        section(group, arrives: arrives)
                     }
                 }
             }
             Color.clear.frame(height: 24)
         }
+        .onAppear { arrival.begin(loading: store.past.isLoading) }
+        .onChange(of: store.past.phase) { _, phase in arrival.update(phase) }
     }
 
     private struct DayGroup {
         let key: String
         let title: String
         var events: [PastEvent]
+        /// Where the group starts in the whole list (for the arrival stagger).
+        let firstIndex: Int
     }
 
     /// Consecutive events on the same day, newest first as the server sends them.
     private func groups(_ events: [PastEvent]) -> [DayGroup] {
         var result: [DayGroup] = []
-        for event in events {
+        for (index, event) in events.enumerated() {
             let key = env.clock.dayKey(event.date)
             if result.last?.key == key {
                 result[result.count - 1].events.append(event)
             } else {
-                result.append(DayGroup(key: key, title: env.format.dayTitle(event.date).uppercased(), events: [event]))
+                result.append(DayGroup(key: key, title: env.format.dayTitle(event.date).uppercased(), events: [event], firstIndex: index))
             }
         }
         return result
     }
 
-    private func section(title: String, events: [PastEvent]) -> some View {
+    private func section(_ group: DayGroup, arrives: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             // "THURSDAY, SEP 24" (the prototype's 16pt top margin collapses with the intro's 4pt).
-            Text(title)
+            Text(group.title)
                 .sqFont(13, .semibold, relativeTo: .footnote)
                 .tracking(0.4)
                 .foregroundStyle(Theme.text3)
@@ -61,9 +79,11 @@ struct HomePastView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 8)
                 .accessibilityAddTraits(.isHeader)
+                .homeArrival(group.firstIndex, enabled: arrives)
             VStack(spacing: 0) {
-                ForEach(events) { event in
-                    row(event)
+                ForEach(Array(group.events.enumerated()), id: \.element.id) { offset, event in
+                    HomePastRow(event: event) { rate(event) }
+                        .homeArrival(group.firstIndex + offset + 1, enabled: arrives)
                     RowDivider(color: Theme.cream)
                 }
             }
@@ -71,11 +91,24 @@ struct HomePastView: View {
             .padding(.horizontal, Metrics.side)
         }
     }
+}
 
-    private func row(_ event: PastEvent) -> some View {
-        Button {
-            rate(event)
-        } label: {
+/// One past event: dot, title, "Tech Square · with 3 others", the tag line once rated, and the
+/// "Rate" pill or the stars. A rating that lands while the row is on screen fills its stars in.
+private struct HomePastRow: View {
+    let event: PastEvent
+    let action: () -> Void
+    /// The row started out unrated, so stars that appear were just earned: they fill in.
+    @State private var startedUnrated: Bool
+
+    init(event: PastEvent, action: @escaping () -> Void) {
+        self.event = event
+        self.action = action
+        _startedUnrated = State(initialValue: event.rating == nil)
+    }
+
+    var body: some View {
+        Button(action: action) {
             HStack(spacing: 12) {
                 Circle()
                     .fill(event.kind == .group ? Theme.clay : Theme.sage)
@@ -95,18 +128,21 @@ struct HomePastView: View {
                             .foregroundStyle(Theme.text2)
                             .homeLine(12)
                             .padding(.top, 2)
+                            .sqTransition(.rise)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                // The pill and the stars swap in place (no extra container, so the resting layout is
+                // the prototype's); a copy of the pill shrinks away over the stars as they fill in.
                 if let rating = event.rating {
-                    StarRow(rating: rating.stars, size: 14, spacing: 1)
+                    HomeRatedStars(rating: rating.stars, fillsIn: startedUnrated)
+                        .overlay(alignment: .trailing) {
+                            if startedUnrated { HomeLeavingPill { ratePill } }
+                        }
+                        .transition(.identity)
                 } else {
-                    Text("Rate")
-                        .sqFont(13, .semibold)
-                        .foregroundStyle(Theme.ink)
-                        .padding(.horizontal, 12)
-                        .frame(height: 30)
-                        .background(Theme.sage, in: Capsule())
+                    ratePill
+                        .transition(.identity)
                 }
             }
             .padding(.vertical, 12)
@@ -115,12 +151,39 @@ struct HomePastView: View {
         }
         .buttonStyle(.sqPressable)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText(event))
+        .accessibilityLabel(accessibilityText)
         .accessibilityAddTraits(.isButton)
     }
 
-    private func accessibilityText(_ event: PastEvent) -> String {
+    private var ratePill: some View {
+        Text("Rate")
+            .sqFont(13, .semibold)
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, 12)
+            .frame(height: 30)
+            .background(Theme.sage, in: Capsule())
+    }
+
+    private var accessibilityText: String {
         guard let rating = event.rating else { return "Rate \(event.title), \(event.subtitle)" }
         return "\(event.title), \(event.subtitle), rated \(rating.stars) of 5. Edit rating"
+    }
+}
+
+/// The "Rate" pill leaving: shrinks toward the trailing edge and fades as the stars take its place.
+private struct HomeLeavingPill<Pill: View>: View {
+    @ViewBuilder var pill: Pill
+    @State private var gone = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        pill
+            .scaleEffect(gone && !reduceMotion ? 0.55 : 1, anchor: .trailing)
+            .opacity(gone ? 0 : 1)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .onAppear {
+                withAnimation(reduceMotion ? Motion.reduced : Motion.standard) { gone = true }
+            }
     }
 }

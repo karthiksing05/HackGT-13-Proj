@@ -39,6 +39,9 @@ struct SetupLikesStep: View {
 private struct SetupRatingRow: View {
     let type: TripType
     @Binding var value: Int
+    /// The number that was just picked pops for a moment.
+    @State private var popped: Int?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 8) {
@@ -55,14 +58,19 @@ private struct SetupRatingRow: View {
             HStack(spacing: 6) {
                 ForEach(1...5, id: \.self) { n in
                     Button {
-                        value = value == n ? 0 : n
+                        pick(n)
                     } label: {
                         Text("\(n)")
                             .sqFont(15, .semibold)
                             .foregroundStyle(Theme.ink)
                             .frame(maxWidth: .infinity)
                             .frame(height: 36)
-                            .background(fill(for: n), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .background {
+                                // Only the fill pops (the digit stays put).
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(fill(for: n))
+                                    .scaleEffect(popped == n ? 1.1 : 1)
+                            }
                             .frame(minHeight: Metrics.minTouch)
                             .contentShape(Rectangle())
                     }
@@ -80,10 +88,21 @@ private struct SetupRatingRow: View {
         .accessibilityHint("Rate from 1, not for me, to 5, love it")
         .accessibilityAdjustableAction { direction in
             switch direction {
-            case .increment: value = min(5, value + 1)
-            case .decrement: value = max(0, value - 1)
+            case .increment: withMotion(Motion.quick) { value = min(5, value + 1) }
+            case .decrement: withMotion(Motion.quick) { value = max(0, value - 1) }
             @unknown default: break
             }
+        }
+    }
+
+    private func pick(_ n: Int) {
+        let new = value == n ? 0 : n
+        withMotion(Motion.quick) { value = new }
+        guard new > 0, !reduceMotion else { return }
+        withAnimation(.snappy(duration: 0.12)) {
+            popped = new
+        } completion: {
+            withAnimation(.bouncy(duration: 0.3)) { popped = nil }
         }
     }
 

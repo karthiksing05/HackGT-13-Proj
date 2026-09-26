@@ -2,7 +2,11 @@ import SwiftUI
 import UIKit
 
 /// Home › Calendar (GUI_PLAN.md §7.5b): day chips from Today, swipeable day panels (6 AM–11 PM),
-/// and drag on empty time to plan a window. "+ Plan" is the non-drag alternative.
+/// and press and hold on empty time to plan a window. "+ Plan" is the non-gesture alternative.
+///
+/// Motion: a skeleton day while the first load runs, then chips and blocks arrive one after
+/// another; the planning window grows out of the press point, springs to each 15-minute step and
+/// the "Plan this window" bar slides up under it.
 struct HomeCalendarView: View {
     @Bindable var store: HomeStore
     let pageWidth: CGFloat
@@ -11,23 +15,34 @@ struct HomeCalendarView: View {
 
     @Environment(AppEnvironment.self) private var env
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Chips and blocks arrive one after another only when they replace the skeleton.
+    @State private var arrival = HomeArrivalWindow()
+
+    init(store: HomeStore, pageWidth: CGFloat, openItem: @escaping (CalendarItem) -> Void, retry: @escaping () -> Void) {
+        self.store = store
+        self.pageWidth = pageWidth
+        self.openItem = openItem
+        self.retry = retry
+    }
 
     var body: some View {
-        LoadableView(state: store.days, minHeight: 240, retry: retry) { days in
-            VStack(alignment: .leading, spacing: 0) {
-                chips(days)
-                pager(days)
-                Text("Drag on empty time to plan a sidequest · swipe for more days")
-                    .sqFont(12, relativeTo: .caption)
-                    .foregroundStyle(Theme.text3)
-                    .homeLine(12)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, Metrics.side)
-                    .padding(.top, 6)
-                    .padding(.bottom, 24)
-            }
+        HomeLoadable(state: store.days, minHeight: 240, retry: retry) {
+            HomeCalendarSkeleton()
+        } content: { days in
+            chips(days)
+            pager(days)
+            Text("Press and hold on empty time to plan a sidequest · swipe for more days")
+                .sqFont(12, relativeTo: .caption)
+                .foregroundStyle(Theme.text3)
+                .homeLine(12)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, Metrics.side)
+                .padding(.top, 6)
+                .padding(.bottom, 24)
         }
+        .onAppear { arrival.begin(loading: store.days.isLoading) }
+        .onChange(of: store.days.phase) { _, phase in arrival.update(phase) }
     }
 
     private func selectedId(in days: [CalendarDay]) -> String? {
@@ -38,13 +53,15 @@ struct HomeCalendarView: View {
 
     private func chips(_ days: [CalendarDay]) -> some View {
         let selected = selectedId(in: days)
+        let arrives = arrival.isOpen
         return ScrollViewReader { proxy in
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
-                    ForEach(days) { day in
+                    ForEach(Array(days.enumerated()), id: \.element.id) { index, day in
                         HomeDayChip(day: day, isSelected: day.id == selected) {
                             withAnimation(reduceMotion ? nil : .smooth(duration: 0.35)) { store.selectedDayId = day.id }
                         }
+                        .homeArrival(index, enabled: arrives)
                         .id(day.id)
                     }
                 }
@@ -65,10 +82,11 @@ struct HomeCalendarView: View {
     // MARK: Day panels
 
     private func pager(_ days: [CalendarDay]) -> some View {
-        ScrollView(.horizontal) {
+        let arrives = arrival.isOpen
+        return ScrollView(.horizontal) {
             HStack(alignment: .top, spacing: 12) {
                 ForEach(days) { day in
-                    HomeDayPanel(day: day, store: store, openItem: openItem)
+                    HomeDayPanel(day: day, store: store, arrives: arrives, openItem: openItem)
                         .frame(width: max(0, pageWidth - 2 * Metrics.side))
                         .id(day.id)
                 }
@@ -83,12 +101,14 @@ struct HomeCalendarView: View {
     }
 }
 
-/// 50×66 day chip: weekday ("Today" first), day number, up to 3 kind dots. Selected = sage.
+/// 50×66 day chip: weekday ("Today" first), day number, up to 3 kind dots. Selected = sage (it
+/// eases in with a small pop).
 struct HomeDayChip: View {
     let day: CalendarDay
     let isSelected: Bool
     let action: () -> Void
     @Environment(AppEnvironment.self) private var env
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: action) {
@@ -105,6 +125,7 @@ struct HomeDayChip: View {
                         Circle()
                             .fill(isSelected ? Color.white : kind.palette.dot)
                             .frame(width: 5, height: 5)
+                            .sqTransition(.pop)
                     }
                 }
                 .frame(height: 5)
@@ -117,6 +138,8 @@ struct HomeDayChip: View {
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.sqPressable)
+        .sqBounce(when: isSelected, scale: 1.08)
+        .animation(reduceMotion ? Motion.reduced : Motion.quick, value: isSelected)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
@@ -137,19 +160,33 @@ struct HomeDayChip: View {
 }
 
 /// One day: "Friday, Sep 25" + "Today · 5 on your calendar" + "+ Plan", then the 6 AM–11 PM timeline.
+///
+/// Press and hold empty time (0.4 s) to draw a one-hour window there; keep holding and drag to
+/// stretch it. Once it's down, drag its top or bottom edge to adjust it (30 minutes at least), tap
+/// elsewhere or × to clear it, or "Plan this window" to open Create with it filled in.
 struct HomeDayPanel: View {
     let day: CalendarDay
     let store: HomeStore
+    var arrives = false
     let openItem: (CalendarItem) -> Void
 
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
-    @State private var drops = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Bumped when a press and hold starts a window (medium haptic).
+    @State private var holds = 0
+    /// What the finger on the timeline is doing, if anything.
+    @State private var gesture: HomeWindowGesture?
+    /// Where a new window grows from: the press point, relative to the box's layout frame.
+    @State private var growAnchor = UnitPoint.center
 
     static let hourHeight: CGFloat = 30
     static let topInset: CGFloat = 10
     static let timelineHeight: CGFloat = 530
     static let firstHour = 6
+    /// Blocks and the window sit between these insets of the timeline.
+    static let blockLeading: CGFloat = 58
+    static let blockTrailing: CGFloat = 12
 
     private static func y(minutes: Int) -> CGFloat {
         topInset + CGFloat(minutes - firstHour * 60) * hourHeight / 60
@@ -161,9 +198,9 @@ struct HomeDayPanel: View {
             timeline
         }
         .background(.white, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-        .sensoryFeedback(.impact(weight: .medium), trigger: drops)
-        // A light tick for every 15 minutes while drawing; the release gets the medium impact.
-        .sensoryFeedback(.selection, trigger: draggingMinute) { old, new in old != nil && new != nil }
+        .sensoryFeedback(.impact(weight: .medium), trigger: holds)
+        // A light tick for every 15-minute step while a finger draws or resizes the window.
+        .sensoryFeedback(.selection, trigger: adjustingKey) { old, new in old != nil && new != nil }
     }
 
     private var header: some View {
@@ -177,6 +214,7 @@ struct HomeDayPanel: View {
                     .sqFont(12, relativeTo: .caption)
                     .foregroundStyle(Theme.text3)
                     .homeLine(12)
+                    .sqNumeric()
             }
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
@@ -202,28 +240,41 @@ struct HomeDayPanel: View {
     // MARK: Timeline
 
     private var timeline: some View {
-        ZStack(alignment: .topLeading) {
+        let selection = currentSelection
+        return ZStack(alignment: .topLeading) {
             ForEach(Array(stride(from: Self.firstHour, through: 22, by: 2)), id: \.self) { hour in
                 hourRow(hour)
                     .offset(y: Self.y(minutes: hour * 60) - 6)
             }
             HomeTimeDragSurface(
-                onTap: { tap(at: $0) },
-                onDrag: { drag(from: $0, to: $1) },
-                onDragEnd: { endDrag() }
+                window: settledSpan,
+                windowLeading: Self.blockLeading,
+                windowTrailing: Self.blockTrailing,
+                onHoldBegan: holdBegan,
+                onHoldMoved: holdMoved,
+                onEdgeBegan: edgeBegan,
+                onEdgeMoved: edgeMoved,
+                onEnded: gestureEnded,
+                onTapOutside: clearSelection
             )
             .frame(maxWidth: .infinity)
             .frame(height: Self.timelineHeight)
             .accessibilityHidden(true)
-            ForEach(day.items) { item in
+            ForEach(Array(day.items.enumerated()), id: \.element.id) { index, item in
                 if let span = visibleSpan(item) {
                     block(item, span: span)
+                        .homeArrival(index + 1, enabled: arrives)
+                        .sqTransition(.rise)
                 }
             }
-            if let selection = store.planSelection, selection.dayId == day.id {
+            if let selection {
                 selectionBox(selection)
-                if !selection.isDragging {
+                    .id(selection.id)
+                    .homeTransition(.asymmetric(insertion: .scale(scale: 0.5, anchor: growAnchor).combined(with: .opacity),
+                                                removal: .opacity))
+                if !selection.isAdjusting {
                     planBar(selection)
+                        .sqTransition(.slideUp)
                 }
             }
         }
@@ -293,54 +344,99 @@ struct HomeDayPanel: View {
         .accessibilityLabel("\(item.title), \(time), \(palette.label)")
         .accessibilityHint("Opens details")
         .accessibilityAddTraits(.isButton)
-        .padding(.leading, 58)
-        .padding(.trailing, 12)
+        .padding(.leading, Self.blockLeading)
+        .padding(.trailing, Self.blockTrailing)
         .offset(y: top)
     }
 
-    // MARK: Drag to plan
+    // MARK: Planning window
+
+    private var currentSelection: HomePlanSelection? {
+        guard let selection = store.planSelection, selection.dayId == day.id else { return nil }
+        return selection
+    }
+
+    /// The window's top and bottom once it's down (its edges can be dragged then).
+    private var settledSpan: ClosedRange<CGFloat>? {
+        guard let selection = currentSelection, !selection.isAdjusting else { return nil }
+        return Self.y(minutes: selection.start)...Self.y(minutes: selection.end)
+    }
+
+    /// Changes with every 15-minute step while a finger draws or resizes the window.
+    private var adjustingKey: Int? {
+        guard let selection = currentSelection, selection.isAdjusting else { return nil }
+        return selection.start * 10_000 + selection.end
+    }
+
+    private func boxHeight(_ selection: HomePlanSelection) -> CGFloat {
+        max(14, CGFloat(selection.end - selection.start) * Self.hourHeight / 60)
+    }
 
     private func selectionBox(_ selection: HomePlanSelection) -> some View {
-        let top = Self.y(minutes: selection.lower)
-        let height = max(14, CGFloat(selection.upper - selection.lower) * Self.hourHeight / 60)
+        let top = Self.y(minutes: selection.start)
+        let height = boxHeight(selection)
+        // Under two lines' height (about 90 minutes), the title and time share one line.
+        let compact = height < 44
         let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        let showsHandles: Bool = {
+            if case .holding = gesture { return false }
+            return true
+        }()
         return VStack(alignment: .leading, spacing: 0) {
-            Text("New sidequest")
-                .sqFont(12, .bold)
-                .foregroundStyle(Theme.sageInk)
-                .homeLine(12)
-            Text(label(selection))
-                .sqFont(12)
-                .foregroundStyle(Theme.ink)
-                .homeLine(12)
+            if compact {
+                (Text("New sidequest").fontWeight(.bold).foregroundStyle(Theme.sageInk)
+                    + Text(" · \(label(selection))").foregroundStyle(Theme.ink))
+                    .sqFont(12)
+                    .homeLine(12)
+            } else {
+                Text("New sidequest")
+                    .sqFont(12, .bold)
+                    .foregroundStyle(Theme.sageInk)
+                    .homeLine(12)
+                Text(label(selection))
+                    .sqFont(12)
+                    .foregroundStyle(Theme.ink)
+                    .homeLine(12)
+                    .sqNumeric()
+            }
         }
         .lineLimit(1)
-        // 2pt border + the prototype's 4 / 8 padding.
-        .padding(.vertical, 6)
+        // 2pt border + the prototype's 4 / 8 padding (a short window centers its one line).
+        .padding(.vertical, compact ? 0 : 6)
         .padding(.horizontal, 10)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(height: height, alignment: .top)
+        .frame(maxWidth: .infinity, alignment: compact ? .leading : .topLeading)
+        .frame(height: height, alignment: compact ? .center : .top)
         .background(Theme.sageTint, in: shape)
+        .clipShape(shape)
         .overlay { shape.strokeBorder(Theme.sage, lineWidth: 2) }
-        .padding(.leading, 58)
-        .padding(.trailing, 12)
+        // Grab handles (the whole top and bottom edges drag).
+        .overlay(alignment: .topTrailing) { handle.offset(x: -24, y: -5).opacity(showsHandles ? 1 : 0) }
+        .overlay(alignment: .bottomLeading) { handle.offset(x: 24, y: 5).opacity(showsHandles ? 1 : 0) }
+        .padding(.leading, Self.blockLeading)
+        .padding(.trailing, Self.blockTrailing)
         .offset(y: top)
         .allowsHitTesting(false)
         .accessibilityElement(children: .combine)
     }
 
+    private var handle: some View {
+        Circle()
+            .fill(.white)
+            .frame(width: 10, height: 10)
+            .overlay { Circle().strokeBorder(Theme.sage, lineWidth: 2) }
+            .accessibilityHidden(true)
+    }
+
     private func planBar(_ selection: HomePlanSelection) -> some View {
-        let top = Self.y(minutes: selection.lower)
-        let height = max(14, CGFloat(selection.upper - selection.lower) * Self.hourHeight / 60)
+        let top = Self.y(minutes: selection.start)
+        let height = boxHeight(selection)
         return HStack(spacing: 6) {
             Button("Plan this window") { plan(selection) }
                 .buttonStyle(.sq(fill: Theme.sage, foreground: Theme.ink, height: 36, radius: 10, fontSize: 14))
                 .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 4)
                 .contentShape(Rectangle().inset(by: -4))
                 .accessibilityLabel("Plan this window, \(label(selection))")
-            Button {
-                withAnimation(.easeOut(duration: 0.15)) { store.planSelection = nil }
-            } label: {
+            Button(action: clearSelection) {
                 HomeIcon(glyph: .close, size: 14, strokeWidth: 2.6)
                     .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
@@ -350,14 +446,13 @@ struct HomeDayPanel: View {
             .buttonStyle(.sqPressable)
             .accessibilityLabel("Clear selection")
         }
-        .padding(.leading, 58)
-        .padding(.trailing, 12)
+        .padding(.leading, Self.blockLeading)
+        .padding(.trailing, Self.blockTrailing)
         .offset(y: min(Self.timelineHeight - 40, top + height + 6))
-        .transition(.opacity)
     }
 
     private func label(_ selection: HomePlanSelection) -> String {
-        env.format.range(date(selection.lower), date(selection.upper))
+        env.format.range(date(selection.start), date(selection.end))
     }
 
     private func date(_ minutes: Int) -> Date {
@@ -371,50 +466,101 @@ struct HomeDayPanel: View {
         return min(max(value, HomePlanSelection.earliest), HomePlanSelection.latest)
     }
 
-    private var draggingMinute: Int? {
-        guard let selection = store.planSelection, selection.dayId == day.id, selection.isDragging else { return nil }
-        return selection.current
+    // MARK: Gestures
+
+    /// Held long enough: a one-hour window appears under the finger, growing out of it.
+    private func holdBegan(at point: CGPoint, width: CGFloat) {
+        let selection = HomePlanSelection.hour(at: minute(at: point.y), dayId: day.id)
+        growAnchor = UnitPoint(x: point.x / max(width, 1), y: point.y / max(boxHeight(selection), 1))
+        gesture = .holding(start: selection.start, end: selection.end)
+        holds += 1
+        withMotion(Motion.arrive) { store.planSelection = selection }
     }
 
-    /// A tap alone selects one hour.
-    private func tap(at y: CGFloat) {
-        let start = minute(at: y)
-        store.planSelection = HomePlanSelection(dayId: day.id, anchor: start, current: start, isDragging: false).finished()
-        drops += 1
+    /// Still holding: the window keeps the pressed hour and stretches to the finger (above it moves
+    /// the start, below it the end).
+    private func holdMoved(to y: CGFloat) {
+        guard case .holding(let start, let end) = gesture, var selection = currentSelection else { return }
+        let finger = minute(at: y)
+        let lower = min(start, finger), upper = max(end, finger)
+        guard lower != selection.start || upper != selection.end else { return }
+        selection.start = lower
+        selection.end = upper
+        withMotion(Motion.quick) { store.planSelection = selection }
     }
 
-    private func drag(from startY: CGFloat, to y: CGFloat) {
-        if var selection = store.planSelection, selection.dayId == day.id, selection.isDragging {
-            let current = minute(at: y)
-            if current != selection.current {
-                selection.current = current
-                store.planSelection = selection
-            }
-        } else {
-            store.planSelection = HomePlanSelection(dayId: day.id, anchor: minute(at: startY), current: minute(at: y), isDragging: true)
+    private func edgeBegan(_ edge: HomeWindowEdge, at y: CGFloat) {
+        guard var selection = currentSelection else { return }
+        let edgeY = Self.y(minutes: edge == .top ? selection.start : selection.end)
+        gesture = .edge(edge, grab: y - edgeY)
+        selection.isAdjusting = true
+        withMotion(Motion.quick) { store.planSelection = selection }
+    }
+
+    /// Resizing from one edge, 30 minutes at least.
+    private func edgeMoved(to y: CGFloat) {
+        guard case .edge(let edge, let grab) = gesture, var selection = currentSelection else { return }
+        let value = minute(at: y - grab)
+        switch edge {
+        case .top: selection.start = min(value, selection.end - HomePlanSelection.minimumLength)
+        case .bottom: selection.end = max(value, selection.start + HomePlanSelection.minimumLength)
         }
+        guard selection != currentSelection else { return }
+        withMotion(Motion.quick) { store.planSelection = selection }
     }
 
-    private func endDrag() {
-        guard let selection = store.planSelection, selection.dayId == day.id, selection.isDragging else { return }
-        store.planSelection = selection.finished()
-        drops += 1
+    /// Finger up: the window settles and the "Plan this window" bar slides up under it.
+    private func gestureEnded() {
+        guard gesture != nil else { return }
+        gesture = nil
+        guard var selection = currentSelection, selection.isAdjusting else { return }
+        selection.isAdjusting = false
+        withMotion(Motion.arrive) { store.planSelection = selection }
+    }
+
+    private func clearSelection() {
+        guard currentSelection != nil else { return }
+        withMotion(Motion.quick) { store.planSelection = nil }
     }
 
     private func plan(_ selection: HomePlanSelection) {
-        router.openCreate(CreateDraft(date: day.date, start: date(selection.lower), end: date(selection.upper)))
+        router.openCreate(CreateDraft(date: day.date, start: date(selection.start), end: date(selection.end)))
         store.planSelection = nil
     }
 }
 
-/// Transparent UIKit surface under the calendar blocks that turns a vertical press-and-drag (or a
-/// tap) into a planning window. The direction is decided from the first movement: a horizontal
-/// pan fails right away so the day pager pages; a vertical one draws the selection, and the
-/// enclosing scroll views wait for it, so the page doesn't scroll while you draw.
+/// What a finger on a day's timeline is doing.
+private enum HomeWindowGesture: Equatable {
+    /// Press and hold: the window keeps this pressed hour and stretches past it.
+    case holding(start: Int, end: Int)
+    /// Dragging an edge; `grab` is how far from that edge the finger started.
+    case edge(HomeWindowEdge, grab: CGFloat)
+}
+
+enum HomeWindowEdge: Equatable {
+    case top, bottom
+}
+
+/// Transparent UIKit surface under the calendar blocks for the planning gestures:
+/// - press and hold (0.4 s) on empty time starts a window; keep holding and drag to stretch it;
+/// - once a window is down, a drag that starts on its top or bottom edge resizes it;
+/// - a tap outside the window clears it.
+/// A quick tap or an ordinary swipe does nothing here, so the page scrolls and the days page as
+/// usual. While a finger draws or resizes, the enclosing scroll views hold still.
 struct HomeTimeDragSurface: UIViewRepresentable {
-    var onTap: (CGFloat) -> Void
-    var onDrag: (_ startY: CGFloat, _ currentY: CGFloat) -> Void
-    var onDragEnd: () -> Void
+    /// The settled window's top and bottom (y in this view); its edges can be dragged.
+    var window: ClosedRange<CGFloat>?
+    var windowLeading: CGFloat
+    var windowTrailing: CGFloat
+    var onHoldBegan: (_ point: CGPoint, _ width: CGFloat) -> Void
+    var onHoldMoved: (_ y: CGFloat) -> Void
+    var onEdgeBegan: (_ edge: HomeWindowEdge, _ y: CGFloat) -> Void
+    var onEdgeMoved: (_ y: CGFloat) -> Void
+    var onEnded: () -> Void
+    var onTapOutside: () -> Void
+
+    /// How long to hold before a window appears.
+    static let holdDuration: TimeInterval = 0.4
 
     func makeCoordinator() -> Coordinator { Coordinator(surface: self) }
 
@@ -422,13 +568,24 @@ struct HomeTimeDragSurface: UIViewRepresentable {
         let view = UIView()
         view.backgroundColor = .clear
         view.isAccessibilityElement = false
+        let coordinator = context.coordinator
 
-        let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
-        pan.maximumNumberOfTouches = 1
-        pan.delegate = context.coordinator
-        view.addGestureRecognizer(pan)
+        let hold = UILongPressGestureRecognizer(target: coordinator, action: #selector(Coordinator.handleHold(_:)))
+        hold.minimumPressDuration = Self.holdDuration
+        hold.delegate = coordinator
+        view.addGestureRecognizer(hold)
+        coordinator.hold = hold
 
-        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+        // Starts at touch-down, but only on a settled window's edge (see `shouldReceive`).
+        let edge = UILongPressGestureRecognizer(target: coordinator, action: #selector(Coordinator.handleEdge(_:)))
+        edge.minimumPressDuration = 0
+        edge.allowableMovement = .greatestFiniteMagnitude
+        edge.delegate = coordinator
+        view.addGestureRecognizer(edge)
+        coordinator.edge = edge
+
+        let tap = UITapGestureRecognizer(target: coordinator, action: #selector(Coordinator.handleTap(_:)))
+        tap.delegate = coordinator
         view.addGestureRecognizer(tap)
         return view
     }
@@ -437,45 +594,102 @@ struct HomeTimeDragSurface: UIViewRepresentable {
         context.coordinator.surface = self
     }
 
+    static func dismantleUIView(_ view: UIView, coordinator: Coordinator) {
+        coordinator.unlockScrolling()
+    }
+
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var surface: HomeTimeDragSurface
-        private var startY: CGFloat = 0
+        weak var hold: UILongPressGestureRecognizer?
+        weak var edge: UILongPressGestureRecognizer?
+        private var grabbedEdge: HomeWindowEdge?
+        private var lockedPans: [UIGestureRecognizer] = []
 
         init(surface: HomeTimeDragSurface) {
             self.surface = surface
         }
 
-        @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
-            surface.onTap(recognizer.location(in: recognizer.view).y)
-        }
-
-        @objc func handlePan(_ recognizer: UIPanGestureRecognizer) {
-            let y = recognizer.location(in: recognizer.view).y
+        @objc func handleHold(_ recognizer: UILongPressGestureRecognizer) {
+            let point = recognizer.location(in: recognizer.view)
             switch recognizer.state {
             case .began:
-                startY = y - recognizer.translation(in: recognizer.view).y
-                surface.onDrag(startY, y)
+                lockScrolling(from: recognizer.view)
+                surface.onHoldBegan(point, recognizer.view?.bounds.width ?? 0)
             case .changed:
-                surface.onDrag(startY, y)
+                surface.onHoldMoved(point.y)
             case .ended, .cancelled, .failed:
-                surface.onDragEnd()
+                unlockScrolling()
+                surface.onEnded()
             default:
                 break
             }
         }
 
-        /// Vertical first movement → draw; horizontal → fail so the pager scrolls.
-        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
-            guard let pan = recognizer as? UIPanGestureRecognizer else { return true }
-            let translation = pan.translation(in: pan.view)
-            if translation != .zero { return abs(translation.y) > abs(translation.x) }
-            let velocity = pan.velocity(in: pan.view)
-            return abs(velocity.y) > abs(velocity.x)
+        @objc func handleEdge(_ recognizer: UILongPressGestureRecognizer) {
+            let point = recognizer.location(in: recognizer.view)
+            switch recognizer.state {
+            case .began:
+                guard let edge = edgeAt(point, in: recognizer.view) else { return }
+                grabbedEdge = edge
+                lockScrolling(from: recognizer.view)
+                surface.onEdgeBegan(edge, point.y)
+            case .changed:
+                if grabbedEdge != nil { surface.onEdgeMoved(point.y) }
+            case .ended, .cancelled, .failed:
+                guard grabbedEdge != nil else { return }
+                grabbedEdge = nil
+                unlockScrolling()
+                surface.onEnded()
+            default:
+                break
+            }
         }
 
-        /// Enclosing scroll views wait until the direction is decided.
-        func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldBeRequiredToFailBy other: UIGestureRecognizer) -> Bool {
-            recognizer is UIPanGestureRecognizer && other.view is UIScrollView
+        @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
+            guard !isInsideWindow(recognizer.location(in: recognizer.view), in: recognizer.view) else { return }
+            surface.onTapOutside()
+        }
+
+        /// Edge drags only start on a settled window's edge; press and hold anywhere else.
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            let onEdge = edgeAt(touch.location(in: recognizer.view), in: recognizer.view) != nil
+            if recognizer === edge { return onEdge }
+            if recognizer === hold { return !onEdge }
+            return true
+        }
+
+        /// The window edge under `point`: 18pt outside it, and up to half its height inside.
+        private func edgeAt(_ point: CGPoint, in view: UIView?) -> HomeWindowEdge? {
+            guard let window = surface.window, let width = view?.bounds.width else { return nil }
+            guard point.x >= surface.windowLeading - 8, point.x <= width - surface.windowTrailing + 8 else { return nil }
+            let reach: CGFloat = 18
+            let inside = min(reach, (window.upperBound - window.lowerBound) / 2)
+            if point.y >= window.lowerBound - reach, point.y <= window.lowerBound + inside { return .top }
+            if point.y >= window.upperBound - inside, point.y <= window.upperBound + reach { return .bottom }
+            return nil
+        }
+
+        private func isInsideWindow(_ point: CGPoint, in view: UIView?) -> Bool {
+            guard let window = surface.window, let width = view?.bounds.width else { return false }
+            return point.x >= surface.windowLeading && point.x <= width - surface.windowTrailing && window.contains(point.y)
+        }
+
+        /// Holds the page and the day pager still while a finger draws or resizes a window.
+        private func lockScrolling(from view: UIView?) {
+            unlockScrolling()
+            var ancestor = view?.superview
+            while let current = ancestor {
+                if let scroll = current as? UIScrollView, scroll.panGestureRecognizer.isEnabled {
+                    scroll.panGestureRecognizer.isEnabled = false
+                    lockedPans.append(scroll.panGestureRecognizer)
+                }
+                ancestor = current.superview
+            }
+        }
+
+        func unlockScrolling() {
+            for pan in lockedPans { pan.isEnabled = true }
+            lockedPans.removeAll()
         }
     }
 }

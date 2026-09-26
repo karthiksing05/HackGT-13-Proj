@@ -1,10 +1,16 @@
 import SwiftUI
 
 /// Account tab (GUI_PLAN.md §7.10): profile header, your status, then Me | Friends.
+///
+/// The Me and Friends data live here (`AccountMeModel`, `AccountFriendsModel`), so switching
+/// segments cross-fades straight to what was already loaded and refreshes it quietly. Pull down to
+/// reload everything (`sqPullToRefresh`).
 struct AccountView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
     @State private var showPhoto = false
+    @State private var me = AccountMeModel()
+    @State private var friends = AccountFriendsModel()
 
     var body: some View {
         @Bindable var router = router
@@ -22,15 +28,21 @@ struct AccountView: View {
                                    accessibilityLabel: "Account sections")
                     .padding(.top, 12)
                     .padding(.horizontal, Metrics.side)
-                switch router.accountSegment {
-                case .me:
-                    AccountMeSection()
-                case .friends:
-                    FriendsView()
+                // A ZStack so the two sections cross-fade in place.
+                ZStack(alignment: .top) {
+                    switch router.accountSegment {
+                    case .me:
+                        AccountMeSection(model: me)
+                            .transition(.opacity)
+                    case .friends:
+                        FriendsView(model: friends)
+                            .transition(.opacity)
+                    }
                 }
+                .animation(Motion.standard, value: router.accountSegment)
             }
         }
-        .scrollBounceBehavior(.basedOnSize)
+        .sqPullToRefresh()
         .background(Theme.cream.ignoresSafeArea())
         .sqSheet(isPresented: $showPhoto) {
             PhotoSheet(initials: env.user?.initials ?? "JL", color: avatarColor) { showPhoto = false }
@@ -93,8 +105,19 @@ private struct AccountHeader: View {
 // MARK: - Your status
 
 /// Open / Online / Not free (selected: white + 2pt ring in the dot color) and what it means.
+///
+/// Optimistic: a tap moves the ring (it slides over) and updates the text at once; the ring stays
+/// faint until the server confirms, and snaps back with a short note if it doesn't.
 private struct AccountStatusCard: View {
     @Environment(AppEnvironment.self) private var env
+    @Namespace private var ringSpace
+    /// The status waiting for the server.
+    @State private var pending: PresenceStatus?
+    /// What the server last confirmed (where a failed change rolls back to).
+    @State private var confirmed: PresenceStatus?
+    /// Only the newest tap's answer counts when taps overlap.
+    @State private var latestRequest = 0
+    @State private var errorText: String?
 
     private var current: PresenceStatus { env.user?.status ?? .open }
 
@@ -116,6 +139,10 @@ private struct AccountStatusCard: View {
                 .foregroundStyle(Theme.text2)
                 .authLineHeight(1.35, size: 13)
                 .fixedSize(horizontal: false, vertical: true)
+            if let errorText {
+                AuthErrorText(message: errorText)
+                    .sqTransition(.rise)
+            }
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
@@ -127,11 +154,11 @@ private struct AccountStatusCard: View {
     private func button(_ status: PresenceStatus) -> some View {
         let selected = status == current
         return Button {
-            guard !selected else { return }
-            Task { await env.setStatus(status) }
+            select(status)
         } label: {
             HStack(spacing: 6) {
                 StatusDot(color: status.color, size: 10)
+                    .sqBounce(when: selected, scale: 1.4)
                 Text(status.label)
                     .sqFont(14, .semibold)
                     .foregroundStyle(Theme.ink)
@@ -143,10 +170,12 @@ private struct AccountStatusCard: View {
             .background(selected ? Color.white : Theme.cream, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
                 if selected {
-                    // box-shadow 0 0 0 2px: a 2pt ring just outside the button.
+                    // box-shadow 0 0 0 2px: a 2pt ring just outside the button. Faint while pending.
                     RoundedRectangle(cornerRadius: 13, style: .continuous)
                         .stroke(status.color, lineWidth: 2)
                         .padding(-1)
+                        .opacity(pending == status ? 0.4 : 1)
+                        .matchedGeometryEffect(id: "ring", in: ringSpace)
                 }
             }
             .frame(minHeight: Metrics.minTouch)
@@ -155,7 +184,38 @@ private struct AccountStatusCard: View {
         .buttonStyle(.plain)
         .authHitHeight(40)
         .accessibilityLabel(status.label)
+        .accessibilityValue(pending == status ? "Saving" : "")
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func select(_ status: PresenceStatus) {
+        guard status != current else { return }
+        if pending == nil { confirmed = current }
+        latestRequest += 1
+        let request = latestRequest
+        withMotion(Motion.quick) {
+            env.user?.status = status
+            pending = status
+            errorText = nil
+        }
+        Task {
+            do {
+                let updated = try await env.api.updateMe(UserPatch(status: status))
+                confirmed = updated.status
+                guard request == latestRequest else { return }
+                withMotion(Motion.quick) {
+                    env.user = updated
+                    pending = nil
+                }
+            } catch {
+                guard request == latestRequest else { return }
+                withMotion {
+                    env.user?.status = confirmed ?? status
+                    pending = nil
+                    errorText = "Couldn't update your status. Try again."
+                }
+            }
+        }
     }
 }
 

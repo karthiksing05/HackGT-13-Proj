@@ -82,6 +82,8 @@ struct PillButtonStyle: ButtonStyle {
             .frame(minHeight: Metrics.minTouch)
             .contentShape(Rectangle())
             .opacity(configuration.isPressed ? 0.8 : 1)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -118,12 +120,14 @@ extension ButtonStyle where Self == LinkButtonStyle {
     }
 }
 
-/// Plain tap style that just dims while pressed (cards, rows).
+/// Plain tap style for cards and rows: dims and settles in slightly while pressed.
 struct PressableStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .contentShape(Rectangle())
             .opacity(configuration.isPressed ? 0.75 : 1)
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 

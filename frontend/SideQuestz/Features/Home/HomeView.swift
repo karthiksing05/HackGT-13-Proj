@@ -1,12 +1,13 @@
 import SwiftUI
 
-/// Home tab (GUI_PLAN.md §7.5–7.6): date eyebrow + "Your sidequestz" + avatar, then
-/// Itineraries | Calendar | Past. Tapping a block opens the Event sheet; a past event opens the
-/// Rate sheet. Demo routes: `home`, `home/calendar`, `home/past`, `home/sheet/<blockId>`,
-/// `home/rate/<pastId>`, `home/checkout/<blockId>`.
+/// Home tab (GUI_PLAN.md §7.5–7.6): date eyebrow + "Your SideQuests" + avatar, then
+/// Itineraries | Calendar | Past (cross-fading). Tapping a block opens the Event sheet; a past event
+/// opens the Rate sheet. Pull down to reload. Demo routes: `home`, `home/calendar`, `home/past`,
+/// `home/sheet/<blockId>`, `home/rate/<pastId>`, `home/checkout/<blockId>`.
 struct HomeView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var store = HomeStore()
     @State private var pageWidth: CGFloat = Metrics.designWidth
     @State private var ratingsSaved = 0
@@ -18,6 +19,8 @@ struct HomeView: View {
     @State private var reloadAfterEvent = false
     @State private var rateEvent: PastEvent?
     @State private var showsRate = false
+    /// Saved in the Rate sheet; its Past row changes once the sheet is out of the way.
+    @State private var savedRating: HomeSavedRating?
 
     private static let segments: [(value: Router.HomeSegment, label: String)] = [
         (.itineraries, "Itineraries"), (.calendar, "Calendar"), (.past, "Past"),
@@ -27,7 +30,7 @@ struct HomeView: View {
         @Bindable var router = router
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                TabScreenHeader(eyebrow: env.format.eyebrowDate(env.clock.now), title: "Your sidequestz") {
+                TabScreenHeader(eyebrow: env.format.eyebrowDate(env.clock.now), title: "Your SideQuests") {
                     Button {
                         router.select(.account)
                     } label: {
@@ -41,12 +44,15 @@ struct HomeView: View {
                     .padding(.top, 12)
                 segmentContent
             }
-            .sqSheet(isPresented: $showsRate, onDismiss: { rateEvent = nil }) {
+            .sqSheet(isPresented: $showsRate, onDismiss: rateSheetClosed) {
                 HomeRateSheetHost(event: $rateEvent, close: { showsRate = false }, saved: ratingSaved)
             }
         }
         .scrollIndicators(.hidden)
-        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { pageWidth = $0 })
+        .sqPullToRefresh()
+        // Snapped to the half point: the width feeds the carousel's card widths, and a measurement
+        // that creeps by a rounding error must not trigger another layout pass (an endless loop).
+        .onGeometryChange(for: CGFloat.self, of: { ($0.size.width * 2).rounded() / 2 }, action: { pageWidth = $0 })
         // Like the prototype, the page ends at the tab bar (nothing shows through it).
         .mask { Rectangle().ignoresSafeArea(edges: .top) }
         .background(Theme.cream.ignoresSafeArea())
@@ -59,8 +65,9 @@ struct HomeView: View {
             Task { await loadIfNeeded(segment) }
         }
         .onChange(of: router.createDraft == nil) { _, closed in
-            // Create closed: a new itinerary (and its calendar entries) may exist now.
-            if closed { Task { await store.refresh(env) } }
+            // Create closed: a new itinerary (and its calendar entries) may exist now. A plan that
+            // was just made is handled by `showItinerary`, which reloads everything too.
+            if closed, router.selectedItineraryId == nil { Task { await store.refresh(env) } }
         }
         .onChange(of: router.selectedItineraryId) { _, id in
             if let id { Task { await showItinerary(id) } }
@@ -71,26 +78,36 @@ struct HomeView: View {
         }
     }
 
-    @ViewBuilder
+    /// The three segments cross-fade. Each registers its pull-to-refresh reload while it's shown;
+    /// a pull reloads everything Home has loaded (hidden segments stay fresh for when you switch).
     private var segmentContent: some View {
-        switch router.homeSegment {
-        case .itineraries:
-            HomeItinerariesView(store: store, pageWidth: pageWidth, openBlock: { item, itinerary in
-                openEvent(HomeEventRoute(id: item.id, itineraryId: itinerary.id, seed: item))
-            }, retry: {
-                Task { await store.retryItineraries(env) }
-            })
-        case .calendar:
-            HomeCalendarView(store: store, pageWidth: pageWidth, openItem: { item in
-                openBlock(id: item.id)
-            }, retry: {
-                Task { await store.retryDays(env) }
-            })
-        case .past:
-            HomePastView(store: store, rate: openRating, retry: {
-                Task { await store.retryPast(env) }
-            })
+        ZStack(alignment: .top) {
+            switch router.homeSegment {
+            case .itineraries:
+                HomeItinerariesView(store: store, pageWidth: pageWidth, openBlock: { item, itinerary in
+                    openEvent(HomeEventRoute(id: item.id, itineraryId: itinerary.id, seed: item))
+                }, retry: {
+                    Task { await store.retryItineraries(env) }
+                })
+                .sqReloadable("home.itineraries") { await store.refresh(env) }
+                .transition(.opacity)
+            case .calendar:
+                HomeCalendarView(store: store, pageWidth: pageWidth, openItem: { item in
+                    openBlock(id: item.id)
+                }, retry: {
+                    Task { await store.retryDays(env) }
+                })
+                .sqReloadable("home.calendar") { await store.refresh(env) }
+                .transition(.opacity)
+            case .past:
+                HomePastView(store: store, rate: openRating, retry: {
+                    Task { await store.retryPast(env) }
+                })
+                .sqReloadable("home.past") { await store.refresh(env) }
+                .transition(.opacity)
+            }
         }
+        .animation(reduceMotion ? Motion.reduced : Motion.standard, value: router.homeSegment)
     }
 
     // MARK: Sheets
@@ -118,8 +135,17 @@ struct HomeView: View {
         Task { await store.refresh(env) }
     }
 
-    private func ratingSaved() {
+    /// The server saved the rating: success haptic now, the row changes when the sheet is gone.
+    private func ratingSaved(_ saved: HomeSavedRating) {
         ratingsSaved += 1
+        savedRating = saved
+    }
+
+    private func rateSheetClosed() {
+        rateEvent = nil
+        guard let saved = savedRating else { return }
+        savedRating = nil
+        store.applySavedRating(saved.rating, to: saved.eventId)
         Task { await store.refresh(env) }
     }
 
@@ -141,11 +167,13 @@ struct HomeView: View {
         }
     }
 
-    /// Right after Create: reload, select the new itinerary and scroll its timeline into view.
+    /// Right after Create: reload (the itineraries stay on screen, dimmed), then select the new
+    /// itinerary, scroll its card and timeline into view and pop the card. Create's cover is still
+    /// sliding away when this starts, so the pop waits for at least that long.
     private func showItinerary(_ id: String) async {
-        router.homeSegment = .itineraries
-        await store.loadItineraries(env)
-        withAnimation(.smooth(duration: 0.35)) { store.selectedItineraryId = id }
+        let coverClosing = Date.now
+        withMotion { router.homeSegment = .itineraries }
+        await store.showNewItinerary(id, env: env, coverClosedAt: coverClosing)
         if router.selectedItineraryId == id { router.selectedItineraryId = nil }
     }
 
@@ -187,11 +215,11 @@ private struct HomeEventSheetHost: View {
 private struct HomeRateSheetHost: View {
     @Binding var event: PastEvent?
     let close: () -> Void
-    let saved: () -> Void
+    let saved: (HomeSavedRating) -> Void
 
     var body: some View {
         if let event {
-            HomeRateSheet(event: event, close: close, saved: saved)
+            HomeRateSheet(event: event, close: close, saved: { saved(HomeSavedRating(eventId: event.id, rating: $0)) })
                 .id(event.id)
         }
     }

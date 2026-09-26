@@ -70,10 +70,12 @@ struct SetupMoneyStep: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityElement(children: .combine)
-                cardButton
+                // One slot: the states cross-fade in place instead of sitting side by side.
+                ZStack(alignment: .trailing) { cardButton }
             }
             if let cardError {
                 AuthErrorText(message: cardError)
+                    .sqTransition(.rise)
             }
             Text("The checkout agent always asks before it spends anything.")
                 .sqFont(12)
@@ -96,20 +98,31 @@ struct SetupMoneyStep: View {
                 .frame(height: 34)
                 .background(Theme.successBg, in: Capsule())
                 .accessibilityLabel("\(method.brand) card added")
+                .sqTransition(.pop)
         case .loading:
-            ProgressView()
-                .tint(Theme.sageInk)
-                .frame(width: 44, height: 34)
+            // Shaped like the "Add Visa card" pill while we check for a saved card.
+            SkeletonBlock(width: 112, height: 34, radius: 17)
+                .sqShimmer()
+                .accessibilityElement()
+                .accessibilityLabel("Loading")
+                .transition(.opacity)
         case .loaded(nil), .failed:
             Button(action: addCard) {
                 ZStack {
                     Text("Add Visa card").opacity(addingCard ? 0 : 1)
-                    if addingCard { ProgressView().controlSize(.small).tint(Theme.ink) }
+                    if addingCard {
+                        LoadingDots(color: Theme.ink, dotSize: 5)
+                            .sqTransition(.pop)
+                    }
                 }
             }
             .buttonStyle(.sqPill(fill: Theme.sage, foreground: Theme.ink, horizontalPadding: 12))
             .authHitHeight(34)
             .disabled(addingCard)
+            .authMotion(Motion.quick, value: addingCard)
+            .accessibilityLabel("Add Visa card")
+            .accessibilityValue(addingCard ? "In progress" : "")
+            .transition(.opacity)
         }
     }
 
@@ -122,23 +135,34 @@ struct SetupMoneyStep: View {
 
     private func loadCard() async {
         // Only the add button depends on this; a failed lookup just offers "Add Visa card".
+        let result: Loadable<PaymentMethod?>
         do {
             let methods = try await env.api.paymentMethods()
-            card = .loaded(methods.first(where: \.isDefault) ?? methods.first)
+            result = .loaded(methods.first(where: \.isDefault) ?? methods.first)
         } catch {
-            card = .failed(authMessage(for: error))
+            result = .failed(authMessage(for: error))
         }
+        withMotion { card = result }
     }
 
     private func addCard() {
-        addingCard = true
-        cardError = nil
+        withMotion(Motion.quick) {
+            addingCard = true
+            cardError = nil
+        }
         Task {
-            defer { addingCard = false }
             do {
-                card = .loaded(try await env.api.addPaymentMethod(token: "tok_visa"))
+                let method = try await env.api.addPaymentMethod(token: "tok_visa")
+                // "Added" pops in where the button was; the subtitle cross-fades to the card.
+                withMotion(Motion.arrive) {
+                    card = .loaded(method)
+                    addingCard = false
+                }
             } catch {
-                cardError = authMessage(for: error, fallback: "Couldn't add the card. Try again.")
+                withMotion {
+                    addingCard = false
+                    cardError = authMessage(for: error, fallback: "Couldn't add the card. Try again.")
+                }
             }
         }
     }

@@ -320,7 +320,7 @@ private struct SQSheetContainer<Content: View>: View {
 }
 
 extension View {
-    /// Presents a SideQuestz sheet (full-width, 24pt top corners, dim backdrop). Put a `SheetScaffold`
+    /// Presents a SideQuests sheet (full-width, 24pt top corners, dim backdrop). Put a `SheetScaffold`
     /// inside for the grabber and padding. Tap the backdrop or drag the grabber down to close.
     func sqSheet<Content: View>(isPresented: Binding<Bool>, style: SQSheetStyle = .standard, onDismiss: (() -> Void)? = nil,
                                 @ViewBuilder content: @escaping () -> Content) -> some View {

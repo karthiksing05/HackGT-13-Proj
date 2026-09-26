@@ -177,7 +177,7 @@ struct PasswordRulesView: View {
                     ZStack {
                         Circle().fill(rule.passed ? Theme.sageInk : Theme.lineStrong)
                         if rule.passed {
-                            CheckGlyph(lineWidth: 2.8).foregroundStyle(.white).frame(width: 14, height: 14)
+                            AnimatedCheck(lineWidth: 2.8).foregroundStyle(.white).frame(width: 14, height: 14)
                         }
                     }
                     .frame(width: 18, height: 18)
@@ -191,6 +191,6 @@ struct PasswordRulesView: View {
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 2)
-        .animation(.easeOut(duration: 0.15), value: Validation.passwordRules(password, confirm).map(\.passed))
+        .animation(Motion.quick, value: Validation.passwordRules(password, confirm).map(\.passed))
     }
 }

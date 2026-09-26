@@ -5,6 +5,10 @@ import UIKit
 /// Profile photo sheet (GUI_PLAN.md §7.10), used by Setup step 1 and Account. Present it with
 /// `sqSheet`. The photo shows immediately (`env.profileImage`) and uploads with `POST /me/photo`;
 /// picking an initials color clears the photo.
+///
+/// Motion: the preview cross-fades to the new photo or color and dims with `LoadingDots` while
+/// it uploads; "Uploading…" turns into "Photo saved" with a check drawing in (or an error that
+/// rises in); the selection ring slides to the picked color.
 struct PhotoSheet: View {
     @Environment(AppEnvironment.self) private var env
 
@@ -18,9 +22,12 @@ struct PhotoSheet: View {
     @State private var pickerItem: PhotosPickerItem?
     @State private var showCamera = false
     @State private var uploading = false
+    /// The last upload finished: "Photo saved" until the next change.
+    @State private var saved = false
     @State private var errorText: String?
     /// The last photo that failed to upload (for "Try again").
     @State private var failedImage: UIImage?
+    @Namespace private var ring
 
     var body: some View {
         SheetScaffold(spacing: 14) {
@@ -33,8 +40,9 @@ struct PhotoSheet: View {
             preview
                 .frame(maxWidth: .infinity)
 
-            if uploading || errorText != nil {
+            if uploading || saved || errorText != nil {
                 statusLine
+                    .sqTransition(.rise)
             }
 
             HStack(spacing: 8) {
@@ -55,10 +63,14 @@ struct PhotoSheet: View {
             if hasPhoto {
                 Button("Remove photo", action: removePhoto)
                     .buttonStyle(.sq(fill: .clear, foreground: Theme.danger, height: 44, fontSize: 15))
+                    .transition(.opacity)
             }
             Button("Done", action: onDone)
                 .buttonStyle(.sq(fill: Theme.ink, foreground: .white, height: 50, fontSize: 16))
         }
+        .authMotion(value: uploading)
+        .authMotion(value: saved)
+        .authMotion(value: errorText)
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { image in use(image) }
                 .ignoresSafeArea()
@@ -81,12 +93,16 @@ struct PhotoSheet: View {
                imageURL: env.profileImage == nil && savesToServer ? env.user?.photoURL : nil)
             .overlay {
                 if uploading {
-                    Circle().fill(.black.opacity(0.25))
-                    ProgressView().tint(.white)
+                    ZStack {
+                        Circle().fill(.black.opacity(0.25))
+                        LoadingDots(color: .white, dotSize: 8)
+                    }
+                    .transition(.opacity)
                 }
             }
             .accessibilityElement()
             .accessibilityLabel(hasPhoto ? "Your profile photo" : "Your initials on \(color.name.lowercased())")
+            .accessibilityValue(uploading ? "Uploading" : "")
     }
 
     @ViewBuilder private var statusLine: some View {
@@ -95,6 +111,18 @@ struct PhotoSheet: View {
                 .sqFont(13)
                 .foregroundStyle(Theme.text3)
                 .frame(maxWidth: .infinity)
+                .transition(.opacity)
+        } else if saved {
+            HStack(spacing: 6) {
+                AnimatedCheck(lineWidth: 2.8, delay: 0.1)
+                    .frame(width: 13, height: 13)
+                Text("Photo saved")
+            }
+            .sqFont(13, .semibold)
+            .foregroundStyle(Theme.success)
+            .frame(maxWidth: .infinity)
+            .transition(.opacity)
+            .onAppear { AccessibilityNotification.Announcement("Photo saved").post() }
         } else if let errorText {
             HStack(spacing: 6) {
                 Text(errorText).foregroundStyle(Theme.danger)
@@ -109,6 +137,7 @@ struct PhotoSheet: View {
             }
             .sqFont(13)
             .frame(maxWidth: .infinity)
+            .transition(.opacity)
             .onAppear { AccessibilityNotification.Announcement(errorText).post() }
         }
     }
@@ -150,10 +179,12 @@ struct PhotoSheet: View {
                         .background(option.background, in: Circle())
                         .background {
                             if selected {
+                                // Slides from the old color to the new one.
                                 ZStack {
                                     Circle().fill(Theme.sageInk).padding(-5)
                                     Circle().fill(.white).padding(-3)
                                 }
+                                .matchedGeometryEffect(id: "ring", in: ring)
                             }
                         }
                         .contentShape(Circle())
@@ -171,30 +202,47 @@ struct PhotoSheet: View {
     private func load(_ item: PhotosPickerItem) async {
         defer { pickerItem = nil }
         guard let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) else {
-            errorText = "That photo couldn't be opened. Try another one."
-            failedImage = nil
+            withMotion {
+                saved = false
+                errorText = "That photo couldn't be opened. Try another one."
+                failedImage = nil
+            }
             return
         }
         use(image)
     }
 
     private func use(_ image: UIImage) {
-        env.profileImage = image
-        errorText = nil
-        failedImage = nil
-        guard savesToServer else { return }
         guard let data = image.uploadJPEG() else {
-            errorText = "That photo couldn't be used. Try another one."
+            withMotion {
+                saved = false
+                errorText = "That photo couldn't be used. Try another one."
+            }
             return
         }
-        uploading = true
+        // The preview (and every avatar showing it) cross-fades to the photo right away.
+        withMotion {
+            env.profileImage = image
+            errorText = nil
+            failedImage = nil
+            saved = false
+            uploading = savesToServer
+        }
+        guard savesToServer else { return }
         Task {
-            defer { uploading = false }
             do {
-                env.user?.photoURL = try await env.api.uploadPhoto(data)
+                let url = try await env.api.uploadPhoto(data)
+                withMotion {
+                    env.user?.photoURL = url
+                    uploading = false
+                    saved = true
+                }
             } catch {
-                errorText = "Your photo didn't upload."
-                failedImage = image
+                withMotion {
+                    uploading = false
+                    errorText = "Your photo didn't upload."
+                    failedImage = image
+                }
             }
         }
     }
@@ -202,36 +250,46 @@ struct PhotoSheet: View {
     private func pick(_ option: AvatarColor) {
         let hadServerPhoto = savesToServer && env.user?.photoURL != nil
         let previousColor = color
-        color = option
-        env.profileImage = nil
-        errorText = nil
-        failedImage = nil
+        withMotion(Motion.quick) {
+            color = option
+            env.profileImage = nil
+            errorText = nil
+            failedImage = nil
+            saved = false
+            if hadServerPhoto { env.user?.photoURL = nil }
+        }
         guard savesToServer else { return }
-        if hadServerPhoto { env.user?.photoURL = nil }
         Task {
             do {
                 try await env.api.setAvatarColor(option)
                 if hadServerPhoto { try await env.api.deletePhoto() }
             } catch {
-                color = previousColor
-                errorText = "Couldn't save that. Try again."
+                withMotion {
+                    color = previousColor
+                    errorText = "Couldn't save that. Try again."
+                }
             }
         }
     }
 
     private func removePhoto() {
         let previousURL = env.user?.photoURL
-        env.profileImage = nil
-        errorText = nil
-        failedImage = nil
+        withMotion {
+            env.profileImage = nil
+            errorText = nil
+            failedImage = nil
+            saved = false
+            if savesToServer && previousURL != nil { env.user?.photoURL = nil }
+        }
         guard savesToServer, previousURL != nil else { return }
-        env.user?.photoURL = nil
         Task {
             do {
                 try await env.api.deletePhoto()
             } catch {
-                env.user?.photoURL = previousURL
-                errorText = "Couldn't remove your photo. Try again."
+                withMotion {
+                    env.user?.photoURL = previousURL
+                    errorText = "Couldn't remove your photo. Try again."
+                }
             }
         }
     }

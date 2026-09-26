@@ -82,6 +82,11 @@ final class CreateFlowModel {
     var activePin: CreatePin = .start
     var search = ""
     private(set) var suggestions: [CreateSuggestion] = []
+    /// false until the first suggestions arrive (the pills show a skeleton until then).
+    private(set) var suggestionsLoaded = false
+    /// A place search is in flight (a small indicator in the search field; the pills stay).
+    private(set) var searchingPlaces = false
+    @ObservationIgnored private var suggestionGeneration = 0
     var range: TravelRange = .transit
     var ride: RideChoice = .none
     var openSeats = 3
@@ -98,6 +103,10 @@ final class CreateFlowModel {
     private(set) var backBy: Date
     var calendarOpen = false
     private(set) var calendarItems: Loadable<[CalendarItem]> = .loading
+    /// The day `calendarItems` belongs to (reopening the same day keeps them while they refresh).
+    @ObservationIgnored private var calendarDayKey: String?
+    /// Reloading a day whose items are already on screen (a small indicator; the items stay).
+    private(set) var calendarRefreshing = false
 
     // MARK: Vibe
 
@@ -229,10 +238,17 @@ final class CreateFlowModel {
     }
 
     func loadSuggestions() async {
+        suggestionGeneration += 1
+        let generation = suggestionGeneration
+        searchingPlaces = true
+        defer { if generation == suggestionGeneration { searchingPlaces = false } }
+
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
         let near = (editingPin == .end ? end : start)?.coordinate ?? start?.coordinate
         var results = await env.places.suggestions(for: query, near: near, limit: 5)
         let current = await currentLocation()
+        // A newer search (the next keystroke) replaced this one: don't flash its stale results.
+        guard generation == suggestionGeneration, !Task.isCancelled else { return }
         results.removeAll { $0.name == current.name }
         var pills: [CreateSuggestion] = []
         if query.isEmpty || "current location".localizedCaseInsensitiveContains(query)
@@ -241,6 +257,7 @@ final class CreateFlowModel {
         }
         pills += results.map { .place($0) }
         suggestions = Array(pills.prefix(4))
+        suggestionsLoaded = true
     }
 
     func pick(_ suggestion: CreateSuggestion) async {
@@ -261,16 +278,20 @@ final class CreateFlowModel {
         }
     }
 
-    /// Map tap: drop the editing pin right away, then replace "Dropped pin" with a readable name.
-    func dropPin(at coordinate: Coordinate) async {
+    /// Map tap: the editing pin lands on the tapped point immediately (synchronously, in the same
+    /// update as the tap), then "Dropped pin" is replaced by a readable name when reverse geocoding
+    /// returns. The coordinate stays the tapped one.
+    func dropPin(at coordinate: Coordinate) {
         let pin = editingPin
         setPlace(Place(name: "Dropped pin", coordinate: coordinate), for: pin)
         let generation = pinGeneration
-        let named = await env.places.place(for: coordinate)
-        guard generation == pinGeneration else { return }
-        switch pin {
-        case .start: start = named
-        case .end: end = named
+        Task {
+            let named = await env.places.place(for: coordinate)
+            guard generation == pinGeneration else { return }
+            switch pin {
+            case .start: start = named
+            case .end: end = named
+            }
         }
     }
 
@@ -304,15 +325,24 @@ final class CreateFlowModel {
         return sameDay > startTime ? sameDay : clock.calendar.date(byAdding: .day, value: 1, to: sameDay) ?? sameDay
     }
 
+    /// Loads the day's calendar. Reopening the same day keeps the items on screen while they
+    /// refresh (and keeps them if the refresh fails); another day starts from the skeleton.
     func loadCalendar() async {
-        calendarItems = .loading
         let day = date
-        calendarItems = await .run {
+        let key = env.clock.dayKey(day)
+        let sameDay = key == calendarDayKey && calendarItems.value != nil
+        if sameDay { calendarRefreshing = true } else { calendarItems = .loading }
+        defer { if sameDay { calendarRefreshing = false } }
+        let result: Loadable<[CalendarItem]> = await .run {
             let days = try await env.api.calendarDays(from: day, to: day)
-            let key = env.clock.dayKey(day)
             let items = days.first { $0.id == key || env.clock.calendar.isDate($0.date, inSameDayAs: day) }?.items ?? []
             return items.sorted { $0.start < $1.start }
         }
+        // The date changed (or the section closed) while this was loading: a newer load owns the list.
+        guard !Task.isCancelled, env.clock.dayKey(date) == key else { return }
+        if sameDay, case .failed = result { return }
+        calendarItems = result
+        calendarDayKey = key
     }
 
     // MARK: - Vibe

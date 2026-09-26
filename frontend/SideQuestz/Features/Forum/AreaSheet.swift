@@ -2,7 +2,8 @@ import MapKit
 import SwiftUI
 
 /// Forum › area pill → "Forum area" sheet (GUI_PLAN.md §7.8): search, a map preview with the radius
-/// circle, the area list and radius chips. Changes apply to the feed right away, like the prototype.
+/// circle, the area list and radius chips. Changes apply to the feed right away, like the prototype
+/// (the feed reloads behind the sheet). The check, the chips and the map glide to each new pick.
 struct ForumAreaSheet: View {
     @Binding var area: String
     @Binding var radiusMi: Int
@@ -72,7 +73,7 @@ struct ForumAreaSheet: View {
         if reduceMotion {
             camera = target
         } else {
-            withAnimation(.easeInOut(duration: 0.35)) { camera = target }
+            withAnimation(Motion.gentle) { camera = target }
         }
     }
 
@@ -88,25 +89,29 @@ struct ForumAreaSheet: View {
         VStack(spacing: 0) {
             ForEach(matchingAreas, id: \.self) { name in
                 let selected = name == area
-                Button {
-                    area = name
-                } label: {
-                    HStack(spacing: 10) {
-                        Text(name)
-                            .socialText(15, selected ? .semibold : .regular)
-                            .foregroundStyle(Theme.ink)
-                        Spacer(minLength: 0)
-                        if selected {
-                            SocialGlyph(kind: .check, size: 18, lineWidth: 2.6).foregroundStyle(Theme.sageInk)
+                VStack(spacing: 0) {
+                    Button {
+                        withMotion(Motion.quick) { area = name }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Text(name)
+                                .socialText(15, selected ? .semibold : .regular)
+                                .foregroundStyle(Theme.ink)
+                            Spacer(minLength: 0)
+                            if selected {
+                                SocialGlyph(kind: .check, size: 18, lineWidth: 2.6).foregroundStyle(Theme.sageInk)
+                                    .sqTransition(.pop)
+                            }
                         }
+                        .padding(.horizontal, 14)
+                        .frame(height: 43)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.horizontal, 14)
-                    .frame(height: 43)
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                    RowDivider()
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selected ? .isSelected : [])
-                RowDivider()
+                .transition(.opacity)
             }
             if matchingAreas.isEmpty {
                 Text("No areas match that search.")
@@ -115,10 +120,13 @@ struct ForumAreaSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 14)
                     .frame(height: 44)
+                    .transition(.opacity)
             }
         }
         .background(Theme.cream)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .animation(Motion.quick, value: area)
+        .animation(Motion.standard, value: matchingAreas)
         .sensoryFeedback(.selection, trigger: area)
     }
 

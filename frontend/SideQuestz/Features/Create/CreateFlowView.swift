@@ -33,13 +33,16 @@ private struct CreateFlowScreen: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
     @Environment(\.safeAreaBottom) private var safeBottom
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var focus: CreateField?
+    /// Which way the last step change went: steps slide in from that side.
+    @State private var forward = true
+    /// A step change waiting for the leaving step to pick up a new direction (see `go(to:)`).
+    @State private var pendingStep: Int?
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            CreateStepper(step: model.step) { go(to: $0) }
+            CreateStepper(step: model.step, forward: forward) { go(to: $0) }
                 .frame(height: 68, alignment: .top)
             ZStack {
                 ScrollView {
@@ -50,7 +53,7 @@ private struct CreateFlowScreen: View {
                 .scrollDismissesKeyboard(.interactively)
                 .scrollDisabled(model.draggingStopId != nil)
                 .id(model.step)
-                .transition(.opacity)
+                .sqTransition(.step(forward: forward))
             }
             .frame(maxHeight: .infinity)
             if focus == nil {
@@ -67,6 +70,12 @@ private struct CreateFlowScreen: View {
         }
         .onAppear(perform: start)
         .onChange(of: env.preferences) { model.applyPreferenceDefaults() }
+        .onChange(of: forward) {
+            // The leaving step now carries the new direction; move on in this next update.
+            guard let target = pendingStep else { return }
+            pendingStep = nil
+            withMotion(Motion.gentle) { model.go(to: target) }
+        }
         .onDisappear { env.voice.cancel() }
     }
 
@@ -117,12 +126,14 @@ private struct CreateFlowScreen: View {
         VStack(spacing: 10) {
             if model.step == 4, let error = model.createError {
                 ErrorBox(messages: [error])
+                    .sqTransition(.rise)
             }
             HStack(spacing: 10) {
                 if model.step > 1 {
                     Button("Back") { go(to: model.step - 1) }
                         .buttonStyle(.sqSecondary)
                         .frame(width: 110)
+                        .transition(.opacity)
                 }
                 primaryButton
             }
@@ -132,6 +143,13 @@ private struct CreateFlowScreen: View {
         .padding(.bottom, max(safeBottom - 3, 12))
         .background(Theme.cream)
         .overlay(alignment: .top) { RowDivider() }
+        .animation(Motion.standard, value: model.createError)
+        // "Next" / "Start this sidequest" turn sage when they become available.
+        .animation(Motion.quick, value: primaryEnabled)
+    }
+
+    private var primaryEnabled: Bool {
+        model.step < 4 ? model.canGoNext : model.selectedOption != nil
     }
 
     @ViewBuilder private var primaryButton: some View {
@@ -140,24 +158,40 @@ private struct CreateFlowScreen: View {
                 .buttonStyle(model.canGoNext ? .sqPrimary : .sqDisabled())
                 .disabled(!model.canGoNext)
         } else {
+            // While POST /itineraries runs the label steps aside for three dots (same size, same name).
             Button(action: startSidequest) {
-                HStack(spacing: 8) {
-                    if model.creating {
-                        ProgressView().tint(Theme.ink)
+                Text("Start this sidequest")
+                    .opacity(model.creating ? 0 : 1)
+                    .overlay {
+                        if model.creating {
+                            LoadingDots(color: Theme.ink, dotSize: 7)
+                                .sqTransition(.pop)
+                        }
                     }
-                    Text("Start this sidequest")
-                }
+                    .animation(Motion.quick, value: model.creating)
             }
             .buttonStyle(model.selectedOption != nil ? .sqPrimary : .sqDisabled())
             .disabled(!model.canStart)
+            .accessibilityLabel("Start this sidequest")
+            .accessibilityValue(model.creating ? "Loading" : "")
         }
     }
 
     // MARK: Actions
 
+    /// Steps slide in from the side you're heading to. A direction change is applied one update
+    /// before the step changes, so the leaving step also exits toward the correct side.
     private func go(to step: Int) {
         focus = nil
-        withAnimation(.easeInOut(duration: reduceMotion ? 0.15 : 0.2)) { model.go(to: step) }
+        let target = min(4, max(1, step))
+        guard target != model.step else { return }
+        let isForward = target > model.step
+        if isForward == forward {
+            withMotion(Motion.gentle) { model.go(to: target) }
+        } else {
+            pendingStep = target
+            forward = isForward
+        }
     }
 
     private func cancel() {
@@ -203,9 +237,17 @@ private struct CreateFlowScreen: View {
 /// 4 circles (28pt) labeled Where · When · Vibe · Review with 2pt connectors. Done = sage + ink
 /// check, current = sage + ink number + bold label, future = white + `mutedBorder` ring.
 /// Tapping a step jumps to it.
+///
+/// Motion: moving forward, the connector fills toward the next step and that circle fills (with a
+/// small pop) as the line reaches it, while the finished step's check draws in. Moving back, the
+/// line drains toward the step you return to.
 private struct CreateStepper: View {
     let step: Int
+    /// The last step change went forward.
+    let forward: Bool
     let select: (Int) -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let labels = ["Where", "When", "Vibe", "Review"]
 
@@ -214,8 +256,7 @@ private struct CreateStepper: View {
             ForEach(1...4, id: \.self) { n in
                 stepButton(n)
                 if n < 4 {
-                    Rectangle()
-                        .fill(n < step ? Theme.sage : Theme.lineStrong)
+                    CreateStepConnector(filled: n < step)
                         .frame(height: 2)
                         .padding(.horizontal, -6)
                         .frame(maxWidth: .infinity)
@@ -240,22 +281,27 @@ private struct CreateStepper: View {
                     Circle().fill(done || current ? Theme.sage : .white)
                     Circle().strokeBorder(done || current ? Theme.sage : Theme.mutedBorder, lineWidth: 1.5)
                     if done {
-                        CheckGlyph(lineWidth: 2.6)
+                        AnimatedCheck(lineWidth: 2.6, delay: 0.08)
                             .foregroundStyle(Theme.ink)
                             .frame(width: 14, height: 14)
+                            .transition(.opacity)
                     } else {
                         Text("\(n)")
                             .sqFont(13, .bold)
                             .foregroundStyle(current ? Theme.ink : Theme.text3)
+                            .transition(.opacity)
                     }
                 }
                 .frame(width: 28, height: 28)
+                .sqBounce(when: current, scale: 1.12)
                 Text(label)
                     .sqFont(12, current ? .bold : .medium, relativeTo: .caption)
                     .foregroundStyle(current ? Theme.ink : Theme.text3)
+                    .contentTransition(.interpolate)
                     .lineLimit(1)
                     .fixedSize()
             }
+            .animation(circleAnimation(n), value: step)
             .frame(width: 48)
             .contentShape(Rectangle())
         }
@@ -263,6 +309,32 @@ private struct CreateStepper: View {
         .accessibilityLabel("Step \(n): \(label)")
         .accessibilityValue(done ? "Done" : current ? "Current step" : "")
         .accessibilityAddTraits(current ? .isSelected : [])
+    }
+
+    /// Moving forward, the new current step fills as the connector reaches it; everything else
+    /// changes right away.
+    private func circleAnimation(_ n: Int) -> Animation {
+        if reduceMotion { return Motion.reduced }
+        return forward && n == step ? Motion.quick.delay(0.2) : Motion.quick
+    }
+}
+
+/// A stepper connector: sage up to the fill point, `lineStrong` after it. The sage part grows from
+/// the left (and drains back to it), animated by the step change's transaction. At rest it's a
+/// single solid bar, exactly like a plain filled rectangle.
+private struct CreateStepConnector: View {
+    let filled: Bool
+
+    var body: some View {
+        GeometryReader { proxy in
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(Theme.sage)
+                    .frame(width: filled ? proxy.size.width : 0)
+                Rectangle()
+                    .fill(Theme.lineStrong)
+            }
+        }
     }
 }
 

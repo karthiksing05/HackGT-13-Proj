@@ -13,11 +13,14 @@ struct SetupFlowView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
     @Environment(\.safeAreaBottom) private var safeBottom
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var step: Int
+    /// Which way the last step change went (steps slide in from the side you're heading to).
+    @State private var forward = true
     @State private var draft = SetupDraft()
     @State private var busy = false
+    /// Saved and on the way out (Home or closing the redo): the button keeps its dots meanwhile.
+    @State private var leaving = false
     @State private var basicsTried = false
     @State private var stepError: String?
     @State private var showPhoto = false
@@ -46,32 +49,38 @@ struct SetupFlowView: View {
                 .padding(.top, 6)
                 .padding(.horizontal, 20)
             ScrollViewReader { proxy in
-                ScrollView {
-                    Group {
-                        if preparing {
-                            LoadingStateView(minHeight: 320)
-                        } else if let loadError {
-                            ErrorStateView(message: loadError, minHeight: 320) {
-                                Task { await prepare() }
+                // A ZStack so the leaving and arriving steps overlap while they slide.
+                ZStack(alignment: .top) {
+                    ScrollView {
+                        ZStack(alignment: .top) {
+                            if preparing {
+                                LoadingStateView(minHeight: 320)
+                                    .transition(.opacity)
+                            } else if let loadError {
+                                ErrorStateView(message: loadError, minHeight: 320) {
+                                    Task { await prepare() }
+                                }
+                                .transition(.opacity)
+                            } else {
+                                stepContent
+                                    .transition(.opacity)
                             }
-                        } else {
-                            stepContent
                         }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+                        .padding(.bottom, 20)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 20)
-                }
-                .id(step)
-                .transition(.opacity)
-                .scrollBounceBehavior(.basedOnSize)
-                .scrollDismissesKeyboard(.interactively)
-                .safeAreaPadding(.bottom, focus == nil ? footerHeight : 12)
-                .onChange(of: scrollTarget) { _, target in
-                    guard let target else { return }
-                    scrollTarget = nil
-                    DispatchQueue.main.async {
-                        withAnimation(.easeInOut(duration: 0.3)) { proxy.scrollTo(target, anchor: .center) }
+                    .id(step)
+                    .sqTransition(.step(forward: forward))
+                    .scrollBounceBehavior(.basedOnSize)
+                    .scrollDismissesKeyboard(.interactively)
+                    .safeAreaPadding(.bottom, focus == nil ? footerHeight : 12)
+                    .onChange(of: scrollTarget) { _, target in
+                        guard let target else { return }
+                        scrollTarget = nil
+                        DispatchQueue.main.async {
+                            withMotion { proxy.scrollTo(target, anchor: .center) }
+                        }
                     }
                 }
             }
@@ -99,6 +108,8 @@ struct SetupFlowView: View {
                 .sqFont(15, .semibold)
                 .foregroundStyle(Theme.text3)
                 .authLineHeight(1.35, size: 15)
+                // The step number rolls with the slide.
+                .contentTransition(.numericText(value: Double(step)))
                 .accessibilityAddTraits(.isHeader)
         } trailing: {
             if step >= 2 {
@@ -111,13 +122,13 @@ struct SetupFlowView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .disabled(busy || preparing || loadError != nil)
+                .disabled(busy || leaving || preparing || loadError != nil)
                 .accessibilityHint("Saves your answers so far and finishes setup")
             }
         }
     }
 
-    /// 4pt track (`segmentBg`), sage fill at step × 20%.
+    /// 4pt track (`segmentBg`), sage fill at step × 20%; the fill glides with the step slide.
     private var progressBar: some View {
         GeometryReader { proxy in
             Rectangle()
@@ -127,7 +138,7 @@ struct SetupFlowView: View {
         .frame(height: 4)
         .background(Theme.segmentBg)
         .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: step)
+        .authMotion(Motion.gentle, value: step)
         .accessibilityHidden(true)
     }
 
@@ -139,7 +150,7 @@ struct SetupFlowView: View {
     private var footer: some View {
         VStack(spacing: 0) {
             Rectangle().fill(Theme.line).frame(height: 1)
-            AuthPrimaryButton(title: nextLabel, busy: busy, action: next)
+            AuthPrimaryButton(title: nextLabel, busy: busy || leaving, action: next)
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
                 .padding(.bottom, footerHeight - 65)
@@ -179,8 +190,10 @@ struct SetupFlowView: View {
             if step != 1, let stepError {
                 ErrorBox(messages: [stepError])
                     .id(SetupScrollTarget.stepError)
+                    .sqTransition(.rise)
             }
         }
+        .authMotion(value: stepError)
     }
 
     // MARK: Navigation
@@ -218,10 +231,25 @@ struct SetupFlowView: View {
 
     private func go(to newStep: Int) {
         focus = nil
-        stepError = nil
         redoSaveFailed = false
         env.voice.cancel()
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { step = newStep }
+        let change = {
+            withMotion(Motion.gentle) {
+                // Step 1's sign-up ends here: its dots turn into the next step's label mid-slide.
+                busy = false
+                stepError = nil
+                step = newStep
+            }
+        }
+        let isForward = newStep > step
+        if isForward == forward {
+            change()
+        } else {
+            // The leaving step keeps the transition it last rendered with, so it has to render once
+            // with the new direction before it's removed (or it would slide out the wrong way).
+            forward = isForward
+            DispatchQueue.main.async(execute: change)
+        }
     }
 
     // MARK: Step 1 · sign up
@@ -240,13 +268,15 @@ struct SetupFlowView: View {
         focus = nil
         busy = true
         Task {
-            defer { busy = false }
             do {
                 try await saveAccount()
                 basicsTried = false
                 go(to: 2)
             } catch {
-                stepError = authMessage(for: error, fallback: "Couldn't create your account. Try again.")
+                withMotion {
+                    busy = false
+                    stepError = authMessage(for: error, fallback: "Couldn't create your account. Try again.")
+                }
                 scrollTarget = .basicsErrors
             }
         }
@@ -290,16 +320,18 @@ struct SetupFlowView: View {
 
     /// Saves the answers, then goes Home (or closes the redo). `leaving`: Back in redo mode.
     private func finish(leaving: Bool) {
-        guard !busy else { return }
+        guard !busy, !self.leaving else { return }
         env.voice.cancel()
         focus = nil
-        stepError = nil
+        withMotion { stepError = nil }
         busy = true
         Task {
-            defer { busy = false }
             do {
                 try await env.api.savePreferences(draft.preferences)
                 env.preferences = draft.preferences
+                // Keep the dots while the flow goes away.
+                self.leaving = true
+                busy = false
                 if isRedo {
                     router.setupRedo = nil
                 } else {
@@ -307,11 +339,14 @@ struct SetupFlowView: View {
                 }
             } catch {
                 let message = authMessage(for: error, fallback: "Couldn't save your answers. Try again.")
-                if leaving {
-                    redoSaveFailed = true
-                    stepError = message + " Tap Back again to leave without saving."
-                } else {
-                    stepError = message
+                withMotion {
+                    busy = false
+                    if leaving {
+                        redoSaveFailed = true
+                        stepError = message + " Tap Back again to leave without saving."
+                    } else {
+                        stepError = message
+                    }
                 }
                 scrollTarget = .stepError
             }
@@ -329,21 +364,24 @@ struct SetupFlowView: View {
 
     private func prepare() async {
         if isRedo && env.preferences == nil {
-            preparing = true
-            loadError = nil
+            withMotion {
+                preparing = true
+                loadError = nil
+            }
             do {
                 let saved = try await env.api.preferences()
                 env.preferences = saved
                 draft.preferences = saved
             } catch {
-                loadError = authMessage(for: error, fallback: "Couldn't load your answers.")
+                withMotion { loadError = authMessage(for: error, fallback: "Couldn't load your answers.") }
             }
         }
         let midSetupDeepLink = isDemoDeepLinkMidSetup
         if router.consumeLaunch("setup") != nil, midSetupDeepLink {
             await createDemoAccountForDeepLink()
         }
-        preparing = false
+        // The loader cross-fades into the step.
+        withMotion { preparing = false }
     }
 
     /// `-SQRoute setup/2…5` in mock mode: the later steps come after sign-up, so create the account

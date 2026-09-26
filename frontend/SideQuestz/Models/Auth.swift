@@ -61,7 +61,7 @@ enum Validation {
     /// Setup step 1 age note copy.
     static func ageNote(age: Int?) -> String {
         guard let age else { return "Only used to recommend age-appropriate events, like 21+ nights. Never shown to others." }
-        if age < 13 { return "You need to be 13 or older to use SideQuestz." }
+        if age < 13 { return "You need to be 13 or older to use SideQuests." }
         if age < 18 { return "Age \(age): we'll only suggest all-ages events and hide 18+ and 21+ ones. Never shown to others." }
         if age < 21 { return "Age \(age): we'll hide 21+ events (bars, some concerts). Never shown to others." }
         return "Age \(age): 21+ events can show up in your suggestions. Never shown to others."

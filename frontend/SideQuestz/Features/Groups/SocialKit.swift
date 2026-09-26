@@ -153,6 +153,76 @@ struct SocialGlyph: View {
     }
 }
 
+// MARK: - Motion
+
+enum SocialMotion {
+    /// For items that were on screen from the start: nothing on insert, a fade when removed.
+    /// (A scale transition left on a view shifts its text by a pixel even at rest, so resting
+    /// screens keep only this one.)
+    static let settled = AnyTransition.asymmetric(insertion: .identity, removal: .opacity)
+
+    /// The kit's transition, or a plain fade with Reduce Motion (what `.sqTransition` does), for
+    /// call sites that pick between it and `settled`.
+    static func transition(_ kind: SQTransition, reduceMotion: Bool) -> AnyTransition {
+        reduceMotion ? .opacity : kind.transition
+    }
+}
+
+extension View {
+    /// List items fade and rise in as they appear: one after another on the load that replaces the
+    /// skeleton (`staggered`), right away when they show up later (a filter change, a refresh).
+    /// Removed items fade out. The item's `index` only matters when it first appears.
+    func socialArrival(_ index: Int, staggered: Bool) -> some View {
+        sqAppear(staggered ? index : 0)
+            .transition(SocialMotion.settled)
+    }
+}
+
+/// `.sqAppear(index)` for items of a first load only, decided once when the item is first built:
+/// later items keep their own insertion transition (chat bubbles, uploaded tiles), and an item
+/// rebuilt later (a lazy grid scrolling) doesn't replay the stagger.
+struct SocialFirstArrival: ViewModifier {
+    let index: Int
+    @State private var staggered: Bool
+
+    init(index: Int, staggered: Bool) {
+        self.index = index
+        _staggered = State(initialValue: staggered)
+    }
+
+    func body(content: Content) -> some View {
+        if staggered {
+            content.sqAppear(index)
+        } else {
+            content
+        }
+    }
+}
+
+/// A button label that keeps its size while the button's request runs: the label fades out and
+/// `LoadingDots` in the label's color take its place. Give the button an explicit
+/// `accessibilityLabel` (and `accessibilityValue("Loading")` while busy).
+struct SocialBusyLabel<Label: View>: View {
+    let isBusy: Bool
+    /// The button's text color.
+    var color: Color
+    var dotSize: CGFloat = 6
+    @ViewBuilder var label: Label
+
+    var body: some View {
+        label
+            .opacity(isBusy ? 0 : 1)
+            .overlay {
+                if isBusy {
+                    LoadingDots(color: color, dotSize: dotSize)
+                        .accessibilityHidden(true)
+                        .transition(.opacity)
+                }
+            }
+            .animation(Motion.quick, value: isBusy)
+    }
+}
+
 // MARK: - People
 
 extension PersonRef {

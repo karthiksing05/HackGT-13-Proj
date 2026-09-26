@@ -94,6 +94,12 @@ enum Theme {
     static let mapBackground = Color(hex: 0xE8ECE4)
     static let mapPark = Color(hex: 0xCFE3C8)
     static let dim = Color.black.opacity(0.35)
+
+    // Loading placeholders
+    /// Skeleton bars on white cards.
+    static let skeleton = Color(hex: 0xECECE5)
+    /// Skeleton bars directly on the cream background.
+    static let skeletonOnCream = Color(hex: 0xE4E4DB)
 }
 
 /// Visual treatment of each timeline block kind (prototype `KIND` table).

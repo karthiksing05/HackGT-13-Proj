@@ -1,6 +1,6 @@
-# SideQuestz for iOS — build prompt
+# SideQuests for iOS — build prompt
 
-You are building **SideQuestz**, a native iOS app in **Swift + SwiftUI**, for HackGT 13. A clickable prototype already exists and is the source of truth for how every screen looks and behaves. Your job is to rebuild it natively, **matching the visual style exactly**, and wire it to a real backend through a clean API layer that can also run fully on mock data for the demo.
+You are building **SideQuests**, a native iOS app in **Swift + SwiftUI**, for HackGT 13. A clickable prototype already exists and is the source of truth for how every screen looks and behaves. Your job is to rebuild it natively, **matching the visual style exactly**, and wire it to a real backend through a clean API layer that can also run fully on mock data for the demo.
 
 Read this whole prompt before writing code. Then read the reference artifact (section 1). When this prompt and the prototype disagree on a visual detail, **the prototype wins**. When they disagree on behavior or data, **this prompt wins**.
 
@@ -29,7 +29,7 @@ Read this whole prompt before writing code. Then read the reference artifact (se
 
 ## 2. What the app is
 
-**Pitch:** You have time to kill (a gap between classes, a delayed flight, a free afternoon) but finding something good to do takes too long. SideQuestz plans it for you. Tell it where you are, where you need to end up and by when, and what you're in the mood for (typed or by voice). It builds a timed itinerary with transit between stops that gets you back on time. You can go solo, go with friends, or open the plan so nearby people can join.
+**Pitch:** You have time to kill (a gap between classes, a delayed flight, a free afternoon) but finding something good to do takes too long. SideQuests plans it for you. Tell it where you are, where you need to end up and by when, and what you're in the mood for (typed or by voice). It builds a timed itinerary with transit between stops that gets you back on time. You can go solo, go with friends, or open the plan so nearby people can join.
 
 **Audience:** college students and solo travelers with flexible time. "Type-B fun, planned Type-A."
 
@@ -42,7 +42,7 @@ Read this whole prompt before writing code. Then read the reference artifact (se
 4. Share (Forum, Groups, chat, album, split costs)
 5. Rate what you did, which improves future suggestions
 
-**Hackathon sponsor tech to show:** Gemini (plan generation and ranking, on the backend), Wispr Flow (voice input), MongoDB (backend store), Visa (agentic checkout and settling group balances).
+**Hackathon sponsor tech to show:** Gemini (plan generation and ranking, on the backend), MongoDB (backend store), Visa (agentic checkout and settling group balances). Voice input uses Apple's Speech framework.
 
 ---
 
@@ -57,8 +57,8 @@ Read this whole prompt before writing code. Then read the reference artifact (se
 - Calendars: Google/Outlook connect through `ASWebAuthenticationSession`, pointed at the backend OAuth URLs. The app never reads event details, only free/busy blocks.
 - In-app browser: `SFSafariViewController`, wrapped for SwiftUI and shown as a sheet.
 - Photos: `PhotosPicker` for the library, plus a camera wrapper (`UIImagePickerController`, `.camera`).
-- Voice: a `VoiceInputService` protocol. Integrate **Wispr Flow** according to its current docs. Add an Apple `Speech` (`SFSpeechRecognizer`) fallback so the demo always works. Voice turns into text and fills the text field. Nothing else changes.
-- Local flags: `@AppStorage("hasSeenIntro")`.
+- Voice: a `VoiceInputService` built on Apple `Speech` (`SFSpeechRecognizer`), on device when supported. Voice turns into text and fills the text field. Nothing else changes.
+- Local flags: none persisted for the intro (it plays on every cold launch; `-SQSkipIntro YES` skips it).
 - Haptics: `sensoryFeedback` for selection changes, drop-to-reorder and success.
 
 **Suggested folder layout**
@@ -118,11 +118,11 @@ Add `Color(hex:)` and a `Theme` namespace with these names.
 
 | Style | Font | Size / weight | Tracking | Where |
 |---|---|---|---|---|
-| `largeTitle` | JetBrains Mono | 32 / ExtraBold | −1 | Tab screen titles ("Your sidequestz", "Forum", "Groups") |
+| `largeTitle` | JetBrains Mono | 32 / ExtraBold | −1 | Tab screen titles ("Your SideQuests", "Forum", "Groups") |
 | `setupTitle` | JetBrains Mono | 28 / ExtraBold | −0.8 | Setup + forgot-password step titles |
 | `stepTitle` | JetBrains Mono | 26 / ExtraBold | −0.4 | Create step titles |
 | `section` | JetBrains Mono | 19 / Bold | −0.4 | Section headers ("Active itineraries", "Taste profile") |
-| `wordmark` | JetBrains Mono | 40–52 / ExtraBold | −2 | "SideQuest" in ink + "z" in sage |
+| `wordmark` | JetBrains Mono | 40–52 / ExtraBold | −2 | "Side" in sage + "Quests" in ink |
 | `sheetTitle` | SF | 26 / Bold (event sheet), 20–22 / Bold (other sheets) | 0 | Sheet titles |
 | `eyebrow` | SF | 13 / Semibold, UPPERCASE | +0.4 | "FRIDAY, SEPTEMBER 25", "QUICK PICKS", "HOW FAR WILL YOU GO IN BETWEEN?" |
 | `body` | SF | 15 / Regular, line spacing ≈ 1.35× | 0 | Default |
@@ -180,13 +180,13 @@ struct LogoMark: View {
 ```
 
 ### 5.2 Wordmark
-`Text("SideQuest") + Text("z").foregroundStyle(Theme.sage)`, JetBrains Mono ExtraBold, tracking −2, ink. It goes beside or under the mark and is never recolored.
+`Text("Side").foregroundStyle(Theme.sage) + Text("Quests").foregroundStyle(Theme.ink)`, JetBrains Mono ExtraBold, tracking −2. It goes beside or under the mark and is never recolored.
 
 ---
 
-## 6. Opening animation (first launch only)
+## 6. Opening animation (every cold launch)
 
-- Plays **only the first time the app launches** (`hasSeenIntro == false`), then sets the flag. After that the app opens straight to Login (or Home if signed in).
+- Plays **every time the app starts cold** (not when it returns from the background), then goes to Login (or Home if signed in).
 - Background cream. Centered stack: mark (132pt), 22pt gap, wordmark (40pt) with the tagline under it (15pt `text3`, "Turn waiting into wandering.").
 - Timeline (seconds from appear):
   1. **0.08 Rise + spin:** the mark starts at `offset(y: +560)`, `rotationEffect(-540°)`, `scale 0.55`, `opacity 0`. It animates to 0 / 0° / 1 / 1 over **1.1s** with ease-out (`cubic-bezier(0.22, 1, 0.36, 1)`, or `.spring(response: 1.0, dampingFraction: 0.85)`). Opacity uses 0.25s.
@@ -203,7 +203,7 @@ struct LogoMark: View {
 All copy below is final. Keep it word for word, including sentence case and the curly quotes/em dashes where shown.
 
 ### 7.1 Root navigation
-- `RootView` routes to: Splash (first launch) → Auth (Login, Forgot password, Profile setup) → Main.
+- `RootView` routes to: Splash (cold launch) → Auth (Login, Forgot password, Profile setup) → Main.
 - Main is a `ZStack` of the current tab + the custom tab bar. **Full-screen flows hide the tab bar:** Create (presented with `fullScreenCover` from +), Thread (group chat, DM), Profile setup, Forgot password.
 
 ### 7.2 Login (email + password only)
@@ -246,7 +246,7 @@ All copy below is final. Keep it word for word, including sentence case and the 
      - Fields: Name, Email, **Create a password**, **Confirm password** (+ rules), Username (optional, "@handle"), **Date of birth** (date picker, max today).
      - Age note, a `sageTint` box with a lock icon, text depending on age:
        - none: "Only used to recommend age-appropriate events, like 21+ nights. Never shown to others."
-       - under 13: red box, "You need to be 13 or older to use SideQuestz."
+       - under 13: red box, "You need to be 13 or older to use SideQuests."
        - 13–17: "Age N: we'll only suggest all-ages events and hide 18+ and 21+ ones. Never shown to others."
        - 18–20: "Age N: we'll hide 21+ events (bars, some concerts). Never shown to others."
        - 21+: "Age N: 21+ events can show up in your suggestions. Never shown to others."
@@ -271,12 +271,12 @@ All copy below is final. Keep it word for word, including sentence case and the 
        - "Describe your perfect free afternoon." (placeholder "e.g. a long walk somewhere green, then tacos with a couple friends")
        - "What's something you'd never want to do on a sidequest?" ("e.g. anything with huge crowds or long lines")
        - "Anything we should plan around?" ("Budget, dietary needs, accessibility, no car, etc.")
-     - Transcripts are appended to the text. Footer "Voice input · Wispr Flow".
+     - Transcripts are appended to the text. Footer "Voice input · Apple Speech".
 - On finish: `POST /auth/signup` (if not already done in step 1), `PUT /me/preferences`, then Home. These answers seed the taste profile.
 
 ### 7.5 Home
 - Header:
-  - Eyebrow with today's date ("FRIDAY, SEPTEMBER 25") and the large title **"Your sidequestz"**.
+  - Eyebrow with today's date ("FRIDAY, SEPTEMBER 25") and the large title **"Your SideQuests"**.
   - Right side: the user's avatar (44) with status dot. Tapping it opens Account.
 - Segmented control (3): **Itineraries | Calendar | Past**.
 
@@ -316,13 +316,13 @@ All copy below is final. Keep it word for word, including sentence case and the 
   - Timeline **6 AM–11 PM at 30pt/hr** (top inset 10), labels every 2 hours (10pt), blocks at left 58 (radius 8, 12pt Semibold "Title · 9:30–10:45 AM"). Group blocks show a 20pt avatar stack.
   - Swiping a panel selects its chip; tapping a chip scrolls to its panel.
 - **No "free time" entries anywhere.**
-- **Drag to plan:**
-  - Press and drag vertically on empty time in a day panel. Snap to 15 minutes; a tap alone selects 1 hour; the minimum is 30 minutes.
-  - While dragging, show a box: 2pt sage border, `sageTint` fill, "New sidequest" (12 Bold sageInk) and "2:00–5:00 PM".
+- **Press and hold to plan** (like Google Calendar):
+  - Press and hold empty time in a day panel (~0.4 s, haptic) to create a 1-hour window there, snapped to 15 minutes. Keep holding and drag up or down to stretch it; the minimum is 30 minutes. A quick tap or an ordinary swipe does nothing, so the page still scrolls.
+  - While holding, show a box: 2pt sage border, `sageTint` fill, "New sidequest" (12 Bold sageInk) and "2:00–5:00 PM". After release, drag its top or bottom edge to adjust it.
   - On release, show under the box: **"Plan this window"** (sage, 36 tall, radius 10, shadow) + a 36pt ink square with ×.
   - "Plan this window" opens Create with the date, start and end prefilled.
-  - Decide horizontal vs vertical from the first 10pt of movement: horizontal pages days, vertical draws the selection.
-- Footer hint: "Drag on empty time to plan a sidequest · swipe for more days".
+  - Horizontal swipes page days; vertical swipes scroll.
+- Footer hint: "Press and hold on empty time to plan a sidequest · swipe for more days".
 
 **7.5c Past**
 - Intro: "Events you went to. Tap one to rate it. Ratings update your taste profile."
@@ -372,12 +372,12 @@ All copy below is final. Keep it word for word, including sentence case and the 
 **Where**
 - **"Where do you start and end?"**
 - White card with 2 rows:
-  - **A** (26pt sageInk circle, white letter) "Start" / "Tech Square (current location)".
-  - **B** (ink circle) "End · where you need to be by the end time" / "Home · North Ave Apts" (or "Same as start").
+  - **A** (the logo's ring pin, `RouteMarker(.start)`, 26pt) "Start" / "Tech Square (current location)".
+  - **B** (the logo's diamond quest marker, `RouteMarker(.end)`) "End · where you need to be by the end time" / "Home · North Ave Apts" (or "Same as start").
   - The active row is tinted with an "Editing" label.
   - "End where I start" toggle.
 - Search field ("Search for your start/end location") + up to 4 suggestion pills (MKLocalSearch results; the first is "Current location").
-- **Map** (350×220, radius 16): tap to drop the active pin. Pin A is a 28pt sage circle with a white 3pt border and an ink "A". Pin B is ink. Bottom-left chip: "Tap the map to drop the Start/End pin". **No line between A and B.**
+- **Map** (350×220, radius 16): tap to drop the active pin. Pin A is the logo's ring and pin B its diamond (`RouteMarker(…, onMap: true)`, 28pt, white halo and shadow). Bottom-left chip: "Tap the map to drop the Start/End pin". **No line between A and B.**
 - "HOW FAR WILL YOU GO IN BETWEEN?": Walkable ≤ 15 min / Transit ≤ 30 min / Anywhere (3 cards; selected sage).
 - "CAN YOU PROVIDE A RIDE THIS TIME?" (asked for **every** sidequest):
   - **I can drive** (Own car), **I'll cover rides** (Uber / Lyft), **No ride** (Walk + transit).
@@ -396,7 +396,7 @@ All copy below is final. Keep it word for word, including sentence case and the 
 
 **Vibe**
 - **"What are you in the mood for?"**
-- Voice card: 76pt round mic (sage, with an 8pt tint halo; red while listening). Labels: "Tap and say what you want" / "Listening… tap to stop". The live transcript shows in quotes. Footer "Voice input · Wispr Flow".
+- Voice card: 76pt round mic (sage, with an 8pt tint halo; red while listening). Labels: "Tap and say what you want" / "Listening… tap to stop". The live transcript shows in quotes. Footer "Voice input · Apple Speech".
 - "Or type it" text area ("e.g. low-key, outdoors, under $20").
 - "QUICK PICKS" multi-select pills (36 tall), selected = sage: Outdoors, Food, Art, Music, Chill, Active, Meet people, Nerdy, Nightlife.
 - "BUDGET": Free / $ / $$ / $$$. The default comes from money preferences.
@@ -415,10 +415,10 @@ All copy below is final. Keep it word for word, including sentence case and the 
     - The summary count updates. API: `POST /plans/generate/more`.
 - Above the route: "Drag ☰ to reorder stops" (with the two-line glyph) on the left, and a status on the right: "Recalculating transit…" (grey), then "Transit times updated" (green).
 - **Route card** (white, radius 16). Vertical rail on the left (2pt `lineStrong` line):
-  - **A** point row: sageInk circle, start place, "Leave 2:10 PM".
+  - **A** point row: the ring marker, start place, "Leave 2:10 PM".
   - Leg rows: hollow 8pt blue ring, "MARTA · 14 min" (13 Medium, transit blue).
   - **Stop** rows: 20pt sage circle with an ink number, title 16 Semibold, "2:24 PM–3:44 PM · Games + views · $", and the **drag handle** on the right. No Swap button.
-  - **B** point row: ink circle, end place, "Arrive 5:57 PM · back by 6:30 PM ✓", or in red "Arrive 6:45 PM · 15 min past 6:30 PM".
+  - **B** point row: the diamond marker, end place, "Arrive 5:57 PM · back by 6:30 PM ✓", or in red "Arrive 6:45 PM · 15 min past 6:30 PM".
 - **Drag to reorder:**
   - Drag the handle. The lifted row gets a white fill, shadow `0 8 24 rgba(0,0,0,.18)` and a 2pt sage ring.
   - Rows swap live when the finger passes a neighbor's midpoint. VoiceOver/keyboard: an adjustable action moves the stop up or down.
@@ -635,14 +635,14 @@ Set the demo in **Atlanta, Friday Sep 25**, with user **Jordan Lee (@jordanlee, 
 1. Design system (colors, fonts, metrics, all components), LogoMark + wordmark, preview gallery.
 2. Splash animation → Login → Forgot password (4) → Profile setup (5) + Photo sheet. Mock auth.
 3. Main shell: custom tab bar, raised +, routing, full-screen flows.
-4. Home: itineraries (cards + swipe timelines + event sheet + browser + checkout), Calendar (chips, day pager, drag to plan), Past + rate sheet.
+4. Home: itineraries (cards + swipe timelines + event sheet + browser + checkout), Calendar (chips, day pager, press and hold to plan), Past + rate sheet.
 5. Create: Where (map + pins + ride), When, Vibe (voice), Review (options, load more, drag reorder + re-time, More options).
 6. Forum (+ area and filter sheets), Groups (chat, album, splits, add expense), DMs, Account (status, Me, Friends).
 7. Swap in `LiveAPIClient` screen by screen, then add the WebSocket.
 
 **Done means:**
 - [ ] Side by side with the artifact boards, each screen matches spacing, radii, colors, type and copy.
-- [ ] Intro plays once, draws the S from the top, then goes to Login; Reduce Motion is respected.
+- [ ] Intro plays on every cold launch, draws the S from the top, then goes to Login; Reduce Motion is respected.
 - [ ] No white text on sage anywhere.
 - [ ] Headers are JetBrains Mono; body text is SF Pro.
 - [ ] All validation messages above appear exactly as written.
@@ -656,4 +656,4 @@ Set the demo in **Atlanta, Friday Sep 25**, with user **Jordan Lee (@jordanlee, 
 - Status doesn't switch automatically; the user sets it.
 - Splits are equal only (no custom amounts).
 - "Change password" in Account: not in v1 (users can reset from Login).
-- The word "sidequest" stays spelled with "s" in UI copy, except the Home title "Your sidequestz" and the brand name "SideQuestz".
+- The brand is "SideQuests" (Home title "Your SideQuests"); in other UI copy the word is spelled "sidequest(s)". The Xcode project, target and bundle ID keep the old internal name `SideQuestz`.

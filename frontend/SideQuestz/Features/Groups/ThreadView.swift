@@ -3,6 +3,10 @@ import SwiftUI
 /// A group chat or DM, shown by `MainShell` over the tabs when `router.openThread` is set
 /// (GUI_PLAN.md §7.9). Groups get Chat | Album | Splits; DMs are chat only. Back closes it.
 ///
+/// Loading: the thread (title, subtitle, album name) and the open tab's data load side by side, so
+/// the header shows placeholder bars while the tab shows its own skeleton. Switching tabs
+/// cross-fades. Pull to refresh on any tab reloads the thread too.
+///
 /// Launch routes: `thread/<id>/chat|album|splits` (starts on `route.tab`), `thread/g1/splits/expense`
 /// (also opens Add expense; `-SQExpenseDemo YES` prefills it), `thread/dm-maya`.
 struct ThreadView: View {
@@ -37,6 +41,12 @@ private struct ThreadScreen: View {
     /// Before the thread loads we go by the id, like the router does for launch routes.
     private var isGroup: Bool { thread.value?.isGroup ?? !route.threadId.hasPrefix("dm-") }
     private var visibleTab: ThreadTab { isGroup ? tab : .chat }
+    /// The tabs to keep alive: the ones opened so far plus the one picked just now, so a first visit
+    /// fades in together with the switch.
+    private var liveTabs: [ThreadTab] {
+        guard isGroup else { return [.chat] }
+        return openedTabs.contains(tab) ? openedTabs : openedTabs + [tab]
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -54,6 +64,7 @@ private struct ThreadScreen: View {
             }
             await loadThread()
         }
+        .sqReloadable("thread.\(route.threadId)") { await refreshThread() }
         .onChange(of: tab) { _, newTab in
             if !openedTabs.contains(newTab) { openedTabs.append(newTab) }
         }
@@ -66,18 +77,8 @@ private struct ThreadScreen: View {
             HStack(spacing: 0) {
                 backButton
                     .frame(width: 80, alignment: .leading)
-                VStack(spacing: 0) {
-                    Text(thread.value?.title ?? "")
-                        .socialText(16, .semibold)
-                        .foregroundStyle(Theme.ink)
-                    Text(thread.value?.subtitle ?? "")
-                        .socialText(12)
-                        .foregroundStyle(Theme.text3)
-                }
-                .lineLimit(1)
-                .frame(maxWidth: .infinity)
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isHeader)
+                titleBlock
+                    .frame(maxWidth: .infinity)
                 Color.clear.frame(width: 80, height: 1)
             }
             .frame(height: 44)
@@ -95,6 +96,36 @@ private struct ThreadScreen: View {
         .designTopPadding(50, minimum: 0)
         .padding(.bottom, 8)
         .background(Color.white.ignoresSafeArea(edges: .top))
+    }
+
+    /// Title + subtitle, or two shimmering bars while the thread loads.
+    private var titleBlock: some View {
+        ZStack {
+            if let loaded = thread.value {
+                VStack(spacing: 0) {
+                    Text(loaded.title)
+                        .socialText(16, .semibold)
+                        .foregroundStyle(Theme.ink)
+                    Text(loaded.subtitle)
+                        .socialText(12)
+                        .foregroundStyle(Theme.text3)
+                }
+                .lineLimit(1)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isHeader)
+                .transition(.opacity)
+            } else if thread.isLoading {
+                VStack(spacing: 7) {
+                    SkeletonBlock(width: 150, height: 14)
+                    SkeletonBlock(width: 104, height: 10)
+                }
+                .sqShimmer()
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Loading")
+                .transition(.opacity)
+            }
+        }
+        .animation(Motion.standard, value: thread.phase)
     }
 
     private var backButton: some View {
@@ -117,47 +148,52 @@ private struct ThreadScreen: View {
     // MARK: Content
 
     @ViewBuilder private var content: some View {
-        switch thread {
-        case .loading:
-            LoadingStateView()
-        case .failed(let message):
+        if case .failed(let message) = thread {
             ErrorStateView(message: message) { Task { await loadThread() } }
-        case .loaded(let loaded):
+                .transition(.opacity)
+        } else {
+            // The tabs load their own data while the thread loads.
             ZStack {
-                ForEach(isGroup ? openedTabs : [.chat]) { item in
+                ForEach(liveTabs) { item in
                     let active = item == visibleTab
-                    tabContent(item, thread: loaded, active: active)
+                    tabContent(item, active: active)
                         .opacity(active ? 1 : 0)
                         .allowsHitTesting(active)
                         .accessibilityHidden(!active)
                         .zIndex(active ? 1 : 0)
+                        .transition(.opacity)
                 }
             }
+            .animation(Motion.standard, value: visibleTab)
+            .transition(.opacity)
         }
     }
 
     @ViewBuilder
-    private func tabContent(_ item: ThreadTab, thread: ChatThread, active: Bool) -> some View {
+    private func tabContent(_ item: ThreadTab, active: Bool) -> some View {
         switch item {
         case .chat:
-            ThreadChatView(thread: thread, draft: $draft, isActive: active)
+            ThreadChatView(threadId: route.threadId, isGroup: isGroup, draft: $draft, isActive: active)
         case .album:
-            GroupAlbumView(thread: thread) { await refreshThread() }
+            GroupAlbumView(groupId: route.threadId, thread: thread.value) { await refreshThread() }
         case .splits:
-            GroupSplitsView(thread: thread, openExpenseOnLoad: $openExpenseOnLoad)
+            GroupSplitsView(groupId: route.threadId, openExpenseOnLoad: $openExpenseOnLoad)
         }
     }
 
     // MARK: Loading
 
     private func loadThread() async {
-        thread = .loading
-        thread = await Loadable.run { try await env.api.thread(id: route.threadId) }
+        if !thread.isLoading { withMotion { thread = .loading } }
+        let result = await Loadable.run { try await env.api.thread(id: route.threadId) }
+        withMotion { thread = result }
     }
 
-    /// Picks up server-side changes (album subtitle after uploads) without a loader.
+    /// Picks up server-side changes (album subtitle after uploads, pull to refresh) without a loader.
     private func refreshThread() async {
-        if let fresh = try? await env.api.thread(id: route.threadId) { thread = .loaded(fresh) }
+        if let fresh = try? await env.api.thread(id: route.threadId) {
+            withMotion { thread = .loaded(fresh) }
+        }
     }
 }
 

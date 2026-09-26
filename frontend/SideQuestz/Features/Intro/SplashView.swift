@@ -48,7 +48,7 @@ struct SplashView: View {
         .ignoresSafeArea()
         .background(Theme.cream.ignoresSafeArea())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("SideQuestz. Turn waiting into wandering.")
+        .accessibilityLabel("SideQuests. Turn waiting into wandering.")
         .task { await play() }
     }
 

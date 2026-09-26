@@ -36,6 +36,7 @@ struct SQTabBar: View {
                 TabGlyph(kind: glyph)
                     .stroke(style: StrokeStyle(lineWidth: 1.8 * 26 / 24, lineCap: .round, lineJoin: .round))
                     .frame(width: 26, height: 26)
+                    .sqBounce(when: active, scale: 1.12)
                 Text(title).font(.system(size: 10, weight: .semibold))
             }
             .padding(.top, 2)
@@ -67,7 +68,7 @@ struct SQTabBar: View {
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.sqPressable)
         .accessibilityLabel("New sidequest")
         .accessibilityIdentifier("tab.plan")
     }

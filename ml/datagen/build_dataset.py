@@ -100,7 +100,7 @@ def render_card(repo_id: str, train: list[dict], test: list[dict], generated: in
 license: apache-2.0
 language:
 - en
-pretty_name: SideQuestz Synthetic Event Embedding Text
+pretty_name: SideQuests Synthetic Event Embedding Text
 size_categories:
 - {size_category(n)}
 task_categories:
@@ -121,9 +121,9 @@ configs:
     path: data/test-*
 ---
 
-# SideQuestz synthetic event embedding text
+# SideQuests synthetic event embedding text
 
-{n:,} synthetic events for the SideQuestz event recommender. Each pairs a messy, realistic raw
+{n:,} synthetic events for the SideQuests event recommender. Each pairs a messy, realistic raw
 listing with its **embedding text**, the compact eight-section format defined in
 [`ml/description_generation.md`](https://github.com/karthiksing05/HackGT-13-Proj/blob/frontend/ml/description_generation.md)
 (Interests, Activities, Social, Environment, Pace, Cost, Timing, Experience). Everything was

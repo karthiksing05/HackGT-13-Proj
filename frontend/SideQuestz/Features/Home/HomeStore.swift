@@ -3,8 +3,9 @@ import SwiftUI
 /// Home's data, all from `env.api`: active itineraries, the unrated past events behind the
 /// "N past events to rate" card, the calendar days and the past events.
 ///
-/// Reloads keep showing what's already on screen (no loading flash); errors only replace content
-/// when nothing has loaded yet.
+/// Reloads keep showing what's already on screen (no loading flash) and swap the fresh data in with
+/// animation (new rows rise in, removed ones fade out); errors only replace content when nothing has
+/// loaded yet.
 @Observable
 final class HomeStore {
     private(set) var itineraries: Loadable<[Itinerary]> = .loading
@@ -16,8 +17,14 @@ final class HomeStore {
     var selectedItineraryId: String?
     /// The selected calendar day (`CalendarDay.id`). Also the day pager's scroll position.
     var selectedDayId: String?
-    /// The drag-to-plan window, on one day.
+    /// The press-and-hold planning window, on one day.
     var planSelection: HomePlanSelection?
+
+    /// A plan just made in Create is on its way: the itineraries stay on screen, dimmed, until it
+    /// arrives.
+    private(set) var awaitsNewItinerary = false
+    /// Per itinerary, bumped to pop its card (the plan you just made) as it scrolls into view.
+    private(set) var cardHighlights: [String: HomeCardHighlight] = [:]
 
     private var wantsDays = false
     private var wantsPast = false
@@ -29,15 +36,18 @@ final class HomeStore {
 
     func loadItineraries(_ env: AppEnvironment) async {
         let result = await Loadable.run { try await env.api.activeItineraries() }
-        itineraries = Self.merge(result, into: itineraries)
-        if let list = itineraries.value, let id = selectedItineraryId, !list.contains(where: { $0.id == id }) {
-            selectedItineraryId = nil
+        withMotion(Motion.arrive) {
+            itineraries = Self.merge(result, into: itineraries)
+            if let list = itineraries.value, let id = selectedItineraryId, !list.contains(where: { $0.id == id }) {
+                selectedItineraryId = nil
+            }
         }
     }
 
     /// Unrated past events for the Itineraries card. Optional content: failures keep the last value.
     func loadToRate(_ env: AppEnvironment) async {
-        if let events = try? await env.api.pastEvents(unratedOnly: true) { toRate = events }
+        guard let events = try? await env.api.pastEvents(unratedOnly: true), events != toRate else { return }
+        withMotion(Motion.arrive) { toRate = events }
     }
 
     func loadDays(_ env: AppEnvironment) async {
@@ -61,16 +71,18 @@ final class HomeStore {
         case .loading:
             filled = .loading
         }
-        days = Self.merge(filled, into: days)
-        if let list = days.value, let id = selectedDayId, !list.contains(where: { $0.id == id }) {
-            selectedDayId = nil
+        withMotion(Motion.arrive) {
+            days = Self.merge(filled, into: days)
+            if let list = days.value, let id = selectedDayId, !list.contains(where: { $0.id == id }) {
+                selectedDayId = nil
+            }
         }
     }
 
     func loadPast(_ env: AppEnvironment) async {
         wantsPast = true
         let result = await Loadable.run { try await env.api.pastEvents(unratedOnly: false) }
-        past = Self.merge(result, into: past)
+        withMotion(Motion.arrive) { past = Self.merge(result, into: past) }
     }
 
     /// First visit to Calendar.
@@ -94,19 +106,45 @@ final class HomeStore {
         _ = await (itineraries, toRate, days, past)
     }
 
+    /// Right after Create: everything reloads while the itineraries stay on screen, dimmed; then the
+    /// new plan is selected and its card pops, once Create's cover (closing since `coverClosedAt`,
+    /// about 0.6 s) is out of the way.
+    func showNewItinerary(_ id: String, env: AppEnvironment, coverClosedAt: Date) async {
+        withMotion { awaitsNewItinerary = true }
+        await refresh(env)
+        withMotion { awaitsNewItinerary = false }
+        guard itineraries.value?.contains(where: { $0.id == id }) == true else { return }
+        withMotion(Motion.gentle) { selectedItineraryId = id }
+        let token = (cardHighlights[id]?.token ?? 0) + 1
+        let delay = max(0.2, 0.6 - Date.now.timeIntervalSince(coverClosedAt))
+        cardHighlights[id] = HomeCardHighlight(token: token, delay: delay)
+    }
+
+    /// The server saved `rating` for a past event: show it right away (the row's Rate pill turns
+    /// into stars, the "to rate" count rolls down) while a refresh confirms it.
+    func applySavedRating(_ rating: Rating, to eventId: String) {
+        withMotion(Motion.arrive) {
+            if case .loaded(var list) = past, let index = list.firstIndex(where: { $0.id == eventId }) {
+                list[index].rating = rating
+                past = .loaded(list)
+            }
+            toRate.removeAll { $0.id == eventId }
+        }
+    }
+
     /// Retry after a failed first load: back to the loading state, then load again.
     func retryItineraries(_ env: AppEnvironment) async {
-        itineraries = .loading
+        withMotion { itineraries = .loading }
         await loadItineraries(env)
     }
 
     func retryDays(_ env: AppEnvironment) async {
-        days = .loading
+        withMotion { days = .loading }
         await loadDays(env)
     }
 
     func retryPast(_ env: AppEnvironment) async {
-        past = .loading
+        withMotion { past = .loading }
         await loadPast(env)
     }
 
@@ -144,28 +182,39 @@ struct HomeEventRoute: Identifiable, Equatable {
     var opensCheckout = false
 }
 
-/// A drag-to-plan window on one calendar day, in minutes since midnight (snapped to 15).
+/// A press-and-hold planning window on one calendar day, in minutes since midnight (15-minute steps).
 struct HomePlanSelection: Equatable {
+    /// New for every press and hold, so a new window animates in instead of the old one moving.
+    var id = UUID()
     var dayId: String
-    /// Where the drag started.
-    var anchor: Int
-    /// Where the finger is (or ended).
-    var current: Int
-    var isDragging: Bool
-
-    var lower: Int { min(anchor, current) }
-    var upper: Int { max(anchor, current) }
+    var start: Int
+    var end: Int
+    /// A finger is drawing or resizing it; the "Plan this window" bar waits for the release.
+    var isAdjusting: Bool
 
     static let earliest = 6 * 60
     static let latest = 23 * 60
+    /// A new window is an hour long; resizing stops at half an hour.
+    static let defaultLength = 60
+    static let minimumLength = 30
 
-    /// Released: under 30 minutes becomes an hour (a tap selects one hour), clamped to 6 AM–11 PM.
-    func finished() -> HomePlanSelection {
-        var lo = lower, hi = upper
-        if hi - lo < 30 { hi = min(Self.latest, lo + 60) }
-        if hi - lo < 30 { lo = max(Self.earliest, hi - 60) }
-        return HomePlanSelection(dayId: dayId, anchor: lo, current: hi, isDragging: false)
+    /// A one-hour window starting at `minute`, kept inside 6 AM–11 PM.
+    static func hour(at minute: Int, dayId: String) -> HomePlanSelection {
+        let start = min(max(minute, earliest), latest - defaultLength)
+        return HomePlanSelection(dayId: dayId, start: start, end: start + defaultLength, isAdjusting: true)
     }
+}
+
+/// Pops an itinerary card once per `token`, `delay` seconds after it's set.
+struct HomeCardHighlight: Equatable {
+    var token: Int
+    var delay: Double
+}
+
+/// A rating the server just saved from the Rate sheet, shown once the sheet is out of the way.
+struct HomeSavedRating: Equatable {
+    let eventId: String
+    let rating: Rating
 }
 
 extension View {

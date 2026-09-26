@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Forum › Filter → "Sort & filter" sheet (GUI_PLAN.md §7.8). Edits a pending copy of the query;
 /// "Show N results" counts what the API returns for it. The forum applies it when the sheet closes.
+/// While a new count loads the number turns into loading dots ("Show ••• results").
 ///
 /// Present with `.sqSheet(isPresented:)` (fitted): the options scroll above a pinned
 /// "Show N results" button, capped at the prototype's 760pt sheet height.
@@ -12,6 +13,10 @@ struct ForumFilterSheet: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.safeAreaBottom) private var safeBottom
     @State private var count: Int?
+    /// The query `count` belongs to (nil = none yet), so reopening with a known count skips the call.
+    @State private var countedQuery: ForumQuery?
+    /// A count for the current options is loading.
+    @State private var counting = false
     /// Measured height of the options; starts large so the first frame opens at full height.
     @State private var optionsHeight: CGFloat = 10_000
 
@@ -24,6 +29,7 @@ struct ForumFilterSheet: View {
         _pending = pending
         self.close = close
         _count = State(initialValue: initialCount)
+        _countedQuery = State(initialValue: initialCount == nil ? nil : pending.wrappedValue)
     }
 
     var body: some View {
@@ -37,8 +43,10 @@ struct ForumFilterSheet: View {
             .scrollBounceBehavior(.basedOnSize)
             .frame(height: min(optionsHeight, maxSheetHeight - safeBottom - footerHeight))
 
-            Button(showLabel, action: close)
+            Button(action: close) { showButtonLabel }
                 .buttonStyle(.sqPrimary)
+                .accessibilityLabel(showLabel)
+                .accessibilityValue(counting ? "Loading" : "")
                 .padding(.horizontal, Metrics.side)
                 .padding(.top, 12)
                 .padding(.bottom, max(0, 34 - safeBottom))
@@ -56,7 +64,7 @@ struct ForumFilterSheet: View {
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
             Button {
-                pending = pending.clearingFilters()
+                withMotion(Motion.quick) { pending = pending.clearingFilters() }
             } label: {
                 Text("Clear all")
                     .sqFont(15, .semibold)
@@ -118,7 +126,7 @@ struct ForumFilterSheet: View {
             ForEach(ForumSort.allCases) { sort in
                 let selected = pending.sort == sort
                 Button {
-                    pending.sort = sort
+                    withMotion(Motion.quick) { pending.sort = sort }
                 } label: {
                     HStack {
                         Text(sort.label)
@@ -127,6 +135,7 @@ struct ForumFilterSheet: View {
                         Spacer(minLength: 0)
                         if selected {
                             SocialGlyph(kind: .check, size: 14, lineWidth: 2.8).foregroundStyle(Theme.sageInk)
+                                .sqTransition(.pop)
                         }
                     }
                     .padding(.horizontal, 14)
@@ -141,6 +150,7 @@ struct ForumFilterSheet: View {
         }
         .background(Theme.cream)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .animation(Motion.quick, value: pending.sort)
         .sensoryFeedback(.selection, trigger: pending.sort)
     }
 
@@ -163,12 +173,47 @@ struct ForumFilterSheet: View {
         return "Show \(count) \(count == 1 ? "result" : "results")"
     }
 
+    /// "Show 5 results", or "Show ••• results" while the count for new options loads.
+    private var showButtonLabel: some View {
+        ZStack {
+            if counting {
+                HStack(spacing: 7) {
+                    Text("Show")
+                    LoadingDots(color: Theme.ink, dotSize: 6).accessibilityHidden(true)
+                    Text("results")
+                }
+                .transition(.opacity)
+            } else {
+                Text(showLabel)
+                    .sqNumeric()
+                    .transition(.opacity)
+            }
+        }
+        .animation(Motion.standard, value: counting)
+    }
+
     private func recount() async {
+        let request = pending
+        guard request != countedQuery else {
+            if counting { withMotion { counting = false } }
+            return
+        }
+        counting = true
         do {
-            let posts = try await env.api.forumPosts(pending)
-            if !Task.isCancelled { count = posts.count }
+            let posts = try await env.api.forumPosts(request)
+            guard !Task.isCancelled else { return }
+            withMotion {
+                count = posts.count
+                countedQuery = request
+                counting = false
+            }
         } catch {
-            if !Task.isCancelled { count = nil }
+            guard !Task.isCancelled else { return }
+            withMotion {
+                count = nil
+                countedQuery = nil
+                counting = false
+            }
         }
     }
 

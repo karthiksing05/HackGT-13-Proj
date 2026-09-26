@@ -2,9 +2,13 @@ import SwiftUI
 
 /// One Forum post (GUI_PLAN.md §7.8): an open plan ("Request to join") or a free-now post
 /// ("Plan together"). White card, radius 16, padding 14, 10pt gaps.
+///
+/// Motion: while the card's request runs the button shows `LoadingDots`; when it's done the label
+/// and colors morph ("Message sent" draws a check in). The spots bar fills in when the card appears
+/// and slides when the spots change.
 struct ForumPostCard: View {
     let post: ForumPost
-    /// The card's action is in flight (button disabled, spinner).
+    /// The card's action is in flight (button disabled, loading dots).
     var isBusy = false
     /// Last action failure for this card.
     var error: String?
@@ -36,6 +40,7 @@ struct ForumPostCard: View {
                     .socialText(12)
                     .foregroundStyle(Theme.dangerText)
                     .accessibilityAddTraits(.isStaticText)
+                    .sqTransition(.rise)
             }
         }
         .padding(Metrics.cardPadding)
@@ -101,13 +106,14 @@ struct ForumPostCard: View {
             Text(post.peopleLine)
                 .socialText(13)
                 .foregroundStyle(Theme.text2)
+                .sqNumeric()
         }
         .accessibilityElement(children: .combine)
         if post.spotsLabel != nil || post.lockLabel != nil {
             VStack(spacing: 6) {
                 SpotsBar(fraction: post.fillFraction)
                 HStack {
-                    if let spots = post.spotsLabel { Text(spots) }
+                    if let spots = post.spotsLabel { Text(spots).sqNumeric() }
                     Spacer(minLength: 8)
                     if let lock = post.lockLabel {
                         HStack(spacing: 4) {
@@ -138,16 +144,24 @@ struct ForumPostCard: View {
     private var actionButton: some View {
         let colors = buttonColors
         return Button(action: action) {
-            HStack(spacing: 8) {
-                if isBusy {
-                    ProgressView().controlSize(.small).tint(colors.text)
+            SocialBusyLabel(isBusy: isBusy, color: colors.text) {
+                HStack(spacing: 6) {
+                    // "Message sent" confirms with a check that draws itself in.
+                    if !isPlan && post.planTogetherSent {
+                        AnimatedCheck(lineWidth: 2.8, delay: 0.12)
+                            .frame(width: 14, height: 14)
+                            .sqTransition(.pop)
+                    }
+                    Text(buttonLabel)
+                        .contentTransition(.interpolate)
                 }
-                Text(buttonLabel)
             }
         }
         .buttonStyle(.sq(fill: colors.fill, foreground: colors.text, border: colors.border, borderWidth: 1.5,
                          height: 40, radius: 12, fontSize: 15))
         .disabled(isBusy)
+        .accessibilityLabel(buttonLabel)
+        .accessibilityValue(isBusy ? "Loading" : "")
         .accessibilityHint(accessibilityHint)
     }
 
@@ -180,18 +194,63 @@ private struct GoingFaces: View {
 }
 
 /// 6pt spots bar: sage fill on a `line` track, rounded ends (the fill is clipped, not rounded).
+/// Fills in from the left when it first appears; later changes slide inside the caller's animation.
 private struct SpotsBar: View {
     let fraction: Double
+    @State private var filled = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { proxy in
             Rectangle()
                 .fill(Theme.sage)
-                .frame(width: proxy.size.width * max(0, min(1, fraction)))
+                .frame(width: proxy.size.width * (filled || reduceMotion ? max(0, min(1, fraction)) : 0))
         }
         .frame(height: 6)
         .background(Theme.line)
         .clipShape(Capsule())
         .accessibilityHidden(true)
+        .onAppear {
+            guard !filled, !reduceMotion else { return }
+            withAnimation(Motion.gentle.delay(0.15)) { filled = true }
+        }
+    }
+}
+
+/// Loading placeholder shaped like a post card: avatar and name lines, the type tag, two lines of
+/// text and the action button. Stack a few inside `.sqShimmer()`.
+struct ForumPostSkeletonCard: View {
+    /// Varies the line lengths from card to card.
+    var seed = 0
+
+    private var widths: (name: CGFloat, meta: CGFloat, line: CGFloat) {
+        let options: [(CGFloat, CGFloat, CGFloat)] = [(96, 150, 0.72), (82, 128, 0.58), (104, 140, 0.8)]
+        return options[seed % options.count]
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Circle().fill(Theme.skeleton).frame(width: 36, height: 36)
+                VStack(alignment: .leading, spacing: 7) {
+                    SkeletonBlock(width: widths.name, height: 13)
+                    SkeletonBlock(width: widths.meta, height: 10)
+                }
+                Spacer(minLength: 0)
+                SkeletonBlock(width: 66, height: 22, radius: 8)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                SkeletonBlock(height: 12)
+                GeometryReader { proxy in
+                    SkeletonBlock(width: proxy.size.width * widths.line, height: 12)
+                }
+                .frame(height: 12)
+            }
+            .padding(.vertical, 3)
+            SkeletonBlock(height: 40, radius: 12)
+        }
+        .padding(Metrics.cardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
     }
 }

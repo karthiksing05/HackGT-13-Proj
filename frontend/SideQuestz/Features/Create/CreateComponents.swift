@@ -1,3 +1,4 @@
+import CoreText
 import SwiftUI
 import UIKit
 
@@ -94,6 +95,187 @@ private struct CreateWrapLabel: UIViewRepresentable {
         }
         let size = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
         return CGSize(width: width, height: pixelCeil(size.height))
+    }
+}
+
+// MARK: - Text that animates its changes
+
+/// A `CreateWrapText` whose changes animate: digits roll (`.sqNumeric()`) when a time or a count
+/// changes, and new words settle in.
+///
+/// At rest it *is* the `CreateWrapText` label, so it looks exactly like one. When `text` changes,
+/// the label steps aside for a SwiftUI copy of the old text (same font, line box and greedy line
+/// breaks, computed with Core Text and drawn as explicit lines), which rolls to the new text; once
+/// the roll has played the label, already holding the new text, takes over again. Each change
+/// restarts the roll from whatever is on screen, and the latest text always wins. The label stays
+/// in the layout throughout, so the container eases to the new height with the change.
+struct CreateLiveText: View {
+    let text: String
+    var weight: UIFont.Weight = .regular
+    var size: CGFloat
+    var textStyle: UIFont.TextStyle = .body
+    var color: Color = Theme.ink
+    var lineHeight: CGFloat = 1.35
+    var alignment: NSTextAlignment = .natural
+
+    /// What the rolling copy shows; it catches up with `text` inside the roll animation.
+    @State private var shown: String
+    @State private var rolling = false
+    @State private var width: CGFloat?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The CSS half-leading above the first and below the last line scales like `CreateWrapText`'s.
+    @ScaledMetric private var scale: CGFloat = 1
+
+    init(text: String, weight: UIFont.Weight = .regular, size: CGFloat, textStyle: UIFont.TextStyle = .body,
+         color: Color = Theme.ink, lineHeight: CGFloat = 1.35, alignment: NSTextAlignment = .natural) {
+        self.text = text
+        self.weight = weight
+        self.size = size
+        self.textStyle = textStyle
+        self.color = color
+        self.lineHeight = lineHeight
+        self.alignment = alignment
+        _shown = State(initialValue: text)
+    }
+
+    var body: some View {
+        // Already false on the first frame after a change (before the roll starts), so the label
+        // never flashes the new text ahead of the roll.
+        let settled = text == shown && !rolling
+        CreateWrapText(text: text, face: .system(weight), size: size, textStyle: textStyle, color: color,
+                       lineHeight: lineHeight, alignment: alignment)
+            .opacity(settled ? 1 : 0)
+            .animation(nil, value: settled)
+            .overlay(alignment: alignment == .center ? .top : .topLeading) {
+                rollingCopy
+                    .opacity(settled ? 0 : 1)
+                    .animation(nil, value: settled)
+                    .accessibilityHidden(true)
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+            .task(id: text) { await roll(to: text) }
+    }
+
+    private var rollingCopy: some View {
+        let font = scaledFont
+        let lines = width.map { Self.greedyLines(shown, font: font, width: $0) }
+        return Text(lines ?? shown)
+            .font(Font(font as CTFont))
+            .foregroundStyle(color)
+            .lineSpacing(max(0, lineHeight * font.pointSize - font.lineHeight))
+            .multilineTextAlignment(alignment == .center ? .center : .leading)
+            // Explicit lines never re-wrap (a line measured a hair wider than the frame would).
+            .fixedSize(horizontal: lines != nil, vertical: true)
+            .sqNumeric()
+            .padding(.vertical, halfLeading)
+    }
+
+    /// A little longer than `Motion.standard`, so the roll has finished when the label takes over.
+    private static let rollDuration: Duration = .milliseconds(450)
+
+    /// Rolls the copy to `new`, then hands back to the label. A newer change cancels this roll and
+    /// starts its own from what's on screen.
+    private func roll(to new: String) async {
+        guard new != shown else {
+            // First appearance, or back on screen after an interrupted roll.
+            rolling = false
+            return
+        }
+        guard !reduceMotion else {
+            shown = new
+            return
+        }
+        rolling = true
+        withAnimation(Motion.standard) { shown = new }
+        try? await Task.sleep(for: Self.rollDuration)
+        guard !Task.isCancelled else { return }
+        rolling = false
+    }
+
+    private var scaledFont: UIFont {
+        let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
+        return UIFontMetrics(forTextStyle: textStyle).scaledFont(for: .systemFont(ofSize: size, weight: weight), compatibleWith: traits)
+    }
+
+    private var halfLeading: CGFloat {
+        max(0, (lineHeight * size - UIFont.systemFont(ofSize: size, weight: weight).lineHeight) / 2) * scale
+    }
+
+    /// Breaks `text` greedily at `width`, the way `CreateWrapText`'s label does (Core Text's
+    /// suggested breaks, no line-break strategy), and joins the lines with newlines.
+    private static func greedyLines(_ text: String, font: UIFont, width: CGFloat) -> String {
+        guard width > 0, !text.isEmpty else { return text }
+        let string = text as NSString
+        let typesetter = CTTypesetterCreateWithAttributedString(NSAttributedString(string: text, attributes: [.font: font]))
+        var lines: [String] = []
+        var start = 0
+        while start < string.length {
+            let count = CTTypesetterSuggestLineBreak(typesetter, start, Double(width))
+            guard count > 0 else { break }
+            var line = string.substring(with: NSRange(location: start, length: count))
+            while let last = line.unicodeScalars.last, CharacterSet.whitespacesAndNewlines.contains(last) {
+                line.unicodeScalars.removeLast()
+            }
+            lines.append(line)
+            start += count
+        }
+        return lines.joined(separator: "\n")
+    }
+}
+
+/// The kit's shimmer highlight for text that's waiting on the server ("Updating transit…"). Unlike
+/// `.sqShimmer(active:)`, turning it off only removes the highlight: the text underneath keeps its
+/// identity, so it can roll to its new value in the same update instead of being replaced.
+private struct CreatePendingShimmer: ViewModifier {
+    let active: Bool
+    @State private var start = Date()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            if active && !reduceMotion {
+                TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
+                    let cycle = 1.4
+                    let t = timeline.date.timeIntervalSince(start).truncatingRemainder(dividingBy: cycle) / cycle
+                    GeometryReader { proxy in
+                        let width = proxy.size.width
+                        LinearGradient(colors: [.white.opacity(0), .white.opacity(0.75), .white.opacity(0)],
+                                       startPoint: .leading, endPoint: .trailing)
+                            .frame(width: width * 0.45)
+                            .offset(x: -width * 0.45 + CGFloat(t) * width * 1.45)
+                    }
+                }
+                .mask(content)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                .transition(.opacity)
+            }
+        }
+    }
+}
+
+extension View {
+    /// A soft highlight sweeping across text while it waits on the server (see `CreatePendingShimmer`).
+    func createPendingShimmer(_ active: Bool) -> some View {
+        modifier(CreatePendingShimmer(active: active))
+    }
+}
+
+/// Cross-fades a UIKit-backed text (`CreateWrapText`) when `value` changes, since a label can't
+/// animate its own text: the old and new copies overlap while the height eases to the new one.
+/// (A ZStack places its content at a fixed size; that's fine for labels, which size themselves.)
+struct CreateCrossfade<Value: Hashable, Content: View>: View {
+    let value: Value
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            content
+                .id(value)
+                .transition(.opacity)
+        }
+        .animation(Motion.standard, value: value)
     }
 }
 
@@ -314,11 +496,13 @@ struct CreateChoiceCards<Value: Hashable>: View {
                     .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.sqPressable)
+                .sqBounce(when: isOn, scale: 1.04)
                 .accessibilityLabel("\(option.title), \(option.subtitle)")
                 .accessibilityAddTraits(isOn ? .isSelected : [])
             }
         }
         .fixedSize(horizontal: false, vertical: true)
+        .animation(Motion.quick, value: selection)
         .sensoryFeedback(.selection, trigger: selection)
     }
 }

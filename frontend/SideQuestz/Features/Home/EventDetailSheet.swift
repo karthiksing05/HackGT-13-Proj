@@ -3,6 +3,11 @@ import SwiftUI
 /// The Event sheet (GUI_PLAN.md §7.6): tap any block. Kind chip, title, time and place,
 /// description, who's in (groups), getting there (not for busy blocks), Website / Get tickets,
 /// notes, and "Rate it after". Presented by `HomeView` with `sqSheet(isPresented:style: .fixed(660))`.
+///
+/// Loading: opened from a timeline it shows the block's copy at once; otherwise a skeleton of the
+/// sheet until the details arrive. "Getting there" loads on its own (in parallel when the kind is
+/// known) with its own skeleton. Notes autosave with a small "Saving…" → "Saved" status; the rating
+/// shows right away and confirms the same way (rolled back if it fails).
 struct HomeEventSheet: View {
     let route: HomeEventRoute
     let close: () -> Void
@@ -10,19 +15,25 @@ struct HomeEventSheet: View {
     let didChange: () -> Void
 
     @Environment(AppEnvironment.self) private var env
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var detail: Loadable<ItineraryItem>
     @State private var transit: Loadable<[TransitOption]> = .loading
+    @State private var transitRequested = false
     @State private var mode: TravelMode?
     @State private var notes: String
     @State private var savedNotes: String
     @State private var notesError: String?
+    @State private var notesStatus: HomeSaveState = .idle
     @State private var rating: Int
     @State private var isRating = false
     @State private var ratingError: String?
+    @State private var ratingStatus: HomeSaveState = .idle
     @State private var showsBrowser = false
     @State private var showsCheckout = false
     @State private var openedCheckout = false
     @FocusState private var notesFocused: Bool
+    /// The selected travel mode's tint and ring slide between the cards.
+    @Namespace private var modeSelection
 
     init(route: HomeEventRoute, close: @escaping () -> Void, didChange: @escaping () -> Void) {
         self.route = route
@@ -36,19 +47,39 @@ struct HomeEventSheet: View {
 
     var body: some View {
         SheetScaffold {
-            switch detail {
-            case .loading:
-                header(kind: nil)
-                LoadingStateView(minHeight: 420)
-            case .failed(let message):
-                header(kind: nil)
-                ErrorStateView(message: message, minHeight: 420) { Task { await load() } }
-            case .loaded(let item):
-                content(item)
+            header(kind: detail.value?.kind)
+            ZStack(alignment: .topLeading) {
+                switch detail {
+                case .loading:
+                    HomeEventSkeleton()
+                        .transition(.opacity)
+                case .failed(let message):
+                    ErrorStateView(message: message, minHeight: 420) { Task { await load() } }
+                        .transition(.opacity)
+                case .loaded(let item):
+                    VStack(alignment: .leading, spacing: 14) { content(item) }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .transition(.opacity)
+                }
             }
+            .animation(reduceMotion ? Motion.reduced : Motion.standard, value: detail.phase)
         }
         .task { await load() }
+        .task { await loadTransitEarly() }
         .task(id: notes) { await saveNotesAfterPause() }
+        .task(id: notesStatus) {
+            // "Saved" shows for a moment, then the header is back to just "NOTES".
+            guard notesStatus == .saved else { return }
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            withMotion { notesStatus = .idle }
+        }
+        .task(id: ratingStatus) {
+            guard ratingStatus == .saved else { return }
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            withMotion { ratingStatus = .idle }
+        }
         .onDisappear(perform: saveNotesOnClose)
         .sheet(isPresented: $showsBrowser) {
             if let url = detail.value?.websiteURL {
@@ -66,7 +97,6 @@ struct HomeEventSheet: View {
 
     @ViewBuilder
     private func content(_ item: ItineraryItem) -> some View {
-        header(kind: item.kind)
         Text(item.title)
             .sqFont(26, .bold, relativeTo: .title)
             .foregroundStyle(Theme.ink)
@@ -99,17 +129,28 @@ struct HomeEventSheet: View {
         }
     }
 
+    /// Kind chip + ×. It stays put while the details load (a placeholder chip shimmers) and the
+    /// real chip pops in.
     private func header(kind: BlockKind?) -> some View {
         HStack(spacing: 8) {
             if let kind {
                 // The kind chip in the prototype's line box (13pt × 1.35 + 4pt padding).
                 TagLabel(text: kind.palette.label, fill: kind.palette.background, foreground: kind.palette.text,
                          fontSize: 13, horizontalPadding: 10, verticalPadding: 5, radius: 8)
+                    .sqTransition(.pop)
+            } else if detail.isLoading {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Theme.skeleton)
+                    .frame(width: 84, height: 26)
+                    .sqShimmer()
+                    .accessibilityHidden(true)
+                    .transition(.opacity)
             }
             Spacer(minLength: 0)
             CloseCircleButton(action: close)
                 .padding(-6)
         }
+        .animation(reduceMotion ? Motion.reduced : Motion.standard, value: kind)
     }
 
     private func iconRow(_ glyph: HomeIcon.Glyph, _ text: String) -> some View {
@@ -181,33 +222,46 @@ struct HomeEventSheet: View {
             .foregroundStyle(Theme.text3)
             .homeLine(13)
             .accessibilityAddTraits(.isHeader)
-        switch transit {
-        case .loading:
-            LoadingStateView(minHeight: 84)
-        case .failed(let message):
-            ErrorStateView(message: message, minHeight: 84) { Task { await loadTransit() } }
-        case .loaded(let options):
-            if options.isEmpty {
-                Text("No routes to show yet.")
-                    .sqFont(15)
-                    .foregroundStyle(Theme.text3)
-            } else {
-                HStack(spacing: 8) {
-                    ForEach(options) { transitCard($0, isSelected: $0.mode == (mode ?? options.first?.mode)) }
+        ZStack(alignment: .topLeading) {
+            switch transit {
+            case .loading:
+                HomeTransitSkeleton()
+                    .transition(.opacity)
+            case .failed(let message):
+                ErrorStateView(message: message, minHeight: 84) { Task { await loadTransit() } }
+                    .transition(.opacity)
+            case .loaded(let options):
+                Group {
+                    if options.isEmpty {
+                        Text("No routes to show yet.")
+                            .sqFont(15)
+                            .foregroundStyle(Theme.text3)
+                    } else {
+                        HStack(spacing: 8) {
+                            ForEach(Array(options.enumerated()), id: \.element.id) { index, option in
+                                transitCard(option, isSelected: option.mode == (mode ?? options.first?.mode))
+                                    .sqAppear(index)
+                            }
+                        }
+                        .sensoryFeedback(.selection, trigger: mode)
+                    }
                 }
-                .sensoryFeedback(.selection, trigger: mode)
+                .transition(.opacity)
             }
         }
+        .animation(reduceMotion ? Motion.reduced : Motion.standard, value: transit.phase)
     }
 
+    /// A travel mode card. Picking one springs the sage tint and ring over from the last pick.
     private func transitCard(_ option: TransitOption, isSelected: Bool) -> some View {
         let cost = Self.cost(option)
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         return Button {
-            mode = option.mode
+            withMotion(Motion.arrive) { mode = option.mode }
         } label: {
             VStack(spacing: 3) {
                 HomeIcon(glyph: Self.glyph(option.mode), size: 22)
+                    .sqBounce(when: isSelected, scale: 1.2)
                 Text(option.mode.label)
                     .sqFont(14, .semibold)
                     .homeLine(14)
@@ -222,13 +276,29 @@ struct HomeEventSheet: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
             .padding(.horizontal, 6)
-            .background(isSelected ? Theme.sageTint : .white, in: shape)
+            .background {
+                ZStack {
+                    shape.fill(.white)
+                    if isSelected {
+                        shape.fill(Theme.sageTint)
+                            .matchedGeometryEffect(id: "mode.tint", in: modeSelection)
+                    }
+                }
+            }
             .overlay {
                 // box-shadow ring outside the card: 2pt sage when selected, 1pt `line` otherwise.
-                let width: CGFloat = isSelected ? 2 : 1
-                RoundedRectangle(cornerRadius: 14 + width, style: .continuous)
-                    .strokeBorder(isSelected ? Theme.sage : Theme.line, lineWidth: width)
-                    .padding(-width)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        .strokeBorder(Theme.line, lineWidth: 1)
+                        .padding(-1)
+                        .opacity(isSelected ? 0 : 1)
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(Theme.sage, lineWidth: 2)
+                            .padding(-2)
+                            .matchedGeometryEffect(id: "mode.ring", in: modeSelection)
+                    }
+                }
             }
             .contentShape(shape)
         }
@@ -290,6 +360,10 @@ struct HomeEventSheet: View {
                     .sqFont(12, .bold, relativeTo: .caption)
                     .tracking(0.4)
                     .foregroundStyle(Theme.text3)
+                if notesStatus != .idle {
+                    HomeSaveStatusLabel(state: notesStatus)
+                        .transition(.opacity)
+                }
                 Spacer(minLength: 8)
                 Text(scope)
                     .sqFont(11, relativeTo: .caption2)
@@ -310,6 +384,7 @@ struct HomeEventSheet: View {
                     Button("Try again") { Task { await saveNotes() } }
                         .buttonStyle(.sqLink(size: 13))
                 }
+                .sqTransition(.rise)
             }
         }
         // 1pt border + the prototype's 12 / 14 padding.
@@ -333,10 +408,19 @@ struct HomeEventSheet: View {
                         .sqFont(15, .semibold)
                         .foregroundStyle(Theme.ink)
                         .homeLine(15)
-                    Text("Tunes your future picks")
-                        .sqFont(12, relativeTo: .caption)
-                        .foregroundStyle(Theme.text3)
-                        .homeLine(12)
+                    // While the rating saves, "Saving…" → "Saved" stands in for the caption.
+                    ZStack(alignment: .leading) {
+                        Text("Tunes your future picks")
+                            .sqFont(12, relativeTo: .caption)
+                            .foregroundStyle(Theme.text3)
+                            .homeLine(12)
+                            .opacity(ratingStatus == .idle ? 1 : 0)
+                        if ratingStatus != .idle {
+                            HomeSaveStatusLabel(state: ratingStatus, size: 12)
+                                .transition(.opacity)
+                        }
+                    }
+                    .animation(reduceMotion ? Motion.reduced : Motion.standard, value: ratingStatus)
                 }
                 Spacer(minLength: 0)
                 StarPicker(rating: Binding(get: { rating }, set: { rate($0) }), size: 26,
@@ -349,6 +433,7 @@ struct HomeEventSheet: View {
                     .sqFont(13)
                     .foregroundStyle(Theme.danger)
                     .padding(.top, 4)
+                    .sqTransition(.rise)
             }
         }
     }
@@ -356,24 +441,26 @@ struct HomeEventSheet: View {
     // MARK: Loading + saving
 
     private func load() async {
-        if detail.value == nil { detail = .loading }
+        if detail.value == nil { withMotion { detail = .loading } }
         let result = await Loadable.run { try await env.api.eventDetail(id: route.id) }
         switch result {
         case .loaded(let item):
-            detail = .loaded(item)
-            if notes == savedNotes {
-                notes = item.notes ?? ""
-                savedNotes = notes
+            withMotion {
+                detail = .loaded(item)
+                if notes == savedNotes {
+                    notes = item.notes ?? ""
+                    savedNotes = notes
+                }
+                if !isRating { rating = item.rating?.stars ?? 0 }
             }
-            if !isRating { rating = item.rating?.stars ?? 0 }
         case .failed(let message):
             // Keep showing the timeline's copy of the block if we have one.
-            if detail.value == nil { detail = .failed(message) }
+            if detail.value == nil { withMotion { detail = .failed(message) } }
         case .loading:
             break
         }
         guard let item = detail.value else { return }
-        if item.kind != .busy { await loadTransit() }
+        if item.kind != .busy, !transitRequested { await loadTransit() }
         if route.opensCheckout, item.bookable, !openedCheckout {
             openedCheckout = true
             // Let the sheet finish sliding up before Checkout goes on top.
@@ -382,9 +469,18 @@ struct HomeEventSheet: View {
         }
     }
 
+    /// Opened from a timeline, the kind is already known: load the routes alongside the details.
+    private func loadTransitEarly() async {
+        guard let seed = route.seed, seed.kind != .busy else { return }
+        await loadTransit()
+    }
+
     private func loadTransit() async {
-        transit = .loading
-        transit = await Loadable.run { try await env.api.transitOptions(itineraryId: route.itineraryId, itemId: route.id) }
+        transitRequested = true
+        if transit.value == nil { withMotion { transit = .loading } }
+        let result = await Loadable.run { try await env.api.transitOptions(itineraryId: route.itineraryId, itemId: route.id) }
+        if case .failed = result, transit.value != nil { return }
+        withMotion(Motion.arrive) { transit = result }
     }
 
     /// Saves notes once typing pauses (the task restarts on every keystroke).
@@ -397,12 +493,22 @@ struct HomeEventSheet: View {
 
     private func saveNotes() async {
         let text = notes
+        withMotion {
+            notesStatus = .saving
+            notesError = nil
+        }
         do {
             try await env.api.updateItemNotes(itineraryId: route.itineraryId, itemId: route.id, notes: text)
             savedNotes = text
-            notesError = nil
+            // Typed more meanwhile: the next pause saves that, so it's still "Saving…".
+            withMotion { notesStatus = notes == text ? .saved : .saving }
         } catch {
-            notesError = "Couldn't save your notes."
+            // Typing again cancelled this save; the next pause saves the newer text.
+            guard !Task.isCancelled else { return }
+            withMotion(Motion.arrive) {
+                notesStatus = .idle
+                notesError = "Couldn't save your notes."
+            }
         }
     }
 
@@ -413,18 +519,26 @@ struct HomeEventSheet: View {
         Task { try? await api.updateItemNotes(itineraryId: itineraryId, itemId: itemId, notes: text) }
     }
 
+    /// Shows the stars right away ("Saving…"), confirms with "Saved", or rolls back and explains.
     private func rate(_ stars: Int) {
         guard let item = detail.value, !isRating, stars != rating else { return }
         let previous = rating
         rating = stars
         isRating = true
-        ratingError = nil
+        withMotion {
+            ratingError = nil
+            ratingStatus = .saving
+        }
         Task {
             do {
                 try await env.api.rate(itemId: item.id, rating: Rating(stars: stars, tags: item.rating?.tags ?? [], note: item.rating?.note))
+                withMotion { ratingStatus = .saved }
             } catch {
-                rating = previous
-                ratingError = (error as? LocalizedError)?.errorDescription ?? "Couldn't save your rating."
+                withMotion(Motion.arrive) {
+                    rating = previous
+                    ratingStatus = .idle
+                    ratingError = (error as? LocalizedError)?.errorDescription ?? "Couldn't save your rating."
+                }
             }
             isRating = false
         }

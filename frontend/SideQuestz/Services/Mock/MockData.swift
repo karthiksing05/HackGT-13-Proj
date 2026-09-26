@@ -100,7 +100,7 @@ enum MockData {
             lockAt: at(9, 25, 17), maxGroupSize: 6,
             items: [
                 ItineraryItem(id: "a1", kind: .busy, title: "CS 3510 lecture", place: Place(name: "Klaus Advanced Computing Building"),
-                              start: at(9, 25, 13, 0), end: at(9, 25, 13, 50), description: "From your Google Calendar. SideQuestz plans around it."),
+                              start: at(9, 25, 13, 0), end: at(9, 25, 13, 50), description: "From your Google Calendar. SideQuests plans around it."),
                 ItineraryItem(id: "a2", kind: .transit, title: "Transit to Ponce City Market", place: Place(name: "Tech Square → Ponce City Market"),
                               start: at(9, 25, 14, 0), end: at(9, 25, 14, 25), description: walkNote),
                 ItineraryItem(id: "a3", kind: .sidequest, title: "Skyline Park rooftop", place: Place(name: "Ponce City Market, rooftop", coordinate: MockPlaces.stops["Skyline Park rooftop"]?.coordinate),

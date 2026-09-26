@@ -1,4 +1,4 @@
-# SideQuestz — backend API endpoints (derived from the mock UI)
+# SideQuests — backend API endpoints (derived from the mock UI)
 
 REST + JSON over HTTPS, bearer token auth (except the auth routes). Money in integer cents. Times in ISO 8601 with time zone. List endpoints use cursor pagination (`?cursor=&limit=`). One WebSocket for live updates.
 
@@ -19,7 +19,7 @@ Rule of thumb: the server owns anything that must be correct for everyone — eq
 - PATCH /me — name, username, date of birth, status (open / online / not free)
 - POST /me/photo — upload image → URL; DELETE /me/photo
 - PATCH /me/avatar — initials color (when no photo)
-- GET /me/preferences, PUT /me/preferences — 1–5 trip-type ratings, company, pace, money prefs (spend, flexibility, split style, prefer free), open-ended answers (text from Wispr Flow)
+- GET /me/preferences, PUT /me/preferences — 1–5 trip-type ratings, company, pace, money prefs (spend, flexibility, split style, prefer free), open-ended answers (typed, or spoken via Apple Speech on the phone)
 - GET /me/taste-profile — the learned bars shown in Account
 - POST /me/devices — APNs push token
 

@@ -20,6 +20,7 @@ struct ForgotEmailStep: View {
                 .onSubmit(onSend)
             if let error {
                 AuthErrorText(message: error)
+                    .sqTransition(.rise)
             }
             AuthPrimaryButton(title: "Send code", busy: busy, action: onSend)
                 .padding(.top, 6)

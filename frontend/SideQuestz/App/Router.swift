@@ -78,8 +78,10 @@ final class Router {
         showLogin()
     }
 
+    /// Switches tabs with a cross-fade (tabs stay alive underneath, so this is just opacity).
     func select(_ tab: Tab) {
-        self.tab = tab
+        guard tab != self.tab else { return }
+        withMotion(Motion.standard) { self.tab = tab }
     }
 
     func openCreate(_ draft: CreateDraft = CreateDraft()) {

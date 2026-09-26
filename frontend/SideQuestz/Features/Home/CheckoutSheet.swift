@@ -3,6 +3,10 @@ import SwiftUI
 /// Agent checkout (Visa), on top of the Event sheet (GUI_PLAN.md §7.6). The agent prepares the
 /// purchase (`POST /checkout/intents`); nothing is spent until "Approve purchase" (`…/approve`).
 /// × (or closing the sheet) cancels a pending intent.
+///
+/// Motion: status lines rotate for as long as the agent prepares the order; then its steps check
+/// off one by one and the receipt rises in. Approving shows loading dots and status lines while the
+/// request runs; "Booked" pops its circle and draws the check in. The sheet eases to each height.
 struct HomeCheckoutSheet: View {
     let item: ItineraryItem
     let close: () -> Void
@@ -10,26 +14,48 @@ struct HomeCheckoutSheet: View {
     let booked: () -> Void
 
     @Environment(AppEnvironment.self) private var env
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var intent: Loadable<CheckoutIntent> = .loading
     @State private var isApproving = false
     @State private var approveError: String?
     @State private var bookings = 0
 
+    /// While the agent prepares the order (true whatever the backend does).
+    private static let preparingLines = [
+        "Getting your tickets ready…",
+        "Finding tickets on the official site…",
+        "Nothing is charged until you approve",
+    ]
+
     var body: some View {
         SheetScaffold {
-            if let current = intent.value, current.state == .booked {
-                bookedContent
-            } else {
-                header
-                switch intent {
-                case .loading:
-                    LoadingStateView(label: "Getting your tickets ready…", minHeight: 280)
-                case .failed(let message):
-                    ErrorStateView(message: message, minHeight: 280) { Task { await start() } }
-                case .loaded(let current):
-                    details(current)
+            ZStack(alignment: .topLeading) {
+                if let current = intent.value, current.state == .booked {
+                    VStack(alignment: .leading, spacing: 14) { bookedContent }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .transition(.opacity)
+                } else {
+                    VStack(alignment: .leading, spacing: 14) {
+                        header
+                        ZStack(alignment: .topLeading) {
+                            switch intent {
+                            case .loading:
+                                LoadingStateView(lines: Self.preparingLines, minHeight: 280)
+                                    .transition(.opacity)
+                            case .failed(let message):
+                                ErrorStateView(message: message, minHeight: 280) { Task { await start() } }
+                                    .transition(.opacity)
+                            case .loaded(let current):
+                                VStack(alignment: .leading, spacing: 14) { details(current) }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .transition(.opacity)
+                            }
+                        }
+                    }
+                    .transition(.opacity)
                 }
             }
+            .animation(reduceMotion ? Motion.reduced : Motion.gentle, value: intent.phase)
         }
         .task { await start() }
         .onDisappear(perform: cancelIfPending)
@@ -53,43 +79,79 @@ struct HomeCheckoutSheet: View {
 
     @ViewBuilder
     private func details(_ current: CheckoutIntent) -> some View {
+        let count = current.steps.count
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(current.steps.enumerated()), id: \.offset) { _, step in
-                stepRow(step)
+            ForEach(Array(current.steps.enumerated()), id: \.offset) { index, step in
+                stepRow(step, index: index)
+                    .sqAppear(index)
             }
         }
         receipt(current)
+            .sqAppear(count)
         cardRow(current)
+            .sqAppear(count + 1)
         Button(action: approve) {
-            HStack(spacing: 8) {
-                if isApproving { ProgressView().tint(.white) }
+            // Loading dots replace the label while the purchase goes through (same size, no jump).
+            ZStack {
                 Text("Approve purchase")
+                    .opacity(isApproving ? 0 : 1)
+                if isApproving {
+                    LoadingDots(color: .white, dotSize: 7)
+                        .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                }
             }
         }
         .buttonStyle(.sqDark)
         .disabled(isApproving)
+        .animation(reduceMotion ? Motion.reduced : Motion.standard, value: isApproving)
+        .accessibilityLabel("Approve purchase")
+        .accessibilityValue(isApproving ? "Processing" : "")
+        .sqAppear(count + 2)
         if let approveError {
             Text(approveError)
                 .sqFont(13)
                 .foregroundStyle(Theme.danger)
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
+                .sqTransition(.rise)
         }
-        Text("The agent can't spend anything until you approve.")
-            .sqFont(12, relativeTo: .caption)
-            .foregroundStyle(Theme.text3)
-            .homeLine(12)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
+        // While approving, what the agent is doing rotates here for as long as the request runs.
+        ZStack {
+            if isApproving {
+                CyclingStatusText(lines: approvingLines(current))
+                    .transition(.opacity)
+            } else {
+                Text("The agent can't spend anything until you approve.")
+                    .transition(.opacity)
+            }
+        }
+        .sqFont(12, relativeTo: .caption)
+        .foregroundStyle(Theme.text3)
+        .homeLine(12)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+        .animation(reduceMotion ? Motion.reduced : Motion.standard, value: isApproving)
+        .sqAppear(count + 3)
     }
 
-    private func stepRow(_ step: CheckoutStep) -> some View {
+    private func approvingLines(_ current: CheckoutIntent) -> [String] {
+        ["Paying with \(current.cardBrand) •••• \(current.cardLast4)…", "Confirming your booking…"]
+    }
+
+    /// A step with its check: done steps draw their check in, one after another.
+    private func stepRow(_ step: CheckoutStep, index: Int) -> some View {
         HStack(spacing: 10) {
-            CheckGlyph(lineWidth: 3)
-                .foregroundStyle(.white)
-                .frame(width: 12, height: 12)
-                .frame(width: 20, height: 20)
-                .background(step.done ? Theme.success : Theme.mutedStar, in: Circle())
+            Group {
+                if step.done {
+                    AnimatedCheck(lineWidth: 3, delay: 0.15 + 0.12 * Double(index))
+                } else {
+                    CheckGlyph(lineWidth: 3)
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(width: 12, height: 12)
+            .frame(width: 20, height: 20)
+            .background(step.done ? Theme.success : Theme.mutedStar, in: Circle())
             Text(step.text)
                 .sqFont(14)
                 .foregroundStyle(step.done ? Theme.ink : Theme.text3)
@@ -120,7 +182,7 @@ struct HomeCheckoutSheet: View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(label).lineLimit(2)
             Spacer(minLength: 8)
-            Text(amount)
+            Text(amount).sqNumeric()
         }
         .homeLine(15)
         .accessibilityElement(children: .combine)
@@ -157,55 +219,68 @@ struct HomeCheckoutSheet: View {
     @ViewBuilder
     private var bookedContent: some View {
         VStack(spacing: 10) {
-            CheckGlyph(lineWidth: 2.4)
+            AnimatedCheck(lineWidth: 2.4, delay: 0.3)
                 .foregroundStyle(.white)
                 .frame(width: 32, height: 32)
                 .frame(width: 64, height: 64)
                 .background(Theme.success, in: Circle())
+                .homePopIn(delay: 0.05)
             Text("Booked")
                 .sqFont(22, .bold, relativeTo: .title2)
                 .foregroundStyle(Theme.ink)
                 .homeLine(22)
                 .accessibilityAddTraits(.isHeader)
+                .sqAppear(2)
             Text("Your ticket is saved to this itinerary. The group sees it too.")
                 .sqFont(15)
                 .foregroundStyle(Theme.text2)
                 .homeLine(15)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 280)
+                .sqAppear(3)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 20)
         .padding(.bottom, 8)
         Button("Done", action: close)
             .buttonStyle(.sqPrimary)
+            .sqAppear(5)
     }
 
     // MARK: Actions
 
     private func start() async {
-        intent = .loading
-        intent = await Loadable.run { try await env.api.createCheckoutIntent(itemId: item.id, quantity: 1) }
+        withMotion { intent = .loading }
+        let result = await Loadable.run { try await env.api.createCheckoutIntent(itemId: item.id, quantity: 1) }
+        withMotion(Motion.gentle) { intent = result }
     }
 
     private func approve() {
         guard let current = intent.value, !isApproving else { return }
-        isApproving = true
-        approveError = nil
+        withMotion {
+            isApproving = true
+            approveError = nil
+        }
         Task {
             do {
                 let updated = try await env.api.approveCheckout(id: current.id)
-                withAnimation(.easeInOut(duration: 0.2)) { intent = .loaded(updated) }
+                withMotion(Motion.gentle) {
+                    intent = .loaded(updated)
+                    isApproving = false
+                    if updated.state != .booked {
+                        approveError = "The purchase didn't go through. Nothing was charged."
+                    }
+                }
                 if updated.state == .booked {
                     bookings += 1
                     booked()
-                } else {
-                    approveError = "The purchase didn't go through. Nothing was charged."
                 }
             } catch {
-                approveError = (error as? LocalizedError)?.errorDescription ?? "Couldn't reach the checkout agent."
+                withMotion(Motion.arrive) {
+                    approveError = (error as? LocalizedError)?.errorDescription ?? "Couldn't reach the checkout agent."
+                    isApproving = false
+                }
             }
-            isApproving = false
         }
     }
 

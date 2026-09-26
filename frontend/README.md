@@ -1,6 +1,6 @@
 # Front-end (iOS app)
 
-**SideQuestz**, the HackGT 13 iPhone app, is built in SwiftUI from [GUI_PLAN.md](GUI_PLAN.md) and the
+**SideQuests**, the HackGT 13 iPhone app, is built in SwiftUI from [GUI_PLAN.md](GUI_PLAN.md) and the
 "SideQuestz Mock UI" design canvas. It's a GUI shell: every screen gets its data through one
 API interface, so the backend, AI and database can be plugged in later. See
 [API_CONTRACT.md](API_CONTRACT.md) for the backend contract.
@@ -33,7 +33,7 @@ Any file you add inside `SideQuestz/` becomes part of the app automatically. You
 
 1. Open `frontend/SideQuestz.xcodeproj` in Xcode.
 2. Choose an iPhone simulator, or your phone (see [Run on your iPhone](#run-on-your-iphone)), in the toolbar.
-3. Press **⌘R**. On first launch you'll see the opening animation, then the sign-in screen. Any valid email with any password signs you in to the demo.
+3. Press **⌘R**. Every cold launch plays the opening animation, then shows the sign-in screen. Any valid email with any password signs you in to the demo. Demo calls take 5 seconds on purpose (`SQMockDelay` in Info.plist) so you can see the loading animations. Pull down on any main screen to reload everything from the API.
 
 To see the intro again, long-press the logo on the sign-in screen.
 
@@ -44,7 +44,8 @@ In Xcode, go to Product → Scheme → Edit Scheme → Run → **Arguments** and
 | Argument | What it does |
 | --- | --- |
 | `-SQRoute home/calendar` | Opens straight to a screen, signed in. Also: `login`, `forgot/2`, `setup/3`, `home`, `home/past`, `home/sheet/a3`, `home/rate/x1`, `create/1`…`create/4`, `create/4/more`, `forum`, `forum/filter`, `groups`, `thread/g1/splits`, `thread/dm-maya`, `account/friends`, `gallery` (the design-system gallery) |
-| `-SQResetIntro YES` | Plays the opening animation again |
+| `-SQSkipIntro YES` | Skips the opening animation, which otherwise plays on every cold launch |
+| `-SQMockDelay 1` | Seconds each demo call waits (Info.plist `SQMockDelay`, 5 for now, so loading animations show). Delete the Info.plist key for realistic per-call timings |
 | `-SQMockLatency 0` | Removes the demo backend's fake network delay |
 | `-SQMockFail forum,itineraries` | Makes those demo endpoints fail, to see error states |
 | `-SQVoiceDemo YES` | Voice buttons return sample transcripts instead of using the mic |
@@ -60,7 +61,7 @@ Press **⌘U** to run both suites (about 3 minutes, most of it the UI tests).
   - reset a password and sign in with it;
   - plan and start a sidequest;
   - drag a stop to re-time the route;
-  - drag on the calendar to plan a window;
+  - press and hold on the calendar to plan a window;
   - "Plan together" into a DM;
   - add a $40 expense split three ways.
 
@@ -73,7 +74,9 @@ To run one suite from Terminal, pass `-only-testing:SideQuestzTests` (or `SideQu
 
 - The contract is [`SideQuestz/Services/APIClient.swift`](SideQuestz/Services/APIClient.swift). The REST wrappers that call your server are in [`LiveAPIClient.swift`](SideQuestz/Services/LiveAPIClient.swift).
 - Plan generation, ranking, transit re-timing, split math, age filtering and the taste profile belong to the server. The app shows whatever the server returns.
-- [API_CONTRACT.md](API_CONTRACT.md) lists every endpoint with example JSON, the realtime WebSocket events, and how Wispr Flow voice input is wired.
+- Loading animations follow the real requests: skeletons and loaders show for exactly as long as your server takes, and the demo's 5-second delay disappears in live mode.
+- Pull to refresh reloads every screen that's open (plus the profile) in parallel. A screen joins in with `.sqReloadable("key") { … }` and gets the gesture with `.sqPullToRefresh()` (see `App/PullToRefresh.swift`).
+- [API_CONTRACT.md](API_CONTRACT.md) lists every endpoint with example JSON, the realtime WebSocket events, and how voice input works (Apple's Speech framework, on device).
 
 ---
 

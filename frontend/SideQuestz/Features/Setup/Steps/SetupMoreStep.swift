@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Setup · 5 "Tell us more": three open questions, typed or spoken (Wispr Flow). Transcripts are
+/// Setup · 5 "Tell us more": three open questions, typed or spoken (Apple Speech). Transcripts are
 /// appended to whatever is already in the box.
 struct SetupMoreStep: View {
     @Environment(AppEnvironment.self) private var env
@@ -15,7 +15,7 @@ struct SetupMoreStep: View {
                                   answer: Binding(get: { draft.answer(question.answerKey) },
                                                   set: { draft.setAnswer(question.answerKey, $0) }))
             }
-            Text("Voice input · Wispr Flow")
+            Text("Voice input · Apple Speech")
                 .sqFont(12)
                 .foregroundStyle(Theme.text3)
                 .authLineHeight(1.35, size: 12)
@@ -50,6 +50,10 @@ private struct SetupQuestionCard: View {
     @Environment(AppEnvironment.self) private var env
     let question: SetupQuestion
     @Binding var answer: String
+    /// Counts transcripts that landed in this card's box (each one fades in).
+    @State private var transcripts = 0
+    /// Whether the last transcript was added after text that was already there.
+    @State private var appended = false
 
     private var listening: Bool { env.voice.isListening(question.id) }
 
@@ -63,8 +67,9 @@ private struct SetupQuestionCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
+                // The halo swells with your voice while listening.
                 MicButton(size: 40, isListening: listening, idleFill: Theme.sageTint, idleIcon: Theme.sageInk,
-                          haloWidth: 6, iconSize: 19, action: toggleVoice)
+                          haloWidth: 6, iconSize: 19, level: listening ? env.voice.level : 0, action: toggleVoice)
                     .padding(-2)
             }
             if listening {
@@ -72,20 +77,26 @@ private struct SetupQuestionCard: View {
                     .sqFont(13, .semibold)
                     .foregroundStyle(Theme.danger)
                     .authLineHeight(1.35, size: 13)
-                    .transition(.opacity)
+                    .sqTransition(.rise)
             }
-            SetupAnswerField(text: $answer, placeholder: question.placeholder, label: question.prompt)
+            SetupAnswerField(text: $answer, placeholder: question.placeholder, label: question.prompt,
+                             transcripts: transcripts, appended: appended)
         }
         .padding(14)
         .background(.white, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-        .animation(.easeInOut(duration: 0.2), value: listening)
+        .authMotion(value: listening)
     }
 
     private func toggleVoice() {
         Task {
             if let text = await env.voice.toggle(question.id, demoTranscript: question.demoTranscript) {
                 let current = answer
-                answer = current.isEmpty ? text : current + " " + text
+                // The box grows to fit and the words fade in.
+                withMotion {
+                    answer = current.isEmpty ? text : current + " " + text
+                    appended = !current.isEmpty
+                    transcripts += 1
+                }
             }
         }
     }
@@ -96,6 +107,9 @@ private struct SetupAnswerField: View {
     @Binding var text: String
     let placeholder: String
     let label: String
+    /// Bumped when a transcript lands: the text fades in (from dim when it was added to earlier text).
+    var transcripts = 0
+    var appended = false
 
     /// Extra leading for a 1.35 line height at 15pt.
     private let leading = 15 * (1.35 - AuthFontMetrics.sf)
@@ -106,6 +120,13 @@ private struct SetupAnswerField: View {
             .sqFont(15)
             .foregroundStyle(Theme.ink)
             .lineSpacing(leading)
+            // Only the words fade (the box stays put).
+            .keyframeAnimator(initialValue: 1.0, trigger: transcripts) { field, opacity in
+                field.opacity(opacity)
+            } keyframes: { _ in
+                MoveKeyframe(appended ? 0.35 : 0)
+                CubicKeyframe(1, duration: 0.5)
+            }
             // rows="3": three 20.25pt lines (the reserved empty lines don't get line spacing).
             .frame(minHeight: 3 * 15 * 1.35 - leading, alignment: .topLeading)
             // CSS: 10pt padding + 1pt border + half-leading.
