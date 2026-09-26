@@ -7,8 +7,11 @@ import (
 	"context"
 	"math"
 	"sort"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 // Radius of the phase-A search around the start point: enough for a plan
@@ -338,7 +341,7 @@ func (p *Planner) retrieve(ctx context.Context, run *Run) error {
 	run.Log.Timings["classifier_ms"] = p.msSince(t)
 	run.Log.ML.Mode = mode
 	run.Log.Counts.Ranked = len(kept)
-	if mode == "classifier" && p.jevEnabled() && cfg.Jev == "sync" {
+	if mode == "classifier" && p.rerankable(run) && cfg.Jev == "sync" {
 		t = p.Clock.Now()
 		p.rerankSync(ctx, run, kept)
 		run.Log.Timings["jev_ms"] = p.msSince(t)
@@ -366,8 +369,8 @@ func (p *Planner) jevEnabled() bool {
 func (p *Planner) rerankSync(ctx context.Context, run *Run, kept []*Candidate) {
 	var send []*Candidate
 	for _, c := range kept {
-		if len(c.Act.Embedding) > 0 && len(send) < run.Cfg.JevTopK {
-			send = append(send, c)
+		if c.ML != nil && len(send) < run.Cfg.JevTopK {
+			send = append(send, c) // scored by the classifier, so its vector was usable
 		}
 	}
 	if len(send) == 0 {
@@ -375,6 +378,7 @@ func (p *Planner) rerankSync(ctx context.Context, run *Run, kept []*Candidate) {
 	}
 	jctx, cancel := context.WithTimeout(ctx, run.Cfg.JevTimeout)
 	defer cancel()
+	p.attachTexts(jctx, run, send)
 	res, err := p.Scorer.Score(jctx, p.scoreRequest(run, send, true))
 	now := p.Clock.Now()
 	jl := &JevLog{Requested: true, CompletedAt: &now, Scores: map[string]float64{}}
@@ -427,7 +431,7 @@ func (p *Planner) fetchEmbeddings(ctx context.Context, run *Run, cands []*Candid
 	}
 	got := 0
 	for _, c := range ordered {
-		if e, ok := embs[c.ID]; ok && len(e) > 0 {
+		if e, ok := embs[c.ID]; ok && usableVec(e, len(e)) {
 			c.Act.Embedding = e
 			got++
 		}
@@ -462,7 +466,7 @@ func (p *Planner) scoreCandidates(ctx context.Context, run *Run, cands []*Candid
 	}
 	var send []*Candidate
 	for _, c := range cands {
-		if len(c.Act.Embedding) > 0 {
+		if usableVec(c.Act.Embedding, len(pos)) {
 			send = append(send, c)
 		}
 	}
@@ -480,8 +484,8 @@ func (p *Planner) scoreCandidates(ctx context.Context, run *Run, cands []*Candid
 	}
 	kept := make([]*Candidate, 0, len(cands))
 	for _, c := range cands {
-		if len(c.Act.Embedding) == 0 {
-			kept = append(kept, c)
+		if !usableVec(c.Act.Embedding, len(pos)) {
+			kept = append(kept, c) // never sent: unscored, not dropped
 			continue
 		}
 		s, ok := res.Scores[c.ID]
@@ -509,18 +513,70 @@ func (p *Planner) scoreRequest(run *Run, cands []*Candidate, rerank bool) ScoreR
 	if isZeroVec(pos) {
 		pos = run.SearchEmb
 	}
+	maxKm := run.RadiusKm
+	for _, c := range cands {
+		if run.Spec.Start != nil {
+			maxKm = math.Max(maxKm, travel.HaversineKm(*run.Spec.Start, c.Point))
+		}
+	}
 	req := ScoreRequest{
 		User: run.User, PositiveEmbedding: pos, NegativeEmbedding: run.User.NegativeEmbedding,
 		Candidates: cands, Query: run.QV, SearchText: run.SearchText, SearchEmbedding: run.SearchEmb,
 		Rerank: rerank, RerankTopK: run.Cfg.JevTopK,
-		From: run.Spec.From, BackBy: run.Spec.BackBy, Center: run.Spec.Start, MaxDistanceKm: run.RadiusKm,
+		From: run.Spec.From, BackBy: run.Spec.BackBy, Center: run.Spec.Start, MaxDistanceKm: maxKm + 0.05,
 		ExcludedCategories: run.Spec.Hard.ExcludeCategories,
 	}
-	if run.Spec.Budget.TotalCents > 0 {
+	switch {
+	case run.Spec.Budget.FreeOnly:
+		zero := int64(0)
+		req.MaxPriceCents = &zero
+	case run.Spec.Budget.TotalCents > 0:
 		total := run.Spec.Budget.TotalCents
 		req.MaxPriceCents = &total
 	}
 	return req
+}
+
+// usableVec: dim finite values, not all zero (what the ranker accepts).
+func usableVec(v []float64, dim int) bool {
+	if dim == 0 || len(v) != dim {
+		return false
+	}
+	nonZero := false
+	for _, x := range v {
+		if math.IsNaN(x) || math.IsInf(x, 0) {
+			return false
+		}
+		nonZero = nonZero || x != 0
+	}
+	return nonZero
+}
+
+// attachTexts fetches the embedding texts of the rerank candidates when the
+// source can; without them the reranker still gets the vectors.
+func (p *Planner) attachTexts(ctx context.Context, run *Run, cands []*Candidate) {
+	ts, ok := p.Embeddings.(TextSource)
+	if !ok || len(cands) == 0 {
+		return
+	}
+	ids := make([]string, len(cands))
+	for i, c := range cands {
+		ids[i] = c.ID
+	}
+	texts, err := ts.FetchTexts(ctx, run.Spec.Catalog, ids)
+	if err != nil {
+		log.Warn().Err(err).Str("run", run.ID).Msg("planner: rerank texts")
+		return
+	}
+	for _, c := range cands {
+		c.Text = texts[c.ID]
+	}
+}
+
+// rerankable: the reranker judges the candidate against the user's
+// profile text, so it needs a user who has one.
+func (p *Planner) rerankable(run *Run) bool {
+	return p.jevEnabled() && strings.TrimSpace(run.User.PositiveText) != ""
 }
 
 func (p *Planner) msSince(t time.Time) int64 {

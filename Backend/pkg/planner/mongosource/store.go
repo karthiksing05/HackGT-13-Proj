@@ -30,6 +30,8 @@ const (
 const (
 	ExpiresIndex    = "expiresAt_ttl"
 	RunsByUserIndex = "userId_createdAt"
+	// StopIDIndex (plan_pools, the planner's own) serves FindStop.
+	StopIDIndex = "options_stops_id"
 )
 
 const (
@@ -63,8 +65,10 @@ func New(db *mongo.Database, clock planner.Clock) *Store {
 var (
 	_ planner.CandidateSource = (*Store)(nil)
 	_ planner.EmbeddingSource = (*Store)(nil)
+	_ planner.TextSource      = (*Store)(nil)
 	_ planner.ActivityLookup  = (*Store)(nil)
 	_ planner.PoolStore       = (*Store)(nil)
+	_ planner.StopFinder      = (*Store)(nil)
 )
 
 func (s *Store) catalog(name string) (*mongo.Collection, error) {
@@ -301,6 +305,38 @@ func (s *Store) FetchEmbeddings(ctx context.Context, catalog string, ids []strin
 	return out, nil
 }
 
+// FetchTexts returns the embedding texts (the eight-section descriptions
+// the reranker reads) of a few documents.
+func (s *Store) FetchTexts(ctx context.Context, catalog string, ids []string) (map[string]string, error) {
+	coll, err := s.catalog(catalog)
+	if err != nil {
+		return nil, err
+	}
+	oids := objectIDs(ids)
+	out := make(map[string]string, len(oids))
+	if len(oids) == 0 {
+		return out, nil
+	}
+	cur, err := coll.Find(ctx, bson.D{{Key: "_id", Value: bson.D{{Key: "$in", Value: oids}}}},
+		options.Find().SetProjection(bson.D{{Key: "embeddingText", Value: 1}}))
+	if err != nil {
+		return nil, fmt.Errorf("mongosource: fetch texts: %w", err)
+	}
+	var rows []struct {
+		ID   bson.ObjectID `bson:"_id"`
+		Text string        `bson:"embeddingText"`
+	}
+	if err := cur.All(ctx, &rows); err != nil {
+		return nil, fmt.Errorf("mongosource: fetch texts: %w", err)
+	}
+	for _, r := range rows {
+		if r.Text != "" {
+			out[r.ID.Hex()] = r.Text
+		}
+	}
+	return out, nil
+}
+
 // GetActivities fetches documents by id (without their vectors).
 func (s *Store) GetActivities(ctx context.Context, catalog string, ids []string) ([]models.Activity, error) {
 	coll, err := s.catalog(catalog)
@@ -325,8 +361,9 @@ func (s *Store) EnsureIndexes(ctx context.Context) error {
 	ttl := func() *options.IndexOptionsBuilder {
 		return options.Index().SetName(ExpiresIndex).SetExpireAfterSeconds(0)
 	}
-	if _, err := s.db.Collection(PoolsCollection).Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys: bson.D{{Key: "expiresAt", Value: 1}}, Options: ttl(),
+	if _, err := s.db.Collection(PoolsCollection).Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{Keys: bson.D{{Key: "expiresAt", Value: 1}}, Options: ttl()},
+		{Keys: bson.D{{Key: "options.stops.id", Value: 1}}, Options: options.Index().SetName(StopIDIndex)},
 	}); err != nil {
 		return fmt.Errorf("mongosource: %s indexes: %w", PoolsCollection, err)
 	}
@@ -391,6 +428,43 @@ func (s *Store) GetPool(ctx context.Context, runID string) (*planner.PlanPool, e
 		return nil, fmt.Errorf("mongosource: get pool: %w", err)
 	}
 	return &pool, nil
+}
+
+// FindStop returns the newest live pool holding the stop id, as one of its
+// options' stops (indexed) or else a suggested alternative.
+func (s *Store) FindStop(ctx context.Context, stopID string) (*planner.PlanPool, *planner.Stop, error) {
+	if !safeKey(stopID) {
+		return nil, nil, planner.ErrPoolNotFound
+	}
+	now := s.clock.Now()
+	newest := options.FindOne().SetSort(bson.D{{Key: "createdAt", Value: -1}}).
+		SetProjection(bson.D{{Key: "queryVector", Value: 0}, {Key: "negVector", Value: 0}})
+	for _, where := range []bson.D{
+		{{Key: "options.stops.id", Value: stopID}},
+		{{Key: "alternatives." + stopID, Value: bson.D{{Key: "$exists", Value: true}}}},
+	} {
+		filter := append(where, bson.E{Key: "expiresAt", Value: bson.D{{Key: "$gt", Value: now}}})
+		var pool planner.PlanPool
+		err := s.db.Collection(PoolsCollection).FindOne(ctx, filter, newest).Decode(&pool)
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			continue
+		}
+		if err != nil {
+			return nil, nil, fmt.Errorf("mongosource: find stop: %w", err)
+		}
+		if st, ok := pool.Alternatives[stopID]; ok {
+			return &pool, &st, nil
+		}
+		for _, o := range pool.Options {
+			for i := range o.Stops {
+				if o.Stops[i].ID == stopID {
+					st := o.Stops[i]
+					return &pool, &st, nil
+				}
+			}
+		}
+	}
+	return nil, nil, planner.ErrPoolNotFound
 }
 
 // AddAlternatives remembers suggested stops so routes and saves can use

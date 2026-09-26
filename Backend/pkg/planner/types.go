@@ -45,11 +45,13 @@ type UserContext struct {
 	ID                string
 	Catalog           string // activities | demo_activities
 	City              string // catalog city slug, when known
-	HomeBase          *Place
+	HomeBase          *Place // where plans start by default; the snap target in its city
 	AgeBracket        string // 13_17 | 18_20 | 21_plus, or the contract's under_13 | teen | under_21 | adult
 	Prefs             UserPrefs
 	PositiveEmbedding []float64
 	NegativeEmbedding []float64
+	PositiveText      string // the profile texts the reranker reads; no rerank without one
+	NegativeText      string
 	LastLocation      *travel.Point
 }
 

@@ -33,6 +33,8 @@ type Candidate struct {
 	PriceKnown bool
 	Tier       int
 	TierKnown  bool
+
+	Text string // embedding text, fetched only for rerank candidates
 }
 
 // Raw is the candidate's score on a 0..1 scale: the reranker when it ran,
