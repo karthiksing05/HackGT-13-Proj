@@ -22,8 +22,8 @@ type scope struct {
 }
 
 var scopes = []scope{
-	// backend-B: {"GET /itineraries/{id} of A", createItineraryForA, 404},
-	// backend-B: {"PATCH /itineraries/{id} by a member", joinAsMemberThenPatch, 403},
+	{"GET /itineraries/{id} of A", createItineraryForA, http.StatusNotFound},
+	{"PATCH /itineraries/{id} by a member", joinAsMemberThenPatch, http.StatusForbidden},
 	// backend-C: {"GET /threads/{id} of A", startDMForA, 404},
 	// backend-D: {"GET /checkout/intents/{id} of A", createIntentForA, 404},
 	{"DELETE /me/payment-methods/{id} of A", func(t *testing.T, srv *testutil.Server, a *testutil.Session) (string, string, any) {
@@ -74,11 +74,11 @@ func TestScoping(t *testing.T) {
 func TestStubsAnswer501(t *testing.T) {
 	srv := testutil.New(t)
 	a := srv.Signup(t, "Stub Person")
-	res := srv.Do(t, "GET", "/itineraries", nil, a)
+	res := stubProbe(t, srv, a)
 	if res.Status != http.StatusNotImplemented || res.Message() != "Not built yet" {
 		t.Fatalf("stub: %d %s", res.Status, res.Body)
 	}
-	if res := srv.Do(t, "GET", "/itineraries", nil, nil); res.Status != http.StatusUnauthorized {
+	if res := stubProbe(t, srv, nil); res.Status != http.StatusUnauthorized {
 		t.Fatalf("protected stub without a token: %d", res.Status)
 	}
 	// A public stub needs no token (on its own router: the real ones get built).
