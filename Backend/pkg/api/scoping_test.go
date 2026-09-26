@@ -26,6 +26,15 @@ var scopes = []scope{
 	// backend-B: {"PATCH /itineraries/{id} by a member", joinAsMemberThenPatch, 403},
 	// backend-C: {"GET /threads/{id} of A", startDMForA, 404},
 	// backend-D: {"GET /checkout/intents/{id} of A", createIntentForA, 404},
+	{"DELETE /me/payment-methods/{id} of A", func(t *testing.T, srv *testutil.Server, a *testutil.Session) (string, string, any) {
+		var card contract.PaymentMethod
+		srv.Do(t, "POST", "/me/payment-methods", contract.AddPaymentMethod{Token: "tok_visa_4242"}, a).Expect(t, http.StatusCreated).JSON(t, &card)
+		return "DELETE", "/me/payment-methods/" + card.ID, nil
+	}, http.StatusNotFound},
+	{"DELETE /me/devices/{token} of A", func(t *testing.T, srv *testutil.Server, a *testutil.Session) (string, string, any) {
+		srv.Do(t, "POST", "/me/devices", contract.DeviceRegistration{PushToken: "a0b1c2d3e4f5a6b7", Platform: "ios"}, a).Expect(t, http.StatusNoContent)
+		return "DELETE", "/me/devices/a0b1c2d3e4f5a6b7", nil
+	}, http.StatusNotFound},
 }
 
 func TestScoping(t *testing.T) {
