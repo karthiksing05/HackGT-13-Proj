@@ -102,6 +102,17 @@ struct LoginView: View {
                 router.showSetup(step: 1)
             }
 
+            // Judging shortcut: signs in as Sandy Byte on the live server. Only a build or launch
+            // that was given the password shows it (never the offline demo, which takes any login).
+            if let demoPassword = env.demoPassword, !env.isMock {
+                AuthLinkButton(title: "Use the demo account") {
+                    email = AppEnvironment.demoEmail
+                    password = demoPassword
+                    signIn()
+                }
+                .accessibilityIdentifier("login.demo")
+            }
+
             Text("By signing in you agree to the Terms and Privacy Policy.")
                 .sqFont(12)
                 .foregroundStyle(Theme.text3)
