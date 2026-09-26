@@ -687,10 +687,10 @@ func TestHelloWorldBrowserEndpoint(t *testing.T) {
 	}
 
 	// 3. Demo calendar feed endpoint
-	req, _ = http.NewRequest("GET", "/api/test/calendar-demo", nil)
+	req, _ = http.NewRequest("GET", "/test/calendar-demo", nil)
 	resp = executeRequest(r, req)
 	if resp.Code != http.StatusOK {
-		t.Fatalf("expected 200 on /api/test/calendar-demo, got %d", resp.Code)
+		t.Fatalf("expected 200 on /test/calendar-demo, got %d", resp.Code)
 	}
 	var demoResp struct {
 		Status   string `json:"status"`

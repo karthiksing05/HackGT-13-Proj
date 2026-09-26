@@ -685,7 +685,7 @@ const helloWorldHTML = `<!DOCTYPE html>
       box.style.display = 'block';
 
       try {
-        const resp = await fetch('/api/test/calendar-demo');
+        const resp = await fetch('/test/calendar-demo');
         const data = await resp.json();
 
         activeCalURL = data.calendar.url;

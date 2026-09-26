@@ -18,16 +18,14 @@ func SetupRoutes(r *mux.Router) {
 	// Global CORS middleware
 	r.Use(middleware.CORS)
 
-	// WebSocket live updates route: WS /ws and /api/ws
+	// WebSocket live updates route: WS /ws
 	wsHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		realtime.HandleWebSocket(realtime.GlobalHub, w, req)
 	})
 	r.Handle("/ws", wsHandler).Methods("GET")
-	r.Handle("/api/ws", wsHandler).Methods("GET")
 
-	// Register on root and /api prefixes
-	registerEndpoints(r, "")
-	registerEndpoints(r, "/api")
+	// Register all endpoints directly on the root / (for API subdomain)
+	registerEndpoints(r)
 
 	// Custom 404 handler
 	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -35,9 +33,9 @@ func SetupRoutes(r *mux.Router) {
 	})
 }
 
-func registerEndpoints(r *mux.Router, prefix string) {
+func registerEndpoints(r *mux.Router) {
 	p := func(path string) string {
-		return prefix + path
+		return path
 	}
 
 	// ---------------- HELLO WORLD BROWSER TEST ----------------
