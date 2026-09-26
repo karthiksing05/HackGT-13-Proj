@@ -58,7 +58,7 @@ if [ -n "${ENV_FILE}" ]; then
     done < "${ENV_FILE}"
 fi
 
-SERVER_IP="${1:-${DEPLOY_HOST:-45.32.223.40}}"
+SERVER_IP="${1:-${DEPLOY_HOST:?DEPLOY_HOST is not set (root .env or environment)}}"
 SERVER_USER="${2:-${DEPLOY_USER:-root}}"
 SERVER_PASS="${3:-${DEPLOY_PASSWORD:-}}"
 REMOTE_DIR="${ML_DEPLOY_REMOTE_DIR:-/opt/ml}"
