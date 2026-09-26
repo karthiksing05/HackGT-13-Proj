@@ -220,6 +220,9 @@ func TestSeedDemo(t *testing.T) {
 		t.Fatalf("crew plan: %+v", crew)
 	}
 	checkLayout(t, "crew plan", crew, crew.Start, crew.BackBy, 2)
+	if n, _ := st.Collection(store.CollItineraries).CountDocuments(ctx, bson.M{"visibility": bson.M{"$ne": models.VisibilityJustMe}}); n != 1 {
+		t.Fatalf("%d plans would be on the Forum; only Marin's open plan should", n)
+	}
 	for i, want := range []struct {
 		stars int
 		tags  []string

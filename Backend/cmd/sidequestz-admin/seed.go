@@ -453,7 +453,8 @@ func buildSeedWorld(ids seedIDs, places []*models.Activity, now time.Time, loc *
 	})
 
 	// The market crew: last Saturday morning, Sandy with Marin and Theo;
-	// Sandy rated both stops.
+	// Sandy rated both stops. A finished plan has no Forum post, so it is
+	// just_me whatever time filter the Forum applies.
 	market, err := findPlace(places, "Seaside Market Hall", "market")
 	if err != nil {
 		return nil, err
@@ -468,7 +469,7 @@ func buildSeedWorld(ids seedIDs, places []*models.Activity, now time.Time, loc *
 		ID: seedCrewPlanID, HostID: ids.sandy, MemberIDs: crewMembers, Title: "Saturday market crew",
 		DateKey: sat.Format("2006-01-02"), TZ: loc.String(), Date: sat.UTC(),
 		Start: at(sat, 9, 30).UTC(), BackBy: halfHourCeil(crewEnd).UTC(), StartPlace: homePlace(), EndPlace: homePlace(),
-		Visibility: models.VisibilityFriends, Items: crewItems,
+		Visibility: models.VisibilityJustMe, Items: crewItems,
 		Plan: &models.PlanSnapshot{Range: "walkable", Ride: "none", Tags: []string{"Food", "Chill"}, Budget: 1,
 			Who: models.VisibilityFriends, Pace: "balanced", Modes: []string{"walk"}},
 		RouteMode: "walk", Status: models.ItineraryPast, ThreadID: seedCrewThreadID,
