@@ -1,11 +1,11 @@
 package planner
 
 import (
+	"Backend/pkg/itinerary"
 	"Backend/pkg/models"
 	"Backend/pkg/travel"
 	"fmt"
 	"strings"
-	"time"
 )
 
 // Leg modes the app can show (its TravelMode enum, minus "uber", which the
@@ -16,8 +16,14 @@ var appLegModes = map[string]bool{"walk": true, "marta": true, "drive": true, "r
 // planner.md §7 for spec, the effective spec (relaxations applied). lookup
 // returns the user's catalog document behind an activity id. An empty
 // result means the option is sound. Generate runs it on every option it
-// renders; tests run it on every page.
+// renders (with the run's optimizer settings); tests run it on every page.
 func CheckOption(spec *PlanSpec, opt *Option, lookup func(id string) (*models.Activity, bool)) []string {
+	return checkOption(spec, opt, lookup, itinerary.DefaultConfig())
+}
+
+// checkOption is CheckOption with the optimizer settings that decide how
+// an event may be attended.
+func checkOption(spec *PlanSpec, opt *Option, lookup func(id string) (*models.Activity, bool), itCfg itinerary.Config) []string {
 	var out []string
 	fail := func(format string, args ...any) {
 		out = append(out, fmt.Sprintf(format, args...))
@@ -63,11 +69,25 @@ func CheckOption(spec *PlanSpec, opt *Option, lookup func(id string) (*models.Ac
 		if s.Depart.After(spec.BackBy) {
 			fail("stop %d departs %v after %v", i, s.Depart, spec.BackBy)
 		}
-		dropIn := a.Attendance != nil && *a.Attendance == "drop_in"
-		if a.Kind == "event" && !dropIn && a.Start != nil && !(a.End != nil && a.End.Sub(*a.Start) > 6*time.Hour) {
-			p75, _ := visitLengths(a)
-			if a.Start.Add(maxDuration(s.Depart.Sub(s.Arrive), p75)).After(spec.BackBy) && !opt.LateFlag {
-				fail("stop %d could run past back-by without late_flag", i)
+		if st, ok := itinerary.StayFor(a, itCfg); ok && a.Kind == "event" {
+			switch st.Kind {
+			case itinerary.StayWhole:
+				p75, _ := visitLengths(a)
+				if a.Start.Add(maxDuration(s.Depart.Sub(s.Arrive), p75)).After(spec.BackBy) && !opt.LateFlag {
+					fail("stop %d could run past back-by without late_flag", i)
+				}
+			case itinerary.StayClipped:
+				// Joined at most LateArrival late, left by the end, and long
+				// enough to count.
+				if s.Arrive.Before(st.Start) || s.Arrive.After(st.Start.Add(itinerary.LateArrival)) {
+					fail("stop %d joins %v, outside %v + %v", i, s.Arrive, st.Start, itinerary.LateArrival)
+				}
+				if s.Depart.After(st.End) {
+					fail("stop %d leaves %v after the event ends %v", i, s.Depart, st.End)
+				}
+				if s.Depart.Sub(s.Arrive) < st.MinStay {
+					fail("stop %d stays %v, under %v", i, s.Depart.Sub(s.Arrive), st.MinStay)
+				}
 			}
 		}
 		if s.PriceKnown {

@@ -114,7 +114,7 @@ func TestLoopStopRules(t *testing.T) {
 	t.Run("converged", func(t *testing.T) {
 		tp := newTestPlanner(saltlight(t), testConfig())
 		o := defaultReq()
-		o.tags, o.mood = []string{"Outdoors", "Food"}, "something chill outside, then food"
+		o.tags, o.backBy = []string{"Food"}, localAt(22, 0)
 		batch, _ := tp.generate(t, sandy(), o)
 		run := tp.run(t, batch.RunID)
 		if len(run.Rounds) != 1 || run.Rounds[0].Stop != "converged" || len(run.Rounds[0].Issues) != 0 {

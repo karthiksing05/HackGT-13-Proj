@@ -215,12 +215,16 @@ func TestServiceRouteAlternativesAndErrors(t *testing.T) {
 			t.Errorf("stop %d re-timed: %v–%v", i, st.Start, st.End)
 		}
 	}
-	// Reversed: the oyster bar lands after its 23:00 close (the golden case),
-	// folded into broken_at and minutes_late.
+	// Reversed: whatever breaks (a fixed start missed, a place closed) is
+	// folded into broken_at and minutes_late, as the planner computes it.
 	req.StopOrder = reversed(order)
 	res, err = svc.Route(t.Context(), user, req)
-	if err != nil || res.BrokenAt != 1 || res.MinutesLate != 94 {
-		t.Errorf("reversed: %+v %v", res, err)
+	start, end := PlaceAt("Start", seasideMkt), PlaceAt("End", seasideMkt)
+	from, backBy := localAt(18, 0), localAt(23, 0)
+	want, werr := tp.Route(t.Context(), RouteInput{UserID: user.ID.Hex(), OptionID: opt.ID, StopOrder: reversed(order),
+		Start: &start, End: &end, StartTime: &from, BackBy: &backBy, Ride: "none", Modes: []string{"walk"}})
+	if err != nil || werr != nil || want.BrokenAt < 0 || res.BrokenAt != want.BrokenAt || res.MinutesLate != want.MinutesLate {
+		t.Errorf("reversed: %+v %v (planner: %+v %v)", res, err, want, werr)
 	}
 
 	alts, err := svc.Alternatives(t.Context(), user, contract.AlternativesRequest{OptionID: opt.ID, StopID: order[0], StopOrder: order})

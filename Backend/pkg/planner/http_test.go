@@ -283,11 +283,21 @@ func TestPlanningOverHTTP(t *testing.T) {
 		}
 		return false
 	}
+	// An option with a place and, later, a fixed start; the checks below
+	// route just those two stops (a stop left out is removed).
 	var place, event contract.PlanStop
 	var mixed contract.PlanOption
 	for _, opt := range all {
-		if len(opt.Stops) == 2 && *opt.Stops[0].Flexible && opt.Stops[1].Kind == contract.StopKindEvent && !*opt.Stops[1].Flexible {
-			mixed, place, event = opt, opt.Stops[0], opt.Stops[1]
+		for i := 0; i < len(opt.Stops) && mixed.ID == ""; i++ {
+			for j := i + 1; j < len(opt.Stops); j++ {
+				if *opt.Stops[i].Flexible && opt.Stops[i].Kind == contract.StopKindPlace &&
+					opt.Stops[j].Kind == contract.StopKindEvent && !*opt.Stops[j].Flexible {
+					mixed, place, event = opt, opt.Stops[i], opt.Stops[j]
+					break
+				}
+			}
+		}
+		if mixed.ID != "" {
 			break
 		}
 	}
@@ -304,7 +314,7 @@ func TestPlanningOverHTTP(t *testing.T) {
 	}
 	// Leaving five minutes before the show: the place still takes its time,
 	// so the fixed start is missed (unless the place was already closed).
-	late := srv.Do(t, "POST", "/plans/route", contract.RouteRequest{OptionID: mixed.ID, StopOrder: ids(mixed), Start: seaside, End: seaside,
+	late := srv.Do(t, "POST", "/plans/route", contract.RouteRequest{OptionID: mixed.ID, StopOrder: []string{place.ID, event.ID}, Start: seaside, End: seaside,
 		StartTime: contract.NewTime(event.ArriveTime.Add(-5 * time.Minute)), BackBy: contract.NewTime(backBy), Ride: contract.RideNone,
 		Modes: contract.TravelModes{contract.ModeWalk}}, sandy).Expect(t, http.StatusOK)
 	decodeStrict(t, late, &result)

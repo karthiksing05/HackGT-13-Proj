@@ -417,11 +417,15 @@ func (m *MemPoolStore) FindStop(ctx context.Context, stopID string) (*PlanPool, 
 			bestPool, best = p, &stop
 			continue
 		}
+		// The first option that has it, as the Mongo store answers: the
+		// same stop id can carry another visit length in a later option.
+	options:
 		for _, o := range p.Options {
 			for _, s := range o.Stops {
 				if s.ID == stopID {
 					stop := s
 					bestPool, best = p, &stop
+					break options
 				}
 			}
 		}

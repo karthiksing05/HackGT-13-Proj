@@ -262,11 +262,14 @@ type RoundLog struct {
 	Round       int                `bson:"round" json:"round"`
 	K           int                `bson:"k" json:"k"`
 	Mu          float64            `bson:"mu" json:"mu"`
+	ScoreMu     float64            `bson:"scoreMu" json:"score_mu"`
+	StopBonus   float64            `bson:"stopBonus" json:"stop_bonus"` // the under-pace bonus in force
 	Boosts      map[string]float64 `bson:"boosts" json:"boosts"`
 	PoolSize    int                `bson:"poolSize" json:"pool_size"`
 	Nodes       int                `bson:"nodes" json:"nodes"`
 	Edges       int                `bson:"edges" json:"edges"`
 	Itineraries int                `bson:"itineraries" json:"itineraries"`
+	WithWeak    bool               `bson:"withWeak" json:"with_weak"` // weak stops were allowed (too few plans without)
 	Drops       map[string]int     `bson:"drops" json:"drops"`
 	SolveMs     int64              `bson:"solveMs" json:"solve_ms"`
 	MLMs        int64              `bson:"mlMs" json:"ml_ms"`
@@ -322,6 +325,12 @@ type FinalLog struct {
 	TotalMs   int64    `bson:"totalMs" json:"total_ms"`
 	Reason    string   `bson:"reason,omitempty" json:"reason,omitempty"`
 	Rejected  int      `bson:"rejected" json:"rejected"` // options left out by CheckOption (0 unless there is a bug)
+	// TravelHeavy: plans left out for travelling more than MaxTravelShare
+	// of their time while another plan did not.
+	TravelHeavy int `bson:"travelHeavy" json:"travel_heavy"`
+	// WeakDropped: plans left out for a stop at or below the bar while at
+	// least a page of plans had none.
+	WeakDropped int `bson:"weakDropped" json:"weak_dropped"`
 }
 
 // OutcomeLog is patched in by POST /itineraries.

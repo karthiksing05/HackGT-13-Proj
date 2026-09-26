@@ -28,7 +28,7 @@ func (p *Planner) render(run *Run) []Option {
 	used := map[string]bool{}
 	for _, sp := range run.Best {
 		opt := renderOption(run, sp, len(out))
-		if v := CheckOption(&run.Spec, &opt, lookup); len(v) > 0 {
+		if v := checkOption(&run.Spec, &opt, lookup, run.ItCfg); len(v) > 0 {
 			run.rejected++
 			log.Error().Str("run", run.ID).Str("signature", sp.Signature).Strs("violations", v).
 				Msg("planner: option failed the guarantees; left out")

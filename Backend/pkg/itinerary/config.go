@@ -19,6 +19,10 @@ type PaceProfile struct {
 	MaxStops   int
 	MaxWait    time.Duration // longest idle gap between two stops
 	LambdaWait float64       // utility lost per idle minute
+	// StopBonus is added to every stop that clears the bar (utility above
+	// zero), so a fuller day beats a shorter one of the same quality. It
+	// never makes a stop below the bar worth adding.
+	StopBonus float64
 }
 
 // Config holds the optimizer's tunables. Utilities are on a 0..1 scale per
@@ -56,6 +60,10 @@ type Config struct {
 	// utility); paths track series in a 128-bit mask, so at most 128.
 	SeriesCap int
 
+	// ExtraStopBonus is added to the pace's StopBonus; a caller raises it
+	// when plans come out shorter than the pace asks for.
+	ExtraStopBonus float64
+
 	DefaultMaxLegKm map[string]float64 // by travel mode, when range_km is 0
 	Paces           map[string]PaceProfile
 }
@@ -86,11 +94,16 @@ func DefaultConfig() Config {
 
 		DefaultMaxLegKm: map[string]float64{"walk": 2, "transit": 10, "drive": 25},
 		Paces: map[string]PaceProfile{
-			"chill":    {MaxStops: 2, MaxWait: 90 * time.Minute, LambdaWait: 0.002},
-			"balanced": {MaxStops: 3, MaxWait: 60 * time.Minute, LambdaWait: 0.004},
-			"packed":   {MaxStops: 5, MaxWait: 30 * time.Minute, LambdaWait: 0.008},
+			"chill":    {MaxStops: 3, MaxWait: 90 * time.Minute, LambdaWait: 0.002, StopBonus: 0.02},
+			"balanced": {MaxStops: 3, MaxWait: 60 * time.Minute, LambdaWait: 0.004, StopBonus: 0.05},
+			"packed":   {MaxStops: 5, MaxWait: 30 * time.Minute, LambdaWait: 0.008, StopBonus: 0.08},
 		},
 	}
+}
+
+// stopBonus is what a stop above the bar adds at this pace.
+func (c Config) stopBonus(pace string) float64 {
+	return c.Pace(pace).StopBonus + c.ExtraStopBonus
 }
 
 // Pace returns the profile for a pace name. Unknown or empty means balanced;

@@ -157,18 +157,30 @@ func TestMorePagesAndCursors(t *testing.T) {
 // A reorder that moves a place outside its opening hours breaks the plan
 // there, even though places have no fixed start.
 func TestRouteFlagsClosedPlaces(t *testing.T) {
-	tp, b, _ := demoEvening(t)
-	opt := b.Options[0] // Brine and Bivalve (closes 23:00 Saturday), then the Crow's Nest
-	res, err := tp.Route(t.Context(), RouteInput{UserID: "sandy", OptionID: opt.ID, StopOrder: reversed(stopIDs(opt.Stops))})
-	if err != nil {
-		t.Fatal(err)
+	cafe := synthPlace("Early cafe", "cafe", offsetKm(seasideMkt, 0.4, 0), dailyHours(17, 19), []string{"food"}, priceOf(5))
+	park := synthPlace("Late park", "park", offsetKm(seasideMkt, 0, 0.5), dailyHours(0, 24), []string{"outdoor"}, priceOf(0))
+	tp := newTestPlanner([]models.Activity{cafe, park}, testConfig())
+	batch, _ := tp.generate(t, sandy(), defaultReq())
+	var opt Option
+	for _, o := range tp.allOptions(t, sandy(), batch) {
+		if len(o.Stops) == 2 && o.Stops[0].ActivityID == cafe.ID.Hex() {
+			opt = o
+			break
+		}
 	}
-	if res.BrokenAt != 1 || !res.StopTimes[1].Closed || res.StopTimes[0].Closed || !res.LateFlag {
-		t.Errorf("reversed: broken_at %d, closed %v/%v", res.BrokenAt, res.StopTimes[0].Closed, res.StopTimes[1].Closed)
+	if opt.ID == "" {
+		t.Fatal("expected an option with the cafe (closes 19:00) and then the park")
 	}
 	for _, s := range opt.Stops {
 		if len(s.OpenSlots) == 0 || !withinSlots(s.Arrive, s.Depart, s.OpenSlots) {
 			t.Errorf("%s: generated visit %v–%v outside its slots %+v", s.Title, s.Arrive, s.Depart, s.OpenSlots)
 		}
+	}
+	res, err := tp.Route(t.Context(), RouteInput{UserID: "sandy", OptionID: opt.ID, StopOrder: reversed(stopIDs(opt.Stops))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.BrokenAt != 1 || !res.StopTimes[1].Closed || res.StopTimes[0].Closed || !res.LateFlag || res.MinutesLate <= 0 {
+		t.Errorf("reversed: broken_at %d, closed %v/%v, late %d", res.BrokenAt, res.StopTimes[0].Closed, res.StopTimes[1].Closed, res.MinutesLate)
 	}
 }

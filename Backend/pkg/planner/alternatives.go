@@ -281,16 +281,31 @@ func (p *Planner) scheduleAlternative(ctx context.Context, c *Candidate, slot Ti
 	}
 
 	a := &c.Act
-	if a.Kind == "event" && !(a.Attendance != nil && *a.Attendance == "drop_in") {
-		start = a.Start.UTC()
-		end = start.Add(visit)
-		if a.End != nil && a.End.After(start) {
-			end = a.End.UTC()
+	st, _ := itinerary.StayFor(a, itCfg)
+	switch {
+	case a.Kind == "event" && st.Kind == itinerary.StayClipped:
+		// Joined at its start or up to LateArrival later, left by the next
+		// stop's deadline or the event's end, whichever is first.
+		found := false
+		for _, begin := range []time.Time{st.Start, st.Start.Add(itinerary.LateArrival)} {
+			if begin.Before(earliest) {
+				continue
+			}
+			stop := minTime(st.End, latestEnd)
+			if stop.Sub(begin) >= st.MinStay {
+				start, end, found = begin, stop, true
+				break
+			}
 		}
+		if !found {
+			return start, end, 0, false
+		}
+	case a.Kind == "event" && st.Kind == itinerary.StayWhole:
+		start, end = st.Start, st.End
 		if start.Before(earliest) || end.After(latestEnd) {
 			return start, end, 0, false
 		}
-	} else {
+	default:
 		intervals := []itinerary.Interval{{Start: slot.From, End: slot.To}}
 		if a.Kind == "place" {
 			loc := w.TZ

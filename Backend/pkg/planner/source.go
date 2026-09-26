@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"Backend/pkg/itinerary"
 	"Backend/pkg/models"
 	"Backend/pkg/travel"
 	"context"
@@ -10,6 +11,11 @@ import (
 // EventStartMargin: fixed-start events must begin at least this long before
 // the window (or slot) closes.
 const EventStartMargin = 15 * time.Minute
+
+// EventLateStart: a fixed-start event may have begun this long before the
+// window (or slot) opens and still be a candidate; the Go-side check keeps
+// it only when a late arrival is fine for it (itinerary.Clippable).
+const EventLateStart = itinerary.LateArrival
 
 // CandidateQuery is a guaranteed pre-filter: every field is a hard
 // condition the store applies before anything is scored. MatchesQuery is
@@ -94,7 +100,7 @@ func MatchesQuery(a *models.Activity, q *CandidateQuery) bool {
 				return false
 			}
 		} else {
-			if start.Before(q.From) || start.After(q.To.Add(-EventStartMargin)) {
+			if start.Before(q.From.Add(-EventLateStart)) || start.After(q.To.Add(-EventStartMargin)) {
 				return false
 			}
 		}

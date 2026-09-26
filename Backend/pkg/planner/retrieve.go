@@ -181,40 +181,44 @@ func visitLengths(a *models.Activity) (p75, median time.Duration) {
 	return p75, median
 }
 
+// eventFeasible is the Go-side time check of an event against the window
+// and, for an expansion, its slot. A whole event must start inside the
+// window and end (at its p75 length) by back-by; a clipped stay needs
+// MinStay between its start (up to LateArrival late) and its end; a window
+// event needs MinStay of overlap.
 func eventFeasible(a *models.Activity, spec *PlanSpec, q *CandidateQuery, itCfg itinerary.Config) string {
-	if a.Start == nil {
+	st, ok := itinerary.StayFor(a, itCfg)
+	if !ok {
 		return "no_start_time"
 	}
-	start := a.Start.UTC()
+	sliced := q.From != spec.From || q.To != spec.BackBy
+	switch st.Kind {
+	case itinerary.StayWindow:
+		if minTime(st.End, spec.BackBy).Sub(maxTime(st.Start, spec.From)) < st.MinStay {
+			return "too_short_overlap"
+		}
+		if sliced && minTime(st.End, q.To).Sub(maxTime(st.Start, q.From)) < minDuration(st.MinStay, 30*time.Minute) {
+			return "outside_slot"
+		}
+		return ""
+	case itinerary.StayClipped:
+		if !st.ClippedFits(spec.From, spec.BackBy) {
+			return "outside_window"
+		}
+		if sliced && (st.Start.Add(itinerary.LateArrival).Before(q.From) || st.Start.After(q.To.Add(-EventStartMargin))) {
+			return "outside_slot"
+		}
+		return ""
+	}
+	start := st.Start
 	p75, _ := visitLengths(a)
 	if p75 > itCfg.MaxDuration {
 		p75 = itCfg.MaxDuration
 	}
-	end := start.Add(p75)
-	if a.End != nil && a.End.UTC().After(start) {
-		end = a.End.UTC()
-	}
-	isDropIn := a.Attendance != nil && *a.Attendance == "drop_in"
-	if a.End != nil && a.End.Sub(start) > itCfg.MaxDuration {
-		isDropIn = true // a multi-day span is something to drop into
-	}
-	if isDropIn {
-		overlapStart := maxTime(start, spec.From)
-		overlapEnd := minTime(end, spec.BackBy)
-		if overlapEnd.Sub(overlapStart) < p75 {
-			return "too_short_overlap"
-		}
-		if q.From != spec.From || q.To != spec.BackBy {
-			if minTime(end, q.To).Sub(maxTime(start, q.From)) < minDuration(p75, 30*time.Minute) {
-				return "outside_slot"
-			}
-		}
-		return ""
-	}
 	if start.Before(spec.From) {
 		return "outside_window"
 	}
-	if start.Add(maxDuration(end.Sub(start), p75)).After(spec.BackBy) {
+	if start.Add(maxDuration(st.End.Sub(start), p75)).After(spec.BackBy) {
 		return "outside_window"
 	}
 	if start.Before(q.From) || start.After(q.To.Add(-EventStartMargin)) {

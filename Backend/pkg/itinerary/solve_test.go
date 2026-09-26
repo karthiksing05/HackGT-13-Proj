@@ -175,7 +175,7 @@ func TestDiversePutsBestFirstAndVaries(t *testing.T) {
 		event("C", offset(0.3, 0.1), at(19, 0), 60, 0.85),
 		event("D", offset(0.1, 0.2), at(21, 0), 60, 0.8),
 	}
-	cats := []string{"live_music", "comedy", "gallery", "theater"}
+	cats := []string{"class_workshop", "comedy", "cinema", "theater"}
 	for i := range acts {
 		acts[i].Category = cats[i]
 	}
@@ -277,7 +277,7 @@ func randomInstance(r *rand.Rand, n int, constrained bool) (Window, []models.Act
 	tau := DefaultConfig().Tau
 	w := window(at(14, 0), at(23, 0))
 	w.MaxLegKm = 4
-	cats := []string{"live_music", "comedy", "gallery"}
+	cats := []string{"theater", "comedy", "cinema"} // attended whole: one node per event
 	var acts []models.Activity
 	for i := 0; i < n; i++ {
 		start := at(14, 0).Add(time.Duration(r.Intn(15*30)) * time.Minute)

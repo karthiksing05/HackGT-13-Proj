@@ -34,91 +34,131 @@
       "utility": 0.69612,
       "order": 0
     },
-    "reason": "Also good food · 0.8 mi away · $",
+    "reason": "Also good food · 0.3 mi away",
     "fit_score": 0.69612,
-    "distance_km": 1.33,
+    "distance_km": 0.47,
     "slot_shift_min": 0
   },
   {
     "stop": {
-      "id": "alt_6a31ffa8d4ca54aa5578259f_0",
-      "title": "Siren Song Lounge",
-      "subtitle": "Bar · $",
+      "id": "alt_fcf424a12343a90b555371a0_0",
+      "title": "Harbor Ferry Loop",
+      "subtitle": "Tour · $",
       "place": {
-        "name": "Siren Song Lounge",
+        "name": "Harbor Ferry Loop",
         "coordinate": {
-          "lat": 31.37104,
-          "lng": -81.419068
-        }
-      },
-      "duration_minutes": 90,
-      "activity_id": "6a31ffa8d4ca54aa5578259f",
-      "kind": "place",
-      "category": "bar",
-      "tags": [
-        "indoor",
-        "drinks",
-        "date",
-        "late_night",
-        "21_plus",
-        "music",
-        "low_energy"
-      ],
-      "arrive_time": "2026-09-26T22:30:00Z",
-      "depart_time": "2026-09-27T00:00:00Z",
-      "flexible": true,
-      "price_cents": 1300,
-      "price_known": true,
-      "address": "230 Marina Row, Saltlight Harbor, GA 31991",
-      "website_url": "https://saltlight.example/siren-song-lounge",
-      "summary": "A speakeasy behind a fake fishmonger's freezer door.",
-      "utility": 0.56061,
-      "order": 0
-    },
-    "reason": "Also drinks · 0.7 mi away · $",
-    "fit_score": 0.56061,
-    "distance_km": 1.18,
-    "slot_shift_min": 0
-  },
-  {
-    "stop": {
-      "id": "alt_62248db0069b1dc732103903_0",
-      "title": "Seaside Market Hall",
-      "subtitle": "Market · Free",
-      "place": {
-        "name": "Seaside Market Hall",
-        "coordinate": {
-          "lat": 31.365972,
-          "lng": -81.428348
+          "lat": 31.369432,
+          "lng": -81.41512
         }
       },
       "duration_minutes": 30,
-      "activity_id": "62248db0069b1dc732103903",
+      "activity_id": "fcf424a12343a90b555371a0",
       "kind": "place",
-      "category": "market",
+      "category": "tour",
       "tags": [
-        "indoor",
-        "food",
-        "local_favorite",
+        "outdoor",
+        "cheap",
         "touristy",
-        "daytime",
+        "nature",
         "family",
+        "daytime",
         "low_energy"
       ],
       "arrive_time": "2026-09-26T22:30:00Z",
       "depart_time": "2026-09-26T23:00:00Z",
       "flexible": true,
-      "price_cents": 0,
+      "price_cents": 600,
       "price_known": true,
-      "address": "871 Brine Ave, Saltlight Harbor, GA 31994",
-      "website_url": "https://saltlight.example/seaside-market-hall",
-      "summary": "The permanent market under a steel-and-glass roof: fishmongers, flower stalls, spice vendors and forty lunch counters.",
-      "utility": 0.47413,
+      "address": "546 Marina Row, Saltlight Harbor, GA 31991",
+      "website_url": "https://saltlight.example/harbor-ferry-loop",
+      "summary": "A 50-minute ferry loop past the lighthouse, seal rocks and the shipyard cranes.",
+      "utility": 0.58915,
       "order": 0
     },
-    "reason": "Also good food · 0.3 mi away · Free",
-    "fit_score": 0.47413,
-    "distance_km": 0.51,
+    "reason": "Also sights · 0.5 mi away",
+    "fit_score": 0.58915,
+    "distance_km": 0.82,
+    "slot_shift_min": 0
+  },
+  {
+    "stop": {
+      "id": "alt_ad4f58795ec3ba0d008af20a_0",
+      "title": "The Crow's Nest Rooftop",
+      "subtitle": "Bar · $",
+      "place": {
+        "name": "The Crow's Nest Rooftop",
+        "coordinate": {
+          "lat": 31.371952,
+          "lng": -81.41488
+        }
+      },
+      "duration_minutes": 90,
+      "activity_id": "ad4f58795ec3ba0d008af20a",
+      "kind": "place",
+      "category": "bar",
+      "tags": [
+        "outdoor",
+        "drinks",
+        "date",
+        "late_night",
+        "21_plus",
+        "splurge",
+        "low_energy"
+      ],
+      "arrive_time": "2026-09-26T22:30:00Z",
+      "depart_time": "2026-09-27T00:00:00Z",
+      "flexible": true,
+      "price_cents": 1400,
+      "price_known": true,
+      "address": "246 Marina Row, Saltlight Harbor, GA 31991",
+      "website_url": "https://saltlight.example/the-crow-s-nest-rooftop",
+      "summary": "Cocktails five stories above the marina with heat lamps and string lights.",
+      "utility": 0.40893,
+      "order": 0
+    },
+    "reason": "Also drinks · 0.4 mi away",
+    "fit_score": 0.40893,
+    "distance_km": 0.56,
+    "slot_shift_min": 17
+  },
+  {
+    "stop": {
+      "id": "alt_4705c180b881f5dab4f6ff39_0",
+      "title": "Anchor Park",
+      "subtitle": "Park · Free",
+      "place": {
+        "name": "Anchor Park",
+        "coordinate": {
+          "lat": 31.374748,
+          "lng": -81.4207
+        }
+      },
+      "duration_minutes": 60,
+      "activity_id": "4705c180b881f5dab4f6ff39",
+      "kind": "place",
+      "category": "park",
+      "tags": [
+        "outdoor",
+        "free",
+        "family",
+        "group",
+        "daytime",
+        "low_energy"
+      ],
+      "arrive_time": "2026-09-26T22:30:00Z",
+      "depart_time": "2026-09-26T23:30:00Z",
+      "flexible": true,
+      "price_cents": 0,
+      "price_known": true,
+      "address": "779 Mooring St, Saltlight Harbor, GA 31991",
+      "website_url": "https://saltlight.example/anchor-park",
+      "summary": "The town green, built around a rusted 4-ton anchor.",
+      "utility": 0.36772,
+      "order": 0
+    },
+    "reason": "Also time outside · 0.2 mi away · Free",
+    "fit_score": 0.36772,
+    "distance_km": 0.37,
     "slot_shift_min": 0
   },
   {
@@ -158,47 +198,9 @@
       "utility": 0.28404,
       "order": 0
     },
-    "reason": "Also drinks · 0.9 mi away · $",
+    "reason": "Also drinks · 0.3 mi away",
     "fit_score": 0.28404,
-    "distance_km": 1.4,
-    "slot_shift_min": 0
-  },
-  {
-    "stop": {
-      "id": "alt_04d10eae26fef0942b373ff6_0",
-      "title": "Shipwreck Escape Rooms",
-      "subtitle": "Games + fun · $$",
-      "place": {
-        "name": "Shipwreck Escape Rooms",
-        "coordinate": {
-          "lat": 31.358256,
-          "lng": -81.427092
-        }
-      },
-      "duration_minutes": 90,
-      "activity_id": "04d10eae26fef0942b373ff6",
-      "kind": "place",
-      "category": "rec_venue",
-      "tags": [
-        "indoor",
-        "group",
-        "medium_energy",
-        "learning"
-      ],
-      "arrive_time": "2026-09-26T22:30:00Z",
-      "depart_time": "2026-09-27T00:00:00Z",
-      "flexible": true,
-      "price_cents": 3000,
-      "price_known": true,
-      "address": "548 Keel St, Saltlight Harbor, GA 31992",
-      "website_url": "https://saltlight.example/shipwreck-escape-rooms",
-      "summary": "Four rooms, from a sinking submarine to a lighthouse keeper's riddle.",
-      "utility": 0.28369,
-      "order": 0
-    },
-    "reason": "Also games · 0.3 mi away",
-    "fit_score": 0.28369,
-    "distance_km": 0.44,
-    "slot_shift_min": 13
+    "distance_km": 0.48,
+    "slot_shift_min": 17
   }
 ]

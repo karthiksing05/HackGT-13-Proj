@@ -59,9 +59,24 @@ func TestDropInSlotsAreClippedAndShareASeries(t *testing.T) {
 			t.Error("slots should share one series and be flexible")
 		}
 	}
-	// 18:00, 18:30, 19:00, 19:30, 20:00 fit a 2 h visit before 22:00.
-	if len(nodes) != 5 {
-		t.Errorf("got %d slots, want 5", len(nodes))
+	// 18:00, 18:30, 19:00, 19:30, 20:00 fit a 2 h visit before 22:00; the
+	// short form (1 h) fits every start to 21:00; a visit from 20:30 is cut
+	// at 22:00 (90 min, above the hour it must last).
+	full, short, cut := 0, 0, 0
+	for _, n := range nodes {
+		switch d := n.End.Sub(n.Start); {
+		case d == 2*time.Hour:
+			full++
+		case d == time.Hour:
+			short++
+		case n.End.Equal(w.BackBy) && d >= time.Hour:
+			cut++
+		default:
+			t.Errorf("slot of %v", d)
+		}
+	}
+	if full != 5 || short != 7 || cut != 1 {
+		t.Errorf("got %d full, %d short and %d cut slots, want 5, 7 and 1", full, short, cut)
 	}
 }
 

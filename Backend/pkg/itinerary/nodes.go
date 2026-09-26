@@ -137,6 +137,13 @@ func BuildNodes(w Window, acts []models.Activity, cfg Config) ([]Node, []Drop) {
 		}
 		nodes = append(nodes, made...)
 	}
+	if bonus := cfg.stopBonus(w.Pace); bonus > 0 {
+		for i := range nodes {
+			if nodes[i].Utility > 0 {
+				nodes[i].Utility += bonus
+			}
+		}
+	}
 
 	nodes = assignSeries(nodes)
 	nodes, capped := capSeries(nodes, cfg.seriesCap())
@@ -149,43 +156,36 @@ func BuildNodes(w Window, acts []models.Activity, cfg Config) ([]Node, []Drop) {
 }
 
 func eventNodes(w Window, n Node, cfg Config) ([]Node, string) {
-	a := n.Act
-	if a.Start == nil {
+	st, ok := StayFor(n.Act, cfg)
+	if !ok {
 		return nil, "no_start_time"
 	}
-	start := a.Start.UTC()
-	visit, visit75 := durations(a, cfg)
-
-	// A long published span is a window the user can drop into, not a
-	// visit length (e.g. a 31-hour convention listed as fixed_start).
-	isWindow := a.Attendance != nil && *a.Attendance == "drop_in"
-	if a.End != nil && a.End.Sub(start) > cfg.MaxDuration {
-		isWindow = true
-	}
-
-	if !isWindow {
-		end := start.Add(visit)
-		if a.End != nil && a.End.After(start) {
-			end = a.End.UTC()
-			visit75 = end.Sub(start)
-		}
-		if start.Before(w.From) || end.After(w.BackBy) {
+	switch st.Kind {
+	case StayWindow:
+		visit, _ := durations(n.Act, cfg)
+		iv := Interval{Start: maxTime(st.Start, w.From), End: minTime(st.End, w.BackBy)}
+		slots := slotNodes(w, n, []Interval{iv}, visit, st.MinStay, true, cfg)
+		if len(slots) == 0 {
 			return nil, "outside_window"
 		}
-		n.Start, n.End, n.P75End = start, end, start.Add(maxDur(visit75, end.Sub(start)))
-		return []Node{n}, ""
+		return slots, ""
+	case StayClipped:
+		stays := clippedNodes(w, n, st, cfg)
+		if len(stays) == 0 {
+			return nil, "outside_window"
+		}
+		return stays, ""
 	}
-
-	winEnd := start.Add(visit)
-	if a.End != nil && a.End.After(start) {
-		winEnd = a.End.UTC()
+	start, end := st.Start, st.End
+	_, visit75 := durations(n.Act, cfg)
+	if n.Act.End != nil && n.Act.End.After(start) {
+		visit75 = end.Sub(start)
 	}
-	iv := Interval{Start: maxTime(start, w.From), End: minTime(winEnd, w.BackBy)}
-	slots := slotNodes(n, []Interval{iv}, visit, cfg)
-	if len(slots) == 0 {
+	if start.Before(w.From) || end.After(w.BackBy) {
 		return nil, "outside_window"
 	}
-	return slots, ""
+	n.Start, n.End, n.P75End = start, end, start.Add(maxDur(visit75, end.Sub(start)))
+	return []Node{n}, ""
 }
 
 func placeNodes(w Window, n Node, cfg Config) ([]Node, string) {
@@ -205,43 +205,134 @@ func placeNodes(w Window, n Node, cfg Config) ([]Node, string) {
 	}
 	visit, _ := durations(a, cfg)
 	n.Utility *= cfg.PlaceWeight
-	slots := slotNodes(n, open, visit, cfg)
+	// The shortest acceptable visit is half the usual one, kept between
+	// MinDuration and ShortVisit (a long hike can be a 30-minute walk); a
+	// meal or a tour needs three quarters of its length.
+	minVisit, short := clampDurTo(visit/2, cfg.MinDuration, ShortVisit), true
+	if wholeVisitCategories[a.Category] {
+		minVisit, short = maxDur(cfg.MinDuration, visit*3/4), false
+	}
+	if minVisit > visit {
+		minVisit = visit
+	}
+	slots := slotNodes(w, n, open, visit, minVisit, short, cfg)
 	if len(slots) == 0 {
 		return nil, "closed_during_window"
 	}
 	return slots, ""
 }
 
-// slotNodes places visits of length `visit` inside the open intervals: one
-// at the start of each interval, then on the slot grid (:00 and :30 by
-// default), up to cfg.MaxSlots in total. A visit that doesn't fit whole
-// shrinks to the interval if that still leaves MinDuration.
-func slotNodes(n Node, open []Interval, visit time.Duration, cfg Config) []Node {
+// Place categories visited (nearly) whole: a tour runs its route, a meal
+// takes the time it takes. They never come in a short form and are cut to
+// three quarters of their length at most.
+var wholeVisitCategories = map[string]bool{"tour": true, "restaurant": true}
+
+// slotNodes places visits of length `visit` inside the open intervals. The
+// starts are, in order of priority up to cfg.MaxSlots: the earliest arrival
+// from the start point, the latest starts that still reach the end point
+// by back-by, the start of each interval, then the slot grid (:00 and :30
+// by default). A visit that would run past the interval's end is cut there
+// if that still leaves minVisit. With short set, a visit of an hour or
+// more also comes in a short form (half, at least ShortVisit). A visit
+// shorter than `visit` keeps 80% of the utility plus the rest in
+// proportion to its length.
+func slotNodes(w Window, n Node, open []Interval, visit, minVisit time.Duration, short bool, cfg Config) []Node {
+	var arrive, leave time.Time
+	if w.Start != nil {
+		arrive = ceilTo(w.From.Add(travel.Estimate(*w.Start, n.Loc, w.Mode).Duration), anchorStep)
+	}
+	if w.End != nil {
+		leave = w.BackBy.Add(-travel.Estimate(n.Loc, *w.End, w.Mode).Duration).Truncate(anchorStep)
+	}
+	lengths := []time.Duration{visit}
+	if s := maxDur(ShortVisit, visit/2); short && visit >= 2*ShortVisit && s < visit && s >= minVisit {
+		lengths = append(lengths, s)
+	}
 	var out []Node
+	used := 0
 	for _, iv := range open {
-		length := iv.End.Sub(iv.Start)
-		v := visit
-		if length < v {
-			if length < cfg.MinDuration {
-				continue
-			}
-			v = length
+		if iv.End.Sub(iv.Start) < minVisit {
+			continue
 		}
-		t := iv.Start
-		for !t.Add(v).After(iv.End) && len(out) < cfg.MaxSlots {
-			s := n
-			// A flexible visit can be cut short, so it never runs late.
-			s.Start, s.End, s.P75End = t, t.Add(v), t.Add(v)
-			s.Flexible = true
-			out = append(out, s)
-			next := t.Truncate(cfg.SlotStep).Add(cfg.SlotStep)
-			if !next.After(t) {
-				next = t.Add(cfg.SlotStep)
+		var starts []time.Time
+		add := func(t time.Time) {
+			if t.Before(iv.Start) || t.Add(minVisit).After(iv.End) {
+				return
 			}
-			t = next
+			for _, u := range starts {
+				if u.Equal(t) {
+					return
+				}
+			}
+			starts = append(starts, t)
+		}
+		if !arrive.IsZero() {
+			add(arrive)
+		}
+		if !leave.IsZero() {
+			for _, l := range lengths {
+				add(leave.Add(-l))
+			}
+		}
+		add(iv.Start)
+		for t := iv.Start.Truncate(cfg.SlotStep).Add(cfg.SlotStep); !t.Add(minVisit).After(iv.End); t = t.Add(cfg.SlotStep) {
+			add(t)
+		}
+		if room := cfg.MaxSlots - used; len(starts) > room {
+			starts = starts[:maxInt(room, 0)]
+		}
+		used += len(starts)
+		sort.Slice(starts, func(i, j int) bool { return starts[i].Before(starts[j]) })
+		for _, t := range starts {
+			var ends []time.Time
+			for _, l := range lengths {
+				e := minTime(t.Add(l), iv.End)
+				if e.Sub(t) < minVisit || (len(ends) > 0 && e.Equal(ends[len(ends)-1])) {
+					continue
+				}
+				ends = append(ends, e)
+				s := n
+				// A flexible visit can be cut short, so it never runs late.
+				s.Start, s.End, s.P75End = t, e, e
+				s.Flexible = true
+				s.Utility = n.Utility * (0.8 + 0.2*math.Min(1, float64(e.Sub(t))/float64(visit)))
+				out = append(out, s)
+			}
 		}
 	}
 	return out
+}
+
+func clampDurTo(d, lo, hi time.Duration) time.Duration {
+	if d < lo {
+		return lo
+	}
+	if d > hi {
+		return hi
+	}
+	return d
+}
+
+// ShortVisit is the shortest "short form" of a flexible visit.
+const ShortVisit = 30 * time.Minute
+
+// Anchored starts (arrival from the start point, departure to the end
+// point) are rounded to this step.
+const anchorStep = 5 * time.Minute
+
+func ceilTo(t time.Time, step time.Duration) time.Time {
+	r := t.Truncate(step)
+	if r.Before(t) {
+		r = r.Add(step)
+	}
+	return r
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func durations(a *models.Activity, cfg Config) (visit, visit75 time.Duration) {

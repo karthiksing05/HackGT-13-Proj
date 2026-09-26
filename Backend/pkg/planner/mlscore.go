@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"Backend/pkg/itinerary"
 	"Backend/pkg/ml"
 	"context"
 	"time"
@@ -94,9 +95,10 @@ func (m MLScorer) Score(ctx context.Context, req ScoreRequest) (ScoreResult, err
 }
 
 // eventInput is one candidate on the wire. Places carry no times (the
-// service's time filters keep them); fixed events their own; a drop-in or
-// a multi-day span is sent as the part of it inside the window, so the
-// service's "inside the window" and "not over yet" checks keep it.
+// service's time filters keep them); events attended whole their own; a
+// drop-in, a multi-day span or an event that can be joined late or left
+// early is sent as the part of it inside the window, so the service's
+// "inside the window" and "not over yet" checks keep it.
 func eventInput(c *Candidate, from, backBy time.Time) ml.EventInput {
 	a := &c.Act
 	lat, lng := c.Point.Lat, c.Point.Lng
@@ -116,7 +118,8 @@ func eventInput(c *Candidate, from, backBy time.Time) ml.EventInput {
 		v := a.End.UTC()
 		end = &v
 	}
-	dropIn := (a.Attendance != nil && *a.Attendance == "drop_in") || (end != nil && end.Sub(start) > 6*time.Hour)
+	dropIn := (a.Attendance != nil && *a.Attendance == "drop_in") || (end != nil && end.Sub(start) > 6*time.Hour) ||
+		itinerary.Clippable(a)
 	if dropIn && !from.IsZero() {
 		if start.Before(from) {
 			start = from

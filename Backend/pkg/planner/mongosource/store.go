@@ -142,15 +142,17 @@ func find(ctx context.Context, coll *mongo.Collection, filter, sort bson.D, limi
 	return out, nil
 }
 
-// eventFilter is §4.1's event query: fixed starts inside [From, To−15m],
-// drop-ins overlapping the window, plus the shared conditions.
+// eventFilter is §4.1's event query: fixed starts inside [From−15m,
+// To−15m] (the Go check keeps an early start only for events that can be
+// joined late), drop-ins overlapping the window, plus the shared
+// conditions.
 func eventFilter(q planner.CandidateQuery) bson.D {
 	f, and := shared(q, "event")
 	late := q.To.Add(-planner.EventStartMargin)
 	and = append(and, bson.D{{Key: "$or", Value: bson.A{
 		bson.D{
 			{Key: "attendance", Value: bson.D{{Key: "$ne", Value: "drop_in"}}},
-			{Key: "start", Value: bson.D{{Key: "$gte", Value: q.From}, {Key: "$lte", Value: late}}},
+			{Key: "start", Value: bson.D{{Key: "$gte", Value: q.From.Add(-planner.EventLateStart)}, {Key: "$lte", Value: late}}},
 		},
 		bson.D{
 			{Key: "attendance", Value: "drop_in"},

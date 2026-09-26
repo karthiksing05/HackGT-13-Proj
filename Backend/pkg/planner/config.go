@@ -20,6 +20,7 @@ import (
 // ScoreWeights are the plan Score terms (§5.2 of the design).
 type ScoreWeights struct {
 	Fit        float64
+	Fill       float64
 	Coverage   float64
 	Variety    float64
 	PaceFit    float64
@@ -27,6 +28,7 @@ type ScoreWeights struct {
 	Idle       float64
 	LateRisk   float64
 	OverBudget float64
+	WeakStop   float64 // per stop at or below the bar
 }
 
 // Config holds the planner's knobs. FromEnv reads them from PLANNER_*;
@@ -58,6 +60,17 @@ type Config struct {
 	// series of each kind by utility.
 	SolverEvents int
 	SolverPlaces int
+	// MaxTravelShare: options spending more of their time travelling are
+	// left out whenever another option stays under it.
+	MaxTravelShare float64
+	// UnderPaceBonus is added to every above-the-bar stop's bonus after a
+	// round whose best plan came out under the pace's target.
+	UnderPaceBonus float64
+	// ScoreMu is the diversity weight when ordering options: each option
+	// is the best remaining Score less ScoreMu × its largest Jaccard
+	// overlap with the options before it. On the Score's 0..1 scale, so a
+	// shared stop costs less than a fuller plan gains.
+	ScoreMu float64
 
 	MLTimeout     time.Duration
 	SearchTimeout time.Duration // the search-profile call (ML_SEARCH_TIMEOUT_MS on the ML side)
@@ -106,6 +119,9 @@ func DefaultConfig() Config {
 		MinCandidates:  5,
 		SolverEvents:   25,
 		SolverPlaces:   25,
+		MaxTravelShare: 0.5,
+		UnderPaceBonus: 0.05,
+		ScoreMu:        0.15,
 		MLTimeout:      3000 * time.Millisecond,
 		SearchTimeout:  5000 * time.Millisecond,
 		Jev:            "async",
@@ -122,8 +138,8 @@ func DefaultConfig() Config {
 		FirstPage:      3,
 		MorePage:       2,
 		Weights: ScoreWeights{
-			Fit: 0.45, Coverage: 0.15, Variety: 0.10, PaceFit: 0.10,
-			Travel: 0.05, Idle: 0.05, LateRisk: 0.05, OverBudget: 0.05,
+			Fit: 0.30, Fill: 0.20, Coverage: 0.15, Variety: 0.05, PaceFit: 0.10,
+			Travel: 0.15, Idle: 0.05, LateRisk: 0.05, OverBudget: 0.05, WeakStop: 0.10,
 		},
 		Itinerary: it,
 	}
@@ -152,6 +168,9 @@ func FromEnv() Config {
 	c.MinCandidates = envInt("PLANNER_MIN_CANDIDATES", c.MinCandidates)
 	c.SolverEvents = envInt("PLANNER_SOLVER_EVENTS", c.SolverEvents)
 	c.SolverPlaces = envInt("PLANNER_SOLVER_PLACES", c.SolverPlaces)
+	c.MaxTravelShare = envFloat("PLANNER_MAX_TRAVEL_SHARE", c.MaxTravelShare)
+	c.UnderPaceBonus = envFloat("PLANNER_UNDER_PACE_BONUS", c.UnderPaceBonus)
+	c.ScoreMu = envFloat("PLANNER_SCORE_MU", c.ScoreMu)
 	c.MLTimeout = envMillis("PLANNER_ML_TIMEOUT_MS", c.MLTimeout)
 	c.SearchTimeout = envMillis("PLANNER_SEARCH_TIMEOUT_MS", c.SearchTimeout)
 	switch j := strings.ToLower(os.Getenv("PLANNER_JEV")); j {
@@ -252,10 +271,28 @@ var facetTable = []Facet{
 	{Name: "Nightlife", Tags: []string{"late_night", "drinks"}, Cats: []string{"bar", "nightclub", "brewery", "live_music", "comedy"}},
 }
 
-// FacetByName finds a quick pick's facet; matching ignores case, spaces
-// and underscores ("meet_people" is "Meet people").
+// facetAliases maps other words for a facet (tags the app or a user may
+// send, e.g. "Live music") to its name, keyed by facetKey.
+var facetAliases = map[string]string{
+	"livemusic": "Music", "concert": "Music", "concerts": "Music", "gigs": "Music",
+	"outdoor": "Outdoors", "outside": "Outdoors", "nature": "Outdoors",
+	"foodie": "Food", "fooddrink": "Food", "food&drink": "Food", "eat": "Food", "eats": "Food",
+	"arts": "Art", "culture": "Art",
+	"relaxed": "Chill", "lowkey": "Chill",
+	"sports": "Active", "fitness": "Active",
+	"social": "Meet people", "mingle": "Meet people",
+	"learning": "Nerdy", "geeky": "Nerdy",
+	"nightout": "Nightlife", "bars": "Nightlife", "drinks": "Nightlife",
+}
+
+// FacetByName finds a quick pick's facet; matching ignores case, spaces,
+// hyphens and underscores ("meet_people" is "Meet people"), and knows a
+// few other words for each ("Live music" is Music).
 func FacetByName(name string) (Facet, bool) {
 	key := facetKey(name)
+	if alias, ok := facetAliases[key]; ok {
+		key = facetKey(alias)
+	}
 	for _, f := range facetTable {
 		if facetKey(f.Name) == key {
 			return f, true
