@@ -41,7 +41,7 @@ SERVER_IP="${POSITIONAL[0]:-${DEPLOY_HOST:-}}"
 SERVER_USER="${POSITIONAL[1]:-${DEPLOY_USER:-root}}"
 SERVER_PASS="${DEPLOY_PASSWORD:-}"
 REMOTE_DIR="${DEPLOY_REMOTE_DIR:-/opt/backend}"
-SERVICE_NAME="${DEPLOY_SERVICE:-backend}"
+SERVICE_NAME="${DEPLOY_SERVICE:-sidequestz}"
 [ -n "$SERVER_IP" ] || { echo "DEPLOY_HOST (or the host argument) is required" >&2; exit 1; }
 
 # Non-interactive SSH: sshpass when available, else SSH_ASKPASS.
@@ -116,4 +116,4 @@ if [ "$SEED" = true ]; then
 "
 fi
 run_ssh "$REMOTE_CMDS"
-echo "==> deployed; rollback: mv -f ${REMOTE_DIR}/sidequestz-server.prev ${REMOTE_DIR}/sidequestz-server && systemctl restart ${SERVICE_NAME}"
+echo "==> deployed; rollback: for b in sidequestz-server sidequestz-admin; do mv -f ${REMOTE_DIR}/\$b.prev ${REMOTE_DIR}/\$b; done && systemctl restart ${SERVICE_NAME}"
