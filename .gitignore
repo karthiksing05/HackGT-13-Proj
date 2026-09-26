@@ -21,5 +21,13 @@ DerivedData/
 mpcdf-skills
 
 hf_token
+wandb_token
 
+meta_app_id
+meta_app_secret
+
+gcp-sa.json
 __pycache__/
+*.sqlite
+.cache/
+.venv/

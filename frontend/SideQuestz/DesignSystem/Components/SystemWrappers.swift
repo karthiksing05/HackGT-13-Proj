@@ -79,6 +79,68 @@ enum CalendarConnector {
     }
 }
 
+/// Facebook connect + import (Setup › Connect, Account › Connected). Live: Facebook's Login dialog,
+/// built by the backend, in `ASWebAuthenticationSession`. The backend's callback trades the code for a
+/// token, stores it and redirects to `sidequestz://integrations/facebook?status=…`, then the import
+/// runs (the server reads the Graph API and stores what it read). Demo: no page, straight to the import.
+@MainActor
+enum FacebookConnector {
+    enum Outcome: Equatable {
+        case connected
+        /// Closed or said no on Facebook's page: nothing changed.
+        case declined
+        case failed(String?)
+    }
+
+    /// The fresh import, or nil when the person closed the sheet or said no on Facebook.
+    static func connect(env: AppEnvironment, rerequest: Bool = false) async throws -> FacebookImport? {
+        let url = try await env.api.facebookConnectURL(rerequest: rerequest)
+        if !env.isMock {
+            let callback: URL
+            do {
+                callback = try await OAuthSession().start(url: url, callbackScheme: "sidequestz")
+            } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+                return nil
+            }
+            switch outcome(of: callback) {
+            case .connected: break
+            case .declined: return nil
+            case .failed(let message): throw APIError.validation(message ?? "Facebook didn't connect. Try again.")
+            }
+        }
+        return try await env.api.importFacebook()
+    }
+
+    /// Reads the backend's redirect: `status=connected`, `denied` (said no or closed the dialog on
+    /// Facebook) or `error` with an optional `message` sentence.
+    static func outcome(of url: URL) -> Outcome {
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        func value(_ name: String) -> String? { items.first { $0.name == name }?.value }
+        switch value("status") {
+        case "connected": return .connected
+        case "denied": return .declined
+        default:
+            let message = value("message")?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return .failed(message?.isEmpty == false ? message : nil)
+        }
+    }
+}
+
+/// Adding a card (Setup › Money, Account, Checkout › Change). Live: the backend's hosted card page
+/// in `ASWebAuthenticationSession` (card numbers never touch the app), which redirects to
+/// `sidequestz://payments/done`. Demo: a demo card. Either way, returns the saved cards afterwards.
+enum PaymentMethodConnector {
+    static func addCard(env: AppEnvironment) async throws -> [PaymentMethod] {
+        if env.isMock {
+            _ = try await env.api.addPaymentMethod(token: "tok_demo")
+        } else {
+            let url = try await env.api.paymentSetupURL()
+            _ = try await OAuthSession().start(url: url, callbackScheme: "sidequestz")
+        }
+        return try await env.api.paymentMethods()
+    }
+}
+
 final class OAuthSession: NSObject, ASWebAuthenticationPresentationContextProviding {
     private var session: ASWebAuthenticationSession?
 

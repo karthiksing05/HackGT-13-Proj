@@ -123,3 +123,10 @@ Rule of thumb: the server owns anything that must be correct for everyone — eq
 - Scraper + LLM tool-calling pipeline that keeps the event catalog fresh
 - Taste-profile updates from setup answers and ratings
 - Calendar free/busy sync
+## Needed by the iOS app (see `frontend/API_CONTRACT.md`)
+The iOS client is built against `frontend/API_CONTRACT.md` (exact paths, bodies and JSON examples). Its
+"For the backend team" section lists what this file is missing, mainly: `GET /threads/{id}`,
+`POST /threads/{id}/read`, `GET /forum/posts/mine`, `POST /itineraries/{id}/leave`,
+`PUT …/items/{itemId}/transit`, `PATCH /checkout/intents/{id}`, `POST /me/payment-methods/setup`,
+`DELETE /friends/requests/{id}`, `POST /invites/{code}/accept`, cursor pagination (`next_cursor`), the
+`X-Time-Zone` header, and the realtime event types.

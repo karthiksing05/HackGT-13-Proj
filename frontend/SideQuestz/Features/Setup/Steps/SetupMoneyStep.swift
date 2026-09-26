@@ -1,7 +1,11 @@
+import AuthenticationServices
 import SwiftUI
 
 /// Setup · 4 "Money preferences": spend (the default Create budget), flexibility, split style,
 /// "Prefer free events", and an optional Visa card for tickets and splits.
+///
+/// The card is added on the backend's hosted card page (`PaymentMethodConnector`; a demo card in
+/// mock mode), so card numbers never touch the app; the row then shows the saved card.
 struct SetupMoneyStep: View {
     @Environment(AppEnvironment.self) private var env
     @Bindable var draft: SetupDraft
@@ -11,8 +15,7 @@ struct SetupMoneyStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SetupHeading(title: "Money preferences",
-                         subtitle: "So we suggest things you're comfortable paying for. You can change these anytime.")
+            SetupHeading(title: "Money preferences")
 
             SetupEyebrow(text: "TYPICAL SPEND PER SIDEQUEST")
             SetupChoiceGrid(options: SpendTier.allCases, columns: 2, selection: $draft.preferences.spend, style: .grid) { $0.label }
@@ -22,10 +25,6 @@ struct SetupMoneyStep: View {
 
             SetupEyebrow(text: "SPLITTING WITH A GROUP")
             SetupChoiceGrid(options: SplitStyle.allCases, columns: 3, selection: $draft.preferences.splitStyle, style: .grid) { $0.label }
-            Text("Sets the default for new expenses in Groups › Splits.")
-                .sqFont(12)
-                .foregroundStyle(Theme.text3)
-                .authLineHeight(1.35, size: 12)
 
             freeEventsRow
             cardRow
@@ -77,7 +76,7 @@ struct SetupMoneyStep: View {
                 AuthErrorText(message: cardError)
                     .sqTransition(.rise)
             }
-            Text("The checkout agent always asks before it spends anything.")
+            Text("The agent asks before it buys anything, unless you turn on instant checkout.")
                 .sqFont(12)
                 .foregroundStyle(Theme.text3)
                 .authLineHeight(1.35, size: 12)
@@ -152,12 +151,23 @@ struct SetupMoneyStep: View {
         }
         Task {
             do {
-                let method = try await env.api.addPaymentMethod(token: "tok_visa")
+                let methods = try await PaymentMethodConnector.addCard(env: env)
+                guard let method = methods.first(where: \.isDefault) ?? methods.first else {
+                    // Came back from the card page without a saved card.
+                    withMotion {
+                        addingCard = false
+                        cardError = "No card was added. Try again."
+                    }
+                    return
+                }
                 // "Added" pops in where the button was; the subtitle cross-fades to the card.
                 withMotion(Motion.arrive) {
                     card = .loaded(method)
                     addingCard = false
                 }
+            } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+                // Closed the card page: nothing changed.
+                withMotion(Motion.quick) { addingCard = false }
             } catch {
                 withMotion {
                     addingCard = false

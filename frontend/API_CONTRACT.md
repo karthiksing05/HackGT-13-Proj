@@ -32,18 +32,28 @@ HTTPS URL. Plain `http://` is allowed only for local networks (`NSAllowsLocalNet
 ## Conventions
 
 - **JSON keys are `snake_case`.** Enum values are `snake_case` too (`"not_free"`, `"just_me"`, `"free_now"`).
-- **Dates are ISO 8601 strings with a time zone** (`"2026-09-25T18:10:00Z"`; fractional seconds are accepted).
+  Unknown enum values from the server fall back safely (e.g. an unknown checkout state reads as `processing`).
+- **Dates are ISO 8601 with a time zone** (`"2026-09-25T18:10:00Z"`; fractional seconds are fine). Day-only
+  fields may also be sent as `"2026-09-25"`.
+- **Time zone.** Every request carries `X-Time-Zone: <IANA id>` (e.g. `America/New_York`). Use it for anything
+  day-based: calendar days, "today", plan dates, "Free until 6:30 PM".
 - **Money is integer cents** (`amount_cents: 4000`). Unknown real prices are `null`. The app then shows
   placeholders like `$[price]` and never invents a price.
 - **Auth.** `Authorization: Bearer <access_token>` on everything except `/auth/*`. On a `401` the app calls
-  `POST /auth/refresh` once and retries. Tokens are stored in the Keychain.
+  `POST /auth/refresh` once (concurrent 401s share that one refresh) and retries. The refresh response is
+  `{access_token, refresh_token?, expires_at?}`; if it has no new `refresh_token` the app keeps the old one.
+  If the refresh fails, the app signs out and tells the user their session expired. Tokens live in the Keychain.
 - **Errors.** Any non-2xx status. Put a user-facing sentence in `{"message": "…"}` (or FastAPI's `{"detail": "…"}`).
-  `400`/`422` messages are shown to the user as-is.
-- **Lists.** Either a bare JSON array or `{"items": […], "next_cursor": "…"}`.
+  `400`/`422` messages are shown to the user as-is. `409` means "what you saw is stale" (e.g. settling a balance
+  that changed); send a sentence saying so.
+- **Lists are paginated with cursors.** Return `{"items": […], "next_cursor": "…"}` (or a bare array for a list
+  that's complete). The app sends `?cursor=<next_cursor>` and follows the chain until `next_cursor` is null,
+  so balances, counts and filters always see everything. Page size is up to the server.
 - **Leniency.** Optional fields may be omitted. Defaults are in
   [`Models/Decoding.swift`](SideQuestz/Models/Decoding.swift). The Swift models in
   [`Models/`](SideQuestz/Models/) are the source of truth for field names.
-- `ContractTests` checks that every model round-trips through these settings.
+- `ContractTests` checks that every model round-trips through these settings, and dumps the examples at the end
+  of this file (`TEST_RUNNER_SQ_DUMP_CONTRACT=<dir>` when running the unit tests).
 
 ## Endpoints
 
@@ -52,121 +62,281 @@ HTTPS URL. Plain `http://` is allowed only for local networks (`NSAllowsLocalNet
 ### Auth
 | Method | HTTP | Body / query | Response |
 |---|---|---|---|
-| `signup` | `POST /auth/signup` | `SignupRequest` | `AuthResponse` |
-| `login` | `POST /auth/login` | `{email, password}` | `AuthResponse` (401 → "That email and password don't match.") |
-| `refresh` | `POST /auth/refresh` | `{refresh_token}` | `AuthTokens` |
-| `logout` | `POST /auth/logout` | | 2xx |
+| `signup` | `POST /auth/signup` | `SignupRequest` (`name, email, password, username?, date_of_birth?`; the birth date drives age filtering) | `AuthResponse` |
+| `login` | `POST /auth/login` | `{email, password}` | `AuthResponse` (401 → "That email and password don't match."). If `user.setup_complete` is false the app resumes Profile setup |
+| `refresh` | `POST /auth/refresh` | `{refresh_token}` | `{access_token, refresh_token?, expires_at?}` |
+| `logout` | `POST /auth/logout` | `{refresh_token}` (revoke that session) | 2xx |
 | `forgotPassword` | `POST /auth/password/forgot` | `{email}` | always 2xx (never reveal whether the email exists) |
-| `verifyResetCode` | `POST /auth/password/verify` | `{email, code}` | `{reset_token}` (400/401 → invalid code) |
+| `verifyResetCode` | `POST /auth/password/verify` | `{email, code}` | `{reset_token}` (400/401 → invalid code). Codes are 6 digits and expire after 10 minutes (the app says so) |
 | `resetPassword` | `POST /auth/password/reset` | `{reset_token, new_password}` | 2xx; sign out other sessions |
 | `resendResetCode` | `POST /auth/password/resend` | `{email}` | 2xx |
 
 ### Me, integrations, payments
 | Method | HTTP | Body / query | Response |
 |---|---|---|---|
-| `me` / `updateMe` | `GET` / `PATCH /me` | `UserPatch` | `User` |
+| `me` / `updateMe` | `GET` / `PATCH /me` | `UserPatch` (`name, username, date_of_birth, status`: `open` = open to all \| `friends_only` \| `busy`; email and password can't change here) | `User` (includes `id, avatar_color, school, setup_complete`) |
 | `uploadPhoto` | `POST /me/photo` | multipart, field `photo`, `image/jpeg` | `{url}` |
 | `deletePhoto` | `DELETE /me/photo` | | 2xx |
 | `setAvatarColor` | `PATCH /me/avatar` | `{color}` (`ink`/`sage`/`clay`/`forest`/`sand`) | 2xx |
-| `preferences` / `savePreferences` | `GET` / `PUT /me/preferences` | `Preferences` | `Preferences` / 2xx |
+| `preferences` / `savePreferences` | `GET` / `PUT /me/preferences` | `Preferences` (rating keys 1–5: `outdoors, food, museums, live_music, nightlife, sports, shopping, big_crowds, early_mornings, long_walks`; answer keys: `perfect_afternoon, never_do, plan_around`; `instant_checkout`, `instant_checkout_limit_cents`) | `Preferences` / 2xx. The first `PUT` finishes Profile setup: set `setup_complete: true` on the user |
 | `tasteProfile` | `GET /me/taste-profile` | | `TasteProfile` (bars 0…1) |
-| `registerDevice` | `POST /me/devices` | `{push_token, platform: "ios"}` | 2xx |
-| `integrations` | `GET /integrations` | | `[Integration]` |
-| `connectIntegration` | `POST /integrations/{google\|outlook}/connect` | | `{url}`. The OAuth URL opens in `ASWebAuthenticationSession` and should redirect to `sidequestz://…` when done |
+| `registerDevice` / `unregisterDevice` | `POST /me/devices` / `DELETE /me/devices/{push_token}` | `{push_token, platform: "ios"}` | 2xx (push isn't wired in the app yet: it needs the Push capability on a paid team) |
+| `integrations` | `GET /integrations` | | `[Integration]`: calendars only (`google`, `outlook`). Facebook has its own endpoints below; don't list it here (older app builds would fail to read the list) |
+| `connectIntegration` | `POST /integrations/{google\|outlook}/connect` | | `{url}`. The OAuth page opens in `ASWebAuthenticationSession` and must redirect to `sidequestz://…` when done |
+| `completeIntegration` | nothing | | The server finishes OAuth in its own callback; the app just reloads `integrations` |
 | `disconnectIntegration` | `DELETE /integrations/{provider}` | | 2xx |
-| `paymentMethods` / `addPaymentMethod` / `deletePaymentMethod` | `GET` / `POST` / `DELETE /me/payment-methods[/{id}]` | `{token}` (tokenized Visa) | `[PaymentMethod]` / `PaymentMethod` |
+| `paymentMethods` | `GET /me/payment-methods` | | `[PaymentMethod]` |
+| `paymentSetupURL` | `POST /me/payment-methods/setup` | | `{url}`: a hosted card page (card numbers never touch the app). It opens in `ASWebAuthenticationSession` and redirects to `sidequestz://payments/done`; the app then reloads `paymentMethods` |
+| `addPaymentMethod` | `POST /me/payment-methods` | `{token}` from a payment SDK | `PaymentMethod` (only if you later add an SDK; the app uses the hosted page) |
+| `deletePaymentMethod` | `DELETE /me/payment-methods/{id}` | | 2xx |
+
+### Facebook (Graph API): taste context for preferences
+The person connects Facebook from Setup (step 2, "Fill in your likes") or later from Account › Connected.
+Your server does everything that touches Facebook: the app never sees the app secret or the Facebook token,
+and it never posts. The flow:
+
+1. `POST /integrations/facebook/connect` returns Facebook's Login dialog URL. The app opens it in
+   `ASWebAuthenticationSession`, never an embedded web view, since Facebook blocks those.
+2. Facebook redirects to your callback with a `code`. Your server exchanges it for a long-lived token, stores
+   it and redirects to `sidequestz://integrations/facebook?status=connected`.
+3. The app calls `POST /integrations/facebook/import`. Your server reads the Graph API, **stores what it read**
+   (the ML stack can use it) and returns a summary with suggested 1–5 ratings.
+4. The person sees the suggestions. The ratings they accept are saved with the usual `PUT /me/preferences`.
+   Setup only fills trip types they haven't rated; Account shows each change first.
+
+| Method | HTTP | Body / query | Response |
+|---|---|---|---|
+| `facebookConnection` | `GET /integrations/facebook` | | `FacebookConnection {connected, needs_reconnect, name?, declined_scopes, last_import?}` |
+| `facebookConnectURL` | `POST /integrations/facebook/connect` | `{rerequest}` (true: ask again for permissions they turned off, `auth_type=rerequest`) | `{url}`: Facebook's Login dialog, with your `state` and redirect URI |
+| (your callback) | `GET /integrations/facebook/callback` | `code`, `state` (or `error=access_denied`) from Facebook | `302` to `sidequestz://integrations/facebook?status=connected`, `status=denied` (they said no or closed the dialog; the app stays quiet) or `status=error&message=<sentence>` |
+| `importFacebook` | `POST /integrations/facebook/import` | | `FacebookImport {imported_at, liked_pages, suggested_ratings, interests, home_area?, friends_on_app: [UserSearchResult]}`. If Facebook rejects the token, answer **`409`** with a sentence and set `needs_reconnect`. **Never `401`**: that would sign the person out of SideQuests |
+| `disconnectFacebook` | `DELETE /integrations/facebook` | | 2xx. Revoke on Facebook (`DELETE /me/permissions`), delete the token and the imported data. Preferences they saved stay |
+
+The steps for your side are under "Backend work: Facebook connector" below.
 
 ### Calendar, places, events
 | Method | HTTP | Body / query | Response |
 |---|---|---|---|
-| `calendarDays` | `GET /calendar/days` | `from`, `to` (`YYYY-MM-DD`) | `[CalendarDay]`: free/busy blocks, sidequests, group events |
+| `calendarDays` | `GET /calendar/days` | `from`, `to` (`YYYY-MM-DD` in `X-Time-Zone`) | `[CalendarDay]`: free/busy blocks, sidequests, group events. Blocks that belong to a plan carry `itinerary_id` |
 | `searchPlaces` | `GET /places/search` | `q`, `near=lat,lng` | `[Place]` (the app also uses MapKit search) |
 | `reverseGeocode` | `GET /places/reverse` | `lat`, `lng` | `Place` |
-| `eventDetail` | `GET /events/{id}` | | `ItineraryItem`: full details for any timeline block (the Event sheet) |
+| `search` | `GET /search` | `q` | `SearchResults {sidequests: [Itinerary], people: [UserSearchResult], places: [Place], posts: [ForumPost]}` (Home's search bar) |
+| `eventDetail` | `GET /events/{id}` | | `ItineraryItem`: full details for any timeline block (the Event sheet), including your saved `notes`, `notes_scope`, `transit_mode`, `rating` and `ticket` |
 
 ### Planning: the AI / recommendation stack plugs in here
 | Method | HTTP | Body | Response |
 |---|---|---|---|
 | `generatePlans` | `POST /plans/generate` | `PlanRequest` (where, when, mood text, quick picks, budget, who, ride, pace, modes) | `PlanBatch`: the first 3 ranked options + `cursor` |
-| `moreOptions` | `POST /plans/generate/more` | `{cursor}` | `PlanBatch`: 2 more; `done: true` when out ("No more right now") |
-| `route` | `POST /plans/route` | `RouteRequest` (option id + stop order + ride + modes) | `RouteResult`: one leg per hop (start → stop 1 … last stop → end), each stop's `{start, end}`, `arrival`, `minutes_late` |
-| `createItinerary` | `POST /itineraries` | `CreateItineraryRequest` | `Itinerary`: shown selected on Home |
+| `moreOptions` | `POST /plans/generate/more` | `{cursor}` | `PlanBatch`: more options; `done: true` when out ("No more right now") |
+| `route` | `POST /plans/route` | `RouteRequest` (option id, stop order, start, end, start time, back-by, ride, modes; keep generated options by id). `stop_order` holds the option's own stop ids **or alternatives you returned for it** (a swap puts the new id in the old one's place), and a stop that's **left out was removed** | `RouteResult`: one leg per hop (start → stop 1 … last stop → end), each stop's `{start, end}`, `arrival`, `minutes_late` |
+| `stopAlternatives` | `POST /plans/alternatives` | `{option_id, stop_id, stop_order}`: the stop to replace, and the option's current order (so suggestions fit between the neighbors and never repeat a stop that's already in it) | `[PlanAlternative {stop: PlanStop, reason}]`, about 3–5, best first. `reason` is a few words on why it's similar ("Also rooftop views · 0.2 mi away"). Remember the stops you return: their ids come back in `stop_order` and `CreateItineraryRequest` |
+| `createItinerary` | `POST /itineraries` | `CreateItineraryRequest`: `option` is the option **as edited** on Review (swapped stops in their places, removed ones gone), `stop_order` its final order | `Itinerary`: shown selected on Home |
 
 Leg rule used by the demo: ≤ 0.8 mi walks; otherwise Drive / Uber / MARTA from the ride answer
 (`drive` / `cover` / `none`). The server owns the real transit times.
 
-### Itineraries, past events, ratings
+"Similar" is the server's call (the ML stack's embeddings fit here). The demo suggests places of the
+same kind (views, art, food, park, games, books) that aren't already in the plan, nearest first.
+
+### Itineraries (the app calls them "sidequests"), past events, ratings
 | Method | HTTP | Body / query | Response |
 |---|---|---|---|
-| `activeItineraries` | `GET /itineraries?status=active` | | `[Itinerary]` |
-| `itinerary` / `deleteItinerary` | `GET` / `DELETE /itineraries/{id}` | | `Itinerary` / 2xx |
-| `updateItemNotes` | `PATCH /itineraries/{id}/items/{itemId}` (calendar-only entries: `PATCH /events/{id}`) | `{notes}` | 2xx |
+| `activeItineraries` | `GET /itineraries?status=active` | | `[Itinerary]` (each with `is_host`) |
+| `itinerary` | `GET /itineraries/{id}` | | `Itinerary` |
+| `updateItinerary` | `PATCH /itineraries/{id}` | `ItineraryUpdate`: only the changed fields (`title`, `date`, `start`, `back_by`, `visibility`, `stop_order` = stop item ids in the new order; stops left out are removed) | `Itinerary`, re-timed by the server when the date, window or stops change. Host only (`is_host`); reject others with 403 |
+| `deleteItinerary` | `DELETE /itineraries/{id}` | | 2xx. Host only; everyone who joined loses it |
+| `leaveItinerary` | `POST /itineraries/{id}/leave` | | 2xx. For people who joined someone else's plan (`is_host: false`) |
+| `updateItemNotes` | `PATCH /itineraries/{id}/items/{itemId}` (calendar-only entries: `PATCH /events/{id}`) | `{notes, notes_scope?}` (`private` = only you, `shared` = everyone on the plan; omitted = unchanged) | 2xx |
 | `transitOptions` | `GET /itineraries/{id}/items/{itemId}/transit` (or `/events/{id}/transit`) | | `[TransitOption]` ("Getting there": walk / MARTA / rideshare; `cost_cents` null → "[fare]") |
-| `pastEvents` | `GET /me/past-events?unrated=true\|false` | | `[PastEvent]` |
+| `selectTransit` | `PUT /itineraries/{id}/items/{itemId}/transit` (or `/events/{id}/transit`) | `{mode}` | 2xx; comes back as the item's `transit_mode` |
+| `pastEvents` | `GET /me/past-events?unrated=true\|false` | | `[PastEvent]` (`id` = the item id, so "Rate it after" and Past agree) |
+| `pastInsights` | `GET /me/insights` | | `PastInsights {headline, highlights: [{id, title, value, detail?, symbol?}], top_tags, based_on}`: what the sidequests you rated 4–5 stars have in common (Home › Past, top card). `based_on: 0` = not enough ratings; `headline` is then a nudge |
 | `rate` | `PUT /ratings/{itemId}` | `Rating` | 2xx; updates the taste profile server-side |
 
 ### Agent checkout (Visa)
+The agent works in the background. States: `preparing` (finding tickets, building the quote) →
+`awaiting_approval` → `processing` (paying) → `booked`, or `failed` (with `failure_reason`) / `cancelled`.
+Push every change as `checkout.status`; the app also polls `GET /checkout/intents/{id}` while it waits.
+
 | Method | HTTP | Body | Response |
 |---|---|---|---|
-| `createCheckoutIntent` | `POST /checkout/intents` | `{item_id, quantity}` | `CheckoutIntent` (agent steps, subtotal/fees/total cents or null, card) |
-| `checkoutIntent` | `GET /checkout/intents/{id}` | | `CheckoutIntent` (status is also pushed over the WebSocket) |
-| `approveCheckout` | `POST /checkout/intents/{id}/approve` | | `CheckoutIntent` (`state: "booked"`). This is the only call that spends money |
+| `createCheckoutIntent` | `POST /checkout/intents` | `{item_id, quantity, payment_method_id?, instant}` (null card = default; `instant: true` when the user has instant checkout on) | `CheckoutIntent` (usually `preparing`). With `instant` and a total within `instant_checkout_limit_cents`, skip approval: set `instant: true` and go straight to `processing` → `booked` |
+| `checkoutIntent` | `GET /checkout/intents/{id}` | | `CheckoutIntent` |
+| `updateCheckoutIntent` | `PATCH /checkout/intents/{id}` | `{payment_method_id}` (Checkout › "Change") | `CheckoutIntent` |
+| `approveCheckout` | `POST /checkout/intents/{id}/approve` | | `CheckoutIntent` (`processing`, then `booked` via event/poll). This is the only call that spends money. Once booked, the item carries its `ticket` |
 | `cancelCheckout` | `POST /checkout/intents/{id}/cancel` | | 2xx |
 
 ### Forum
 | Method | HTTP | Body / query | Response |
 |---|---|---|---|
-| `forumPosts` | `GET /forum/posts` | `lat, lng, radius, scope (everyone\|friends), type (all\|plans\|free_now), when (any\|now\|today\|weekend), max_dist, cost=0,1, tags=Food,Art, open_only, sort (soonest\|closest\|spots\|newest)` | `[ForumPost]` |
-| `myFreePost` | `GET /forum/posts?mine=true` | | `[MyFreePost]` (0 or 1: your live "I'm free" post) |
-| `postFreeNow` | `POST /forum/posts` | `{type: "free_now", visibility: "friends"\|"everyone"}` | `MyFreePost` |
+| `forumPosts` | `GET /forum/posts` | `lat, lng` (area center; "Current location" sends the device's), `area` (label), `radius, scope (everyone\|friends), type (all\|plans\|free_now), when (any\|now\|today\|weekend), max_dist, cost=0,1, tags=Food,Art, open_only, sort (soonest\|closest\|spots\|newest)` | `[ForumPost]` (each with your `join_status`, and the plan's group chat `thread_id` once you're in) |
+| `myFreePost` | `GET /forum/posts/mine` | | `MyFreePost` or `null`/204 (your live "I'm free" post) |
+| `postFreeNow` | `POST /forum/posts` | `{type: "free_now", visibility: "friends"\|"everyone", until?, lat?, lng?, area_label?, radius_mi?}` | `MyFreePost` (with `until`, `area_label`, `radius_mi` for its audience line) |
 | `deleteForumPost` | `DELETE /forum/posts/{id}` | | 2xx |
-| `requestToJoin` / `cancelJoinRequest` | `POST` / `DELETE /forum/posts/{id}/join-requests` | | 2xx |
+| `requestToJoin` | `POST /forum/posts/{id}/join-requests` | | `JoinResult` `{status: requested\|joined\|full\|closed, itinerary_id?, thread_id?}`. Auto-accept returns `joined` (the plan is then on Home and its group chat exists); empty 2xx = `requested` |
+| `cancelJoinRequest` | `DELETE /forum/posts/{id}/join-requests` | | 2xx |
 | `planTogether` | `POST /forum/posts/{id}/plan-together` | | `ChatThread` (the DM with the poster) |
 
 ### Threads, album, splits
 | Method | HTTP | Body / query | Response |
 |---|---|---|---|
-| `threads` / `thread` | `GET /threads[/{id}]` | | `[ChatThread]` / `ChatThread` (groups carry `faces`, `chips`, album title/subtitle) |
-| `messages` / `sendMessage` | `GET` / `POST /threads/{id}/messages` | `before` / `{text}` | `[Message]` / `Message` |
+| `threads` / `thread` | `GET /threads[/{id}]` | | `[ChatThread]` / `ChatThread`: groups and DMs, most recent first, with `unread`. Groups carry `faces`, `chips`, album title/subtitle |
+| `messages` | `GET /threads/{id}/messages` | `before=<message id>` (older page) | `[Message]`, oldest first |
+| `sendMessage` | `POST /threads/{id}/messages` | `{text, client_id?}`: the same `client_id` twice must not post twice | `Message` (echoes `client_id`, also on its `message.new` event) |
+| `markThreadRead` | `POST /threads/{id}/read` | | 2xx (unread → 0; push `thread.read` to your other devices) |
 | `startDM` | `POST /threads/dm` | `{user_id}` | `ChatThread` |
-| `groupPhotos` / `uploadGroupPhoto` / `deleteGroupPhoto` | `GET` / `POST` (multipart `photo`) / `DELETE /groups/{id}/photos[/{photoId}]` | | `[GroupPhoto]` / `GroupPhoto` |
+| `groupPhotos` / `uploadGroupPhoto` / `deleteGroupPhoto` | `GET` / `POST` (multipart `photo`) / `DELETE /groups/{id}/photos[/{photoId}]` | | `[GroupPhoto]` / `GroupPhoto` (`uploader_id`, `created_at`; people delete only their own) |
 | `ledger` | `GET /threads/{id}` + `GET /groups/{id}/expenses` + `GET /groups/{id}/balances` | | `GroupLedger` (members, expenses with server-computed `shares`, balances: + means they owe you) |
-| `addExpense` | `POST /groups/{id}/expenses` | `NewExpense` | `Expense` with `shares`: `floor(total / n)` each, the first `total mod n` people pay 1¢ more. Notify members |
-| `deleteExpense` | `DELETE /groups/{id}/expenses/{expenseId}` | | 2xx |
-| `settleUp` | `POST /groups/{id}/settle` | | 2xx (pays what you owe with the default card) |
+| `addExpense` | `POST /groups/{id}/expenses` | `NewExpense` | `Expense` with `shares`: `floor(total / n)` each, the first `total mod n` people pay 1¢ more, and `created_by` (who added it). Notify members (`expense.added`) |
+| `deleteExpense` | `DELETE /groups/{id}/expenses/{expenseId}` | | 2xx. Only the person who added it (`created_by`) |
+| `settleUp` | `POST /groups/{id}/settle` | `{amount_cents, payment_method_id?}` (what the screen showed) | 2xx; `409` if the balance changed |
 
 ### Friends
 | Method | HTTP | Body / query | Response |
 |---|---|---|---|
 | `friends` | `GET /friends` | | `[Friend]` (live status line + activity) |
-| `searchUsers` | `GET /users/search` | `q` | `[PersonRef]` |
-| `friendRequests` / `sendFriendRequest` | `GET` / `POST /friends/requests` | `{user_id}` | `[FriendRequest]` / 2xx |
+| `searchUsers` | `GET /users/search` | `q` (name or @handle) | `[UserSearchResult]` `{person, relation: none\|friend\|outgoing\|incoming, request_id?}` |
+| `friendRequests` | `GET /friends/requests` | | `[FriendRequest]`: incoming, plus the ones you sent with `outgoing: true` (so "Requested" survives a relaunch) |
+| `sendFriendRequest` | `POST /friends/requests` | `{user_id}` | `FriendRequest` (`outgoing: true`) |
+| `cancelFriendRequest` | `DELETE /friends/requests/{id}` | | 2xx (your own outgoing request) |
 | `acceptFriendRequest` / `declineFriendRequest` | `POST /friends/requests/{id}/accept\|decline` | | 2xx |
-| `removeFriend` | `DELETE /friends/{id}` | | 2xx |
-| `createInvite` | `POST /invites` | | `{url}` (shareable invite link) |
+| `removeFriend` | `DELETE /friends/{user_id}` | | 2xx |
+| `createInvite` | `POST /invites` | | `{url}` (shareable; `https://sidequests.app/invite/<code>` should also open `sidequestz://invite/<code>`) |
+| `acceptInvite` | `POST /invites/{code}/accept` | | `Friend` (the inviter) |
+
+`PersonRef` everywhere: `{id, name, initials?, color_hex?, photo_url?, username?}` (initials and color are
+derived when missing; avatars show `photo_url` when present).
 
 ### Realtime: `WS /ws`
 The app connects with `Authorization: Bearer <access_token>` and expects messages shaped like
 `{"type": "<event>", "data": {…}}`. [`WebSocketService`](SideQuestz/Services/WebSocketService.swift)
 decodes them and publishes to screens through `RealtimeHub`.
 
-| `type` | `data` |
-|---|---|
-| `message.new` | `{thread_id, message: Message}` |
-| `join.request` | `{post_id, from: PersonRef}` |
-| `friend.status` | `{user_id, status_line}` |
-| `forum.update` | `{}` (refetch the feed) |
-| `checkout.status` | `{intent_id, state}` |
-| `transit.delay` | `{itinerary_id, item_id, minutes}` |
+| `type` | `data` | Screens that react |
+|---|---|---|
+| `message.new` | `{thread_id, message: Message}` | Chat, DMs, Groups list |
+| `thread.updated` | `ChatThread` (new thread, members, last message, unread) | Groups list, DMs |
+| `thread.read` | `{thread_id}` | unread badges |
+| `join.request` | `{post_id, from: PersonRef}` | host: Home counts |
+| `join.update` | `{post_id, result: JoinResult}` | Forum card, Home |
+| `friend.status` | `{user_id, status_line}` | Friends |
+| `friend.request` | `FriendRequest` | Friends › Requests |
+| `forum.update` | `{}` (refetch the feed) | Forum |
+| `checkout.status` | `{intent_id, state}` | Checkout |
+| `transit.delay` | `{itinerary_id, item_id, minutes}` | Home timeline, Event sheet |
+| `itinerary.updated` | `Itinerary` | Home |
+| `itinerary.removed` | `{itinerary_id}` | Home |
+| `expense.added` | `{group_id, expense: Expense}` | Splits |
+| `photo.added` | `{group_id, photo: GroupPhoto}` | Album |
 
 ### Voice
 [`VoiceInputService.swift`](SideQuestz/Services/VoiceInputService.swift) uses Apple's Speech framework
 (`SFSpeechRecognizer`), on device when the phone supports it, with automatic punctuation. No audio
 reaches your backend: the transcript only fills a text field, which is sent like any typed text.
 
+## For the backend team: differences from `Backend/API_ENDPOINTS.md`
+
+The app is built against this file. Where `Backend/API_ENDPOINTS.md` says something else, this file wins:
+
+- **Missing there, needed by the app:** `GET /search`, `GET /me/insights`, `GET /threads/{id}`, `POST /threads/{id}/read`, `GET /forum/posts/mine`,
+  `PATCH /events/{id}` and `GET`/`PUT /events/{id}/transit` (calendar-only blocks), `PUT …/items/{itemId}/transit`,
+  `POST /itineraries/{id}/leave`, `PATCH /checkout/intents/{id}`, `POST /me/payment-methods/setup`,
+  `DELETE /friends/requests/{id}`, `POST /invites/{code}/accept`, `DELETE /me/devices/{push_token}`, and the
+  realtime events above beyond `message.new`, `POST /plans/alternatives` (Review's swap), and the Facebook endpoints (`GET`/`DELETE /integrations/facebook`,
+  `POST /integrations/facebook/connect`, `POST /integrations/facebook/import`, plus the callbacks below).
+- **Different shapes:** `POST /auth/refresh` returns `{access_token, refresh_token?, expires_at?}`; sign-up also
+  takes `username` and `date_of_birth`; `GET /me` also returns `id`, `avatar_color`, `school`, `setup_complete`;
+  free posts take `until` and a location; `POST /plans/route` also takes start, end, start time and back-by;
+  notes have a scope; settle-up takes the amount; lists paginate with `next_cursor`; statuses are `open` / `friends_only` / `busy`; checkout intents take `instant` (preferences hold the on/off and the limit).
+- **Only there (not used by the app yet):** the `GET /events` catalog, the host's join-request approval
+  endpoints (joins auto-accept for now), and `lock_at` / `max_group_size` in `PATCH /itineraries/{id}`.
+
+## Backend work: Facebook connector
+
+Everything below is server-side; the app side is done, including the demo backend. Graph API **v26.0** was
+current when this was written.
+
+**1. Meta app (developers.facebook.com)**
+- Create an app with the "Authenticate and request data from users with Facebook Login" use case, and add
+  Facebook Login.
+- Under Facebook Login › Settings › Valid OAuth Redirect URIs, add `https://<your-api>/integrations/facebook/callback`.
+  Facebook requires HTTPS.
+  - `localhost` redirects work only while the app is in Development mode, so only the Simulator on the same
+    Mac can use them.
+  - From a phone, use a tunnel (ngrok, Cloudflare Tunnel) or the deployed server.
+- **For the demo, keep the app in Development mode** and add every demo account under App roles › Roles
+  (Testers). Those people can grant every permission below without App Review.
+- Going Live later needs:
+  - App Review of `user_likes`, `user_location` and `user_friends`;
+  - business verification;
+  - a privacy policy URL;
+  - the data-deletion callback in step 5.
+- Server settings: `FB_APP_ID`, `FB_APP_SECRET`, `FB_GRAPH_VERSION=v26.0`. Turn on "Require App Secret" and send
+  `appsecret_proof` (HMAC-SHA256 of the token, keyed with the app secret) on every Graph call.
+
+**2. Connect (`POST /integrations/facebook/connect` → `{url}`)**
+- Make a random single-use `state`, store it with the user id for 10 minutes, and return:
+  `https://www.facebook.com/v26.0/dialog/oauth?client_id=<FB_APP_ID>&redirect_uri=<callback>&state=<state>&response_type=code&scope=public_profile,user_likes,user_location,user_friends`
+- Add `&auth_type=rerequest` when the body says `rerequest: true`.
+
+**3. Callback (`GET /integrations/facebook/callback`)**
+- No bearer token here, since this is a browser redirect. Find the user by `state` and reject unknown or used ones.
+- If Facebook sent `error=access_denied`, redirect to `sidequestz://integrations/facebook?status=denied`.
+- Otherwise:
+  1. `GET https://graph.facebook.com/v26.0/oauth/access_token?client_id&redirect_uri&client_secret&code` to get a short-lived token.
+  2. `GET …/oauth/access_token?grant_type=fb_exchange_token&client_id&client_secret&fb_exchange_token=<token>` to get a long-lived token (about 60 days).
+  3. `GET /me?fields=id,name` and `GET /me/permissions` to record the Facebook user id and the granted and declined scopes.
+  4. Store the token encrypted at rest. Redirect to `…?status=connected`, or on failure to `…?status=error&message=<url-encoded sentence>`.
+
+**4. Import (`POST /integrations/facebook/import` → `FacebookImport`)**
+- **Graph calls:**
+  - `GET /me?fields=id,name,location` (the city is `location.name`);
+  - `GET /me/likes?fields=id,name,category,category_list,created_time&limit=100`, following `paging.next`
+    (cap it at about 1,000 Pages);
+  - `GET /me/friends?fields=id,name`. This only returns friends who also connected SideQuests; match their Facebook
+    ids to your users and return them as `UserSearchResult` with the current relation.
+- **Not available any more:** Graph API v26 has no user events edge and no tagged places, so don't plan on them.
+  Posts (`user_posts`) aren't requested: the privacy and App Review cost is high for little extra signal.
+- **Store** the raw rows (Pages with categories, city, friend ids) replacing the previous import. The
+  recommendation / ML stack reads them from there.
+- **Suggested ratings:** count liked Pages per trip type and scale to 1–5, suggesting only types with at least
+  about 3 Pages. The ML team can replace this mapping. A baseline mapping from Page categories:
+
+  | Trip type | Page categories (examples) |
+  |---|---|
+  | `outdoors` | Park, Outdoor Recreation, Hiking Trail, Campground, Nature Preserve, Beach |
+  | `food` | Restaurant (any cuisine), Café, Coffee Shop, Bakery, Food & Beverage, Food Truck |
+  | `museums` | Museum, Art Gallery, Art Museum, Artist, History Museum, Science Museum |
+  | `live_music` | Musician/Band, Concert Venue, Music Festival, Live Music Venue |
+  | `nightlife` | Bar, Night Club, Lounge, Pub, Brewery, Comedy Club |
+  | `sports` | Sports Team, Sports League, Stadium, Gym/Physical Fitness Center, Climbing Gym, Bowling Alley |
+  | `shopping` | Shopping Mall, Clothing Store, Farmers Market, Flea Market, Bookstore, Vintage Store |
+  | `big_crowds` | Festival, Stadium, Amusement Park, Theme Park |
+  | `long_walks` | Walking Tour, Botanical Garden, Hiking Trail, Neighborhood |
+  | `early_mornings` | Yoga Studio, Running Club, Farmers Market |
+
+- `interests` is 3–8 short plain words for what the Pages have in common ("Hiking", "Indie rock").
+- **Errors:** if Graph returns error code 190 (token expired or revoked), set `needs_reconnect` and answer
+  `409 {"message": "Facebook needs you to sign in again."}`.
+
+**5. Deauthorize and data deletion**
+Configure both callbacks in the app dashboard. Both receive a `signed_request`: base64url signature and payload
+joined by a dot, where the signature is HMAC-SHA256 over the payload with the app secret.
+- **Deauthorize** (`POST /integrations/facebook/deauthorize`): the person removed SideQuests on Facebook. Delete
+  the token and mark the connection disconnected.
+- **Data deletion** (`POST /integrations/facebook/data-deletion`): delete everything imported for that Facebook
+  user. Respond `{"url": "<status page>", "confirmation_code": "<code>"}`.
+
+**6. Suggested tables**
+- `facebook_accounts`: `user_id` (primary key), `fb_user_id` (unique), `access_token_encrypted`,
+  `token_expires_at`, `granted_scopes`, `declined_scopes`, `needs_reconnect`, `connected_at`.
+- `facebook_imports`: `user_id`, `imported_at`, `pages` (id, name, category, liked_at), `city`, `friend_fb_ids`,
+  `suggested_ratings`, `interests`.
+
 ## Example payloads
 
-These are generated by `ContractTests` from the demo data, using the live client's JSON settings.
+Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<dir>`, then
+`python3 scripts/gen_contract_examples.py <dir> API_CONTRACT.md`).
 
 ### Auth
 
@@ -199,6 +369,7 @@ These are generated by `ContractTests` from the demo data, using the live client
     "id": "u-jl",
     "name": "Jordan Lee",
     "school": "Georgia Tech",
+    "setup_complete": true,
     "status": "open",
     "username": "jordanlee"
   }
@@ -210,7 +381,7 @@ These are generated by `ContractTests` from the demo data, using the live client
 
 ```json
 {
-  "status": "not_free"
+  "status": "busy"
 }
 ```
 </details>
@@ -227,6 +398,7 @@ These are generated by `ContractTests` from the demo data, using the live client
   "id": "u-jl",
   "name": "Jordan Lee",
   "school": "Georgia Tech",
+  "setup_complete": true,
   "status": "open",
   "username": "jordanlee"
 }
@@ -240,6 +412,8 @@ These are generated by `ContractTests` from the demo data, using the live client
   "answers": {},
   "company": "small_group",
   "flexibility": "bit_over_ok",
+  "instant_checkout": false,
+  "instant_checkout_limit_cents": 5000,
   "pace": "balanced",
   "prefer_free": true,
   "ratings": {
@@ -314,6 +488,110 @@ These are generated by `ContractTests` from the demo data, using the live client
 ```
 </details>
 
+### Facebook (Graph API)
+
+<details><summary><code>FacebookConnection</code> (GET /integrations/facebook)</summary>
+
+```json
+{
+  "connected": true,
+  "declined_scopes": [],
+  "last_import": {
+    "friends_on_app": [
+      {
+        "person": {
+          "color_hex": "#9D174D",
+          "id": "u-pk",
+          "initials": "PK",
+          "name": "Priya K."
+        },
+        "relation": "none"
+      },
+      {
+        "person": {
+          "color_hex": "#4338CA",
+          "id": "u-cn",
+          "initials": "CN",
+          "name": "Chris N."
+        },
+        "relation": "incoming",
+        "request_id": "fr-chris"
+      }
+    ],
+    "home_area": "Atlanta, Georgia",
+    "imported_at": "2026-09-25T18:10:00Z",
+    "interests": [
+      "Hiking",
+      "Indie rock",
+      "Coffee",
+      "Street food",
+      "Board games"
+    ],
+    "liked_pages": 48,
+    "suggested_ratings": {
+      "food": 5,
+      "live_music": 5,
+      "long_walks": 4,
+      "museums": 3,
+      "nightlife": 2,
+      "outdoors": 5,
+      "sports": 3
+    }
+  },
+  "name": "Jordan Lee",
+  "needs_reconnect": false
+}
+```
+</details>
+
+<details><summary><code>FacebookImport</code> (POST /integrations/facebook/import)</summary>
+
+```json
+{
+  "friends_on_app": [
+    {
+      "person": {
+        "color_hex": "#9D174D",
+        "id": "u-pk",
+        "initials": "PK",
+        "name": "Priya K."
+      },
+      "relation": "none"
+    },
+    {
+      "person": {
+        "color_hex": "#4338CA",
+        "id": "u-cn",
+        "initials": "CN",
+        "name": "Chris N."
+      },
+      "relation": "incoming",
+      "request_id": "fr-chris"
+    }
+  ],
+  "home_area": "Atlanta, Georgia",
+  "imported_at": "2026-09-25T18:10:00Z",
+  "interests": [
+    "Hiking",
+    "Indie rock",
+    "Coffee",
+    "Street food",
+    "Board games"
+  ],
+  "liked_pages": 48,
+  "suggested_ratings": {
+    "food": 5,
+    "live_music": 5,
+    "long_walks": 4,
+    "museums": 3,
+    "nightlife": 2,
+    "outdoors": 5,
+    "sports": 3
+  }
+}
+```
+</details>
+
 ### Calendar + events
 
 <details><summary><code>CalendarDays</code></summary>
@@ -337,6 +615,7 @@ These are generated by `ContractTests` from the demo data, using the live client
         "end": "2026-09-25T17:50:00Z",
         "id": "a1",
         "interested": [],
+        "itinerary_id": "itin-fri",
         "kind": "busy",
         "people": [],
         "start": "2026-09-25T17:00:00Z",
@@ -346,6 +625,7 @@ These are generated by `ContractTests` from the demo data, using the live client
         "end": "2026-09-25T20:00:00Z",
         "id": "a3",
         "interested": [],
+        "itinerary_id": "itin-fri",
         "kind": "sidequest",
         "people": [],
         "start": "2026-09-25T18:30:00Z",
@@ -355,6 +635,7 @@ These are generated by `ContractTests` from the demo data, using the live client
         "end": "2026-09-25T21:30:00Z",
         "id": "a5",
         "interested": [],
+        "itinerary_id": "itin-fri",
         "kind": "sidequest",
         "people": [],
         "start": "2026-09-25T20:20:00Z",
@@ -371,6 +652,7 @@ These are generated by `ContractTests` from the demo data, using the live client
             "name": "Ava K."
           }
         ],
+        "itinerary_id": "itin-fri",
         "kind": "group",
         "people": [
           {
@@ -475,6 +757,186 @@ These are generated by `ContractTests` from the demo data, using the live client
 ```
 </details>
 
+<details><summary><code>SearchResults</code> (GET /search?q=krog)</summary>
+
+```json
+{
+  "people": [],
+  "places": [
+    {
+      "coordinate": {
+        "lat": 33.7571,
+        "lng": -84.364
+      },
+      "name": "Krog Street Market"
+    }
+  ],
+  "posts": [],
+  "sidequests": [
+    {
+      "back_by": "2026-09-26T00:00:00Z",
+      "date": "2026-09-25T04:00:00Z",
+      "end_place": {
+        "coordinate": {
+          "lat": 33.771,
+          "lng": -84.3918
+        },
+        "name": "Home · North Ave Apts"
+      },
+      "going_count": 3,
+      "id": "itin-fri",
+      "is_host": true,
+      "items": [
+        {
+          "bookable": false,
+          "description": "From your Google Calendar. SideQuests plans around it.",
+          "end": "2026-09-25T17:50:00Z",
+          "extra_going": 0,
+          "id": "a1",
+          "interested": [],
+          "kind": "busy",
+          "people": [],
+          "place": {
+            "name": "Klaus Advanced Computing Building"
+          },
+          "start": "2026-09-25T17:00:00Z",
+          "title": "CS 3510 lecture"
+        },
+        {
+          "bookable": false,
+          "description": "Route options below. Times update live if you run late.",
+          "end": "2026-09-25T18:25:00Z",
+          "extra_going": 0,
+          "id": "a2",
+          "interested": [],
+          "kind": "transit",
+          "people": [],
+          "place": {
+            "name": "Tech Square → Ponce City Market"
+          },
+          "start": "2026-09-25T18:00:00Z",
+          "title": "Transit to Ponce City Market"
+        },
+        {
+          "bookable": true,
+          "description": "Mini golf, carnival games and skyline views on the roof.",
+          "end": "2026-09-25T20:00:00Z",
+          "extra_going": 0,
+          "id": "a3",
+          "interested": [],
+          "kind": "sidequest",
+          "people": [],
+          "place": {
+            "coordinate": {
+              "lat": 33.7727,
+              "lng": -84.3653
+            },
+            "name": "Ponce City Market, rooftop"
+          },
+          "start": "2026-09-25T18:30:00Z",
+          "title": "Skyline Park rooftop",
+          "website_url": "https://poncecitymarket.com"
+        },
+        {
+          "bookable": false,
+          "description": "Route options below. Times update live if you run late.",
+          "end": "2026-09-25T20:20:00Z",
+          "extra_going": 0,
+          "id": "a4",
+          "interested": [],
+          "kind": "transit",
+          "people": [],
+          "place": {
+            "name": "BeltLine Eastside Trail"
+          },
+          "start": "2026-09-25T20:00:00Z",
+          "title": "Walk the Eastside Trail"
+        },
+        {
+          "bookable": false,
+          "description": "Self-guided street art walk. Free.",
+          "end": "2026-09-25T21:30:00Z",
+          "extra_going": 0,
+          "id": "a5",
+          "interested": [],
+          "kind": "sidequest",
+          "people": [],
+          "place": {
+            "coordinate": {
+              "lat": 33.7535,
+              "lng": -84.363
+            },
+            "name": "Krog Street Tunnel, Cabbagetown"
+          },
+          "start": "2026-09-25T20:20:00Z",
+          "title": "Krog Street Tunnel murals",
+          "website_url": "https://atlantabeltline.org"
+        },
+        {
+          "bookable": false,
+          "description": "3 people joined your open plan. Joining locked at 5 PM.",
+          "end": "2026-09-25T23:30:00Z",
+          "extra_going": 0,
+          "id": "a6",
+          "interested": [
+            {
+              "color_hex": "#B45309",
+              "id": "u-ak",
+              "initials": "AK",
+              "name": "Ava K."
+            }
+          ],
+          "kind": "group",
+          "people": [
+            {
+              "color_hex": "#18211C",
+              "id": "u-jl",
+              "initials": "JL",
+              "name": "Jordan Lee"
+            },
+            {
+              "color_hex": "#1D4ED8",
+              "id": "u-mr",
+              "initials": "MR",
+              "name": "Maya R."
+            },
+            {
+              "color_hex": "#0F766E",
+              "id": "u-dp",
+              "initials": "DP",
+              "name": "Dev P."
+            }
+          ],
+          "place": {
+            "coordinate": {
+              "lat": 33.7571,
+              "lng": -84.364
+            },
+            "name": "Krog Street Market"
+          },
+          "start": "2026-09-25T22:00:00Z",
+          "title": "Group dinner, Krog Street Market",
+          "website_url": "https://krogstreetmarket.com"
+        }
+      ],
+      "lock_at": "2026-09-25T21:00:00Z",
+      "max_group_size": 6,
+      "start": "2026-09-25T17:00:00Z",
+      "start_place": {
+        "coordinate": {
+          "lat": 33.7766,
+          "lng": -84.389
+        },
+        "name": "Tech Square (current location)"
+      },
+      "title": "Free Friday afternoon",
+      "visibility": "open"
+    }
+  ]
+}
+```
+</details>
+
 ### Planning
 
 <details><summary><code>PlanRequest</code></summary>
@@ -492,8 +954,8 @@ These are generated by `ContractTests` from the demo data, using the live client
     "name": "Home · North Ave Apts"
   },
   "modes": [
-    "walk",
-    "marta"
+    "marta",
+    "walk"
   ],
   "mood_text": "Something chill and outside, then cheap food after.",
   "pace": "balanced",
@@ -683,8 +1145,8 @@ These are generated by `ContractTests` from the demo data, using the live client
     "name": "Home · North Ave Apts"
   },
   "modes": [
-    "walk",
-    "marta"
+    "marta",
+    "walk"
   ],
   "option_id": "opt-a",
   "ride": "none",
@@ -744,6 +1206,78 @@ These are generated by `ContractTests` from the demo data, using the live client
     }
   ]
 }
+```
+</details>
+
+<details><summary><code>PlanAlternatives</code> (POST /plans/alternatives)</summary>
+
+```json
+[
+  {
+    "reason": "Also art to see · 0.9 mi away",
+    "stop": {
+      "duration_minutes": 45,
+      "id": "alt-cabbagetown-murals",
+      "place": {
+        "coordinate": {
+          "lat": 33.7507,
+          "lng": -84.361
+        },
+        "name": "Cabbagetown murals"
+      },
+      "subtitle": "Street art · Free",
+      "title": "Cabbagetown murals"
+    }
+  },
+  {
+    "reason": "Also art to see · 2.4 mi away",
+    "stop": {
+      "duration_minutes": 90,
+      "id": "alt-high-museum-of-art",
+      "place": {
+        "coordinate": {
+          "lat": 33.7901,
+          "lng": -84.3856
+        },
+        "name": "High Museum of Art"
+      },
+      "subtitle": "Museum · $$",
+      "title": "High Museum of Art"
+    }
+  },
+  {
+    "reason": "Also art to see · 2.7 mi away",
+    "stop": {
+      "duration_minutes": 50,
+      "id": "alt-castleberry-hill-galleries",
+      "place": {
+        "coordinate": {
+          "lat": 33.7487,
+          "lng": -84.4007
+        },
+        "name": "Castleberry Hill galleries"
+      },
+      "subtitle": "Galleries · Free",
+      "title": "Castleberry Hill galleries"
+    }
+  },
+  {
+    "reason": "Also art to see · 3.6 mi away",
+    "stop": {
+      "duration_minutes": 60,
+      "id": "alt-atlanta-contemporary",
+      "place": {
+        "coordinate": {
+          "lat": 33.7839,
+          "lng": -84.4153
+        },
+        "name": "Atlanta Contemporary"
+      },
+      "subtitle": "Art gallery · Free",
+      "title": "Atlanta Contemporary"
+    }
+  }
+]
 ```
 </details>
 
@@ -812,8 +1346,8 @@ These are generated by `ContractTests` from the demo data, using the live client
       "name": "Home · North Ave Apts"
     },
     "modes": [
-      "walk",
-      "marta"
+      "marta",
+      "walk"
     ],
     "mood_text": "Something chill and outside, then cheap food after.",
     "pace": "balanced",
@@ -897,6 +1431,7 @@ These are generated by `ContractTests` from the demo data, using the live client
   },
   "going_count": 3,
   "id": "itin-fri",
+  "is_host": true,
   "items": [
     {
       "bookable": false,
@@ -1046,6 +1581,23 @@ These are generated by `ContractTests` from the demo data, using the live client
 ```
 </details>
 
+<details><summary><code>ItineraryUpdate</code> (PATCH body)</summary>
+
+```json
+{
+  "back_by": "2026-09-25T23:00:00Z",
+  "start": "2026-09-25T19:00:00Z",
+  "stop_order": [
+    "a5",
+    "a3",
+    "a6"
+  ],
+  "title": "Rooftop evening",
+  "visibility": "open"
+}
+```
+</details>
+
 <details><summary><code>PastEvents</code></summary>
 
 ```json
@@ -1070,6 +1622,51 @@ These are generated by `ContractTests` from the demo data, using the live client
 ```
 </details>
 
+<details><summary><code>PastInsights</code> (GET /me/insights)</summary>
+
+```json
+{
+  "based_on": 3,
+  "headline": "You like afternoon sidequests on your own.",
+  "highlights": [
+    {
+      "detail": "1 of your 2 favorites",
+      "id": "time",
+      "symbol": "moon.stars",
+      "title": "Favorite time",
+      "value": "Afternoons"
+    },
+    {
+      "detail": "1 of your 2 favorites",
+      "id": "company",
+      "symbol": "person.2",
+      "title": "Company",
+      "value": "On your own"
+    },
+    {
+      "detail": "1 of your 2 favorites",
+      "id": "area",
+      "symbol": "mappin.and.ellipse",
+      "title": "Favorite area",
+      "value": "Decatur Square"
+    },
+    {
+      "detail": "5 stars",
+      "id": "best",
+      "symbol": "star",
+      "title": "Top rated",
+      "value": "Jazz night in Decatur"
+    }
+  ],
+  "top_tags": [
+    "Good value",
+    "Great people",
+    "Would go again"
+  ]
+}
+```
+</details>
+
 <details><summary><code>Rating</code></summary>
 
 ```json
@@ -1083,6 +1680,19 @@ These are generated by `ContractTests` from the demo data, using the live client
 ```
 </details>
 
+<details><summary><code>Ticket</code> (on a booked item)</summary>
+
+```json
+{
+  "confirmation": "SQ-4F7K2",
+  "id": "tk-1",
+  "quantity": 2,
+  "total_cents": 2400,
+  "url": "https://tickets.example/SQ-4F7K2"
+}
+```
+</details>
+
 ### Checkout
 
 <details><summary><code>CheckoutIntent</code></summary>
@@ -1092,8 +1702,11 @@ These are generated by `ContractTests` from the demo data, using the live client
   "card_brand": "Visa",
   "card_last4": "4242",
   "id": "ci-47",
+  "instant": false,
   "item_id": "a3",
   "item_title": "Skyline Park rooftop",
+  "payment_method_id": "pm-4242",
+  "quantity": 1,
   "state": "awaiting_approval",
   "steps": [
     {
@@ -1134,7 +1747,7 @@ These are generated by `ContractTests` from the demo data, using the live client
     "id": "p2",
     "interested_count": 0,
     "is_friend": true,
-    "join_requested": false,
+    "join_status": "none",
     "meta": "Free now · 0.3 mi away",
     "plan_together_sent": false,
     "posted_minutes_ago": 8,
@@ -1182,7 +1795,7 @@ These are generated by `ContractTests` from the demo data, using the live client
     "id": "p1",
     "interested_count": 2,
     "is_friend": true,
-    "join_requested": false,
+    "join_status": "none",
     "lock_label": "Locks 5:00 PM",
     "meta": "Hosting · 0.4 mi away",
     "plan_together_sent": false,
@@ -1207,9 +1820,42 @@ These are generated by `ContractTests` from the demo data, using the live client
 
 ```json
 {
+  "area_label": "Midtown Atlanta",
   "id": "mine",
+  "radius_mi": 2,
   "text": "Free until 6:30 PM near Tech Square",
+  "until": "2026-09-25T22:30:00Z",
   "visibility": "friends"
+}
+```
+</details>
+
+<details><summary><code>NewFreePost</code> (app side of POST /forum/posts)</summary>
+
+```json
+{
+  "area": {
+    "coordinate": {
+      "lat": 33.7838,
+      "lng": -84.3833
+    },
+    "is_current_location": false,
+    "name": "Midtown Atlanta"
+  },
+  "radius_mi": 2,
+  "until": "2026-09-25T22:30:00Z",
+  "visibility": "everyone"
+}
+```
+</details>
+
+<details><summary><code>JoinResult</code></summary>
+
+```json
+{
+  "itinerary_id": "itin-42",
+  "status": "joined",
+  "thread_id": "g42"
 }
 ```
 </details>
@@ -1267,7 +1913,7 @@ These are generated by `ContractTests` from the demo data, using the live client
   ],
   "subtitle": "3 people · Today 6 PM",
   "title": "Krog St dinner crew",
-  "unread": 0
+  "unread": 2
 }
 ```
 </details>
@@ -1294,6 +1940,20 @@ These are generated by `ContractTests` from the demo data, using the live client
 ```
 </details>
 
+<details><summary><code>Message</code> (with client_id)</summary>
+
+```json
+{
+  "client_id": "c-5A1B",
+  "id": "m-9",
+  "sender_id": "u-jl",
+  "sender_name": "You",
+  "sent_at": "2026-09-25T18:10:00Z",
+  "text": "omw"
+}
+```
+</details>
+
 <details><summary><code>GroupPhotos</code></summary>
 
 ```json
@@ -1301,7 +1961,8 @@ These are generated by `ContractTests` from the demo data, using the live client
   {
     "by_name": "Maya",
     "id": "ph-5",
-    "placeholder_hex": "#DDD3F3"
+    "placeholder_hex": "#DDD3F3",
+    "uploader_id": "u-mr"
   }
 ]
 ```
@@ -1340,6 +2001,7 @@ These are generated by `ContractTests` from the demo data, using the live client
   "expenses": [
     {
       "amount_cents": 4200,
+      "created_by": "u-dp",
       "id": "ex-14",
       "payer_id": "u-dp",
       "shares": [
@@ -1356,6 +2018,7 @@ These are generated by `ContractTests` from the demo data, using the live client
     },
     {
       "amount_cents": 750,
+      "created_by": "u-jl",
       "id": "ex-15",
       "payer_id": "u-jl",
       "shares": [
@@ -1452,12 +2115,74 @@ These are generated by `ContractTests` from the demo data, using the live client
   {
     "id": "fr-chris",
     "note": "Met on Stone Mountain sunrise",
+    "outgoing": false,
     "person": {
       "color_hex": "#4338CA",
       "id": "u-cn",
       "initials": "CN",
       "name": "Chris N."
     }
+  }
+]
+```
+</details>
+
+<details><summary><code>OutgoingFriendRequest</code> (response of POST /friends/requests)</summary>
+
+```json
+{
+  "id": "fr-48",
+  "note": "Requested just now",
+  "outgoing": true,
+  "person": {
+    "color_hex": "#BE185D",
+    "id": "u-st",
+    "initials": "ST",
+    "name": "Sam T."
+  }
+}
+```
+</details>
+
+<details><summary><code>UserSearchResults</code></summary>
+
+```json
+[
+  {
+    "person": {
+      "color_hex": "#1D4ED8",
+      "id": "u-mr",
+      "initials": "MR",
+      "name": "Maya R."
+    },
+    "relation": "friend"
+  },
+  {
+    "person": {
+      "color_hex": "#B45309",
+      "id": "u-ak",
+      "initials": "AK",
+      "name": "Ava K."
+    },
+    "relation": "friend"
+  },
+  {
+    "person": {
+      "color_hex": "#BE185D",
+      "id": "u-st",
+      "initials": "ST",
+      "name": "Sam T."
+    },
+    "relation": "friend"
+  },
+  {
+    "person": {
+      "color_hex": "#9D174D",
+      "id": "u-pk",
+      "initials": "PK",
+      "name": "Priya K."
+    },
+    "relation": "none"
   }
 ]
 ```

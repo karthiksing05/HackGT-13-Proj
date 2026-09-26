@@ -8,6 +8,9 @@ struct SetupLikesStep: View {
         VStack(alignment: .leading, spacing: 12) {
             SetupHeading(title: "What do you enjoy?",
                          subtitle: "Rate each from 1 (not for me) to 5 (love it). Skip any you're not sure about.")
+            if !draft.facebookFilled.isEmpty {
+                FacebookFilledNote()
+            }
             SetupCard {
                 ForEach(TripType.allCases) { type in
                     SetupRatingRow(type: type, value: rating(for: type))

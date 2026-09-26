@@ -120,6 +120,9 @@ struct Preferences: Codable, Hashable {
     var preferFree: Bool = true
     /// Open-ended answers from Setup step 5, keyed "perfectAfternoon", "neverDo", "planAround".
     var answers: [String: String] = [:]
+    /// Instant checkout: the agent buys without asking first, for purchases up to the limit.
+    var instantCheckout: Bool = false
+    var instantCheckoutLimitCents: Int = 5000
 }
 
 struct TasteBar: Codable, Hashable, Identifiable {

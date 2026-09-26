@@ -2,47 +2,41 @@ import Foundation
 
 /// REST + JSON client for the real backend (GUI_PLAN.md §9).
 ///
-/// - Bearer token on everything except `/auth/*`; one automatic refresh-and-retry on 401.
-/// - snake_case JSON, ISO 8601 dates with time zones, money in integer cents.
-/// - List endpoints may return either a bare array or `{ "items": [...], "next_cursor": ... }`.
+/// - Bearer token on everything except `/auth/*`. On a 401 the client refreshes once (concurrent
+///   401s share that one refresh) and retries; if that fails the session is over (`onUnauthorized`).
+/// - snake_case JSON, ISO 8601 dates, money in integer cents, `X-Time-Zone: <IANA id>` on every call.
+/// - List endpoints may return a bare array or `{ "items": [...], "next_cursor": "…" }`; the client
+///   follows `next_cursor` (sent back as `?cursor=`) until it's null.
 final class LiveAPIClient: APIClient {
     let baseURL: URL
     let auth: AuthStore
     let clock: AppClock
+    /// Called when the session can't be refreshed any more (tokens are already cleared).
+    var onUnauthorized: (() -> Void)?
     private let session: URLSession
+    private let encoder = APICoding.encoder()
+    private let decoder: JSONDecoder
+    /// The refresh in flight, shared by every request that got a 401 meanwhile.
+    private var refreshTask: Task<AuthTokens, any Error>?
 
-    private let encoder: JSONEncoder = {
-        let e = JSONEncoder()
-        e.keyEncodingStrategy = .convertToSnakeCase
-        e.dateEncodingStrategy = .iso8601
-        return e
-    }()
-
-    private let decoder: JSONDecoder = {
-        let d = JSONDecoder()
-        d.keyDecodingStrategy = .convertFromSnakeCase
-        d.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let string = try container.decode(String.self)
-            let withFraction = ISO8601DateFormatter()
-            withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = withFraction.date(from: string) ?? ISO8601DateFormatter().date(from: string) { return date }
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Bad ISO 8601 date: \(string)")
-        }
-        return d
-    }()
+    /// Safety stop for cursor pagination.
+    private static let maxPages = 50
 
     init(baseURL: URL, auth: AuthStore, clock: AppClock, session: URLSession = .shared) {
         self.baseURL = baseURL
         self.auth = auth
         self.clock = clock
         self.session = session
+        self.decoder = APICoding.decoder(timeZone: clock.calendar.timeZone)
     }
 
     // MARK: - Transport
 
     private struct Empty: Codable {}
-    private struct Page<T: Decodable>: Decodable { var items: [T] }
+    private struct Page<T: Decodable>: Decodable {
+        var items: [T]
+        var nextCursor: String?
+    }
     private struct URLBody: Decodable { var url: URL }
 
     private func makeRequest(_ method: String, _ path: String, query: [URLQueryItem], body: (any Encodable)?, authorized: Bool) throws -> URLRequest {
@@ -51,6 +45,8 @@ final class LiveAPIClient: APIClient {
         var request = URLRequest(url: components.url!)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Day-based data (calendar days, "today", plan dates) is computed in the user's time zone.
+        request.setValue(clock.calendar.timeZone.identifier, forHTTPHeaderField: "X-Time-Zone")
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try encoder.encode(body)
@@ -69,9 +65,11 @@ final class LiveAPIClient: APIClient {
             throw APIError.network(error.localizedDescription)
         }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        if status == 401, authorized, retry, let refreshToken = auth.tokens?.refreshToken {
-            let tokens = try await refresh(refreshToken: refreshToken)
-            auth.save(tokens)
+        if status == 401, authorized {
+            guard retry, let tokens = try? await refreshedTokens() else {
+                expireSession()
+                throw APIError.unauthorized
+            }
             var again = request
             again.setValue("Bearer \(tokens.accessToken)", forHTTPHeaderField: "Authorization")
             return try await perform(again, authorized: authorized, retry: false)
@@ -99,12 +97,52 @@ final class LiveAPIClient: APIClient {
         }
     }
 
+    /// One refresh at a time: a 401 that arrives while a refresh is running waits for it.
+    private func refreshedTokens() async throws -> AuthTokens {
+        if let refreshTask { return try await refreshTask.value }
+        guard let refreshToken = auth.tokens?.refreshToken else { throw APIError.unauthorized }
+        let task = Task { try await self.refresh(refreshToken: refreshToken) }
+        refreshTask = task
+        defer { refreshTask = nil }
+        let tokens = try await task.value
+        auth.save(tokens)
+        return tokens
+    }
+
+    private func expireSession() {
+        guard auth.isSignedIn else { return }
+        auth.clear()
+        onUnauthorized?()
+    }
+
+    /// Every page of a list endpoint, following `next_cursor`.
     private func list<T: Decodable>(_ path: String, query: [URLQueryItem] = []) async throws -> [T] {
-        let request = try makeRequest("GET", path, query: query, body: nil, authorized: true)
+        var items: [T] = []
+        var cursor: String?
+        for _ in 0..<Self.maxPages {
+            let pageQuery = query + (cursor.map { [URLQueryItem(name: "cursor", value: $0)] } ?? [])
+            let request = try makeRequest("GET", path, query: pageQuery, body: nil, authorized: true)
+            let data = try await perform(request, authorized: true, retry: true)
+            if let array = try? decoder.decode([T].self, from: data) { return items + array }
+            do {
+                let page = try decoder.decode(Page<T>.self, from: data)
+                items += page.items
+                guard let next = page.nextCursor, !next.isEmpty else { return items }
+                cursor = next
+            } catch {
+                throw APIError.decoding(String(describing: error))
+            }
+        }
+        return items
+    }
+
+    /// Like `call`, but an empty body (204) or JSON `null` comes back as nil.
+    private func callIfPresent<T: Decodable>(_ method: String, _ path: String, query: [URLQueryItem] = [], body: (any Encodable)? = nil) async throws -> T? {
+        let request = try makeRequest(method, path, query: query, body: body, authorized: true)
         let data = try await perform(request, authorized: true, retry: true)
-        if let array = try? decoder.decode([T].self, from: data) { return array }
+        if data.isEmpty { return nil }
         do {
-            return try decoder.decode(Page<T>.self, from: data).items
+            return try decoder.decode(T?.self, from: data)
         } catch {
             throw APIError.decoding(String(describing: error))
         }
@@ -152,12 +190,20 @@ final class LiveAPIClient: APIClient {
         }
     }
 
+    /// The server may rotate the refresh token or only return a new access token; keep the old
+    /// refresh token when it doesn't send one.
     func refresh(refreshToken: String) async throws -> AuthTokens {
         struct Body: Encodable { var refreshToken: String }
-        return try await call("POST", "auth/refresh", body: Body(refreshToken: refreshToken), authorized: false)
+        struct Response: Decodable { var accessToken: String; var refreshToken: String?; var expiresAt: Date? }
+        let response: Response = try await call("POST", "auth/refresh", body: Body(refreshToken: refreshToken), authorized: false)
+        return AuthTokens(accessToken: response.accessToken, refreshToken: response.refreshToken ?? refreshToken, expiresAt: response.expiresAt)
     }
 
-    func logout() async throws { try await send("POST", "auth/logout") }
+    /// Sends the refresh token so the server can revoke this session.
+    func logout() async throws {
+        struct Body: Encodable { var refreshToken: String? }
+        try await send("POST", "auth/logout", body: Body(refreshToken: auth.tokens?.refreshToken))
+    }
 
     func forgotPassword(email: String) async throws {
         struct Body: Encodable { var email: String }
@@ -211,6 +257,8 @@ final class LiveAPIClient: APIClient {
         try await send("POST", "me/devices", body: Body(pushToken: pushToken))
     }
 
+    func unregisterDevice(pushToken: String) async throws { try await send("DELETE", "me/devices/\(pushToken)") }
+
     // MARK: - Integrations + payments
 
     func integrations() async throws -> [Integration] { try await list("integrations") }
@@ -229,12 +277,31 @@ final class LiveAPIClient: APIClient {
 
     func paymentMethods() async throws -> [PaymentMethod] { try await list("me/payment-methods") }
 
+    func paymentSetupURL() async throws -> URL {
+        let response: URLBody = try await call("POST", "me/payment-methods/setup")
+        return response.url
+    }
+
     func addPaymentMethod(token: String) async throws -> PaymentMethod {
         struct Body: Encodable { var token: String }
         return try await call("POST", "me/payment-methods", body: Body(token: token))
     }
 
     func deletePaymentMethod(id: String) async throws { try await send("DELETE", "me/payment-methods/\(id)") }
+
+    // MARK: - Facebook (Graph API)
+
+    func facebookConnection() async throws -> FacebookConnection { try await call("GET", "integrations/facebook") }
+
+    func facebookConnectURL(rerequest: Bool) async throws -> URL {
+        struct Body: Encodable { var rerequest: Bool }
+        let response: URLBody = try await call("POST", "integrations/facebook/connect", body: Body(rerequest: rerequest))
+        return response.url
+    }
+
+    func importFacebook() async throws -> FacebookImport { try await call("POST", "integrations/facebook/import") }
+
+    func disconnectFacebook() async throws { try await send("DELETE", "integrations/facebook") }
 
     // MARK: - Calendar / places / events
 
@@ -255,6 +322,10 @@ final class LiveAPIClient: APIClient {
 
     func eventDetail(id: String) async throws -> ItineraryItem { try await call("GET", "events/\(id)") }
 
+    func search(query: String) async throws -> SearchResults {
+        try await call("GET", "search", query: [URLQueryItem(name: "q", value: query)])
+    }
+
     // MARK: - Planning
 
     func generatePlans(_ request: PlanRequest) async throws -> PlanBatch { try await call("POST", "plans/generate", body: request) }
@@ -265,23 +336,38 @@ final class LiveAPIClient: APIClient {
     }
 
     func route(_ request: RouteRequest) async throws -> RouteResult { try await call("POST", "plans/route", body: request) }
+
+    func stopAlternatives(optionId: String, stopId: String, stopOrder: [String]) async throws -> [PlanAlternative] {
+        struct Body: Encodable { var optionId: String; var stopId: String; var stopOrder: [String] }
+        return try await call("POST", "plans/alternatives", body: Body(optionId: optionId, stopId: stopId, stopOrder: stopOrder))
+    }
     func createItinerary(_ request: CreateItineraryRequest) async throws -> Itinerary { try await call("POST", "itineraries", body: request) }
 
     // MARK: - Itineraries
 
     func activeItineraries() async throws -> [Itinerary] { try await list("itineraries", query: [URLQueryItem(name: "status", value: "active")]) }
     func itinerary(id: String) async throws -> Itinerary { try await call("GET", "itineraries/\(id)") }
+    func updateItinerary(id: String, _ update: ItineraryUpdate) async throws -> Itinerary {
+        try await call("PATCH", "itineraries/\(id)", body: update)
+    }
     func deleteItinerary(id: String) async throws { try await send("DELETE", "itineraries/\(id)") }
+    func leaveItinerary(id: String) async throws { try await send("POST", "itineraries/\(id)/leave") }
 
-    func updateItemNotes(itineraryId: String?, itemId: String, notes: String) async throws {
-        struct Body: Encodable { var notes: String }
+    func updateItemNotes(itineraryId: String?, itemId: String, notes: String, scope: NotesScope?) async throws {
+        struct Body: Encodable { var notes: String; var notesScope: NotesScope? }
         let path = itineraryId.map { "itineraries/\($0)/items/\(itemId)" } ?? "events/\(itemId)"
-        try await send("PATCH", path, body: Body(notes: notes))
+        try await send("PATCH", path, body: Body(notes: notes, notesScope: scope))
     }
 
     func transitOptions(itineraryId: String?, itemId: String) async throws -> [TransitOption] {
         let path = itineraryId.map { "itineraries/\($0)/items/\(itemId)/transit" } ?? "events/\(itemId)/transit"
         return try await list(path)
+    }
+
+    func selectTransit(itineraryId: String?, itemId: String, mode: TravelMode) async throws {
+        struct Body: Encodable { var mode: TravelMode }
+        let path = itineraryId.map { "itineraries/\($0)/items/\(itemId)/transit" } ?? "events/\(itemId)/transit"
+        try await send("PUT", path, body: Body(mode: mode))
     }
 
     // MARK: - Past + ratings
@@ -291,24 +377,32 @@ final class LiveAPIClient: APIClient {
     }
 
     func rate(itemId: String, rating: Rating) async throws { try await send("PUT", "ratings/\(itemId)", body: rating) }
+    func pastInsights() async throws -> PastInsights { try await call("GET", "me/insights") }
 
     // MARK: - Checkout
 
-    func createCheckoutIntent(itemId: String, quantity: Int) async throws -> CheckoutIntent {
-        struct Body: Encodable { var itemId: String; var quantity: Int }
-        return try await call("POST", "checkout/intents", body: Body(itemId: itemId, quantity: quantity))
+    func createCheckoutIntent(itemId: String, quantity: Int, paymentMethodId: String?, instant: Bool) async throws -> CheckoutIntent {
+        struct Body: Encodable { var itemId: String; var quantity: Int; var paymentMethodId: String?; var instant: Bool }
+        return try await call("POST", "checkout/intents", body: Body(itemId: itemId, quantity: quantity, paymentMethodId: paymentMethodId, instant: instant))
     }
 
     func checkoutIntent(id: String) async throws -> CheckoutIntent { try await call("GET", "checkout/intents/\(id)") }
+
+    func updateCheckoutIntent(id: String, paymentMethodId: String) async throws -> CheckoutIntent {
+        struct Body: Encodable { var paymentMethodId: String }
+        return try await call("PATCH", "checkout/intents/\(id)", body: Body(paymentMethodId: paymentMethodId))
+    }
     func approveCheckout(id: String) async throws -> CheckoutIntent { try await call("POST", "checkout/intents/\(id)/approve") }
     func cancelCheckout(id: String) async throws { try await send("POST", "checkout/intents/\(id)/cancel") }
 
     // MARK: - Forum
 
     func forumPosts(_ query: ForumQuery) async throws -> [ForumPost] {
-        let center = ForumQuery.areaCenters[query.area] ?? ForumQuery.areaCenters["Midtown Atlanta"] ?? Coordinate(lat: 33.7838, lng: -84.3833)
+        // "Current location" arrives here with the device's coordinate already filled in.
+        let center = query.area.coordinate ?? ForumArea.midtown.coordinate ?? Coordinate(lat: 33.7838, lng: -84.3833)
         var items = [
             URLQueryItem(name: "lat", value: String(center.lat)), URLQueryItem(name: "lng", value: String(center.lng)),
+            URLQueryItem(name: "area", value: query.area.name),
             URLQueryItem(name: "radius", value: String(query.radiusMi)), URLQueryItem(name: "scope", value: query.scope.rawValue),
             URLQueryItem(name: "type", value: query.type.rawValue), URLQueryItem(name: "when", value: query.when.rawValue),
             URLQueryItem(name: "open_only", value: query.openOnly ? "true" : "false"), URLQueryItem(name: "sort", value: query.sort.rawValue),
@@ -319,18 +413,28 @@ final class LiveAPIClient: APIClient {
         return try await list("forum/posts", query: items)
     }
 
-    func myFreePost() async throws -> MyFreePost? {
-        let mine: [MyFreePost] = try await list("forum/posts", query: [URLQueryItem(name: "mine", value: "true")])
-        return mine.first
-    }
+    func myFreePost() async throws -> MyFreePost? { try await callIfPresent("GET", "forum/posts/mine") }
 
-    func postFreeNow(visibility: ForumPostVisibility) async throws -> MyFreePost {
-        struct Body: Encodable { var type = "free_now"; var visibility: ForumPostVisibility }
-        return try await call("POST", "forum/posts", body: Body(visibility: visibility))
+    func postFreeNow(_ post: NewFreePost) async throws -> MyFreePost {
+        struct Body: Encodable {
+            var type = "free_now"
+            var visibility: ForumPostVisibility
+            var until: Date?
+            var lat: Double?
+            var lng: Double?
+            var areaLabel: String?
+            var radiusMi: Int?
+        }
+        return try await call("POST", "forum/posts", body: Body(visibility: post.visibility, until: post.until,
+                                                                  lat: post.area?.coordinate?.lat, lng: post.area?.coordinate?.lng,
+                                                                  areaLabel: post.area?.name, radiusMi: post.radiusMi))
     }
 
     func deleteForumPost(id: String) async throws { try await send("DELETE", "forum/posts/\(id)") }
-    func requestToJoin(postId: String) async throws { try await send("POST", "forum/posts/\(postId)/join-requests") }
+    func requestToJoin(postId: String) async throws -> JoinResult {
+        let result: JoinResult? = try await callIfPresent("POST", "forum/posts/\(postId)/join-requests")
+        return result ?? JoinResult(status: .requested)
+    }
     func cancelJoinRequest(postId: String) async throws { try await send("DELETE", "forum/posts/\(postId)/join-requests") }
     func planTogether(postId: String) async throws -> ChatThread { try await call("POST", "forum/posts/\(postId)/plan-together") }
 
@@ -343,10 +447,12 @@ final class LiveAPIClient: APIClient {
         try await list("threads/\(threadId)/messages", query: before.map { [URLQueryItem(name: "before", value: $0)] } ?? [])
     }
 
-    func sendMessage(threadId: String, text: String) async throws -> Message {
-        struct Body: Encodable { var text: String }
-        return try await call("POST", "threads/\(threadId)/messages", body: Body(text: text))
+    func sendMessage(threadId: String, text: String, clientId: String?) async throws -> Message {
+        struct Body: Encodable { var text: String; var clientId: String? }
+        return try await call("POST", "threads/\(threadId)/messages", body: Body(text: text, clientId: clientId))
     }
+
+    func markThreadRead(id: String) async throws { try await send("POST", "threads/\(id)/read") }
 
     func startDM(userId: String) async throws -> ChatThread {
         struct Body: Encodable { var userId: String }
@@ -370,18 +476,25 @@ final class LiveAPIClient: APIClient {
 
     func addExpense(groupId: String, _ expense: NewExpense) async throws -> Expense { try await call("POST", "groups/\(groupId)/expenses", body: expense) }
     func deleteExpense(groupId: String, expenseId: String) async throws { try await send("DELETE", "groups/\(groupId)/expenses/\(expenseId)") }
-    func settleUp(groupId: String) async throws { try await send("POST", "groups/\(groupId)/settle") }
+    func settleUp(groupId: String, amountCents: Int, paymentMethodId: String?) async throws {
+        struct Body: Encodable { var amountCents: Int; var paymentMethodId: String? }
+        try await send("POST", "groups/\(groupId)/settle", body: Body(amountCents: amountCents, paymentMethodId: paymentMethodId))
+    }
 
     // MARK: - Friends
 
     func friends() async throws -> [Friend] { try await list("friends") }
-    func searchUsers(query: String) async throws -> [PersonRef] { try await list("users/search", query: [URLQueryItem(name: "q", value: query)]) }
+    func searchUsers(query: String) async throws -> [UserSearchResult] {
+        try await list("users/search", query: [URLQueryItem(name: "q", value: query)])
+    }
     func friendRequests() async throws -> [FriendRequest] { try await list("friends/requests") }
 
-    func sendFriendRequest(userId: String) async throws {
+    func sendFriendRequest(userId: String) async throws -> FriendRequest {
         struct Body: Encodable { var userId: String }
-        try await send("POST", "friends/requests", body: Body(userId: userId))
+        return try await call("POST", "friends/requests", body: Body(userId: userId))
     }
+
+    func cancelFriendRequest(id: String) async throws { try await send("DELETE", "friends/requests/\(id)") }
 
     func acceptFriendRequest(id: String) async throws { try await send("POST", "friends/requests/\(id)/accept") }
     func declineFriendRequest(id: String) async throws { try await send("POST", "friends/requests/\(id)/decline") }
@@ -391,4 +504,6 @@ final class LiveAPIClient: APIClient {
         let response: URLBody = try await call("POST", "invites")
         return response.url
     }
+
+    func acceptInvite(code: String) async throws -> Friend { try await call("POST", "invites/\(code)/accept") }
 }

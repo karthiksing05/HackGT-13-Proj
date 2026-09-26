@@ -18,6 +18,10 @@ final class Router {
     var authRoute: AuthRoute = .login
     /// Email typed on Login, carried into Forgot password and Setup (and back).
     var authEmail = ""
+    /// A one-time note for the sign-in screen ("Your session expired. Sign in again.").
+    var authNotice: String?
+    /// An invite link that was opened (`sidequestz://invite/<code>`); accepted once you're signed in.
+    var pendingInvite: String?
     /// Setup starts here (1…5) when entered from Login.
     var setupStartStep = 1
 
@@ -62,11 +66,31 @@ final class Router {
         withAnimation(.easeInOut(duration: 0.3)) { authRoute = .setup }
     }
 
+    /// Signed in, but the account never finished Profile setup (the app was closed mid-setup):
+    /// continue at step 2 (the account itself exists).
+    func resumeSetup() {
+        createDraft = nil
+        openThread = nil
+        setupRedo = nil
+        setupStartStep = 2
+        withAnimation(.easeInOut(duration: 0.3)) {
+            authRoute = .setup
+            phase = .auth
+        }
+    }
+
     func enterMain() {
         withAnimation(.easeInOut(duration: 0.35)) {
             tab = .home
             phase = .main
         }
+    }
+
+    /// Links into the app. Invites: `sidequestz://invite/<code>` or `https://sidequests.app/invite/<code>`.
+    func handleOpenURL(_ url: URL) {
+        let parts = ([url.host].compactMap { $0 } + url.pathComponents).filter { $0 != "/" }
+        guard let index = parts.firstIndex(of: "invite"), index + 1 < parts.count else { return }
+        pendingInvite = parts[index + 1]
     }
 
     func signedOut() {
@@ -88,8 +112,8 @@ final class Router {
         createDraft = draft
     }
 
-    func openThread(_ id: String, tab: ThreadTab = .chat) {
-        withAnimation(.easeInOut(duration: 0.28)) { openThread = ThreadRoute(threadId: id, tab: tab) }
+    func openThread(_ id: String, tab: ThreadTab = .chat, isGroup: Bool? = nil) {
+        withAnimation(.easeInOut(duration: 0.28)) { openThread = ThreadRoute(threadId: id, tab: tab, isGroup: isGroup) }
     }
 
     func closeThread() {
@@ -153,7 +177,8 @@ final class Router {
                 tab = id.hasPrefix("dm-") ? .account : .groups
                 if id.hasPrefix("dm-") { accountSegment = .friends }
                 let tabName = parts.dropFirst(2).first ?? "chat"
-                openThread = ThreadRoute(threadId: id, tab: ThreadTab(rawValue: tabName) ?? .chat)
+                // Demo DM ids start with "dm-"; everything else in the demo is a group.
+                openThread = ThreadRoute(threadId: id, tab: ThreadTab(rawValue: tabName) ?? .chat, isGroup: !id.hasPrefix("dm-"))
             case "account":
                 tab = .account
                 accountSegment = parts.dropFirst().first == "friends" ? .friends : .me
@@ -185,6 +210,8 @@ struct CreateDraft: Identifiable, Equatable {
     var date: Date?
     var start: Date?
     var end: Date?
+    /// Home search › a place: plan a sidequest that ends there (prefills the End pin).
+    var destination: Place?
     /// 1 Where · 2 When · 3 Vibe · 4 Review
     var step = 1
 }
@@ -199,6 +226,8 @@ struct ThreadRoute: Identifiable, Equatable {
     var id: String { threadId }
     let threadId: String
     var tab: ThreadTab = .chat
+    /// Known before the thread loads (from the list row), so the header doesn't guess.
+    var isGroup: Bool? = nil
 }
 
 struct SetupEntry: Identifiable, Equatable {
@@ -212,10 +241,10 @@ struct SetupEntry: Identifiable, Equatable {
 /// Any route past auth signs in as the demo user. Paths:
 /// - `splash`, `login`, `forgot/1…4`, `setup/1…5`
 /// - `home`, `home/calendar`, `home/past`, `home/sheet/<blockId>`, `home/rate/<pastId>`, `home/checkout/<blockId>`
-/// - `create/1…4`, `create/2/calendar`, `create/4/more`
+/// - `create/1…4`, `create/2/calendar`, `create/4/more`, `create/4/swap`
 /// - `forum`, `forum/area`, `forum/filter`
 /// - `groups`, `thread/<id>/<chat|album|splits>`, `thread/g1/splits/expense`, `thread/dm-maya`
-/// - `account`, `account/friends`, `account/photo`
+/// - `account`, `account/friends`, `account/photo`, `account/facebook`
 struct LaunchRoute: Equatable {
     var parts: [String]
 

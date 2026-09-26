@@ -4,6 +4,9 @@ import SwiftUI
 /// likes, money, open questions. Leaving step 1 signs up (`POST /auth/signup`); Finish or Skip
 /// saves `PUT /me/preferences` and goes Home.
 ///
+/// Resume: signing in to an account whose `setup_complete` is false opens this at step 2 with the
+/// account already made (step 1 then edits it, like going Back after sign-up).
+///
 /// Redo (`isRedo`, from Account › "Redo setup questions"): starts at `startStep` (3) with the
 /// saved preferences, never signs up, and closes when done (Back on the first step cancels).
 struct SetupFlowView: View {
@@ -147,6 +150,10 @@ struct SetupFlowView: View {
     private var footerHeight: CGFloat { max(96 - safeBottom, 53) }
 
     /// Cream footer with a top border; the button sits 31pt above the screen's bottom edge.
+    ///
+    /// While a form field has the keyboard the footer steps aside: it would otherwise peek above the
+    /// keyboard over the next field (the scroll view only keeps 12pt clear then). Return on the last
+    /// field, or dragging the keyboard away, brings it back.
     private var footer: some View {
         VStack(spacing: 0) {
             Rectangle().fill(Theme.line).frame(height: 1)
@@ -158,6 +165,10 @@ struct SetupFlowView: View {
         .background(Theme.cream.ignoresSafeArea(edges: .bottom))
         .ignoresSafeArea(.keyboard)
         .disabled(preparing || loadError != nil)
+        .opacity(focus == nil ? 1 : 0)
+        .allowsHitTesting(focus == nil)
+        .accessibilityHidden(focus != nil)
+        .authMotion(Motion.quick, value: focus == nil)
     }
 
     private var nextLabel: String {
@@ -357,12 +368,27 @@ struct SetupFlowView: View {
 
     /// Synchronous prefill, before the first frame.
     private func prefill() {
+        if isResuming, let user = env.user {
+            draft.resume(from: user)
+            if let saved = env.preferences { draft.preferences = saved }
+        }
         if !isRedo && draft.email.isEmpty { draft.email = router.authEmail }
         if isRedo, let saved = env.preferences { draft.preferences = saved }
         preparing = (isRedo && env.preferences == nil) || isDemoDeepLinkMidSetup
     }
 
+    /// Signed in with setup unfinished (Login routes here when `setup_complete` is false).
+    private var isResuming: Bool {
+        !isRedo && !draft.signedUp && env.auth.isSignedIn && env.user?.setupComplete == false
+    }
+
     private func prepare() async {
+        // Resumed setup: start from anything already saved, as long as nothing was picked yet.
+        if draft.signedUp && !isRedo && env.preferences == nil,
+           let saved = try? await env.api.preferences() {
+            env.preferences = saved
+            if draft.preferences == Preferences() { draft.preferences = saved }
+        }
         if isRedo && env.preferences == nil {
             withMotion {
                 preparing = true

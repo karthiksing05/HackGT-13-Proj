@@ -12,6 +12,8 @@ struct LogoMark: View {
     var variant: Variant = .sage
     /// 0…1 — trims the S from the top.
     var drawProgress: CGFloat = 1
+    /// 0…1 — erases the S from the top (the loader's second half).
+    var drawStart: CGFloat = 0
     var roadOpacity: Double = 1
     var pinOpacity: Double = 1
     var markerScale: CGFloat = 1
@@ -28,7 +30,7 @@ struct LogoMark: View {
                 .stroke(colors.road, style: StrokeStyle(lineWidth: 3 * s, lineCap: .round, dash: [0.1 * s, 7 * s]))
                 .opacity(roadOpacity)
             LogoSRouteShape()
-                .trim(from: 0, to: drawProgress)
+                .trim(from: drawStart, to: drawProgress)
                 .stroke(colors.route, style: StrokeStyle(lineWidth: 5 * s, lineCap: .round, lineJoin: .round))
             Circle()
                 .fill(colors.markerFill)
@@ -100,19 +102,40 @@ struct LogoDiamondShape: Shape {
     }
 }
 
-/// Loading indicator: a small mark with the S drawing in on a loop (static under Reduce Motion).
+/// Loading indicator: a small mark whose S draws from the diamond to the circle, holds a beat, then
+/// erases the same way (its tail following the head to the circle), and loops without a jump.
+/// Static under Reduce Motion.
 struct LogoLoadingView: View {
     var size: CGFloat = 44
-    @State private var progress: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// Seconds for one draw + erase.
+    static let cycle = 2.0
+
     var body: some View {
-        LogoMark(size: size, drawProgress: reduceMotion ? 1 : progress)
-            .onAppear {
-                guard !reduceMotion else { return }
-                progress = 0
-                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: false)) { progress = 1 }
-            }
-            .accessibilityLabel("Loading")
+        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: reduceMotion)) { timeline in
+            let trim = reduceMotion ? (start: 0, end: 1) : Self.trim(at: timeline.date.timeIntervalSinceReferenceDate)
+            LogoMark(size: size, drawProgress: trim.end, drawStart: trim.start)
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Loading")
+    }
+
+    /// Where the S is trimmed `time` seconds in: drawing for 45% of a cycle, a 5% hold, erasing for
+    /// 45%, a 5% hold with nothing drawn. Each move eases in and out, so the loop never jumps.
+    static func trim(at time: TimeInterval) -> (start: CGFloat, end: CGFloat) {
+        let phase = time.truncatingRemainder(dividingBy: cycle) / cycle
+        switch phase {
+        case ..<0.45: return (0, ease(phase / 0.45))
+        case ..<0.5: return (0, 1)
+        case ..<0.95: return (ease((phase - 0.5) / 0.45), 1)
+        default: return (1, 1)
+        }
+    }
+
+    /// Cubic ease in-out.
+    private static func ease(_ x: Double) -> CGFloat {
+        let t = min(max(x, 0), 1)
+        return CGFloat(t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2)
     }
 }

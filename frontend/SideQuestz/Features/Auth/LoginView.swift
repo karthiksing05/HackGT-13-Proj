@@ -38,8 +38,8 @@ struct LoginView: View {
         .onAppear {
             if email.isEmpty { email = router.authEmail }
         }
-        .onChange(of: email) { serverError = nil }
-        .onChange(of: password) { serverError = nil }
+        .onChange(of: email) { serverError = nil; router.authNotice = nil }
+        .onChange(of: password) { serverError = nil; router.authNotice = nil }
     }
 
     // MARK: Sections
@@ -123,7 +123,7 @@ struct LoginView: View {
 
     private var showsValidation: Bool { tried && validationError != nil }
 
-    private var shownError: String? { showsValidation ? validationError : serverError }
+    private var shownError: String? { showsValidation ? validationError : serverError ?? router.authNotice }
 
     private func signIn() {
         guard !submitting else { return }
@@ -145,7 +145,13 @@ struct LoginView: View {
                 // invisible window over the app that swallows every touch.
                 signedIn = true
                 password = ""
-                router.enterMain()
+                if response.user.setupComplete {
+                    router.enterMain()
+                } else {
+                    // The account exists but setup was never finished: pick it up after step 1.
+                    router.authEmail = response.user.email
+                    router.showSetup(step: 2)
+                }
             } catch {
                 serverError = authMessage(for: error, fallback: "Couldn't sign in. Try again.")
             }

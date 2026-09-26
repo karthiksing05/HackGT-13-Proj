@@ -107,6 +107,16 @@ struct PlanOption: Codable, Identifiable, Hashable {
     var stops: [PlanStop]
 }
 
+/// Something similar that could take a stop's place (`POST /plans/alternatives`). Its `stop.id` can
+/// go in a route's `stopOrder` like any of the option's own stops.
+struct PlanAlternative: Codable, Identifiable, Hashable {
+    var stop: PlanStop
+    /// Why it's suggested, in a few words: "Also rooftop views · 0.2 mi away".
+    var reason: String = ""
+
+    var id: String { stop.id }
+}
+
 /// A page of plan options (generate / load more).
 struct PlanBatch: Codable, Hashable {
     var options: [PlanOption]
@@ -120,10 +130,11 @@ struct Leg: Codable, Hashable {
     var minutes: Int
 }
 
-/// POST /plans/route — recalculated after a reorder.
+/// POST /plans/route — recalculated after a reorder, a swap or a removal.
 struct RouteRequest: Codable, Hashable {
     var optionId: String
-    /// Stop ids in the new order.
+    /// Stop ids in the new order: the option's own, or alternatives the server suggested for it.
+    /// A stop left out is removed.
     var stopOrder: [String]
     var start: Place
     var end: Place
@@ -145,6 +156,7 @@ struct RouteResult: Codable, Hashable {
 /// POST /itineraries — save the chosen option.
 struct CreateItineraryRequest: Codable, Hashable {
     var plan: PlanRequest
+    /// The option as edited on Review (swapped stops in their places, removed ones gone).
     var option: PlanOption
     /// Stop ids in the final order.
     var stopOrder: [String]

@@ -85,7 +85,7 @@ struct ForumFilterSheet: View {
         sectionLabel("DISTANCE")
         chipGrid(Self.distances.map { ($0.miles, $0.label) }, isOn: { pending.maxDistanceMi == $0 }) { pending.maxDistanceMi = $0 }
 
-        sectionLabel("COST (ANY IF NONE PICKED)")
+        sectionLabel("COST")
         chipGrid(Self.costs.map { ($0.tier, $0.label) }, isOn: { pending.cost.contains($0) }) { tier in
             if pending.cost.contains(tier) { pending.cost.remove(tier) } else { pending.cost.insert(tier) }
         }
@@ -100,11 +100,10 @@ struct ForumFilterSheet: View {
         }
 
         HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Only plans with open spots").socialText(15, .semibold).foregroundStyle(Theme.ink)
-                Text("Hides free-now posts and full plans").socialText(12).foregroundStyle(Theme.text3)
-            }
-            .accessibilityHidden(true)
+            Text("Only plans with open spots")
+                .socialText(15, .semibold)
+                .foregroundStyle(Theme.ink)
+                .accessibilityHidden(true)
             Spacer(minLength: 0)
             SQToggle(isOn: $pending.openOnly, label: "Only plans with open spots")
                 .frame(height: 32)

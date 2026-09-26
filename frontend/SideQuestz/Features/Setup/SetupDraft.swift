@@ -15,7 +15,8 @@ final class SetupDraft {
     var revealsPasswords = false
     /// Initials color picked in the Photo sheet (sent to the server once the account exists).
     var avatarColor: AvatarColor = .ink
-    /// `signup` succeeded — going Back to step 1 then edits the account instead.
+    /// The account exists (`signup` succeeded, or setup resumed after sign-in). Step 1 then edits
+    /// it: the email shows read-only and the password fields are gone (neither can change there).
     var signedUp = false
     /// A photo or color picked before sign-up that still has to reach the server.
     var lookPending = false
@@ -23,6 +24,13 @@ final class SetupDraft {
     // MARK: Step 2 · calendars (server state)
     var integrations: Loadable<[Integration]> = .loading
     var hasCalendar: Bool { integrations.value?.contains(where: \.connected) ?? false }
+
+    // MARK: Step 2 · Facebook (fills step 3)
+    /// The Facebook import made during this setup.
+    var facebookImport: FacebookImport?
+    /// The ratings it filled in, with their values: disconnecting takes back only the ones you
+    /// haven't changed since.
+    var facebookFilled: [TripType: Int] = [:]
 
     // MARK: Steps 3–5 · saved with `PUT /me/preferences`
     var preferences = Preferences()
@@ -38,10 +46,12 @@ final class SetupDraft {
         return handle.isEmpty ? nil : handle
     }
 
-    /// Step 1 problems, in the order and wording of GUI_PLAN.md §7.4.
+    /// Step 1 problems, in the order and wording of GUI_PLAN.md §7.4. Once the account exists only
+    /// the fields step 1 can still change are checked.
     var basicsErrors: [String] {
         var errors: [String] = []
         if trimmedName.isEmpty { errors.append("Add your name.") }
+        guard !signedUp else { return errors }
         if !Validation.isValidEmail(trimmedEmail) { errors.append("Enter a valid email address.") }
         if !Validation.passwordRulesPass(password, confirm) {
             errors.append("Your password needs 8+ characters, a number, and both entries must match.")
@@ -53,8 +63,35 @@ final class SetupDraft {
         birthDate.map { Validation.age(birthDate: $0, on: now, calendar: calendar) }
     }
 
-    /// Initials for the avatar and the Photo sheet (JL like the demo user until a name is typed).
-    var initials: String { Initials.from(trimmedName, fallback: "JL") }
+    /// Initials for the avatar and the Photo sheet; empty until a name is typed (a person glyph
+    /// stands in, never someone else's initials).
+    var initials: String { Initials.from(trimmedName, fallback: "") }
+
+    /// Setup resumed after sign-in (`setup_complete` false): the account exists, so start from it.
+    func resume(from user: User) {
+        name = user.name
+        email = user.email
+        username = user.username ?? ""
+        avatarColor = user.avatarColor
+        signedUp = true
+    }
+
+    /// Fills the likes you haven't rated with the import's suggestions (never replaces your own).
+    func useFacebook(_ imported: FacebookImport) {
+        let result = preferences.merging(imported.suggestedRatings, overwrite: false)
+        preferences = result.preferences
+        for type in result.changed { facebookFilled[type] = result.preferences.ratings[type] }
+        facebookImport = imported
+    }
+
+    /// Facebook disconnected during setup: takes back the ratings it filled that you haven't changed.
+    func dropFacebook() {
+        for (type, value) in facebookFilled where preferences.ratings[type] == value {
+            preferences.ratings[type] = nil
+        }
+        facebookFilled = [:]
+        facebookImport = nil
+    }
 
     /// Step 5 answers, keyed like `Preferences.answers`.
     func answer(_ key: String) -> String { preferences.answers[key] ?? "" }

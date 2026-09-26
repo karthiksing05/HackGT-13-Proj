@@ -9,17 +9,12 @@ struct SetupMoreStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SetupHeading(title: "Tell us more",
-                         subtitle: "Optional. Type or tap the mic and just talk. The more you share, the better the first picks.")
+                         subtitle: "Optional. The more you share, the better your first picks.")
             ForEach(SetupQuestion.all) { question in
                 SetupQuestionCard(question: question,
                                   answer: Binding(get: { draft.answer(question.answerKey) },
                                                   set: { draft.setAnswer(question.answerKey, $0) }))
             }
-            Text("Voice input · Apple Speech")
-                .sqFont(12)
-                .foregroundStyle(Theme.text3)
-                .authLineHeight(1.35, size: 12)
-                .frame(maxWidth: .infinity)
         }
         .onDisappear { env.voice.cancel() }
     }

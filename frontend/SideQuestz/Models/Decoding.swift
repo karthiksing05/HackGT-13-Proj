@@ -9,7 +9,7 @@ import Foundation
 
 extension User {
     enum CodingKeys: String, CodingKey {
-        case id, name, username, email, photoURL = "photoUrl", avatarColor, status, ageBracket, school
+        case id, name, username, email, photoURL = "photoUrl", avatarColor, status, ageBracket, school, setupComplete
     }
 
     init(from decoder: Decoder) throws {
@@ -23,6 +23,51 @@ extension User {
         status = try c.decodeIfPresent(PresenceStatus.self, forKey: .status) ?? .open
         ageBracket = try c.decodeIfPresent(AgeBracket.self, forKey: .ageBracket) ?? .adult
         school = try c.decodeIfPresent(String.self, forKey: .school)
+        setupComplete = try c.decodeIfPresent(Bool.self, forKey: .setupComplete) ?? true
+    }
+}
+
+extension PersonRef {
+    enum CodingKeys: String, CodingKey {
+        case id, name, initials, colorHex, photoURL = "photoUrl", username
+    }
+
+    /// Initials and color are optional on the wire (derived from the name / ink when missing).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        initials = try c.decodeIfPresent(String.self, forKey: .initials) ?? Initials.from(name)
+        colorHex = try c.decodeIfPresent(String.self, forKey: .colorHex) ?? "#18211C"
+        photoURL = try c.decodeIfPresent(URL.self, forKey: .photoURL)
+        username = try c.decodeIfPresent(String.self, forKey: .username)
+    }
+}
+
+extension FriendRequest {
+    enum CodingKeys: String, CodingKey {
+        case id, person, note, outgoing
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        person = try c.decode(PersonRef.self, forKey: .person)
+        note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
+        outgoing = try c.decodeIfPresent(Bool.self, forKey: .outgoing) ?? false
+    }
+}
+
+extension UserSearchResult {
+    enum CodingKeys: String, CodingKey {
+        case person, relation, requestId
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        person = try c.decode(PersonRef.self, forKey: .person)
+        relation = try c.decodeIfPresent(FriendRelation.self, forKey: .relation) ?? .none
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId)
     }
 }
 
@@ -38,17 +83,19 @@ extension Preferences {
         splitStyle = try c.decodeIfPresent(SplitStyle.self, forKey: .splitStyle) ?? defaults.splitStyle
         preferFree = try c.decodeIfPresent(Bool.self, forKey: .preferFree) ?? defaults.preferFree
         answers = try c.decodeIfPresent([String: String].self, forKey: .answers) ?? defaults.answers
+        instantCheckout = try c.decodeIfPresent(Bool.self, forKey: .instantCheckout) ?? defaults.instantCheckout
+        instantCheckoutLimitCents = try c.decodeIfPresent(Int.self, forKey: .instantCheckoutLimitCents) ?? defaults.instantCheckoutLimitCents
     }
 
     enum CodingKeys: String, CodingKey {
-        case ratings, company, pace, spend, flexibility, splitStyle, preferFree, answers
+        case ratings, company, pace, spend, flexibility, splitStyle, preferFree, answers, instantCheckout, instantCheckoutLimitCents
     }
 }
 
 extension ItineraryItem {
     enum CodingKeys: String, CodingKey {
         case id, kind, title, place, start, end, description, websiteURL = "websiteUrl", bookable, priceCents
-        case people, interested, extraGoing, notes, rating
+        case people, interested, extraGoing, notes, notesScope, rating, transitMode, ticket
     }
 
     init(from decoder: Decoder) throws {
@@ -67,13 +114,16 @@ extension ItineraryItem {
         interested = try c.decodeIfPresent([PersonRef].self, forKey: .interested) ?? []
         extraGoing = try c.decodeIfPresent(Int.self, forKey: .extraGoing) ?? 0
         notes = try c.decodeIfPresent(String.self, forKey: .notes)
+        notesScope = try c.decodeIfPresent(NotesScope.self, forKey: .notesScope)
         rating = try c.decodeIfPresent(Rating.self, forKey: .rating)
+        transitMode = try c.decodeIfPresent(TravelMode.self, forKey: .transitMode)
+        ticket = try c.decodeIfPresent(Ticket.self, forKey: .ticket)
     }
 }
 
 extension Itinerary {
     enum CodingKeys: String, CodingKey {
-        case id, title, date, start, backBy, startPlace, endPlace, visibility, lockAt, maxGroupSize, items, goingCount
+        case id, title, date, start, backBy, startPlace, endPlace, visibility, lockAt, maxGroupSize, items, goingCount, isHost
     }
 
     init(from decoder: Decoder) throws {
@@ -90,12 +140,13 @@ extension Itinerary {
         maxGroupSize = try c.decodeIfPresent(Int.self, forKey: .maxGroupSize)
         items = try c.decodeIfPresent([ItineraryItem].self, forKey: .items) ?? []
         goingCount = try c.decodeIfPresent(Int.self, forKey: .goingCount) ?? 1
+        isHost = try c.decodeIfPresent(Bool.self, forKey: .isHost) ?? true
     }
 }
 
 extension CalendarItem {
     enum CodingKeys: String, CodingKey {
-        case id, kind, title, start, end, people, interested
+        case id, kind, title, start, end, people, interested, itineraryId
     }
 
     init(from decoder: Decoder) throws {
@@ -107,6 +158,7 @@ extension CalendarItem {
         end = try c.decode(Date.self, forKey: .end)
         people = try c.decodeIfPresent([PersonRef].self, forKey: .people) ?? []
         interested = try c.decodeIfPresent([PersonRef].self, forKey: .interested) ?? []
+        itineraryId = try c.decodeIfPresent(String.self, forKey: .itineraryId)
     }
 }
 
@@ -114,8 +166,11 @@ extension ForumPost {
     enum CodingKeys: String, CodingKey {
         case id, type, author, isFriend, friendsOnly, title, text, meta, when, route, startsInMinutes, day, distanceMi
         case priceTier, tags, spotsLeft, capacity, lockLabel, going, goingCount, interestedCount, postedMinutesAgo
-        case joinRequested, planTogetherSent
+        case joinStatus, planTogetherSent, threadId
     }
+
+    /// Older servers send `join_requested: true` instead of `join_status`.
+    private enum LegacyKeys: String, CodingKey { case joinRequested }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -141,8 +196,24 @@ extension ForumPost {
         goingCount = try c.decodeIfPresent(Int.self, forKey: .goingCount) ?? going.count
         interestedCount = try c.decodeIfPresent(Int.self, forKey: .interestedCount) ?? 0
         postedMinutesAgo = try c.decodeIfPresent(Int.self, forKey: .postedMinutesAgo) ?? 0
-        joinRequested = try c.decodeIfPresent(Bool.self, forKey: .joinRequested) ?? false
+        if let status = try c.decodeIfPresent(JoinStatus.self, forKey: .joinStatus) {
+            joinStatus = status
+        } else {
+            let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+            joinStatus = (try legacy.decodeIfPresent(Bool.self, forKey: .joinRequested) ?? false) ? .requested : .none
+        }
         planTogetherSent = try c.decodeIfPresent(Bool.self, forKey: .planTogetherSent) ?? false
+        threadId = try c.decodeIfPresent(String.self, forKey: .threadId)
+    }
+}
+
+extension PlanAlternative {
+    enum CodingKeys: String, CodingKey { case stop, reason }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        stop = try c.decode(PlanStop.self, forKey: .stop)
+        reason = try c.decodeIfPresent(String.self, forKey: .reason) ?? ""
     }
 }
 

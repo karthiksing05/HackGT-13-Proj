@@ -68,8 +68,35 @@ final class SideQuestzUITests: XCTestCase {
         let start = app.buttons["Start this sidequest"]
         start.tap()
         expectGone(start)
-        expect(app.buttons["Itineraries"])
+        expect(app.buttons["Sidequests"])
         expect(element(app, labelContains: "Rooftop + murals"))
+    }
+
+    /// Home › "•••" › Edit sidequest: rename it and save → Home shows the new name.
+    func testEditSidequestRenamesIt() {
+        let app = launchSignedIn()
+
+        app.buttons["sidequest.options"].tapWhenReady(timeout)
+        app.buttons["Edit sidequest"].tapWhenReady(timeout)
+        replaceText(app.textFields["Name"], with: "Rooftop evening")
+        app.buttons["Save"].tapWhenReady(timeout)
+
+        expectGone(app.buttons["Save"])
+        expect(element(app, labelContains: "Rooftop evening"))
+    }
+
+    /// Home › "•••" › Delete sidequest → confirm → it's gone and the next one shows.
+    func testDeleteSidequestRemovesIt() {
+        let app = launchSignedIn()
+        expect(element(app, labelContains: "Free Friday afternoon"))
+
+        app.buttons["sidequest.options"].tapWhenReady(timeout)
+        app.buttons["Delete sidequest"].tapWhenReady(timeout)
+        // The confirmation's destructive button has the same label.
+        app.buttons["Delete sidequest"].firstMatch.tapWhenReady(timeout)
+
+        expectGone(element(app, labelContains: "Free Friday afternoon"))
+        expect(element(app, labelContains: "Saturday reset"))
     }
 
     /// Create › Review: drag stop 1 below stop 2 → the route re-times ("Transit times updated").
@@ -92,6 +119,31 @@ final class SideQuestzUITests: XCTestCase {
 
         expect(element(app, labelContains: "Transit times updated"))
         XCTAssertEqual(first.value as? String, "Stop 2 of 3")
+    }
+
+    /// Create › Review: hold a stop → "Swap for something similar" → pick the nearest alternative →
+    /// it takes the stop's place. Hold another → "Remove stop" → it's gone → "Undo" brings it back.
+    func testSwapAndRemoveStopInReview() {
+        let app = launchSignedIn()
+
+        app.buttons["tab.plan"].tapWhenReady(timeout)
+        for _ in 0..<3 { app.buttons["Next"].tapWhenReady(timeout) }
+        expect(app.staticTexts["Pick a sidequest"])
+
+        let murals = element(app, labelBeginsWith: "Krog Street Tunnel murals")
+        expect(murals)
+        murals.press(forDuration: 1.0)
+        app.buttons["Swap for something similar"].tapWhenReady(timeout)
+        expect(element(app, labelBeginsWith: "Swap Krog Street Tunnel murals"))
+        element(app, type: .button, labelBeginsWith: "Cabbagetown murals").tapWhenReady(timeout)
+        expect(app.descendants(matching: .any)["Reorder Cabbagetown murals"])
+        expectGone(app.descendants(matching: .any)["Reorder Krog Street Tunnel murals"])
+
+        element(app, labelBeginsWith: "Krog Street Market").press(forDuration: 1.0)
+        app.buttons["Remove stop"].tapWhenReady(timeout)
+        expectGone(app.descendants(matching: .any)["Reorder Krog Street Market"])
+        app.buttons["Undo"].tapWhenReady(timeout)
+        expect(app.descendants(matching: .any)["Reorder Krog Street Market"])
     }
 
     /// Home › Calendar: press and hold an empty stretch, then drag down → "Plan this window" → Create
@@ -165,6 +217,48 @@ final class SideQuestzUITests: XCTestCase {
         expect(element(app, labelContains: "Added \"Pizza\""))
     }
 
+    // MARK: Facebook
+
+    /// Setup › step 2 › Connect Facebook (the demo has no Facebook page) → "Connected" → step 3 is
+    /// filled in from the import and says so.
+    func testSetupFacebookFillsLikes() {
+        let app = launch()
+
+        element(app, type: .button, labelContains: "Create an account").tapWhenReady(timeout)
+        type(app.textFields["Name"], "Sam Rivera")
+        type(app.textFields["Email"], "sam@gatech.edu")
+        typeOwnPassword(app, app.secureTextFields["Create a password"], "wander2026")
+        typeOwnPassword(app, app.secureTextFields["Confirm password"], "wander2026")
+        type(app.textFields["Username (optional)"], "samr\n")
+        app.buttons["Continue"].tapWhenReady(timeout)
+
+        app.buttons["Connect Facebook"].tapWhenReady(timeout)
+        expect(app.buttons["Facebook connected"])
+        app.buttons["Continue without a calendar"].tapWhenReady(timeout)
+
+        expect(element(app, labelContains: "Filled in from Facebook"))
+        // The rating row (label + value), not the text inside it.
+        expect(app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@ AND value == %@", "Live music", "5 · Love it")).firstMatch)
+    }
+
+    /// Account › Connected › Facebook: connects, the sheet lists what would change, "Use these"
+    /// saves it.
+    func testAccountFacebookSuggestions() {
+        let app = launchSignedIn()
+
+        app.buttons["tab.account"].tapWhenReady(timeout)
+        let facebook = element(app, type: .button, labelBeginsWith: "Facebook")
+        expect(facebook)
+        // The Connected card sits below the taste profile, partly behind the tab bar.
+        app.swipeUp()
+        facebook.tapWhenReady(timeout)
+        expect(app.staticTexts["SUGGESTED LIKES"])
+        expect(element(app, labelContains: "Live music"))
+        app.buttons["Use these"].tapWhenReady(timeout)
+        expect(element(app, labelContains: "Your likes are updated"))
+    }
+
     // MARK: Helpers
 
     private func launch() -> XCUIApplication {
@@ -179,13 +273,13 @@ final class SideQuestzUITests: XCTestCase {
         let app = launch()
         type(app.textFields["Email"], "jordan@gatech.edu")
         type(app.secureTextFields["Password"], "sidequest1\n")
-        expect(app.buttons["Itineraries"])
+        expect(app.buttons["Sidequests"])
         return app
     }
 
     /// Home is up and a tab switch works (nothing invisible is left over the app).
     private func expectMainShellResponds(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
-        expect(app.buttons["Itineraries"], file: file, line: line)
+        expect(app.buttons["Sidequests"], file: file, line: line)
         let forum = app.buttons["tab.forum"]
         XCTAssertTrue(forum.isHittable, "The tab bar doesn't take taps", file: file, line: line)
         forum.tap()
@@ -206,6 +300,14 @@ final class SideQuestzUITests: XCTestCase {
             field.tap()
         }
         field.typeText(text)
+    }
+
+    /// Puts the caret at the end, deletes what's there and types `text`.
+    private func replaceText(_ field: XCUIElement, with text: String) {
+        field.tapWhenReady(timeout)
+        let current = field.value as? String ?? ""
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count) + text)
     }
 
     private func expect(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {

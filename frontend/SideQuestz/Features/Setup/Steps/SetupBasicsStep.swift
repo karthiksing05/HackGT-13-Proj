@@ -2,6 +2,9 @@ import SwiftUI
 
 /// Setup · 1 "Let's set up your profile": photo, name, email, password (+ rules), username,
 /// date of birth with the age note. Continue stays blocked until the basics pass.
+///
+/// Once the account exists (Back from step 2, or setup resumed after sign-in) this step edits it:
+/// the email shows read-only and the password fields are gone, since neither can change here.
 struct SetupBasicsStep: View {
     @Environment(AppEnvironment.self) private var env
     @Bindable var draft: SetupDraft
@@ -13,29 +16,32 @@ struct SetupBasicsStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SetupHeading(title: "Let's set up your profile",
-                         subtitle: "This takes about a minute. It helps us pick things you'll actually like.")
+            SetupHeading(title: "Let's set up your profile")
             avatarRow
                 .padding(.top, 6)
 
             AuthField(label: "Name", text: $draft.name, placeholder: "Your name", kind: .name,
                       bordered: false, focus: focus, field: .name)
                 .submitLabel(.next)
-                .onSubmit { focus.wrappedValue = .email }
+                .onSubmit { focus.wrappedValue = draft.signedUp ? .username : .email }
                 .padding(.top, 8)
-            AuthField(label: "Email", text: $draft.email, placeholder: "you@school.edu", kind: .email,
-                      bordered: false, focus: focus, field: .email)
-                .submitLabel(.next)
-                .onSubmit { focus.wrappedValue = .password }
-            AuthField(label: "Create a password", text: $draft.password, placeholder: "At least 8 characters",
-                      kind: .newPassword, revealed: $draft.revealsPasswords, revealsBoth: true, focus: focus, field: .password)
-                .submitLabel(.next)
-                .onSubmit { focus.wrappedValue = .confirm }
-            AuthField(label: "Confirm password", text: $draft.confirm, placeholder: "Type it again",
-                      kind: .newPassword, revealed: $draft.revealsPasswords, revealsBoth: true, focus: focus, field: .confirm)
-                .submitLabel(.next)
-                .onSubmit { focus.wrappedValue = .username }
-            PasswordRulesView(password: draft.password, confirm: draft.confirm)
+            if draft.signedUp {
+                SetupReadOnlyField(label: "Email", value: draft.trimmedEmail)
+            } else {
+                AuthField(label: "Email", text: $draft.email, placeholder: "you@school.edu", kind: .email,
+                          bordered: false, focus: focus, field: .email)
+                    .submitLabel(.next)
+                    .onSubmit { focus.wrappedValue = .password }
+                AuthField(label: "Create a password", text: $draft.password, placeholder: "At least 8 characters",
+                          kind: .newPassword, revealed: $draft.revealsPasswords, revealsBoth: true, focus: focus, field: .password)
+                    .submitLabel(.next)
+                    .onSubmit { focus.wrappedValue = .confirm }
+                AuthField(label: "Confirm password", text: $draft.confirm, placeholder: "Type it again",
+                          kind: .newPassword, revealed: $draft.revealsPasswords, revealsBoth: true, focus: focus, field: .confirm)
+                    .submitLabel(.next)
+                    .onSubmit { focus.wrappedValue = .username }
+                PasswordRulesView(password: draft.password, confirm: draft.confirm)
+            }
             AuthField(label: "Username (optional)", text: $draft.username, placeholder: "@handle", kind: .username,
                       bordered: false, focus: focus, field: .username)
                 .submitLabel(.done)
@@ -48,10 +54,6 @@ struct SetupBasicsStep: View {
                     .id(SetupScrollTarget.basicsErrors)
                     .sqTransition(.rise)
             }
-            Text("Friends can find you by name or username.")
-                .sqFont(12)
-                .foregroundStyle(Theme.text3)
-                .authLineHeight(1.35, size: 12)
         }
         // The error box rises in and its lines update as you fix things; the age note recolors.
         .authMotion(value: errorMessages)
@@ -70,6 +72,13 @@ struct SetupBasicsStep: View {
             Avatar(initials: draft.initials, fill: draft.avatarColor.background, foreground: draft.avatarColor.foreground,
                    size: 72, fontSize: 24, fontWeight: .semibold, image: env.profileImage,
                    imageURL: env.profileImage == nil && draft.signedUp ? env.user?.photoURL : nil)
+                .overlay {
+                    if draft.initials.isEmpty && !hasPhoto {
+                        SetupPersonGlyph(size: 72, color: draft.avatarColor.foreground)
+                            .transition(.opacity)
+                    }
+                }
+                .authMotion(Motion.quick, value: draft.initials.isEmpty)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 6) {
                 Button(hasPhoto ? "Change photo" : "Add a photo", action: onEditPhoto)
@@ -166,6 +175,42 @@ struct SetupBasicsStep: View {
         .padding(.horizontal, 12)
         .background(tooYoung ? Theme.dangerBg : Theme.sageTint, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// A field card that can't be edited (the account's email after sign-up): same card as the
+/// borderless fields, the value in `text2` and a small lock.
+private struct SetupReadOnlyField: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .sqFont(12, relativeTo: .caption)
+                .foregroundStyle(Theme.text3)
+                .authLineHeight(1.35, size: 12)
+            HStack(spacing: 8) {
+                Text(value)
+                    .sqFont(17)
+                    .foregroundStyle(Theme.text2)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "lock")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.text3)
+            }
+            .frame(minHeight: 22.95)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white, in: RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(value)
+        .accessibilityHint("Can't be changed here")
     }
 }
 

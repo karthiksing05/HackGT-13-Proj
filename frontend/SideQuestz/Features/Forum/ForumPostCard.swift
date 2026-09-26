@@ -3,9 +3,13 @@ import SwiftUI
 /// One Forum post (GUI_PLAN.md §7.8): an open plan ("Request to join") or a free-now post
 /// ("Plan together"). White card, radius 16, padding 14, 10pt gaps.
 ///
+/// An open plan's button follows where you stand (`join_status`): "Request to join" → "Requested ·
+/// waiting on host" (tap again to cancel) or, when the plan lets you straight in, "You're in · Open
+/// chat"; a full or closed plan says so and can't be tapped.
+///
 /// Motion: while the card's request runs the button shows `LoadingDots`; when it's done the label
-/// and colors morph ("Message sent" draws a check in). The spots bar fills in when the card appears
-/// and slides when the spots change.
+/// and colors morph ("Message sent" and "You're in" draw a check in). The spot bubbles fill in one
+/// after another when the card appears, and a bubble fills with a pop when someone takes a spot.
 struct ForumPostCard: View {
     let post: ForumPost
     /// The card's action is in flight (button disabled, loading dots).
@@ -15,8 +19,14 @@ struct ForumPostCard: View {
     let action: () -> Void
 
     private var isPlan: Bool { post.type == .plan }
-    /// "Requested · waiting on host" / "Message sent".
-    private var isDone: Bool { isPlan ? post.joinRequested : post.planTogetherSent }
+    /// A plan that can't be joined from here (full or closed).
+    private var isUnavailable: Bool { isPlan && (post.joinStatus == .full || post.joinStatus == .closed) }
+    /// "Requested · waiting on host", "You're in", "Message sent": the button turns quiet.
+    private var isDone: Bool {
+        isPlan ? post.joinStatus == .requested || post.joinStatus == .joined : post.planTogetherSent
+    }
+    /// The check that draws in next to "You're in" and "Message sent".
+    private var showsCheck: Bool { isPlan ? post.joinStatus == .joined : post.planTogetherSent }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -110,8 +120,10 @@ struct ForumPostCard: View {
         }
         .accessibilityElement(children: .combine)
         if post.spotsLabel != nil || post.lockLabel != nil {
-            VStack(spacing: 6) {
-                SpotsBar(fraction: post.fillFraction)
+            VStack(alignment: .leading, spacing: 6) {
+                if let capacity = post.capacity, let spotsLeft = post.spotsLeft, capacity > 0 {
+                    SpotBubbles(capacity: capacity, taken: capacity - spotsLeft)
+                }
                 HStack {
                     if let spots = post.spotsLabel { Text(spots).sqNumeric() }
                     Spacer(minLength: 8)
@@ -132,11 +144,19 @@ struct ForumPostCard: View {
     // MARK: Action
 
     private var buttonLabel: String {
-        if isPlan { return post.joinRequested ? "Requested · waiting on host" : "Request to join" }
-        return post.planTogetherSent ? "Message sent" : "Plan together"
+        guard isPlan else { return post.planTogetherSent ? "Message sent" : "Plan together" }
+        switch post.joinStatus {
+        case .none: return "Request to join"
+        case .requested: return "Requested · waiting on host"
+        case .joined: return "You're in · Open chat"
+        case .full: return "This plan is full"
+        case .closed: return "Joining closed"
+        }
     }
 
     private var buttonColors: (fill: Color, text: Color, border: Color) {
+        if isPlan && post.joinStatus == .joined { return (Theme.sageTint, Theme.sageInk, Theme.sageTint) }
+        if isUnavailable { return (Theme.cream, Theme.text3, Theme.cream) }
         if isDone { return (Theme.cream, Theme.text2, Theme.cream) }
         return isPlan ? (Theme.sage, Theme.ink, Theme.sage) : (.white, Theme.sageInk, Theme.sage)
     }
@@ -146,8 +166,8 @@ struct ForumPostCard: View {
         return Button(action: action) {
             SocialBusyLabel(isBusy: isBusy, color: colors.text) {
                 HStack(spacing: 6) {
-                    // "Message sent" confirms with a check that draws itself in.
-                    if !isPlan && post.planTogetherSent {
+                    // "Message sent" and "You're in" confirm with a check that draws itself in.
+                    if showsCheck {
                         AnimatedCheck(lineWidth: 2.8, delay: 0.12)
                             .frame(width: 14, height: 14)
                             .sqTransition(.pop)
@@ -159,18 +179,19 @@ struct ForumPostCard: View {
         }
         .buttonStyle(.sq(fill: colors.fill, foreground: colors.text, border: colors.border, borderWidth: 1.5,
                          height: 40, radius: 12, fontSize: 15))
-        .disabled(isBusy)
+        .disabled(isBusy || isUnavailable)
         .accessibilityLabel(buttonLabel)
         .accessibilityValue(isBusy ? "Loading" : "")
         .accessibilityHint(accessibilityHint)
     }
 
     private var accessibilityHint: String {
-        switch (isPlan, isDone) {
-        case (true, false): "Asks the host for a spot"
-        case (true, true): "Cancels your request"
-        case (false, false): "Sends a message to plan something together"
-        case (false, true): "Opens your messages"
+        guard isPlan else { return post.planTogetherSent ? "Opens your messages" : "Sends a message to plan something together" }
+        switch post.joinStatus {
+        case .none: return "Asks the host for a spot"
+        case .requested: return "Cancels your request"
+        case .joined: return "Opens the group chat"
+        case .full, .closed: return ""
         }
     }
 }
@@ -193,27 +214,58 @@ private struct GoingFaces: View {
     }
 }
 
-/// 6pt spots bar: sage fill on a `line` track, rounded ends (the fill is clipped, not rounded).
-/// Fills in from the left when it first appears; later changes slide inside the caller's animation.
-private struct SpotsBar: View {
-    let fraction: Double
-    @State private var filled = false
+/// One bubble per spot: sage for taken, a sage ring for open. Past `maxBubbles` the rest collapse
+/// into "+N" (the "N of M spots left" line under it has the exact count). The taken bubbles fill in
+/// one after another when the card first appears; later, a newly taken spot fills with a spring.
+private struct SpotBubbles: View {
+    let capacity: Int
+    let taken: Int
+
+    private static let maxBubbles = 10
+
+    private var shown: Int { min(capacity, Self.maxBubbles) }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<shown, id: \.self) { index in
+                SpotBubble(filled: index < taken, index: index)
+            }
+            if capacity > shown {
+                Text("+\(capacity - shown)")
+                    .socialText(12, .semibold)
+                    .foregroundStyle(Theme.text3)
+                    .padding(.leading, 2)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// A 12pt spot: the ring is always there; the sage fill grows in when the spot is taken.
+private struct SpotBubble: View {
+    let filled: Bool
+    /// Order in the first fill-in.
+    let index: Int
+    @State private var appeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        GeometryReader { proxy in
-            Rectangle()
-                .fill(Theme.sage)
-                .frame(width: proxy.size.width * (filled || reduceMotion ? max(0, min(1, fraction)) : 0))
-        }
-        .frame(height: 6)
-        .background(Theme.line)
-        .clipShape(Capsule())
-        .accessibilityHidden(true)
-        .onAppear {
-            guard !filled, !reduceMotion else { return }
-            withAnimation(Motion.gentle.delay(0.15)) { filled = true }
-        }
+        let showsFill = filled && (appeared || reduceMotion)
+        Circle()
+            .strokeBorder(Theme.sage, lineWidth: 1.5)
+            .background {
+                Circle()
+                    .fill(Theme.sage)
+                    .scaleEffect(showsFill ? 1 : 0.2)
+                    .opacity(showsFill ? 1 : 0)
+            }
+            .frame(width: 12, height: 12)
+            // A spot taken (or given back) while the card is on screen.
+            .animation(reduceMotion ? Motion.reduced : Motion.arrive, value: filled)
+            .onAppear {
+                guard !appeared, !reduceMotion else { return }
+                withAnimation(Motion.arrive.delay(0.12 + Motion.stagger(index, step: 0.05, cap: 0.45))) { appeared = true }
+            }
     }
 }
 

@@ -92,6 +92,12 @@ struct PhotoSheet: View {
                fontWeight: .semibold, image: env.profileImage,
                imageURL: env.profileImage == nil && savesToServer ? env.user?.photoURL : nil)
             .overlay {
+                // No name typed yet (Setup): a person glyph instead of initials.
+                if initials.isEmpty && !hasPhoto {
+                    SetupPersonGlyph(size: 120, color: color.foreground)
+                }
+            }
+            .overlay {
                 if uploading {
                     ZStack {
                         Circle().fill(.black.opacity(0.25))
@@ -101,7 +107,9 @@ struct PhotoSheet: View {
                 }
             }
             .accessibilityElement()
-            .accessibilityLabel(hasPhoto ? "Your profile photo" : "Your initials on \(color.name.lowercased())")
+            .accessibilityLabel(hasPhoto ? "Your profile photo"
+                                : initials.isEmpty ? "No photo, \(color.name.lowercased()) background"
+                                : "Your initials on \(color.name.lowercased())")
             .accessibilityValue(uploading ? "Uploading" : "")
     }
 
@@ -172,22 +180,28 @@ struct PhotoSheet: View {
                 Button {
                     pick(option)
                 } label: {
-                    Text(initials)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(option.foreground)
-                        .frame(width: 52, height: 52)
-                        .background(option.background, in: Circle())
-                        .background {
-                            if selected {
-                                // Slides from the old color to the new one.
-                                ZStack {
-                                    Circle().fill(Theme.sageInk).padding(-5)
-                                    Circle().fill(.white).padding(-3)
-                                }
-                                .matchedGeometryEffect(id: "ring", in: ring)
-                            }
+                    Group {
+                        if initials.isEmpty {
+                            SetupPersonGlyph(size: 52, color: option.foreground)
+                        } else {
+                            Text(initials)
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(option.foreground)
                         }
-                        .contentShape(Circle())
+                    }
+                    .frame(width: 52, height: 52)
+                    .background(option.background, in: Circle())
+                    .background {
+                        if selected {
+                            // Slides from the old color to the new one.
+                            ZStack {
+                                Circle().fill(Theme.sageInk).padding(-5)
+                                Circle().fill(.white).padding(-3)
+                            }
+                            .matchedGeometryEffect(id: "ring", in: ring)
+                        }
+                    }
+                    .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Use initials on \(option.name.lowercased())")

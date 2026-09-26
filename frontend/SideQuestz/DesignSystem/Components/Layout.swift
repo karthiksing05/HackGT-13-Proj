@@ -39,7 +39,7 @@ struct Eyebrow: View {
     }
 }
 
-/// Mono section header ("Active itineraries", "Taste profile").
+/// Mono section header ("Active sidequests", "Taste profile").
 struct SectionHeader: View {
     let title: String
 

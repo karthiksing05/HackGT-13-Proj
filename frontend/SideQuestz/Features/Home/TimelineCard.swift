@@ -45,6 +45,8 @@ struct HomeTimelineLayout {
 /// On first load (`arrives`) the blocks rise in one after another; later changes animate in place.
 struct HomeTimelineCard: View {
     let itinerary: Itinerary
+    /// Blocks running late (`transit.delay`): minutes by item id.
+    var late: [String: Int] = [:]
     var arrives = false
     let open: (ItineraryItem) -> Void
     @Environment(AppEnvironment.self) private var env
@@ -58,7 +60,7 @@ struct HomeTimelineCard: View {
             }
             ForEach(Array(itinerary.items.enumerated()), id: \.element.id) { index, item in
                 HomeTimelineBlock(item: item, time: env.format.range(item.start, item.end),
-                                  height: layout.blockHeight(item)) { open(item) }
+                                  height: layout.blockHeight(item), lateMinutes: late[item.id]) { open(item) }
                     .padding(.leading, 62)
                     .padding(.trailing, 12)
                     .homeArrival(index + 2, enabled: arrives)
@@ -111,10 +113,12 @@ struct HomeTimelineCard: View {
 
 /// A block on an itinerary timeline. Tall blocks (≥ 50pt) show the title + "2:30–4:00 PM · Sidequest";
 /// short ones one truncated line "Title · 2:00–2:25 PM". Group blocks ≥ 80pt add faces + counts.
+/// A block running late adds a small "8 min late" chip after its time.
 struct HomeTimelineBlock: View {
     let item: ItineraryItem
     let time: String
     let height: CGFloat
+    var lateMinutes: Int? = nil
     let action: () -> Void
 
     private var palette: BlockPalette { item.kind.palette }
@@ -130,20 +134,33 @@ struct HomeTimelineBlock: View {
                         .sqFont(14, .semibold)
                         .homeLine(14, 1.25)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("\(time) · \(palette.label)")
-                        .sqFont(12)
-                        .homeLine(12)
-                        .opacity(0.85)
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text("\(time) · \(palette.label)")
+                            .sqFont(12)
+                            .homeLine(12)
+                            .opacity(0.85)
+                            .lineLimit(1)
+                        if let lateMinutes {
+                            HomeLateChip(minutes: lateMinutes)
+                                .sqTransition(.pop)
+                        }
+                    }
                 } else {
                     // The prototype's one-line label shrinks to the block and clips (overflow: hidden).
-                    Text("\(item.title) · \(time)")
-                        .sqFont(12, .semibold)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .homeLine(12)
-                        .frame(height: max(0, min(12 * 1.35, height - 10)), alignment: .top)
-                        .clipped()
+                    let lineHeight = max(0, min(12 * 1.35, height - 10))
+                    HStack(alignment: .top, spacing: 6) {
+                        Text("\(item.title) · \(time)")
+                            .sqFont(12, .semibold)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .homeLine(12)
+                            .frame(height: lineHeight, alignment: .top)
+                            .clipped()
+                        if let lateMinutes {
+                            HomeLateChip(minutes: lateMinutes, height: max(12, min(16, lineHeight)))
+                                .sqTransition(.pop)
+                        }
+                    }
                 }
                 if showsPeople {
                     HStack(spacing: 0) {
@@ -178,7 +195,27 @@ struct HomeTimelineBlock: View {
 
     private var accessibilityText: String {
         var parts = [item.title, time, palette.label]
+        if let lateMinutes { parts.append("running \(lateMinutes) minutes late") }
         if item.kind == .group && item.hasPeople { parts.append(item.peopleLine) }
         return parts.joined(separator: ", ")
+    }
+}
+
+/// "8 min late" on a timeline block the server says is running late (`transit.delay`).
+struct HomeLateChip: View {
+    let minutes: Int
+    var height: CGFloat = 16
+
+    var body: some View {
+        Text("\(minutes) min late")
+            .sqFont(10, .bold, relativeTo: .caption2)
+            .foregroundStyle(Theme.dangerText)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 6)
+            .frame(height: height)
+            .background(Theme.dangerBg, in: Capsule())
+            .overlay { Capsule().strokeBorder(Theme.errorBorder, lineWidth: 1) }
+            .accessibilityHidden(true)
     }
 }

@@ -31,6 +31,7 @@ struct SideQuestzApp: App {
                 .environment(router)
                 .tint(Theme.sageInk)
                 .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+                .onOpenURL { router.handleOpenURL($0) }
                 .task {
                     if env.auth.isSignedIn { await env.refreshSession() }
                 }

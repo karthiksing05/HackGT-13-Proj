@@ -302,6 +302,19 @@ This works as is, but the current text encoders don't emit eight-section texts (
 embed eight-section likes, dislikes and event texts instead: store each event's converted `embedding_text`,
 and each user's preference texts.
 
+### Event vectors in MongoDB
+
+Each activity in the backend's MongoDB (`freetime.activities`, and `demo_activities`) stores its vector in
+`embedding`. The vector encodes the activity's eight-section `embeddingText` with this model's encoder:
+1024-d, unit norm, no prompt. `embeddingMeta.textHash` records which text the vector was computed from.
+Embed users' preference texts the same way, with no prompt, or the scores are meaningless.
+
+The vectors were backfilled on Raven on 2026-09-26 by `ml/datagen/mongo_backfill.py` (see its docstring).
+The same run wrote the 6,911 missing texts, mostly places, with Qwen3.5-9B and the ingestion pipeline's
+prompt and checks. Five places that aren't activities (a parking lot, a gate, a tree...) have neither a
+text nor a vector. When new activities arrive or the pipeline rewrites texts, rerun the backfill: it embeds
+exactly the texts that have no current vector.
+
 ### Other checkpoints
 
 Every run of the experiment is in the repo as `runs/<run>/best.pt`, with its validation metrics in
