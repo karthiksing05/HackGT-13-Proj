@@ -4,6 +4,7 @@ package me
 
 import (
 	"Backend/pkg/api"
+	socialapi "Backend/pkg/api/social"
 	"Backend/pkg/api/view"
 	"Backend/pkg/contract"
 	"Backend/pkg/httpx"
@@ -103,10 +104,8 @@ func (h *H) Patch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if statusChanged {
-			// Seam (backend-C): once store/friends.go and presence.go exist,
-			// send realtime.FriendStatus to the user's friends here with the
-			// new status line.
-			_ = statusChanged
+			// Seam (backend-C): friends hear the new status line.
+			socialapi.StatusChanged(r.Context(), h.d, user, httpx.TZ(r))
 		}
 	}
 	httpx.JSON(w, http.StatusOK, view.User(user, h.d.Cfg.PublicBaseURL, now))
