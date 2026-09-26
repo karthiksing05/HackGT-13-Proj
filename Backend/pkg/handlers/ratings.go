@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"Backend/pkg/middleware"
+	"Backend/pkg/ml"
 	"Backend/pkg/models"
 	"Backend/pkg/store"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog/log"
 )
 
 type PutRatingRequest struct {
@@ -67,8 +69,73 @@ func PutRating(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch updated taste profile
+	// Fetch user to update embedding via ML service
 	u, _ := store.GlobalStore.GetUserByID(uid)
+	if u != nil {
+		dim := 1024
+		if len(u.PositiveEmbedding) > 0 {
+			dim = len(u.PositiveEmbedding)
+		} else if len(u.Embedding) > 0 {
+			dim = len(u.Embedding)
+		}
+
+		// Find activity embedding or generate deterministic vector
+		var eventEmb []float64
+		if act, err := store.GlobalStore.GetActivityByID(itemID); err == nil && act != nil {
+			if len(act.Embedding) == dim {
+				eventEmb = act.Embedding
+			} else {
+				eventEmb = ml.GenerateDeterministicEmbedding("event:"+act.Category+":"+act.Name, dim)
+			}
+		} else {
+			eventEmb = ml.GenerateDeterministicEmbedding("item:"+itemID, dim)
+		}
+
+		kind := "positive"
+		var currentEmb []float64
+		if req.Stars >= 3 {
+			kind = "positive"
+			if len(u.PositiveEmbedding) == dim {
+				currentEmb = u.PositiveEmbedding
+			} else if len(u.Embedding) == dim {
+				currentEmb = u.Embedding
+			} else {
+				currentEmb = ml.GenerateDeterministicEmbedding("user:"+u.ID.Hex(), dim)
+			}
+		} else {
+			kind = "negative"
+			if len(u.NegativeEmbedding) == dim {
+				currentEmb = u.NegativeEmbedding
+			} else {
+				currentEmb = make([]float64, dim)
+			}
+		}
+
+		updateReq := &ml.UpdateUserEmbeddingRequest{
+			Embedding:      currentEmb,
+			Kind:           kind,
+			EventEmbedding: eventEmb,
+		}
+
+		if updateResp, err := ml.DefaultClient().UpdateUserEmbedding(r.Context(), updateReq); err == nil {
+			if kind == "positive" {
+				u.PositiveEmbedding = updateResp.Embedding
+				u.Embedding = updateResp.Embedding
+			} else {
+				u.NegativeEmbedding = updateResp.Embedding
+			}
+			_ = store.GlobalStore.UpdateUser(u)
+			log.Info().
+				Str("user_id", uid).
+				Str("kind", kind).
+				Int("stars", req.Stars).
+				Msg("User preference embedding successfully updated via ML service")
+		} else {
+			log.Warn().Err(err).Msg("Failed to update user preference embedding via ML service")
+		}
+	}
+
+	// Fetch updated taste profile
 	var taste *models.UserTaste
 	if u != nil {
 		taste = &u.Taste

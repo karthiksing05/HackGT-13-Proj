@@ -1,6 +1,7 @@
 [Unit]
 Description=SideQuestz Backend Service
-After=network.target mongod.service
+After=network.target mongod.service ml.service
+Wants=ml.service
 
 [Service]
 Type=simple
@@ -14,6 +15,7 @@ Environment=MONGO_URI=mongodb://127.0.0.1:27017
 Environment=MONGO_DB=freetime
 Environment=JWT_SECRET=JWT_SECRET
 Environment=COOKIE_SECURE=true
+Environment=ML_SERVICE_URL=http://127.0.0.1:8000
 
 # Security Hardening
 NoNewPrivileges=true

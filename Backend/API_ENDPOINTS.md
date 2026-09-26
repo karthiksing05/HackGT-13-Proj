@@ -43,15 +43,17 @@ Rule of thumb: the server owns anything that must be correct for everyone — eq
 ## Activities, Places & Events Catalog (Freetime Database)
 - GET /activities?kind=&near=&radius=&from=&to=&tags=&price=&age_ok= — full activities catalog (places & events from `freetime.activities`)
 - GET /activities/search?q=&near=&kind= — search activities, places, and trails
+- GET /activities/recommendations?near=&radius=&tags=&price=&limit=&q= — personalized, ML compatibility-ranked activities
 - GET /activities/{id} — activity details (including RFC 5545 times, trail geometry, weekly hours, duration model)
 - GET /places/search?q=&near= — search for start/end pins and suggestion chips
 - GET /places/reverse?lat=&lng= — 2dsphere reverse geocoding to nearest place / dropped pin
-- GET /events?near=&radius=&from=&to=&tags=&price=&age_ok= — filtered events catalog
+- GET /events?near=&radius=&from=&to=&tags=&price=&age_ok=&rank= — filtered events catalog (with optional `rank=true` ML ordering)
+- GET /events/recommendations?near=&radius=&tags=&price=&limit=&q= — personalized, ML compatibility-ranked events
 - GET /events/{id} — event details, website URL, ticket availability
 
 ## Planning (Create flow)
-- POST /plans/generate — start + end location, date, start time, back-by time, range, ride choice (+ open seats), mood text, tags, budget, who's coming, pace, travel modes → first 3 options + cursor
-- POST /plans/generate/more — cursor → 2 more options ("Load more options"); returns done flag when out
+- POST /plans/generate — start + end location, date, start time, back-by time, range, ride choice (+ open seats), mood text, tags, budget, who's coming, pace, travel modes → first 3 ML-ranked options + cursor
+- POST /plans/generate/more — cursor → 2 more ML-ranked options ("Load more options"); returns done flag when out
 - POST /plans/route — option id + stop order (+ ride, modes) → recalculated legs, stop times, arrival, late flag (after drag-to-reorder)
 - POST /itineraries — save the chosen option + visibility (just me / friends / open), lock time, max group size
 
@@ -65,7 +67,7 @@ Rule of thumb: the server owns anything that must be correct for everyone — eq
 
 ## Past events + ratings
 - GET /me/past-events?unrated= — Home › Past, "N to rate" card
-- PUT /ratings/{itemId} — stars, tags, note (updates taste profile)
+- PUT /ratings/{itemId} — stars, tags, note (updates taste profile and calls ML service to update user preference vectors)
 
 ## Agent checkout (Visa)
 - POST /checkout/intents — item id, quantity → agent finds tickets, returns quote (price, fees, total, steps)

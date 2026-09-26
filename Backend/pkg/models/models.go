@@ -72,6 +72,10 @@ type User struct {
 	APNsTokens        []string        `bson:"apnsTokens,omitempty" json:"apnsTokens,omitempty"`
 	FriendIDs         []bson.ObjectID `bson:"friendIds" json:"friendIds"`
 	Embedding         []float64       `bson:"embedding,omitempty" json:"embedding,omitempty"`
+	PositiveEmbedding []float64       `bson:"positiveEmbedding,omitempty" json:"positive_embedding,omitempty"`
+	NegativeEmbedding []float64       `bson:"negativeEmbedding,omitempty" json:"negative_embedding,omitempty"`
+	PositiveText      string          `bson:"positiveText,omitempty" json:"positive_text,omitempty"`
+	NegativeText      string          `bson:"negativeText,omitempty" json:"negative_text,omitempty"`
 	EmbeddingModel    string          `bson:"embeddingModel,omitempty" json:"embeddingModel,omitempty"`
 	EmbeddingTextHash string          `bson:"embeddingTextHash,omitempty" json:"embeddingTextHash,omitempty"`
 	CreatedAt         time.Time       `bson:"createdAt" json:"createdAt"`
@@ -179,8 +183,11 @@ type Activity struct {
 	ExpiresAt         *time.Time        `bson:"expiresAt" json:"expiresAt"`
 	CreatedAt         time.Time         `bson:"createdAt" json:"createdAt"`
 	UpdatedAt         time.Time         `bson:"updatedAt" json:"updatedAt"`
+	Embedding         []float64         `bson:"embedding,omitempty" json:"embedding,omitempty"`
 	EmbeddingText     *string           `bson:"embeddingText,omitempty" json:"embeddingText,omitempty"`
 	EmbeddingTextHash *string           `bson:"embeddingTextHash,omitempty" json:"embeddingTextHash,omitempty"`
+	Score             *float64          `bson:"score,omitempty" json:"score,omitempty"`
+	RerankScore       *float64          `bson:"rerankScore,omitempty" json:"rerank_score,omitempty"`
 }
 
 // Aliases for compatibility

@@ -42,7 +42,7 @@ The VPS is not on GCP, so it has no metadata-server credentials. Use a service a
 
 1. Create a service account, e.g. `sidequestz-embedder`, and grant it `roles/aiplatform.user`.
 2. Create a JSON key and copy it to the VPS (e.g. `/opt/backend/gcp-sa.json`, `chmod 600`, owned by the service user).
-3. Add it to `sidequestz.service`:
+3. Add it to `backend.service`:
    ```ini
    Environment=GOOGLE_APPLICATION_CREDENTIALS=/opt/backend/gcp-sa.json
    ```

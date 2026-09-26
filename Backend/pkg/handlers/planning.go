@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"Backend/pkg/middleware"
+	"Backend/pkg/ml"
 	"Backend/pkg/models"
 	"Backend/pkg/realtime"
 	"Backend/pkg/store"
@@ -301,24 +302,40 @@ func GeneratePlans(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userAgeBracket := "21_plus"
+	var currentUser *models.User
 	if claims := middleware.GetUserClaims(r); claims != nil {
-		if u, err := store.GlobalStore.GetUserByID(claims.UserID); err == nil && u.AgeBracket != nil {
-			userAgeBracket = *u.AgeBracket
+		if u, err := store.GlobalStore.GetUserByID(claims.UserID); err == nil {
+			currentUser = u
+			if u.AgeBracket != nil {
+				userAgeBracket = *u.AgeBracket
+			}
 		}
 	}
 
-	// Retrieve real activities from the database matching the criteria
-	activities, nextCursor, hasMore := store.GlobalStore.ListActivities("", req.StartLocation, req.RangeKm, req.Tags, req.BudgetCents, userAgeBracket, "", 9)
+	// Retrieve real activities from the database matching the criteria (fetch a richer pool for ML ranking)
+	activities, nextCursor, hasMore := store.GlobalStore.ListActivities("", req.StartLocation, req.RangeKm, req.Tags, req.BudgetCents, userAgeBracket, "", 15)
 	if len(activities) < 4 && len(req.Tags) > 0 {
 		// Fallback without tag filter if user tags were too specific
-		activities, nextCursor, hasMore = store.GlobalStore.ListActivities("", req.StartLocation, req.RangeKm, nil, req.BudgetCents, userAgeBracket, "", 9)
+		activities, nextCursor, hasMore = store.GlobalStore.ListActivities("", req.StartLocation, req.RangeKm, nil, req.BudgetCents, userAgeBracket, "", 15)
 	}
 	if len(activities) < 3 {
 		// Fallback to broader catalog query to ensure options are generated from database
-		activities, nextCursor, hasMore = store.GlobalStore.ListActivities("", "", 0, nil, 0, userAgeBracket, "", 9)
+		activities, nextCursor, hasMore = store.GlobalStore.ListActivities("", "", 0, nil, 0, userAgeBracket, "", 15)
 	}
 
-	optionsList := buildPlanOptionsFromActivities(activities, req, 3)
+	// Rank activities via FastAPI ML inference (compatibility classifier + Jev reranker)
+	rankedActivities := ml.DefaultClient().RankActivities(
+		r.Context(),
+		currentUser,
+		activities,
+		ml.RankingOptions{
+			Rerank: true,
+		},
+		req.MoodText,
+		nil,
+	)
+
+	optionsList := buildPlanOptionsFromActivities(rankedActivities, req, 3)
 
 	middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"options":      optionsList,
@@ -335,14 +352,18 @@ func GenerateMorePlans(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
 	userAgeBracket := "21_plus"
+	var currentUser *models.User
 	if claims := middleware.GetUserClaims(r); claims != nil {
-		if u, err := store.GlobalStore.GetUserByID(claims.UserID); err == nil && u.AgeBracket != nil {
-			userAgeBracket = *u.AgeBracket
+		if u, err := store.GlobalStore.GetUserByID(claims.UserID); err == nil {
+			currentUser = u
+			if u.AgeBracket != nil {
+				userAgeBracket = *u.AgeBracket
+			}
 		}
 	}
 
 	// Query next batch of real activities from the database
-	activities, nextCursor, hasMore := store.GlobalStore.ListActivities("", "", 0, nil, 0, userAgeBracket, req.Cursor, 6)
+	activities, nextCursor, hasMore := store.GlobalStore.ListActivities("", "", 0, nil, 0, userAgeBracket, req.Cursor, 10)
 	if len(activities) == 0 {
 		middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
 			"options": []models.PlanOption{},
@@ -352,7 +373,19 @@ func GenerateMorePlans(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	moreOptions := buildPlanOptionsFromActivities(activities, models.PlanGenerateRequest{}, 2)
+	// Rank batch with ML service
+	rankedActivities := ml.DefaultClient().RankActivities(
+		r.Context(),
+		currentUser,
+		activities,
+		ml.RankingOptions{
+			Rerank: true,
+		},
+		"",
+		nil,
+	)
+
+	moreOptions := buildPlanOptionsFromActivities(rankedActivities, models.PlanGenerateRequest{}, 2)
 
 	middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"options": moreOptions,

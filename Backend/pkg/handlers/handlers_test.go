@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"Backend/pkg/ml"
 	"Backend/pkg/router"
 	"bytes"
 	"encoding/json"
@@ -797,5 +798,246 @@ func TestActivitiesFreetimeCatalog(t *testing.T) {
 	}
 	if detailResp.Trail == nil || !detailResp.Trail.Loop {
 		t.Fatalf("expected trail info with loop=true for Homestead Trail")
+	}
+}
+
+func TestMLRecommendationsAndRanking(t *testing.T) {
+	r := setupTestServer()
+
+	// 1. Test GET /activities/recommendations without auth
+	req, _ := http.NewRequest("GET", "/activities/recommendations?near=atlanta&limit=5", nil)
+	resp := executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on /activities/recommendations, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var recResp struct {
+		Items []struct {
+			ID   string `json:"_id"`
+			Name string `json:"name"`
+		} `json:"items"`
+		Count int `json:"count"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &recResp); err != nil {
+		t.Fatalf("failed to decode recommendations: %v", err)
+	}
+	if recResp.Count == 0 || len(recResp.Items) == 0 {
+		t.Fatalf("expected recommendations returned")
+	}
+
+	// 2. Test GET /events/recommendations
+	req, _ = http.NewRequest("GET", "/events/recommendations?limit=3", nil)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on /events/recommendations, got %d", resp.Code)
+	}
+
+	// 3. Signup a test user for authenticated ranking and ratings
+	signupBody := map[string]string{
+		"email":    "ml_tester@example.com",
+		"password": "Password123!",
+		"name":     "ML Explorer",
+	}
+	body, _ := json.Marshal(signupBody)
+	req, _ = http.NewRequest("POST", "/auth/signup", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusCreated {
+		t.Fatalf("expected 201 on signup, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var authResp struct {
+		AccessToken string `json:"access_token"`
+	}
+	_ = json.Unmarshal(resp.Body.Bytes(), &authResp)
+	token := authResp.AccessToken
+
+	// 4. Test POST /plans/generate (which invokes ML ranking pipeline)
+	planReq := map[string]interface{}{
+		"start_location": "Midtown Atlanta",
+		"mood_text":      "chill outdoors and art",
+		"range_km":       20.0,
+		"tags":           []string{"outdoors", "nature"},
+	}
+	pBody, _ := json.Marshal(planReq)
+	req, _ = http.NewRequest("POST", "/plans/generate", bytes.NewBuffer(pBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on /plans/generate, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var planResp struct {
+		Options []struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+			Stops []struct {
+				Name string `json:"name"`
+			} `json:"stops"`
+		} `json:"options"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &planResp); err != nil {
+		t.Fatalf("failed to decode plans response: %v", err)
+	}
+	if len(planResp.Options) == 0 {
+		t.Fatalf("expected at least 1 plan option generated")
+	}
+
+	// 5. Test PUT /ratings/{itemId} (which updates taste profile and invokes ML user embedding update)
+	rateBody := map[string]interface{}{
+		"stars": 5,
+		"tags":  []string{"nature", "outdoors"},
+		"note":  "Loved this spot!",
+	}
+	rBody, _ := json.Marshal(rateBody)
+	req, _ = http.NewRequest("PUT", "/ratings/"+recResp.Items[0].ID, bytes.NewBuffer(rBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on PUT /ratings, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var rateResp struct {
+		Rating struct {
+			Stars int `json:"stars"`
+		} `json:"rating"`
+		TasteProfile *struct {
+			RatingCount int `json:"ratingCount"`
+		} `json:"taste_profile"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &rateResp); err != nil {
+		t.Fatalf("failed to decode rating response: %v", err)
+	}
+	if rateResp.Rating.Stars != 5 {
+		t.Errorf("expected 5 stars, got %d", rateResp.Rating.Stars)
+	}
+	if rateResp.TasteProfile == nil || rateResp.TasteProfile.RatingCount == 0 {
+		t.Errorf("expected updated taste profile rating count")
+	}
+}
+
+func TestMLRecommendationsWithMockFastAPIServer(t *testing.T) {
+	rankCalled := false
+	updateEmbeddingCalled := false
+
+	mockFastAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/events/rank":
+			rankCalled = true
+			var rankReq ml.RankEventsRequest
+			if err := json.NewDecoder(r.Body).Decode(&rankReq); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			// Invert or sort events: score higher for later events to test real reordering
+			var rankedList []ml.RankedEvent
+			for i := len(rankReq.Events) - 1; i >= 0; i-- {
+				score := 0.5 + float64(len(rankReq.Events)-i)*0.05
+				rerankScore := 3.5
+				rankedList = append(rankedList, ml.RankedEvent{
+					EventID:     rankReq.Events[i].ID,
+					Score:       score,
+					RerankScore: &rerankScore,
+				})
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(ml.RankEventsResponse{
+				Events:       rankedList,
+				ModelVersion: "classifier-v1",
+				Reranked:     true,
+			})
+
+		case "/v1/compatibility/user-embedding/update":
+			updateEmbeddingCalled = true
+			var updReq ml.UpdateUserEmbeddingRequest
+			if err := json.NewDecoder(r.Body).Decode(&updReq); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			newEmb := make([]float64, len(updReq.Embedding))
+			for i := range newEmb {
+				newEmb[i] = 0.42
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(ml.UpdateUserEmbeddingResponse{
+				Embedding: newEmb,
+				Kind:      updReq.Kind,
+			})
+
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer mockFastAPI.Close()
+
+	// Switch DefaultClient to point to mock FastAPI
+	origClient := ml.DefaultClient()
+	ml.SetDefaultClient(ml.NewClient(mockFastAPI.URL))
+	defer ml.SetDefaultClient(origClient)
+
+	r := setupTestServer()
+
+	// 1. Test recommendations hit ML rank endpoint
+	req, _ := http.NewRequest("GET", "/activities/recommendations?near=atlanta&limit=5", nil)
+	resp := executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 on /activities/recommendations, got %d", resp.Code)
+	}
+	if !rankCalled {
+		t.Errorf("expected ML /v1/events/rank to be called")
+	}
+
+	// 2. Signup and test plans generation with active ML server
+	signupBody := map[string]string{
+		"email":    "fastapi_tester@example.com",
+		"password": "Password123!",
+		"name":     "FastAPI User",
+	}
+	b, _ := json.Marshal(signupBody)
+	req, _ = http.NewRequest("POST", "/auth/signup", bytes.NewBuffer(b))
+	req.Header.Set("Content-Type", "application/json")
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusCreated {
+		t.Fatalf("failed signup: %d", resp.Code)
+	}
+
+	var authResp struct {
+		AccessToken string `json:"access_token"`
+	}
+	_ = json.Unmarshal(resp.Body.Bytes(), &authResp)
+
+	planReq := map[string]interface{}{
+		"start_location": "Midtown Atlanta",
+		"mood_text":      "live music and rooftop",
+	}
+	pb, _ := json.Marshal(planReq)
+	req, _ = http.NewRequest("POST", "/plans/generate", bytes.NewBuffer(pb))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authResp.AccessToken)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("failed generate plans: %d", resp.Code)
+	}
+
+	// 3. Test rating updates embedding via ML
+	rateReq := map[string]interface{}{
+		"stars": 4,
+		"tags":  []string{"music"},
+		"note":  "Awesome show",
+	}
+	rb, _ := json.Marshal(rateReq)
+	req, _ = http.NewRequest("PUT", "/ratings/sample_item_123", bytes.NewBuffer(rb))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authResp.AccessToken)
+	resp = executeRequest(r, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("failed put rating: %d", resp.Code)
+	}
+	if !updateEmbeddingCalled {
+		t.Errorf("expected ML /v1/compatibility/user-embedding/update to be called")
 	}
 }

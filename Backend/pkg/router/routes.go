@@ -81,11 +81,13 @@ func registerEndpoints(r *mux.Router) {
 
 	// ---------------- ACTIVITIES, PLACES & EVENTS CATALOG ----------------
 	r.HandleFunc("/activities", handlers.ListActivities).Methods("GET")
+	r.HandleFunc("/activities/recommendations", handlers.RecommendActivities).Methods("GET")
 	r.HandleFunc("/activities/search", handlers.SearchActivities).Methods("GET")
 	r.HandleFunc("/activities/{id}", handlers.GetActivityDetail).Methods("GET")
 	r.HandleFunc("/places/search", handlers.SearchPlaces).Methods("GET")
 	r.HandleFunc("/places/reverse", handlers.ReverseGeocode).Methods("GET")
 	r.HandleFunc("/events", handlers.ListEvents).Methods("GET")
+	r.HandleFunc("/events/recommendations", handlers.RecommendActivities).Methods("GET")
 	r.HandleFunc("/events/{id}", handlers.GetEventDetail).Methods("GET")
 
 	// ---------------- PLANNING (CREATE FLOW) ----------------

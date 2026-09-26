@@ -14,12 +14,14 @@ flowchart TD
 
     subgraph VPS ["Remote VPS"]
         Nginx["NGINX Reverse Proxy (Port 80/443)<br/>api.sidequestz.tech"]
-        Service["Systemd Service (sidequestz.service)<br/>/opt/backend/sidequestz-server<br/>Port 8080"]
+        Service["Systemd Service (backend.service)<br/>/opt/backend/sidequestz-server<br/>Port 8080"]
+        MLService["FastAPI ML Service (Uvicorn)<br/>/opt/ml<br/>Port 8000"]
         Mongo["MongoDB Daemon (mongod)<br/>127.0.0.1:27017<br/>Database: freetime"]
         
         Nginx -->|"Proxy HTTP (127.0.0.1:8080)"| Service
         Nginx -->|"Proxy WebSockets (/ws)"| Service
         Service -->|"Local DB Connection"| Mongo
+        Service -->|"Inference & Ranking (127.0.0.1:8000)"| MLService
     end
 
     subgraph LocalDev ["Local Development Machine"]
@@ -50,7 +52,7 @@ flowchart TD
 ### B. Backend Binary & Systemd Service
 - **Role**: The core Go REST API server and real-time WebSocket hub.
 - **Binary Path**: `/opt/backend/sidequestz-server`
-- **Systemd Unit**: `/etc/systemd/system/sidequestz.service`
+- **Systemd Unit**: `/etc/systemd/system/backend.service`
 - **Port**: Binds to internal port `:8080` (`http://127.0.0.1:8080`).
 - **Process Management**:
   - Managed by systemd with auto-restart on crashes (`Restart=always`, `RestartSec=5s`).
@@ -58,18 +60,18 @@ flowchart TD
 - **Helpful Commands on the VPS**:
   ```bash
   # Check service status
-  systemctl status sidequestz
+  systemctl status backend
 
   # Restart service
-  systemctl restart sidequestz
+  systemctl restart backend
 
   # View live trailing logs
-  journalctl -u sidequestz -f
+  journalctl -u backend -f
 
   # View recent logs
-  journalctl -u sidequestz -n 50 --no-pager
+  journalctl -u backend -n 50 --no-pager
   ```
-- **Config file**: [`sidequestz.service`](file:///c:/Users/Max/Documents/HackGT-13-Proj/Backend/sidequestz.service).
+- **Config file**: [`backend.service`](file:///c:/Users/Max/Documents/HackGT-13-Proj/Backend/backend.service).
 
 ### C. MongoDB Database
 - **Role**: Primary datastore for activities, places, itineraries, users, and forum posts.
@@ -80,6 +82,32 @@ flowchart TD
   - `users`: User profiles, credentials, preferences, and taste profiles.
   - `itineraries`: Saved and active trip plans.
   - `forum_posts`: Live sidequests and "I'm free" hangout posts.
+
+### D. Python FastAPI ML & Recommendation Service
+- **Role**: High-performance neural compatibility scoring, LLM (Jev) reranking, and preference vector updates.
+- **Path**: `/opt/ml`
+- **Systemd Unit**: `/etc/systemd/system/ml.service`
+- **Port**: Binds internally to `127.0.0.1:8000` (`http://127.0.0.1:8000`).
+- **Core Endpoints Consumed by Go Backend**:
+  - `POST /v1/events/rank`: Ranks and reranks candidate activities/events against user preference vectors, constraints, and search context.
+  - `POST /v1/compatibility/user-embedding/update`: Performs moving-average updates on user preference embeddings when events are rated (positive/negative signal).
+- **Environment Variables**:
+  - `ML_SERVICE_URL`: Base URL for the FastAPI service (defaults to `http://127.0.0.1:8000`).
+- **Config file**: [`ml.service`](file:///c:/Users/Max/Documents/HackGT-13-Proj/Backend/ml.service).
+- **Helpful Commands on the VPS**:
+  ```bash
+  # Check service status
+  systemctl status ml
+
+  # Restart service
+  systemctl restart ml
+
+  # View live trailing logs
+  journalctl -u ml -f
+
+  # View recent logs
+  journalctl -u ml -n 50 --no-pager
+  ```
 
 ---
 

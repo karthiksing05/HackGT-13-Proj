@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"Backend/pkg/middleware"
+	"Backend/pkg/ml"
 	"Backend/pkg/models"
 	"Backend/pkg/realtime"
 	"Backend/pkg/store"
@@ -269,6 +270,31 @@ func PutPreferences(w http.ResponseWriter, r *http.Request) {
 			score := float64(rating) / 5.0
 			u.Taste.Tags[strings.ToLower(cat)] = score
 		}
+	}
+
+	// Update positive and negative texts for ML Jev reranking
+	if prefs.Answers.PerfectAfternoon != "" {
+		posText := prefs.Answers.PerfectAfternoon
+		if prefs.Answers.PlanAround != "" {
+			posText += ". Plan around: " + prefs.Answers.PlanAround
+		}
+		u.PositiveText = posText
+	}
+	if prefs.Answers.NeverWant != "" {
+		u.NegativeText = prefs.Answers.NeverWant
+	}
+
+	// Initialize positive embedding if unset
+	if len(u.PositiveEmbedding) == 0 && len(u.Embedding) == 0 {
+		var tagKeys []string
+		for k, v := range u.Taste.Tags {
+			tagKeys = append(tagKeys, fmt.Sprintf("%s:%.2f", k, v))
+		}
+		seed := fmt.Sprintf("user:%s:%s:%s", u.ID.Hex(), u.Name, strings.Join(tagKeys, ","))
+		emb := ml.GenerateDeterministicEmbedding(seed, 1024)
+		u.PositiveEmbedding = emb
+		u.Embedding = emb
+		u.NegativeEmbedding = make([]float64, 1024)
 	}
 
 	_ = store.GlobalStore.UpdateUser(u)

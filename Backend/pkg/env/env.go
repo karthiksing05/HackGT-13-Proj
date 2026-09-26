@@ -38,3 +38,13 @@ func GetJWTSecret() string {
 func GetCookieSecure() bool {
 	return os.Getenv("COOKIE_SECURE") == "true"
 }
+
+func GetMLServiceURL() string {
+	if url := os.Getenv("ML_SERVICE_URL"); url != "" {
+		return url
+	}
+	if url := os.Getenv("ML_API_URL"); url != "" {
+		return url
+	}
+	return "http://127.0.0.1:8000"
+}
