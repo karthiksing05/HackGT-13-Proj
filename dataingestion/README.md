@@ -3,6 +3,24 @@
 Fills MongoDB with activities (events + places) for the planner. The full design is in
 [DATA_COLLECTION_SPEC.md](DATA_COLLECTION_SPEC.md).
 
+## How this feeds the app
+
+- **`activities` is the planner's catalog.** Every document the adapters write (events, places, trails)
+  is a candidate for `POST /plans/generate`: the Go API filters by `city`, `kind`, `location`, `start`,
+  `weeklyHours`, `price` and `tags`, then scores the survivors. The app never reads the collection
+  directly. The schema and indexes are summarized in [../docs/DATA.md](../docs/DATA.md).
+- **`embeddingText` is what gets embedded.** `embed-text` writes the eight-section text and
+  `embeddingTextHash`; the vector itself is computed later by the ML service's `tools/embed_missing.py`
+  timer or the Raven backfill, with no instruction prefix, and stored in `embedding` / `embeddingMeta`.
+  Editing the prompt changes the hash, which re-embeds ([../docs/EMBEDDINGS.md](../docs/EMBEDDINGS.md)).
+- **The demo city is separate.** `demo/saltlight_harbor.json` (from `python -m demo.generate`) is a
+  fictional city in the same schema; it lives in `demo_activities`, which only the demo account reads.
+  `snapshot import` targets `activities`, so load it with `mongoimport --collection demo_activities`
+  ([../docs/DATA.md](../docs/DATA.md#the-demo-snapshot)). Its events are dated 2026-09-26 to 2026-10-03.
+- **Not deployed.** The pipeline and the crawler run from a laptop against a local Mongo or a tunnel to
+  the VPS; the VPS holds a snapshot of the Atlanta catalog (vectors backfilled on 2026-09-26) and the
+  demo city. Deploying the crawler is on the [roadmap](../docs/ROADMAP.md).
+
 ## Setup
 
 ```sh

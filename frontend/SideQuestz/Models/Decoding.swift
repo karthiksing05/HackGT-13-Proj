@@ -9,7 +9,7 @@ import Foundation
 
 extension User {
     enum CodingKeys: String, CodingKey {
-        case id, name, username, email, photoURL = "photoUrl", avatarColor, status, ageBracket, school, setupComplete
+        case id, name, username, email, photoURL = "photoUrl", avatarColor, status, ageBracket, school, setupComplete, homeBase, city
     }
 
     init(from decoder: Decoder) throws {
@@ -24,6 +24,8 @@ extension User {
         ageBracket = try c.decodeIfPresent(AgeBracket.self, forKey: .ageBracket) ?? .adult
         school = try c.decodeIfPresent(String.self, forKey: .school)
         setupComplete = try c.decodeIfPresent(Bool.self, forKey: .setupComplete) ?? true
+        homeBase = try c.decodeIfPresent(Place.self, forKey: .homeBase)
+        city = try c.decodeIfPresent(String.self, forKey: .city)
     }
 }
 
@@ -207,6 +209,76 @@ extension ForumPost {
     }
 }
 
+// The planner's shapes: the app's keys first, then the backend's older spellings (`name`,
+// `duration_min`, a bare `lat`/`lng`, `title`/`summary` on an option, `recalculated_legs`) so a
+// server that's mid-migration still decodes. The planner's extra fields are optional.
+
+extension PlanStop {
+    enum CodingKeys: String, CodingKey {
+        case id, title, subtitle, place, durationMinutes, arriveTime, departTime, kind, flexible, activityId
+    }
+
+    private enum LegacyKeys: String, CodingKey { case name, durationMin, lat, lng }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        let name = try legacy.decodeIfPresent(String.self, forKey: .name)
+        title = try c.decodeIfPresent(String.self, forKey: .title) ?? name ?? ""
+        subtitle = try c.decodeIfPresent(String.self, forKey: .subtitle) ?? ""
+        if let known = try c.decodeIfPresent(Place.self, forKey: .place) {
+            place = known
+        } else {
+            let lat = try legacy.decodeIfPresent(Double.self, forKey: .lat)
+            let lng = try legacy.decodeIfPresent(Double.self, forKey: .lng)
+            let coordinate = lat.flatMap { lat in lng.map { Coordinate(lat: lat, lng: $0) } }
+            place = Place(name: name ?? title, coordinate: coordinate)
+        }
+        durationMinutes = try c.decodeIfPresent(Int.self, forKey: .durationMinutes)
+            ?? legacy.decodeIfPresent(Int.self, forKey: .durationMin) ?? 0
+        arriveTime = try c.decodeIfPresent(Date.self, forKey: .arriveTime)
+        departTime = try c.decodeIfPresent(Date.self, forKey: .departTime)
+        // A kind the app doesn't know is no kind, not a failed stop.
+        kind = try c.decodeIfPresent(String.self, forKey: .kind).flatMap(PlanStopKind.init(rawValue:))
+        flexible = try c.decodeIfPresent(Bool.self, forKey: .flexible)
+        activityId = try c.decodeIfPresent(String.self, forKey: .activityId)
+    }
+}
+
+extension PlanOption {
+    enum CodingKeys: String, CodingKey {
+        case id, name, tag, meta, stops, lateFlag, totalCostCents
+    }
+
+    private enum LegacyKeys: String, CodingKey { case title, summary }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? legacy.decodeIfPresent(String.self, forKey: .title) ?? ""
+        tag = try c.decodeIfPresent(String.self, forKey: .tag) ?? ""
+        meta = try c.decodeIfPresent(String.self, forKey: .meta) ?? legacy.decodeIfPresent(String.self, forKey: .summary) ?? ""
+        stops = try c.decodeIfPresent([PlanStop].self, forKey: .stops) ?? []
+        lateFlag = try c.decodeIfPresent(Bool.self, forKey: .lateFlag) ?? false
+        totalCostCents = try c.decodeIfPresent(Int.self, forKey: .totalCostCents)
+    }
+}
+
+extension PlanBatch {
+    enum CodingKeys: String, CodingKey { case options, cursor, done, reason }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        options = try c.decodeIfPresent([PlanOption].self, forKey: .options) ?? []
+        cursor = try c.decodeIfPresent(String.self, forKey: .cursor)
+        // No cursor means nothing more to load, unless the server says otherwise.
+        done = try c.decodeIfPresent(Bool.self, forKey: .done) ?? (cursor == nil)
+        reason = try c.decodeIfPresent(PlanEmptyReason.self, forKey: .reason)
+    }
+}
+
 extension PlanAlternative {
     enum CodingKeys: String, CodingKey { case stop, reason }
 
@@ -218,22 +290,54 @@ extension PlanAlternative {
 }
 
 extension RouteResult {
-    /// Stop times travel as `{ "start": …, "end": … }` rather than Foundation's `{ start, duration }`.
+    /// Stop times travel as `{ "start": …, "end": … }` rather than Foundation's `{ start, duration }`;
+    /// the backend's older `{ "arrive_time": …, "depart_time": … }` reads the same.
     private struct Window: Codable {
         var start: Date
         var end: Date
+
+        private enum CodingKeys: String, CodingKey { case start, end, arriveTime, departTime }
+
+        init(start: Date, end: Date) {
+            self.start = start
+            self.end = end
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            if let start = try c.decodeIfPresent(Date.self, forKey: .start) {
+                self.start = start
+            } else {
+                self.start = try c.decode(Date.self, forKey: .arriveTime)
+            }
+            if let end = try c.decodeIfPresent(Date.self, forKey: .end) {
+                self.end = end
+            } else {
+                self.end = try c.decodeIfPresent(Date.self, forKey: .departTime) ?? start
+            }
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(start, forKey: .start)
+            try c.encode(end, forKey: .end)
+        }
     }
 
     enum CodingKeys: String, CodingKey {
-        case legs, stopTimes, arrival, minutesLate
+        case legs, stopTimes, arrival, minutesLate, brokenAt
     }
+
+    private enum LegacyKeys: String, CodingKey { case recalculatedLegs }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        legs = try c.decode([Leg].self, forKey: .legs)
-        stopTimes = try c.decode([Window].self, forKey: .stopTimes).map { DateInterval(start: $0.start, end: max($0.start, $0.end)) }
+        let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+        legs = try c.decodeIfPresent([Leg].self, forKey: .legs) ?? legacy.decodeIfPresent([Leg].self, forKey: .recalculatedLegs) ?? []
+        stopTimes = try c.decodeIfPresent([Window].self, forKey: .stopTimes)?.map { DateInterval(start: $0.start, end: max($0.start, $0.end)) } ?? []
         arrival = try c.decode(Date.self, forKey: .arrival)
         minutesLate = try c.decodeIfPresent(Int.self, forKey: .minutesLate) ?? 0
+        brokenAt = try c.decodeIfPresent(Int.self, forKey: .brokenAt) ?? -1
     }
 
     func encode(to encoder: Encoder) throws {
@@ -242,6 +346,21 @@ extension RouteResult {
         try c.encode(stopTimes.map { Window(start: $0.start, end: $0.end) }, forKey: .stopTimes)
         try c.encode(arrival, forKey: .arrival)
         try c.encode(minutesLate, forKey: .minutesLate)
+        try c.encode(brokenAt, forKey: .brokenAt)
+    }
+}
+
+extension Leg {
+    enum CodingKeys: String, CodingKey { case mode, minutes }
+
+    private enum LegacyKeys: String, CodingKey { case durationMin }
+
+    /// `minutes`, or the backend's older `duration_min`.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        mode = try c.decodeIfPresent(TravelMode.self, forKey: .mode) ?? .walk
+        minutes = try c.decodeIfPresent(Int.self, forKey: .minutes)
+            ?? decoder.container(keyedBy: LegacyKeys.self).decodeIfPresent(Int.self, forKey: .durationMin) ?? 0
     }
 }
 

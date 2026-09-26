@@ -55,16 +55,27 @@ enum RideChoice: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// How a leg is travelled. `marta` is the app's transit mode (the demo city's is MARTA); the server
+/// may also say `transit`, `bus`, `train` or `subway`, which read as `marta`. Anything else reads as
+/// a walk rather than failing the whole route.
 enum TravelMode: String, Codable, CaseIterable, Identifiable {
     case walk, marta, rideshare, drive, uber
     var id: String { rawValue }
     var label: String {
         switch self {
         case .walk: "Walk"
-        case .marta: "MARTA"
+        case .marta: "Transit"
         case .rideshare: "Rideshare"
         case .drive: "Drive"
         case .uber: "Uber"
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        switch raw {
+        case "transit", "bus", "train", "subway": self = .marta
+        default: self = TravelMode(rawValue: raw) ?? .walk
         }
     }
 }
@@ -86,6 +97,35 @@ struct PlanRequest: Codable, Hashable {
     var who: Visibility
     var pace: Pace
     var modes: Set<TravelMode>
+
+    enum CodingKeys: String, CodingKey {
+        case start, end, date, startTime, backBy, range, ride, openSeats, moodText, tags, budget, who, pace, modes
+    }
+
+    /// A set has no order: `modes` goes out sorted, so the same request always reads the same.
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(start, forKey: .start)
+        try c.encode(end, forKey: .end)
+        try c.encode(date, forKey: .date)
+        try c.encode(startTime, forKey: .startTime)
+        try c.encode(backBy, forKey: .backBy)
+        try c.encode(range, forKey: .range)
+        try c.encode(ride, forKey: .ride)
+        try c.encodeIfPresent(openSeats, forKey: .openSeats)
+        try c.encode(moodText, forKey: .moodText)
+        try c.encode(tags, forKey: .tags)
+        try c.encode(budget, forKey: .budget)
+        try c.encode(who, forKey: .who)
+        try c.encode(pace, forKey: .pace)
+        try c.encode(modes.sorted { $0.rawValue < $1.rawValue }, forKey: .modes)
+    }
+}
+
+/// What a stop is: an `event` has a fixed start (a show, a market opening), a `place` can be visited
+/// whenever the route gets there.
+enum PlanStopKind: String, Codable {
+    case event, place
 }
 
 struct PlanStop: Codable, Identifiable, Hashable {
@@ -95,6 +135,17 @@ struct PlanStop: Codable, Identifiable, Hashable {
     var subtitle: String
     var place: Place
     var durationMinutes: Int
+
+    // Planner extras (optional, ignored by the demo; see API_CONTRACT.md › Planning).
+
+    /// When the planner scheduled this visit; `RouteResult.stopTimes` has the timing of the order on screen.
+    var arriveTime: Date? = nil
+    var departTime: Date? = nil
+    var kind: PlanStopKind? = nil
+    /// true when the visit can move (a place, a drop-in); false for a fixed start.
+    var flexible: Bool? = nil
+    /// The catalog activity behind this stop (comes back on the saved itinerary's items).
+    var activityId: String? = nil
 }
 
 struct PlanOption: Codable, Identifiable, Hashable {
@@ -105,6 +156,13 @@ struct PlanOption: Codable, Identifiable, Hashable {
     /// "~$ · 1.8 mi walking · 2 transit legs"
     var meta: String
     var stops: [PlanStop]
+
+    // Planner extras (optional).
+
+    /// A fixed-start stop would be reached after it starts at this pace ("Tight timing" on the card).
+    var lateFlag: Bool = false
+    /// Sum of the known prices; nil when the planner didn't say.
+    var totalCostCents: Int? = nil
 }
 
 /// Something similar that could take a stop's place (`POST /plans/alternatives`). Its `stop.id` can
@@ -117,12 +175,72 @@ struct PlanAlternative: Codable, Identifiable, Hashable {
     var id: String { stop.id }
 }
 
+/// Why a batch came back with no options (`PlanBatch.reason`, only with empty `options`). On the wire
+/// it's one string: `no_candidates_fit_window`, `no_feasible_itinerary`, `invalid_request: <detail>`,
+/// or anything else the server wants to log (`other`).
+enum PlanEmptyReason: Hashable {
+    case noCandidatesFitWindow
+    case noFeasibleItinerary
+    case invalidRequest(String)
+    case other(String)
+
+    /// The copy when the server gave no reason.
+    static let defaultMessage = "No options fit this window. Try changing filters in More options."
+
+    /// What Review says instead of options.
+    var message: String {
+        switch self {
+        case .noCandidatesFitWindow: "Nothing nearby fits this window yet. Try a longer window, a wider range, or another day."
+        case .noFeasibleItinerary: "We couldn't fit stops into this window. Try a wider range or a later back-by time."
+        case .invalidRequest: "Check your start, end and times, then try again."
+        case .other: Self.defaultMessage
+        }
+    }
+
+    init(rawValue raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespaces)
+        switch trimmed {
+        case "no_candidates_fit_window": self = .noCandidatesFitWindow
+        case "no_feasible_itinerary": self = .noFeasibleItinerary
+        default:
+            if trimmed.hasPrefix("invalid_request") {
+                let detail = trimmed.dropFirst("invalid_request".count).trimmingCharacters(in: CharacterSet(charactersIn: ": "))
+                self = .invalidRequest(detail)
+            } else {
+                self = .other(trimmed)
+            }
+        }
+    }
+
+    var rawValue: String {
+        switch self {
+        case .noCandidatesFitWindow: "no_candidates_fit_window"
+        case .noFeasibleItinerary: "no_feasible_itinerary"
+        case .invalidRequest(let detail): detail.isEmpty ? "invalid_request" : "invalid_request: \(detail)"
+        case .other(let raw): raw
+        }
+    }
+}
+
+extension PlanEmptyReason: Codable {
+    init(from decoder: Decoder) throws {
+        self.init(rawValue: try decoder.singleValueContainer().decode(String.self))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        try c.encode(rawValue)
+    }
+}
+
 /// A page of plan options (generate / load more).
 struct PlanBatch: Codable, Hashable {
     var options: [PlanOption]
     var cursor: String?
     /// true when there are no more options to load.
     var done: Bool
+    /// Why `options` is empty, when the server says (Review shows `reason.message`).
+    var reason: PlanEmptyReason? = nil
 }
 
 struct Leg: Codable, Hashable {
@@ -142,6 +260,23 @@ struct RouteRequest: Codable, Hashable {
     var backBy: Date
     var ride: RideChoice
     var modes: Set<TravelMode>
+
+    enum CodingKeys: String, CodingKey {
+        case optionId, stopOrder, start, end, startTime, backBy, ride, modes
+    }
+
+    /// `modes` goes out sorted (see `PlanRequest`).
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(optionId, forKey: .optionId)
+        try c.encode(stopOrder, forKey: .stopOrder)
+        try c.encode(start, forKey: .start)
+        try c.encode(end, forKey: .end)
+        try c.encode(startTime, forKey: .startTime)
+        try c.encode(backBy, forKey: .backBy)
+        try c.encode(ride, forKey: .ride)
+        try c.encode(modes.sorted { $0.rawValue < $1.rawValue }, forKey: .modes)
+    }
 }
 
 struct RouteResult: Codable, Hashable {
@@ -151,6 +286,9 @@ struct RouteResult: Codable, Hashable {
     var arrival: Date
     /// > 0 when you'd get back after `backBy`.
     var minutesLate: Int
+    /// Index (in the order sent) of the first stop with a fixed start that this order reaches too
+    /// late, or -1 when every stop is on time. The route card marks that stop.
+    var brokenAt: Int = -1
 }
 
 /// POST /itineraries — save the chosen option.

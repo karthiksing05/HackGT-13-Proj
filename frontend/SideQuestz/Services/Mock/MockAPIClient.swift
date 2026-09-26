@@ -1,7 +1,7 @@
 import Foundation
 
-/// In-memory backend for the offline demo (the default). Behaves like the real server: it owns
-/// plan generation, route timing, split math and ratings, and keeps state while the app runs.
+/// In-memory backend for the offline demo (`-SQAPIMode mock`). Behaves like the real server: it
+/// owns plan generation, route timing, split math and ratings, and keeps state while the app runs.
 ///
 /// Debug: launch with `-SQMockFail itineraries,forum` to make those endpoint groups fail and see
 /// the error states; `-SQMockLatency 0` removes the artificial delay.
@@ -9,9 +9,6 @@ final class MockAPIClient: APIClient {
     let clock: AppClock
     /// Multiplier for the artificial network delay (0 in tests).
     var latencyScale: Double
-    /// When set, every call waits this many seconds (× `latencyScale`) instead of its own realistic
-    /// latency, so loading states are easy to see. Info.plist `SQMockDelay` (5 for now).
-    var fixedDelay: Double?
     /// Endpoint groups that should fail (see `simulate(_:)` call sites for names).
     var failing: Set<String>
 
@@ -53,10 +50,9 @@ final class MockAPIClient: APIClient {
     /// Extra people behind the group chips ("12 people" for a 4-member split).
     private let groupPeopleCount = ["g1": 3, "g2": 12, "g3": 4]
 
-    init(clock: AppClock = .demo, latencyScale: Double = 1, fixedDelay: Double? = nil, failing: Set<String> = []) {
+    init(clock: AppClock = .demo, latencyScale: Double = 1, failing: Set<String> = []) {
         self.clock = clock
         self.latencyScale = latencyScale
-        self.fixedDelay = fixedDelay
         self.failing = failing
         self.user = MockData.user()
         seedThreads()
@@ -64,9 +60,9 @@ final class MockAPIClient: APIClient {
 
     // MARK: - Helpers
 
+    /// Each call takes about as long as the real one would (`milliseconds` × `latencyScale`).
     private func simulate(_ group: String, _ milliseconds: Int = 180) async throws {
-        let seconds = fixedDelay ?? Double(milliseconds) / 1000
-        let ns = UInt64(max(0, seconds * latencyScale) * 1_000_000_000)
+        let ns = UInt64(max(0, Double(milliseconds) / 1000 * latencyScale) * 1_000_000_000)
         if ns > 0 { try? await Task.sleep(nanoseconds: ns) }
         if failing.contains(group) || failing.contains("all") {
             throw APIError.network("Simulated failure for \(group)")
@@ -772,7 +768,7 @@ final class MockAPIClient: APIClient {
     }
 
     private func scheduleCheckoutFinish(_ id: String) {
-        let delay = fixedDelay.map { $0 * latencyScale } ?? 1.2 * latencyScale
+        let delay = 1.2 * latencyScale
         Task { [weak self] in
             if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
             self?.finishCheckout(id)

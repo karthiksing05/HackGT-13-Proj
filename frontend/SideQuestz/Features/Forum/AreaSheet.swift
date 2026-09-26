@@ -99,15 +99,17 @@ struct ForumAreaSheet: View {
 
     // MARK: Areas
 
-    /// No search: the suggestions, plus a place picked from an earlier search (after "Current
-    /// location"). Searching: the suggestions that match, then the places found.
+    /// No search: the suggestions ("Current location", the home base, the demo city's areas), plus
+    /// a place picked from an earlier search (after "Current location"). Searching: the
+    /// suggestions that match, then the places found.
     private var rows: [ForumArea] {
+        let suggestions = ForumArea.suggestions(homeBase: env.user?.homeBase, isMock: env.isMock)
         guard !term.isEmpty else {
-            var list = ForumArea.suggestions
+            var list = suggestions
             if !list.contains(where: { $0.id == area.id }) { list.insert(area, at: min(1, list.count)) }
             return list
         }
-        let local = ForumArea.suggestions.filter { $0.name.localizedCaseInsensitiveContains(term) }
+        let local = suggestions.filter { $0.name.localizedCaseInsensitiveContains(term) }
         let found = (results ?? []).filter { place in
             !local.contains { $0.name.caseInsensitiveCompare(place.name) == .orderedSame }
         }
@@ -238,7 +240,8 @@ struct ForumAreaSheet: View {
         searching = true
         try? await Task.sleep(for: .milliseconds(300))
         guard !Task.isCancelled else { return }
-        let near = area.coordinate ?? ForumArea.midtown.coordinate
+        // Around the area, else the home base, else the demo city.
+        let near = area.coordinate ?? env.user?.homeBase?.coordinate ?? ForumArea.midtown.coordinate
         let places = await env.places.suggestions(for: query, near: near, limit: 5)
         guard !Task.isCancelled else { return }
         var seen = Set<String>()

@@ -3,6 +3,7 @@
   "max_group_size": 6,
   "option": {
     "id": "opt-a",
+    "late_flag": false,
     "meta": "~$ · 1.8 mi walking · 2 transit legs",
     "name": "Rooftop + murals",
     "stops": [
@@ -84,6 +85,7 @@
   },
   "route": {
     "arrival": "2026-09-25T21:57:00Z",
+    "broken_at": -1,
     "legs": [
       {
         "minutes": 14,
