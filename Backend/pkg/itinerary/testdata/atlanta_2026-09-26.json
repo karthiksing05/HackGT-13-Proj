@@ -1,0 +1,4057 @@
+[
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Collect-A-Con",
+"category": "other",
+"venueName": "Georgia World Congress Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.398201,
+33.758301
+]
+},
+"start": "2026-09-26T14:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5827b",
+"score": 0.373
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Collect-A-Con (Atlanta 2, GA)",
+"category": "community_event",
+"venueName": "Georgia World Congress Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.4228512,
+33.6599538
+]
+},
+"start": "2026-09-26T14:00:00Z",
+"end": "2026-09-27T21:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.4,
+"p75Min": 117.8,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5827c",
+"score": 0.365
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Disney On Ice presents Spotlight Magic!",
+"category": "theater",
+"venueName": "Gas South Arena",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.0907288,
+33.9869191
+]
+},
+"start": "2026-09-26T15:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5827d",
+"score": 0.39
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Tokyo Matsuri Inspired Selfie Experience",
+"category": "other",
+"venueName": "Selfie Paradise Museum",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.743421,
+33.728206
+]
+},
+"start": "2026-09-26T17:00:00Z",
+"end": "2026-09-26T18:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.1,
+"p75Min": 64.2,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5827e",
+"score": 0.351
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Georgia State Panthers Football vs Northern Illinois Huskies Football",
+"category": "sports_event",
+"venueName": "Center Parc Stadium",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.389355,
+33.736125
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.2,
+"p75Min": 206.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5827f",
+"score": 0.389
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Les Miserables (Touring)",
+"category": "theater",
+"venueName": "Sandy Springs Performing Arts Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.385201,
+33.932499
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58280",
+"score": 0.425
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Tokyo Matsuri Inspired Selfie Experience",
+"category": "other",
+"venueName": "Selfie Paradise Museum",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.743421,
+33.728206
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": "2026-09-26T19:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.1,
+"p75Min": 64.2,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58281",
+"score": 0.931
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Tokyo Matsuri Inspired Selfie Experience",
+"category": "other",
+"venueName": "Selfie Paradise Museum",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.743421,
+33.728206
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": "2026-09-26T20:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.1,
+"p75Min": 64.2,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58282",
+"score": 0.91
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Disney On Ice presents Spotlight Magic!",
+"category": "theater",
+"venueName": "Gas South Arena",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.0907288,
+33.9869191
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58283",
+"score": 0.874
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Carmela Full of Wishes",
+"category": "other",
+"venueName": "Alliance Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.386803,
+33.797401
+]
+},
+"start": "2026-09-26T19:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58284",
+"score": 0.552
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Tokyo Matsuri Inspired Selfie Experience",
+"category": "other",
+"venueName": "Selfie Paradise Museum",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.743421,
+33.728206
+]
+},
+"start": "2026-09-26T20:00:00Z",
+"end": "2026-09-26T21:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.1,
+"p75Min": 64.2,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58285",
+"score": 0.811
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Tokyo Matsuri Inspired Selfie Experience",
+"category": "other",
+"venueName": "Selfie Paradise Museum",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.743421,
+33.728206
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": "2026-09-26T22:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.1,
+"p75Min": 64.2,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58286",
+"score": 0.471
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "The Browning",
+"category": "live_music",
+"venueName": "The Masquerade - Hell",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.389887,
+33.75184
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58287",
+"score": 0.435
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "99X Locals Only Luau - The Paradox and The Stews",
+"category": "live_music",
+"venueName": "Fayetteville Amphitheater",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.488197,
+33.482399
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58288",
+"score": 0.355
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Tokyo Matsuri Inspired Selfie Experience",
+"category": "other",
+"venueName": "Selfie Paradise Museum",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.743421,
+33.728206
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": "2026-09-26T23:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.1,
+"p75Min": 64.2,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58289",
+"score": 0.817
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Castle Rat: Summon The Beasts Tour 2026",
+"category": "live_music",
+"venueName": "The Masquerade - Heaven",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.389681,
+33.751769
+]
+},
+"start": "2026-09-26T22:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5828a",
+"score": 0.648
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "SWAVAY",
+"category": "live_music",
+"venueName": "The Masquerade  - Altar",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.38945,
+33.75202
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5828b",
+"score": 0.867
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Bobby Lee: The Finally Tour 2026",
+"category": "comedy",
+"venueName": "Tabernacle Presented by iTHINK Financial",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.391449,
+33.758688
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 100.0,
+"sigma": 0.2,
+"p75Min": 114.4,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5828c",
+"score": 0.695
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "La La Land: Live With The Atlanta Symphony Orchestra",
+"category": "live_music",
+"venueName": "Atlanta Symphony Hall",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.385493,
+33.790098
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5828d",
+"score": 0.734
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Michelle Malone Band w/ Trina Meade & Co.",
+"category": "live_music",
+"venueName": "Eddie's Attic",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.296271,
+33.773975
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5828e",
+"score": 0.616
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Michelle Malone",
+"category": "live_music",
+"venueName": "Eddie's Attic",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.292397,
+33.7715
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5828f",
+"score": 0.639
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Sam Barber - The American Route Tour",
+"category": "live_music",
+"venueName": "Synovus Bank Amphitheater at Chastain Park",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3972168,
+33.8768817
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58290",
+"score": 0.837
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "An Evening of Soul:  Lalah Hathaway, Robert Glasper, and Kenyon Dixon",
+"category": "live_music",
+"venueName": "Mable House Barnes Amphitheatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.575811,
+33.8261826
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58291",
+"score": 0.525
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Tokyo Matsuri Inspired Selfie Experience",
+"category": "other",
+"venueName": "Selfie Paradise Museum",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.743421,
+33.728206
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": "2026-09-27T00:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.1,
+"p75Min": 64.2,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58292",
+"score": 0.412
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Disney On Ice presents Spotlight Magic!",
+"category": "theater",
+"venueName": "Gas South Arena",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.0907288,
+33.9869191
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58293",
+"score": 0.824
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Dad's Garage: LIVE!",
+"category": "theater",
+"venueName": "Hudgens Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.094396,
+33.992322
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58294",
+"score": 0.413
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Afterlife Atlanta: Cyberpunk Night @ Lore",
+"category": "nightclub",
+"venueName": "Lore",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3722907,
+33.7544072
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": "2026-09-28T01:30:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab7449fc9fab8dd61a0441a",
+"score": 0.843
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Atlanta United FC vs. New York City FC",
+"category": "sports_event",
+"venueName": "Mercedes-Benz Stadium",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.400823,
+33.755389
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.2,
+"p75Min": 206.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58295",
+"score": 0.722
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Little Big Town - For The Art Of It Tour",
+"category": "live_music",
+"venueName": "Fox Theatre Atlanta",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.38506842,
+33.77264345
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58296",
+"score": 0.41
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Little Big Town - For The Art Of It Tour",
+"category": "live_music",
+"venueName": "Fox Theatre - Atlanta",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.377403,
+33.7714
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58297",
+"score": 0.431
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Queen Nation",
+"category": "live_music",
+"venueName": "Gas South Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.0907288,
+33.9869191
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58298",
+"score": 0.947
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Tokyo Matsuri Inspired Selfie Experience",
+"category": "other",
+"venueName": "Selfie Paradise Museum",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.743421,
+33.728206
+]
+},
+"start": "2026-09-26T23:45:00Z",
+"end": "2026-09-27T00:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.1,
+"p75Min": 64.2,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d58299",
+"score": 0.606
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Yolanda Del Rio",
+"category": "live_music",
+"venueName": "Center Stage Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3877907,
+33.7918926
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5829a",
+"score": 0.711
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Taylor Bickett",
+"category": "live_music",
+"venueName": "Vinyl",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3877907,
+33.7918926
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5829b",
+"score": 0.511
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "SYML",
+"category": "live_music",
+"venueName": "Variety Playhouse",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.334602,
+33.770199
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5829c",
+"score": 0.582
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Adam Doleac",
+"category": "live_music",
+"venueName": "Terminal West",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.446404,
+33.791901
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5829d",
+"score": 0.701
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Skyline Lounge Gary Owen",
+"category": "other",
+"venueName": "Cobb Energy Performing Arts Centre",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.4583631,
+33.8844269
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5829e",
+"score": 0.867
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Gary Owen: No Hard Feelings Tour",
+"category": "comedy",
+"venueName": "Cobb Energy Performing Arts Centre",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.4583631,
+33.8844269
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 100.0,
+"sigma": 0.2,
+"p75Min": 114.4,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d5829f",
+"score": 0.488
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Les Miserables (Touring)",
+"category": "theater",
+"venueName": "Sandy Springs Performing Arts Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.385201,
+33.932499
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d582a0",
+"score": 0.866
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Ella Maddux",
+"category": "live_music",
+"venueName": "Eddie's Attic",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.296271,
+33.773975
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d582a1",
+"score": 0.412
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Bop To The Top (18+)",
+"category": "live_music",
+"venueName": "Buckhead Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3795437,
+33.8402272
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d582a2",
+"score": 0.746
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Seth David (18+ Event)",
+"category": "live_music",
+"venueName": "Wish Lounge at Believe Music Hall",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.375397,
+33.744301
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7449b25e9f6cc68d582a3",
+"score": 0.946
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "Planet Pisces",
+"category": "nightclub",
+"venueName": "Pisces",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.37180370000002,
+33.7541226
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T07:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 10.0,
+"max": 10.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab7449fc9fab8dd61a0441c",
+"score": 0.553
+},
+{
+"kind": "event",
+"city": "atlanta",
+"name": "333BALL RAVE",
+"category": "nightclub",
+"venueName": "Lunchbox",
+"location": {
+"type": "Point",
+"coordinates": [
+-84.390056,
+33.7523792
+]
+},
+"start": "2026-09-27T03:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 8.0,
+"max": 8.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab7449fc9fab8dd61a0441b",
+"score": 0.923
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Ryan Yan | Xiao Fine Art",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.35869869999999,
+33.745871099999995
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 1920,
+"close": 2460
+},
+{
+"open": 3360,
+"close": 3900
+},
+{
+"open": 4800,
+"close": 5340
+},
+{
+"open": 6240,
+"close": 6780
+},
+{
+"open": 7680,
+"close": 8220
+},
+{
+"open": 9120,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271944",
+"score": 0.709
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Atlanta Magic Theater",
+"category": "comedy",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.39453,
+33.760777
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 8250,
+"close": 8520
+},
+{
+"open": 9630,
+"close": 10020
+}
+],
+"duration": {
+"medianMin": 100.0,
+"sigma": 0.2,
+"p75Min": 114.4,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf27195c",
+"score": 0.688
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Forward, Warrior!! Mural Project",
+"category": "park",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3646242,
+33.7517646
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 0,
+"close": 10080
+}
+],
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf27198a",
+"score": 0.911
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Sidewalk Scooter",
+"category": "landmark",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.4068051,
+33.7833124
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 30.0,
+"sigma": 0.5,
+"p75Min": 42.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719a9",
+"score": 0.711
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Pop the Cork Wine Tours",
+"category": "bar",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.38360929999999,
+33.784903299999996
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 600,
+"close": 1140
+},
+{
+"open": 1980,
+"close": 2580
+},
+{
+"open": 3420,
+"close": 4020
+},
+{
+"open": 4860,
+"close": 5460
+},
+{
+"open": 6300,
+"close": 6900
+},
+{
+"open": 7740,
+"close": 8340
+},
+{
+"open": 9180,
+"close": 9780
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.4,
+"p75Min": 117.8,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719bf",
+"score": 0.376
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Gallery Anderson Smith",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3864376,
+33.7931492
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 720,
+"close": 1020
+},
+{
+"open": 3540,
+"close": 3960
+},
+{
+"open": 4980,
+"close": 5400
+},
+{
+"open": 6420,
+"close": 6840
+},
+{
+"open": 7860,
+"close": 8280
+},
+{
+"open": 9300,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719c1",
+"score": 0.708
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Memento",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3625424,
+33.773390299999996
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719cc",
+"score": 0.636
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Blooms Emporium Atlanta",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3663558,
+33.7730216
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 660,
+"close": 1080
+},
+{
+"open": 2100,
+"close": 2580
+},
+{
+"open": 3540,
+"close": 4020
+},
+{
+"open": 4980,
+"close": 5460
+},
+{
+"open": 6420,
+"close": 6900
+},
+{
+"open": 7860,
+"close": 8340
+},
+{
+"open": 9300,
+"close": 9780
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719cd",
+"score": 0.626
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Gallery Chimera",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3527749,
+33.7715116
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 6480,
+"close": 6840
+},
+{
+"open": 7920,
+"close": 8280
+},
+{
+"open": 9360,
+"close": 9720
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719ce",
+"score": 0.514
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Spalding Nix Fine Art",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3737143,
+33.8167033
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 2040,
+"close": 2460
+},
+{
+"open": 3480,
+"close": 3900
+},
+{
+"open": 4920,
+"close": 5340
+},
+{
+"open": 6360,
+"close": 6780
+},
+{
+"open": 7800,
+"close": 8220
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719f9",
+"score": 0.685
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Really Good Fig (Clombastiture)",
+"category": "park",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.35268599999999,
+33.7362864
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 0,
+"close": 10080
+}
+],
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271a92",
+"score": 0.94
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "The Game Show Challenge - Atlanta",
+"category": "rec_venue",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.41774649999999,
+33.729647299999996
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 780,
+"close": 1230
+},
+{
+"open": 2040,
+"close": 2700
+},
+{
+"open": 3480,
+"close": 4140
+},
+{
+"open": 4920,
+"close": 5580
+},
+{
+"open": 6360,
+"close": 7020
+},
+{
+"open": 7800,
+"close": 8520
+},
+{
+"open": 9240,
+"close": 9960
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.3,
+"p75Min": 110.2,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271b46",
+"score": 0.786
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Dj duke",
+"category": "rec_venue",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.38995670000001,
+33.7475321
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 0,
+"close": 10080
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.3,
+"p75Min": 110.2,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271b47",
+"score": 0.553
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Game Show Studio",
+"category": "rec_venue",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3887436,
+33.753908599999995
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 600,
+"close": 1320
+},
+{
+"open": 2160,
+"close": 2760
+},
+{
+"open": 3600,
+"close": 4200
+},
+{
+"open": 5040,
+"close": 5640
+},
+{
+"open": 6480,
+"close": 7080
+},
+{
+"open": 7800,
+"close": 8520
+},
+{
+"open": 9240,
+"close": 9960
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.3,
+"p75Min": 110.2,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271b4f",
+"score": 0.408
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "The Escape Game Atlanta (West Midtown)",
+"category": "rec_venue",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.4106553,
+33.7856477
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 600,
+"close": 1440
+},
+{
+"open": 2040,
+"close": 2880
+},
+{
+"open": 3480,
+"close": 4320
+},
+{
+"open": 4920,
+"close": 5760
+},
+{
+"open": 6360,
+"close": 7200
+},
+{
+"open": 7800,
+"close": 8700
+},
+{
+"open": 9240,
+"close": 60
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.3,
+"p75Min": 110.2,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271b54",
+"score": 0.621
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Beat The Bomb Atlanta",
+"category": "rec_venue",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.4357868,
+33.8089766
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 660,
+"close": 1260
+},
+{
+"open": 5220,
+"close": 5580
+},
+{
+"open": 6660,
+"close": 7020
+},
+{
+"open": 8040,
+"close": 8580
+},
+{
+"open": 9240,
+"close": 0
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.3,
+"p75Min": 110.2,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271b5c",
+"score": 0.453
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Kava Mama",
+"category": "bar",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.4028185,
+33.736393500000005
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 720,
+"close": 1380
+},
+{
+"open": 2160,
+"close": 2820
+},
+{
+"open": 3600,
+"close": 4260
+},
+{
+"open": 5040,
+"close": 5700
+},
+{
+"open": 6480,
+"close": 7140
+},
+{
+"open": 7920,
+"close": 8580
+},
+{
+"open": 9360,
+"close": 10020
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.4,
+"p75Min": 117.8,
+"source": "category_prior"
+},
+"price": {
+"min": 10.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 1,
+"isFree": null
+},
+"_id": "6ab7466f3d255134cf271bab",
+"score": 0.91
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Nina Baldwin Gallery",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.4032122,
+33.746400799999996
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271936",
+"score": 0.44
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Hey Brown Girl You're Beautiful Mural",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.40389929999999,
+33.7457563
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271937",
+"score": 0.452
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Erskine Memorial Fountain",
+"category": "landmark",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.37338539999999,
+33.7314007
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 0,
+"close": 10080
+}
+],
+"duration": {
+"medianMin": 30.0,
+"sigma": 0.5,
+"p75Min": 42.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271940",
+"score": 0.367
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "ABV Gallery",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3481611,
+33.741932
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 660,
+"close": 1020
+},
+{
+"open": 2040,
+"close": 2460
+},
+{
+"open": 3480,
+"close": 3900
+},
+{
+"open": 4920,
+"close": 5340
+},
+{
+"open": 6360,
+"close": 6900
+},
+{
+"open": 7800,
+"close": 8340
+},
+{
+"open": 9300,
+"close": 9780
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271941",
+"score": 0.835
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "ZuCot Gallery",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3989557,
+33.7521962
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 9360,
+"close": 9720
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271959",
+"score": 0.671
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "The Sun ATL",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3745335,
+33.7542004
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 7860,
+"close": 8220
+},
+{
+"open": 9300,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271972",
+"score": 0.604
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Time to Escape - Atlanta Escape Room (Downtown)",
+"category": "rec_venue",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.38675289999999,
+33.7599199
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 540,
+"close": 1350
+},
+{
+"open": 1980,
+"close": 2790
+},
+{
+"open": 3420,
+"close": 4230
+},
+{
+"open": 4860,
+"close": 5670
+},
+{
+"open": 6300,
+"close": 7110
+},
+{
+"open": 7740,
+"close": 8625
+},
+{
+"open": 9180,
+"close": 10065
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.3,
+"p75Min": 110.2,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271976",
+"score": 0.793
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Outkast Mural",
+"category": "landmark",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3484919,
+33.7667669
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 30.0,
+"sigma": 0.5,
+"p75Min": 42.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271986",
+"score": 0.357
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "MLK Jr. Birthplace and Home Historical Signs",
+"category": "landmark",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3712992,
+33.755581899999996
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 30.0,
+"sigma": 0.5,
+"p75Min": 42.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf27198c",
+"score": 0.791
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Sandbox VR",
+"category": "rec_venue",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.41052789999999,
+33.7853644
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 600,
+"close": 1380
+},
+{
+"open": 2040,
+"close": 2760
+},
+{
+"open": 3480,
+"close": 4200
+},
+{
+"open": 4920,
+"close": 5640
+},
+{
+"open": 6360,
+"close": 7080
+},
+{
+"open": 7800,
+"close": 8580
+},
+{
+"open": 9240,
+"close": 10020
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.3,
+"p75Min": 110.2,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf27199f",
+"score": 0.857
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "PanIQ Escape Room Atlanta",
+"category": "rec_venue",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.4092644,
+33.7813253
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 600,
+"close": 1320
+},
+{
+"open": 2130,
+"close": 2760
+},
+{
+"open": 3570,
+"close": 4200
+},
+{
+"open": 5010,
+"close": 5640
+},
+{
+"open": 6450,
+"close": 7080
+},
+{
+"open": 7890,
+"close": 8670
+},
+{
+"open": 9240,
+"close": 30
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.3,
+"p75Min": 110.2,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719a2",
+"score": 0.356
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "DramaTech Theatre",
+"category": "theater",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3990185,
+33.7753472
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719a6",
+"score": 0.403
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Atlanta Photography Group",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3716999,
+33.79908
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 3480,
+"close": 3840
+},
+{
+"open": 4920,
+"close": 5280
+},
+{
+"open": 6360,
+"close": 6720
+},
+{
+"open": 7800,
+"close": 8160
+},
+{
+"open": 9240,
+"close": 9600
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719f6",
+"score": 0.788
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Centennial Park District",
+"category": "park",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.39597839999999,
+33.76145520000001
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 540,
+"close": 1080
+},
+{
+"open": 1980,
+"close": 2520
+},
+{
+"open": 3420,
+"close": 3960
+},
+{
+"open": 4860,
+"close": 5400
+},
+{
+"open": 6300,
+"close": 6840
+},
+{
+"open": 7740,
+"close": 8280
+},
+{
+"open": 9180,
+"close": 9720
+}
+],
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271aa2",
+"score": 0.512
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Founders Green",
+"category": "park",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.39303699999999,
+33.751680199999996
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 480,
+"close": 1320
+},
+{
+"open": 1920,
+"close": 2760
+},
+{
+"open": 3360,
+"close": 4200
+},
+{
+"open": 4800,
+"close": 5640
+},
+{
+"open": 6240,
+"close": 7080
+},
+{
+"open": 7680,
+"close": 8520
+},
+{
+"open": 9120,
+"close": 9960
+}
+],
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271aae",
+"score": 0.63
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Springdale Park",
+"category": "park",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3461702,
+33.7741538
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 360,
+"close": 1380
+},
+{
+"open": 1800,
+"close": 2820
+},
+{
+"open": 3240,
+"close": 4260
+},
+{
+"open": 4680,
+"close": 5700
+},
+{
+"open": 6120,
+"close": 7140
+},
+{
+"open": 7560,
+"close": 8580
+},
+{
+"open": 9000,
+"close": 10020
+}
+],
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271add",
+"score": 0.672
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Northside Beltline",
+"category": "park",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3987714,
+33.812939199999995
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 360,
+"close": 1380
+},
+{
+"open": 1800,
+"close": 2820
+},
+{
+"open": 3240,
+"close": 4260
+},
+{
+"open": 4680,
+"close": 5700
+},
+{
+"open": 6120,
+"close": 7140
+},
+{
+"open": 7560,
+"close": 8580
+},
+{
+"open": 9000,
+"close": 10020
+}
+],
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271aed",
+"score": 0.495
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Big Escape Rooms",
+"category": "rec_venue",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.38272239999999,
+33.7639462
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 540,
+"close": 1425
+},
+{
+"open": 1980,
+"close": 2865
+},
+{
+"open": 3420,
+"close": 4305
+},
+{
+"open": 4860,
+"close": 5745
+},
+{
+"open": 6300,
+"close": 7185
+},
+{
+"open": 7740,
+"close": 8625
+},
+{
+"open": 9180,
+"close": 10065
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.3,
+"p75Min": 110.2,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271b4c",
+"score": 0.858
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Sakura Sake Bar & Bottles",
+"category": "bar",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.42069409999999,
+33.7312923
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 720,
+"close": 1260
+},
+{
+"open": 2160,
+"close": 2760
+},
+{
+"open": 3600,
+"close": 4200
+},
+{
+"open": 5040,
+"close": 5640
+},
+{
+"open": 6480,
+"close": 7080
+},
+{
+"open": 7920,
+"close": 8520
+},
+{
+"open": 9360,
+"close": 9960
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.4,
+"p75Min": 117.8,
+"source": "category_prior"
+},
+"price": {
+"min": 20.0,
+"max": 30.0,
+"currency": "USD",
+"tier": 2,
+"isFree": null
+},
+"_id": "6ab7466f3d255134cf271bae",
+"score": 0.715
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Side Saddle Wine Saloon & Bar",
+"category": "bar",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3657691,
+33.7268644
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 660,
+"close": 1320
+},
+{
+"open": 2100,
+"close": 2760
+},
+{
+"open": 3540,
+"close": 4200
+},
+{
+"open": 4980,
+"close": 5640
+},
+{
+"open": 6420,
+"close": 7140
+},
+{
+"open": 7860,
+"close": 8580
+},
+{
+"open": 9300,
+"close": 10020
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.4,
+"p75Min": 117.8,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271bb3",
+"score": 0.867
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Fire Maker Brewery & Bar",
+"category": "bar",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.41944219999999,
+33.8001893
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 780,
+"close": 1200
+},
+{
+"open": 3900,
+"close": 4170
+},
+{
+"open": 5340,
+"close": 5610
+},
+{
+"open": 6780,
+"close": 7050
+},
+{
+"open": 8100,
+"close": 8580
+},
+{
+"open": 9360,
+"close": 10020
+}
+],
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.4,
+"p75Min": 117.8,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271c00",
+"score": 0.546
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Spelman College Museum of Fine Art",
+"category": "museum",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.4131465,
+33.7464199
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 5040,
+"close": 5340
+},
+{
+"open": 6480,
+"close": 6780
+},
+{
+"open": 7920,
+"close": 8220
+},
+{
+"open": 9360,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.35,
+"p75Min": 151.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271929",
+"score": 0.774
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Gallery 992",
+"category": "theater",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.42030609999999,
+33.737909
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf27192f",
+"score": 0.705
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Historic Herndon Home Museum",
+"category": "museum",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.406809,
+33.7558183
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 6300,
+"close": 6780
+},
+{
+"open": 7740,
+"close": 8220
+},
+{
+"open": 9180,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.35,
+"p75Min": 151.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf27195a",
+"score": 0.765
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Martin Luther King, Jr. National Historical Park",
+"category": "museum",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3731798,
+33.756673899999996
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 540,
+"close": 1020
+},
+{
+"open": 1980,
+"close": 2460
+},
+{
+"open": 3420,
+"close": 3900
+},
+{
+"open": 4860,
+"close": 5340
+},
+{
+"open": 6300,
+"close": 6780
+},
+{
+"open": 7740,
+"close": 8220
+},
+{
+"open": 9180,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.35,
+"p75Min": 151.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271963",
+"score": 0.764
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Birth Home of Martin Luther King, Jr",
+"category": "museum",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.371141,
+33.755215199999995
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 540,
+"close": 1020
+},
+{
+"open": 1980,
+"close": 2460
+},
+{
+"open": 3420,
+"close": 3900
+},
+{
+"open": 4860,
+"close": 5340
+},
+{
+"open": 6300,
+"close": 6780
+},
+{
+"open": 7740,
+"close": 8220
+},
+{
+"open": 9180,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.35,
+"p75Min": 151.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271966",
+"score": 0.879
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Shakespeare Tavern Playhouse",
+"category": "theater",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3851523,
+33.768170999999995
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271967",
+"score": 0.544
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "The King Center",
+"category": "landmark",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.37302989999999,
+33.755246899999996
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 600,
+"close": 1020
+},
+{
+"open": 2040,
+"close": 2460
+},
+{
+"open": 3480,
+"close": 3900
+},
+{
+"open": 4920,
+"close": 5340
+},
+{
+"open": 6360,
+"close": 6780
+},
+{
+"open": 7800,
+"close": 8220
+},
+{
+"open": 9240,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 30.0,
+"sigma": 0.5,
+"p75Min": 42.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271969",
+"score": 0.5
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Theatrical Outfit",
+"category": "theater",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.38948599999999,
+33.75703500000001
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 870,
+"close": 1020
+},
+{
+"open": 5490,
+"close": 5640
+},
+{
+"open": 6930,
+"close": 7080
+},
+{
+"open": 8370,
+"close": 8520
+},
+{
+"open": 9810,
+"close": 9960
+}
+],
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf27196e",
+"score": 0.699
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "International Civil Rights Walk of Fame",
+"category": "landmark",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3733374,
+33.7570432
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 30.0,
+"sigma": 0.5,
+"p75Min": 42.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271971",
+"score": 0.388
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Tech Tower",
+"category": "landmark",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.39488779999999,
+33.7722127
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 30.0,
+"sigma": 0.5,
+"p75Min": 42.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271978",
+"score": 0.837
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "aKAZI ATL",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3756847,
+33.7557001
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 780,
+"close": 960
+},
+{
+"open": 4980,
+"close": 5220
+},
+{
+"open": 6420,
+"close": 6660
+},
+{
+"open": 7860,
+"close": 8100
+},
+{
+"open": 9420,
+"close": 9600
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf27197c",
+"score": 0.87
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Whitespace Gallery",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.36083049999999,
+33.755655499999996
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 6420,
+"close": 6780
+},
+{
+"open": 7860,
+"close": 8220
+},
+{
+"open": 9300,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf271988",
+"score": 0.752
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Echo Contemporary Art",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.4097632,
+33.776119699999995
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 5040,
+"close": 5340
+},
+{
+"open": 6480,
+"close": 6780
+},
+{
+"open": 7920,
+"close": 8220
+},
+{
+"open": 9360,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719a5",
+"score": 0.525
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "KAI LIN ART",
+"category": "gallery",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.412971,
+33.78168
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 6480,
+"close": 6780
+},
+{
+"open": 7920,
+"close": 8220
+},
+{
+"open": 9360,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719a7",
+"score": 0.616
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Piedmont Park",
+"category": "park",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.37216819999999,
+33.7879265
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 360,
+"close": 1380
+},
+{
+"open": 1800,
+"close": 2820
+},
+{
+"open": 3240,
+"close": 4260
+},
+{
+"open": 4680,
+"close": 5700
+},
+{
+"open": 6120,
+"close": 7140
+},
+{
+"open": 7560,
+"close": 8580
+},
+{
+"open": 9000,
+"close": 10020
+}
+],
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719ab",
+"score": 0.685
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Center For Puppetry Arts",
+"category": "museum",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.38985989999999,
+33.792874999999995
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 720,
+"close": 1020
+},
+{
+"open": 3420,
+"close": 3900
+},
+{
+"open": 4860,
+"close": 5340
+},
+{
+"open": 6300,
+"close": 6780
+},
+{
+"open": 7740,
+"close": 8220
+},
+{
+"open": 9240,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.35,
+"p75Min": 151.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719af",
+"score": 0.793
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Alliance Theatre",
+"category": "theater",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.38540859999999,
+33.7892466
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 720,
+"close": 960
+},
+{
+"open": 3600,
+"close": 3840
+},
+{
+"open": 5040,
+"close": 5280
+},
+{
+"open": 6480,
+"close": 6720
+},
+{
+"open": 7920,
+"close": 8160
+},
+{
+"open": 9360,
+"close": 9600
+}
+],
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719b0",
+"score": 0.908
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Woodruff Arts Center",
+"category": "landmark",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.38465529999999,
+33.7893845
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 720,
+"close": 1020
+},
+{
+"open": 2040,
+"close": 2460
+},
+{
+"open": 3480,
+"close": 3900
+},
+{
+"open": 4920,
+"close": 5340
+},
+{
+"open": 6360,
+"close": 6780
+},
+{
+"open": 7800,
+"close": 8220
+},
+{
+"open": 9360,
+"close": 9660
+}
+],
+"duration": {
+"medianMin": 30.0,
+"sigma": 0.5,
+"p75Min": 42.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719b1",
+"score": 0.396
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "The Meadow at Piedmont Park",
+"category": "park",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3717083,
+33.7834795
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 480,
+"close": 1260
+},
+{
+"open": 1920,
+"close": 2700
+},
+{
+"open": 3360,
+"close": 4140
+},
+{
+"open": 4800,
+"close": 5580
+},
+{
+"open": 6240,
+"close": 7020
+},
+{
+"open": 7680,
+"close": 8460
+},
+{
+"open": 9120,
+"close": 9900
+}
+],
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719b6",
+"score": 0.621
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Dockside",
+"category": "park",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.37707739999999,
+33.7840597
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 360,
+"close": 1380
+},
+{
+"open": 1800,
+"close": 2820
+},
+{
+"open": 3240,
+"close": 4260
+},
+{
+"open": 4680,
+"close": 5700
+},
+{
+"open": 6120,
+"close": 7140
+},
+{
+"open": 7560,
+"close": 8580
+},
+{
+"open": 9000,
+"close": 10020
+}
+],
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719b9",
+"score": 0.814
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Lullwater Conservation Garden",
+"category": "park",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.33393339999999,
+33.7781837
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 420,
+"close": 1200
+},
+{
+"open": 1860,
+"close": 2640
+},
+{
+"open": 3300,
+"close": 4080
+},
+{
+"open": 4740,
+"close": 5520
+},
+{
+"open": 6180,
+"close": 6960
+},
+{
+"open": 7620,
+"close": 8400
+},
+{
+"open": 9060,
+"close": 9840
+}
+],
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719d6",
+"score": 0.525
+},
+{
+"kind": "place",
+"city": "atlanta",
+"name": "Diva Royale Drag Queens Show",
+"category": "theater",
+"venueName": null,
+"location": {
+"type": "Point",
+"coordinates": [
+-84.3933711,
+33.8118159
+]
+},
+"start": null,
+"end": null,
+"attendance": null,
+"timezone": "America/New_York",
+"weeklyHours": [
+{
+"open": 600,
+"close": 1320
+},
+{
+"open": 2040,
+"close": 2760
+},
+{
+"open": 3480,
+"close": 4200
+},
+{
+"open": 4920,
+"close": 5640
+},
+{
+"open": 6360,
+"close": 7080
+},
+{
+"open": 7800,
+"close": 8520
+},
+{
+"open": 9240,
+"close": 9960
+}
+],
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7466f3d255134cf2719f8",
+"score": 0.865
+}
+]

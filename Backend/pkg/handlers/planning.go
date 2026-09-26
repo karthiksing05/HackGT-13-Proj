@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"Backend/pkg/env"
 	"Backend/pkg/middleware"
 	"Backend/pkg/ml"
 	"Backend/pkg/models"
@@ -13,6 +14,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type SaveItineraryRequest struct {
@@ -335,6 +338,28 @@ func GeneratePlans(w http.ResponseWriter, r *http.Request) {
 		nil,
 	)
 
+	// Build feasible, time-ordered itineraries from the ranked candidates.
+	if planner := env.GetPlanner(); planner != "legacy" {
+		dagOptions, dagCursor, reason := generateDAGPlans(r.Context(), req, rankedActivities, currentUser)
+		if len(dagOptions) > 0 || planner == "dag" {
+			resp := map[string]interface{}{
+				"options":      dagOptions,
+				"cursor":       dagCursor,
+				"done":         dagCursor == "",
+				"planner":      "dag",
+				"mood":         req.MoodText,
+				"rideshare":    req.RideChoice,
+				"travel_modes": req.TravelModes,
+			}
+			if reason != "" {
+				resp["reason"] = reason
+			}
+			middleware.WriteJSON(w, http.StatusOK, resp)
+			return
+		}
+		log.Info().Str("reason", reason).Msg("itinerary optimizer found nothing; using legacy planner")
+	}
+
 	optionsList := buildPlanOptionsFromActivities(rankedActivities, req, 3)
 
 	middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -350,6 +375,20 @@ func GeneratePlans(w http.ResponseWriter, r *http.Request) {
 func GenerateMorePlans(w http.ResponseWriter, r *http.Request) {
 	var req GenerateMoreRequest
 	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	// Pages of an optimizer run come from its saved pool, not a new query.
+	if page, next, ok := nextFromPlanPool(req.Cursor, morePageOptions); ok {
+		if page == nil {
+			page = []models.PlanOption{}
+		}
+		middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"options": page,
+			"cursor":  next,
+			"done":    next == "",
+			"planner": "dag",
+		})
+		return
+	}
 
 	userAgeBracket := "21_plus"
 	var currentUser *models.User
@@ -418,6 +457,11 @@ func RoutePlan(w http.ResponseWriter, r *http.Request) {
 		if len(stops) == 0 {
 			stops = opt.Stops
 		}
+	}
+
+	if resp, ok := routeDAGPlan(r.Context(), req, stops); ok {
+		middleware.WriteJSON(w, http.StatusOK, resp)
+		return
 	}
 
 	numStops := len(stops)
@@ -556,16 +600,28 @@ func CreateItinerary(w http.ResponseWriter, r *http.Request) {
 					if itemDur <= 0 {
 						itemDur = 45 * time.Minute
 					}
+					// Optimizer stops carry their scheduled times; legacy stops don't.
+					arrive := curTime
+					if stop.ArriveTime != nil {
+						arrive = *stop.ArriveTime
+						if stop.DepartTime != nil && stop.DepartTime.After(arrive) {
+							itemDur = stop.DepartTime.Sub(arrive)
+						}
+					}
+					itemType := "activity"
+					if stop.Kind != "" {
+						itemType = stop.Kind
+					}
 					item := models.ItineraryItem{
 						ID:           util.GenerateID(),
 						Title:        stop.Name,
-						Type:         "activity",
+						Type:         itemType,
 						LocationName: stop.Name,
 						Address:      stop.Address,
 						Lat:          stop.Lat,
 						Lng:          stop.Lng,
-						ArriveTime:   curTime,
-						DepartTime:   curTime.Add(itemDur),
+						ArriveTime:   arrive,
+						DepartTime:   arrive.Add(itemDur),
 						PriceCents:   stop.EstimatedCostCents,
 						SharedNotes:  stop.Notes,
 					}
@@ -576,14 +632,14 @@ func CreateItinerary(w http.ResponseWriter, r *http.Request) {
 								Mode:          leg.Mode,
 								DurationMin:   leg.DurationMin,
 								DistanceKm:    leg.DistanceKm,
-								DepartureTime: curTime.Add(-time.Duration(leg.DurationMin) * time.Minute),
-								ArrivalTime:   curTime,
+								DepartureTime: arrive.Add(-time.Duration(leg.DurationMin) * time.Minute),
+								ArrivalTime:   arrive,
 								Summary:       fmt.Sprintf("%s (%.1f km)", strings.Title(leg.Mode), leg.DistanceKm),
 							},
 						}
 					}
 					itin.Items = append(itin.Items, item)
-					curTime = curTime.Add(itemDur + 15*time.Minute)
+					curTime = arrive.Add(itemDur + 15*time.Minute)
 				}
 			}
 		}

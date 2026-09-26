@@ -112,10 +112,12 @@ type ActivityDuration struct {
 
 // ActivityPrice represents activity price and tier
 type ActivityPrice struct {
-	Tier     int    `bson:"tier" json:"tier"` // 0 free, 1 <$15, 2 $15–40, 3 $40+
-	Cents    int64  `bson:"cents" json:"cents"`
-	Currency string `bson:"currency" json:"currency"`
-	IsFree   bool   `bson:"isFree" json:"isFree"`
+	Tier     int      `bson:"tier" json:"tier"` // 0 free, 1 <$15, 2 $15–40, 3 $40+
+	Cents    int64    `bson:"cents" json:"cents"`
+	Min      *float64 `bson:"min,omitempty" json:"min,omitempty"` // whole currency units, as ingested
+	Max      *float64 `bson:"max,omitempty" json:"max,omitempty"`
+	Currency string   `bson:"currency" json:"currency"`
+	IsFree   bool     `bson:"isFree" json:"isFree"`
 }
 
 // ActivitySource represents provenance of scraped or imported activity
@@ -273,6 +275,11 @@ type PlanStop struct {
 	DurationMin        int     `json:"duration_min"`
 	EstimatedCostCents int64   `json:"estimated_cost_cents"`
 	Notes              string  `json:"notes,omitempty"`
+	// Scheduled visit, set by the itinerary optimizer. Nil for legacy plans.
+	ArriveTime *time.Time `json:"arrive_time,omitempty"`
+	DepartTime *time.Time `json:"depart_time,omitempty"`
+	Kind       string     `json:"kind,omitempty"`     // "event" | "place"
+	Flexible   bool       `json:"flexible,omitempty"` // true when the visit time can move (drop-ins, places)
 }
 
 type PlanLeg struct {

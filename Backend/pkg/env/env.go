@@ -48,3 +48,15 @@ func GetMLServiceURL() string {
 	}
 	return "http://127.0.0.1:8000"
 }
+
+// GetPlanner selects how /plans/generate builds options:
+// "auto" (default) uses the itinerary optimizer and falls back to the
+// legacy builder when it finds nothing, "dag" never falls back, and
+// "legacy" skips the optimizer.
+func GetPlanner() string {
+	switch p := os.Getenv("PLANNER"); p {
+	case "dag", "legacy":
+		return p
+	}
+	return "auto"
+}

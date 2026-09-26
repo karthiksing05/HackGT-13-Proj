@@ -1,0 +1,10472 @@
+[
+{
+"kind": "event",
+"city": "nyc",
+"name": "Niche Night presents: Y2K Baby One More Time",
+"category": "nightclub",
+"venueName": "Friends & Lovers",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9584608,
+40.6785521
+]
+},
+"start": "2026-09-24T23:00:00Z",
+"end": "2026-09-27T05:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab7558acc2d68c5eef1e3d2",
+"score": 0.448
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "CLUBSESSION VOL. 11: STUDY HALL",
+"category": "nightclub",
+"venueName": "Mehanata Bar",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98884699999999,
+40.7194834
+]
+},
+"start": "2026-09-25T02:00:00Z",
+"end": "2026-09-27T06:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab7558acc2d68c5eef1e3d6",
+"score": 0.438
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "AceMo + Friends",
+"category": "nightclub",
+"venueName": "Le Bain",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00828400000002,
+40.7410761
+]
+},
+"start": "2026-09-26T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75589cc2d68c5eef1e3cb",
+"score": 0.931
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Libra Affair NYC \u2013 Luxury Friday Party",
+"category": "nightclub",
+"venueName": "Level Astoria",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.91024089999999,
+40.76978769999999
+]
+},
+"start": "2026-09-26T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 0,
+"isFree": false
+},
+"_id": "6ab75589cc2d68c5eef1e3cc",
+"score": 0.872
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "SAZONAO",
+"category": "nightclub",
+"venueName": "Friends & Lovers",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9584608,
+40.6785521
+]
+},
+"start": "2026-09-26T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 5.0,
+"max": 10.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab7558acc2d68c5eef1e3d3",
+"score": 0.451
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Kybba",
+"category": "nightclub",
+"venueName": "Webster Hall",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98911389999999,
+40.7317691
+]
+},
+"start": "2026-09-26T03:00:00Z",
+"end": "2026-09-27T03:59:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75586cc2d68c5eef1e3ae",
+"score": 0.618
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Tumblr. Party",
+"category": "nightclub",
+"venueName": "Market Hotel",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9345858,
+40.6969513
+]
+},
+"start": "2026-09-26T03:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7558bcc2d68c5eef1e3f0",
+"score": 0.363
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "MEZAME FESTIVAL : Laraaji X Michael Brook, Carl Stone, Robert Turman, a.m.p",
+"category": "nightclub",
+"venueName": "St. Bartholomew's Church",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9731084,
+40.7572236
+]
+},
+"start": "2026-09-26T04:00:00Z",
+"end": "2026-09-27T10:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 40.0,
+"max": 40.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75587cc2d68c5eef1e3b5",
+"score": 0.416
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "RuPaul, Tedd Patterson, Joopiter [SOLD OUT]",
+"category": "nightclub",
+"venueName": "Industry City",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00606719999999,
+40.6573822
+]
+},
+"start": "2026-09-26T08:00:00Z",
+"end": "2026-09-27T01:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 45.0,
+"max": 95.0,
+"currency": "USD",
+"tier": 3,
+"isFree": false
+},
+"_id": "6ab75584cc2d68c5eef1e393",
+"score": 0.743
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Mid-Autumn Family Festival",
+"category": "other",
+"venueName": "Museum of Chinese in America",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.99902914,
+40.71953297
+]
+},
+"start": "2026-09-26T14:00:00Z",
+"end": "2026-09-26T17:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.1,
+"p75Min": 192.6,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556ee5453857e0872196",
+"score": 0.497
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Banksy Museum - Flexiticket",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T14:00:00Z",
+"end": "2026-09-27T00:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 50.0,
+"sigma": 0.4,
+"p75Min": 65.5,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556ee5453857e0872197",
+"score": 0.721
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T14:30:00Z",
+"end": "2026-09-26T16:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556ee5453857e087219b",
+"score": 0.613
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Soho Street Art Tours",
+"category": "other",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T14:30:00Z",
+"end": "2026-09-26T16:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556ee5453857e087219c",
+"score": 0.737
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T15:00:00Z",
+"end": "2026-09-26T17:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721a0",
+"score": 0.873
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T15:30:00Z",
+"end": "2026-09-26T17:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721a3",
+"score": 0.581
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T16:00:00Z",
+"end": "2026-09-26T18:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721a6",
+"score": 0.513
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Banksy Museum NY - REBEL STENCIL WORKSHOP",
+"category": "other",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T16:00:00Z",
+"end": "2026-09-26T19:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.1,
+"p75Min": 192.6,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721a7",
+"score": 0.679
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T16:00:00Z",
+"end": "2026-09-26T16:15:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721a8",
+"score": 0.941
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "BROOKLYN BRUJERIA DAY II: Magic Market + Fair & Noche de Salsa + Fiesta",
+"category": "other",
+"venueName": "BRIC HOUSE",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.979128,
+40.688639
+]
+},
+"start": "2026-09-26T16:00:00Z",
+"end": "2026-09-26T21:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721a9",
+"score": 0.73
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T16:15:00Z",
+"end": "2026-09-26T16:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721aa",
+"score": 0.6
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T16:30:00Z",
+"end": "2026-09-26T18:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721ab",
+"score": 0.466
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T16:30:00Z",
+"end": "2026-09-26T16:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721ac",
+"score": 0.765
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "[POSTPONED] Waxed.Market Record Fair",
+"category": "nightclub",
+"venueName": "Nowadays",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9018573,
+40.6923919
+]
+},
+"start": "2026-09-26T16:30:00Z",
+"end": "2026-09-27T00:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab7558acc2d68c5eef1e3e6",
+"score": 0.653
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T16:45:00Z",
+"end": "2026-09-26T17:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721ad",
+"score": 0.637
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "\"Saturday Soul Music Brunch\" Carlton Jumel Smith",
+"category": "live_music",
+"venueName": "Blue Note Jazz Club",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00065,
+40.73094
+]
+},
+"start": "2026-09-26T17:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": {
+"min": 26.46,
+"max": 32.33,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e08721ae",
+"score": 0.522
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Candy Crafting at Cricket's Candy Creations at i Candy NYC",
+"category": "community_event",
+"venueName": "Cricket's Candy Creations",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00787454,
+40.72314889
+]
+},
+"start": "2026-09-26T17:00:00Z",
+"end": "2026-09-26T18:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.1,
+"p75Min": 64.2,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721af",
+"score": 0.543
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T17:00:00Z",
+"end": "2026-09-26T19:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721b0",
+"score": 0.938
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Stranger Things: The First Shadow",
+"category": "theater",
+"venueName": "Marquis Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98577449,
+40.75852584
+]
+},
+"start": "2026-09-26T17:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721b1",
+"score": 0.735
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Hamilton (NY)",
+"category": "theater",
+"venueName": "Richard Rodgers Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98676323,
+40.75920382
+]
+},
+"start": "2026-09-26T17:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721b2",
+"score": 0.665
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T17:00:00Z",
+"end": "2026-09-26T17:15:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721b3",
+"score": 0.598
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Macbeth",
+"category": "theater",
+"venueName": "Metropolitan Opera House",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9841,
+40.7761
+]
+},
+"start": "2026-09-26T17:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721b4",
+"score": 0.726
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Fordham Rams Football vs. Stony Brook Seawolves Football",
+"category": "sports_event",
+"venueName": "Jack Coffey Field",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.888,
+40.862701
+]
+},
+"start": "2026-09-26T17:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.2,
+"p75Min": 206.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721b5",
+"score": 0.793
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T17:15:00Z",
+"end": "2026-09-26T17:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721b6",
+"score": 0.61
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T17:30:00Z",
+"end": "2026-09-26T19:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721b7",
+"score": 0.822
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T17:30:00Z",
+"end": "2026-09-26T17:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721b8",
+"score": 0.556
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T17:45:00Z",
+"end": "2026-09-26T18:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721b9",
+"score": 0.824
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Little Shop of Horrors",
+"category": "theater",
+"venueName": "Westside Theatre Upstairs - NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9758,
+40.785999
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721ef",
+"score": 0.549
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Very Hungry Caterpillar Show",
+"category": "theater",
+"venueName": "DR2",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9895091,
+40.7351015
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721bb",
+"score": 0.826
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Midnight",
+"category": "other",
+"venueName": "Daryl Roth Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.989098,
+40.731602
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721bc",
+"score": 0.852
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Slam Frank",
+"category": "theater",
+"venueName": "Orpheum Theatre NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.987498,
+40.728188
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721bd",
+"score": 0.361
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Heated Rivalry: The Unauthorized Musical Parody",
+"category": "other",
+"venueName": "The Culture Club",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.996696,
+40.75
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721be",
+"score": 0.739
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Mid-Autumn Family Festival",
+"category": "other",
+"venueName": "Museum of Chinese in America",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.99902914,
+40.71953297
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": "2026-09-26T21:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.1,
+"p75Min": 192.6,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721bf",
+"score": 0.875
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": "2026-09-26T20:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721c0",
+"score": 0.664
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Schmigadoon!",
+"category": "theater",
+"venueName": "Nederlander Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9882368,
+40.75554795
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721c1",
+"score": 0.675
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Aladdin",
+"category": "theater",
+"venueName": "New Amsterdam Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98792867,
+40.75605705
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721c2",
+"score": 0.892
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Maybe Happy Ending",
+"category": "theater",
+"venueName": "Belasco Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9839612,
+40.75662668
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721c3",
+"score": 0.728
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Lion King (New York, NY)",
+"category": "theater",
+"venueName": "Minskoff Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98577175,
+40.757986
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721c4",
+"score": 0.381
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Buena Vista Social Club",
+"category": "theater",
+"venueName": "Gerald Schoenfeld Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.987426,
+40.758506
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721c5",
+"score": 0.5
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Outsiders",
+"category": "theater",
+"venueName": "Bernard B. Jacobs Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98775745,
+40.75866664
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721c6",
+"score": 0.746
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Operation Mincemeat: A New Musical",
+"category": "theater",
+"venueName": "John Golden Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98791,
+40.758841
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721c7",
+"score": 0.82
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Maybe Happy Ending",
+"category": "other",
+"venueName": "Belasco Theatre - NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721c8",
+"score": 0.585
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Death Becomes Her",
+"category": "other",
+"venueName": "Lunt-Fontanne Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721c9",
+"score": 0.44
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Music City",
+"category": "other",
+"venueName": "St. Luke's Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721ca",
+"score": 0.466
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "CATS: The Jellicle Ball",
+"category": "other",
+"venueName": "Broadhurst Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721cb",
+"score": 0.544
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Outsiders",
+"category": "other",
+"venueName": "Jacobs Theatre-NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721cc",
+"score": 0.734
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Hadestown",
+"category": "other",
+"venueName": "Walter Kerr Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721cd",
+"score": 0.802
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Lost Boys Musical",
+"category": "other",
+"venueName": "Palace Theatre-NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721ce",
+"score": 0.85
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Harry Potter and the Cursed Child",
+"category": "theater",
+"venueName": "Lyric Theatre - NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721cf",
+"score": 0.536
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Two Strangers",
+"category": "other",
+"venueName": "Longacre Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721d0",
+"score": 0.541
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "& Juliet",
+"category": "theater",
+"venueName": "Stephen Sondheim Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721d1",
+"score": 0.933
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "School Girls:Or, The African Mean Girls",
+"category": "other",
+"venueName": "Samuel J. Friedman Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721d2",
+"score": 0.44
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Lion King",
+"category": "theater",
+"venueName": "Minskoff Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721d3",
+"score": 0.597
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Schmigadoon!",
+"category": "other",
+"venueName": "Nederlander Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721d4",
+"score": 0.482
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Lost Boys",
+"category": "theater",
+"venueName": "Palace Theatre New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9846789,
+40.7591003
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721d5",
+"score": 0.716
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Lovers Rock Reggae Live",
+"category": "live_music",
+"venueName": "Sony Hall",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.987302,
+40.759631
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721d6",
+"score": 0.67
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "School Girls; Or, the African Mean Girls Play",
+"category": "theater",
+"venueName": "Samuel J Friedman Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.986739,
+40.760371
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721d7",
+"score": 0.458
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Two Strangers (Carry a Cake Across New York)",
+"category": "theater",
+"venueName": "Longacre Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985974,
+40.760363
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721d8",
+"score": 0.371
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Perfect Crime",
+"category": "theater",
+"venueName": "The Theater Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9846,
+40.761604
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721d9",
+"score": 0.799
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Just In Time",
+"category": "theater",
+"venueName": "Circle In The Square Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985349,
+40.762173
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721da",
+"score": 0.429
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Wicked (NY)",
+"category": "theater",
+"venueName": "Gershwin Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98502682,
+40.76254204
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721db",
+"score": 0.561
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The 25th Annual Putnam County Spelling Bee",
+"category": "theater",
+"venueName": "New World Stages - Stage 3",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9876273,
+40.76301415
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721dc",
+"score": 0.473
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Play That Goes Wrong",
+"category": "theater",
+"venueName": "New World Stages - Stage 4",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9876273,
+40.76301415
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721dd",
+"score": 0.718
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Heathers: The Musical",
+"category": "theater",
+"venueName": "New World Stages - Stage 1",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9876273,
+40.76301415
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721de",
+"score": 0.786
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Jamie Allan's Amaze",
+"category": "other",
+"venueName": "New World Stages - Stage 5",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9876273,
+40.76301415
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721df",
+"score": 0.65
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "MJ",
+"category": "theater",
+"venueName": "Neil Simon Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98399646,
+40.76314609
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721e0",
+"score": 0.884
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Great Gatsby",
+"category": "theater",
+"venueName": "Broadway Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98299113,
+40.76351799
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721e1",
+"score": 0.497
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Great Gatsby",
+"category": "other",
+"venueName": "Broadway Theatre-New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721e2",
+"score": 0.753
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Paranormal Activity (NY)",
+"category": "theater",
+"venueName": "August Wilson Theatre-NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721e3",
+"score": 0.547
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Just In Time",
+"category": "theater",
+"venueName": "Circle in the Square Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721e4",
+"score": 0.731
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Heathers",
+"category": "theater",
+"venueName": "New World Stages - Stage 1",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721e5",
+"score": 0.563
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Wicked",
+"category": "theater",
+"venueName": "Gershwin Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721e6",
+"score": 0.409
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "MJ (NY)",
+"category": "other",
+"venueName": "Neil Simon Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721e7",
+"score": 0.479
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Book of Mormon",
+"category": "theater",
+"venueName": "Eugene O'Neill Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721e8",
+"score": 0.886
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": "2026-09-26T18:15:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721e9",
+"score": 0.878
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "CBGB Festival - Ages 16+",
+"category": "other",
+"venueName": "Under the 'K' Bridge Park",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.945602,
+40.7272
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721ea",
+"score": 0.467
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "creation stories and all the important importants",
+"category": "theater",
+"venueName": "Lincoln Center - Claire Tow Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98432273,
+40.77387758
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721eb",
+"score": 0.821
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "creation stories and all the important importants",
+"category": "other",
+"venueName": "Lincoln Center - Claire Tow Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9841,
+40.7761
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721ec",
+"score": 0.45
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "New York City Ballet: Jewels",
+"category": "theater",
+"venueName": "David H. Koch Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9841,
+40.7761
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721ed",
+"score": 0.473
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Little Shop Of Horrors",
+"category": "theater",
+"venueName": "Westside Theatre Upstairs",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.97954763,
+40.78541366
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721ee",
+"score": 0.64
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Midnight",
+"category": "theater",
+"venueName": "Daryl Roth Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.989443,
+40.735318
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721ba",
+"score": 0.912
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "TASTE THE RAINBOW Artist Showcase (new time and location)",
+"category": "nightclub",
+"venueName": "Crossroads Cafe",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9288057,
+40.7049421
+]
+},
+"start": "2026-09-26T18:00:00Z",
+"end": "2026-09-26T22:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 240.0,
+"sigma": 0.1,
+"p75Min": 256.7,
+"source": "event_times"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab7558bcc2d68c5eef1e3ea",
+"score": 0.569
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T18:15:00Z",
+"end": "2026-09-26T18:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721f0",
+"score": 0.472
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T18:30:00Z",
+"end": "2026-09-26T20:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721f1",
+"score": 0.761
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Chicago",
+"category": "theater",
+"venueName": "Ambassador Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98502357,
+40.76136801
+]
+},
+"start": "2026-09-26T18:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721f2",
+"score": 0.515
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Chicago - The Musical",
+"category": "theater",
+"venueName": "Ambassador Theatre-NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-26T18:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721f3",
+"score": 0.897
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T18:30:00Z",
+"end": "2026-09-26T18:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721f4",
+"score": 0.529
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T18:45:00Z",
+"end": "2026-09-26T19:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721f5",
+"score": 0.436
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Happy Wife",
+"category": "live_music",
+"venueName": "Lucinda's",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.982199,
+40.728329
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": "2026-09-26T22:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.1,
+"p75Min": 192.6,
+"source": "event_times"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab7556fe5453857e08721f6",
+"score": 0.553
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Candy Crafting at Cricket's Candy Creations at i Candy NYC",
+"category": "community_event",
+"venueName": "Cricket's Candy Creations",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00787454,
+40.72314889
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": "2026-09-26T20:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.1,
+"p75Min": 64.2,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721f7",
+"score": 0.561
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": "2026-09-26T21:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721f8",
+"score": 0.94
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Drunk Dracula",
+"category": "other",
+"venueName": "The Ruby Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.996696,
+40.755699
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721f9",
+"score": 0.792
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Six: The Musical",
+"category": "other",
+"venueName": "Lena Horne Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721fa",
+"score": 0.724
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Six (New York, NY)",
+"category": "theater",
+"venueName": "Lena Horne Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9868161,
+40.7600563
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721fb",
+"score": 0.487
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Rocky Horror Show",
+"category": "theater",
+"venueName": "Studio 54",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721fc",
+"score": 0.371
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": "2026-09-26T19:15:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721fd",
+"score": 0.514
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Pre-Existing Condition",
+"category": "theater",
+"venueName": "Greenwich House Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.013199,
+40.7034
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721fe",
+"score": 0.416
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Perverse - a play by Borna Barzin; Special Matinee",
+"category": "nightclub",
+"venueName": "Qncc",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9012451,
+40.6729499
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": "2026-09-26T20:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.1,
+"p75Min": 96.3,
+"source": "event_times"
+},
+"price": {
+"min": 45.0,
+"max": 150.0,
+"currency": "USD",
+"tier": 3,
+"isFree": false
+},
+"_id": "6ab75585cc2d68c5eef1e39a",
+"score": 0.377
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Refuge Saturday Daytime: Ragie Ban",
+"category": "nightclub",
+"venueName": "Refuge",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9352198,
+40.7117144
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": "2026-09-27T02:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75585cc2d68c5eef1e39e",
+"score": 0.909
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "BEVERAGES",
+"category": "nightclub",
+"venueName": "Signal",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.93356589999999,
+40.71003959999999
+]
+},
+"start": "2026-09-26T19:00:00Z",
+"end": "2026-09-27T02:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 15.0,
+"max": 15.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab75586cc2d68c5eef1e3aa",
+"score": 0.702
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T19:15:00Z",
+"end": "2026-09-26T19:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e08721ff",
+"score": 0.651
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T19:30:00Z",
+"end": "2026-09-26T21:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872200",
+"score": 0.457
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T19:30:00Z",
+"end": "2026-09-26T19:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872201",
+"score": 0.369
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T19:45:00Z",
+"end": "2026-09-26T20:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872202",
+"score": 0.443
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T20:00:00Z",
+"end": "2026-09-26T22:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872203",
+"score": 0.508
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T20:00:00Z",
+"end": "2026-09-26T20:15:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872204",
+"score": 0.81
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Global Citizen 2026 Live Broadcast - EVENT CANCELLED",
+"category": "live_music",
+"venueName": "Great Lawn at Central Park",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.966587,
+40.781362
+]
+},
+"start": "2026-09-26T20:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872205",
+"score": 0.844
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "ANIMAL Saturday w/ Kandylion, Ralf",
+"category": "nightclub",
+"venueName": "Animal",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9493146,
+40.7173964
+]
+},
+"start": "2026-09-26T20:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7558acc2d68c5eef1e3dc",
+"score": 0.87
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T20:15:00Z",
+"end": "2026-09-26T20:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872206",
+"score": 0.617
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T20:30:00Z",
+"end": "2026-09-26T22:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872207",
+"score": 0.375
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T20:30:00Z",
+"end": "2026-09-26T20:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872208",
+"score": 0.726
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T20:45:00Z",
+"end": "2026-09-26T21:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872209",
+"score": 0.802
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": "2026-09-26T23:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087220a",
+"score": 0.497
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Drunk Dracula",
+"category": "other",
+"venueName": "The Ruby Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.996696,
+40.755699
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087220b",
+"score": 0.8
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Oh, Mary!",
+"category": "theater",
+"venueName": "Lyceum Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98451117,
+40.7577032
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087220c",
+"score": 0.571
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Oh, Mary!",
+"category": "other",
+"venueName": "Lyceum Theatre - NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087220d",
+"score": 0.939
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": "2026-09-26T21:15:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087220e",
+"score": 0.441
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Phantogram (DJ Set) - Ages 21+",
+"category": "live_music",
+"venueName": "Elsewhere Rooftop",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.921204,
+40.704399
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087220f",
+"score": 0.884
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Dayshift: The 30+ Daytime Party!",
+"category": "live_music",
+"venueName": "Williams Center - Black Box - Rutherford",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.10333,
+40.82711
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": "2026-09-27T01:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 240.0,
+"sigma": 0.1,
+"p75Min": 256.7,
+"source": "event_times"
+},
+"price": {
+"min": 30.52,
+"max": 30.52,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872210",
+"score": 0.499
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Phantogram (DJ Set) *Sold Out*, Laila Amira",
+"category": "nightclub",
+"venueName": "Elsewhere",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9232707,
+40.7095367
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": "2026-09-27T02:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75585cc2d68c5eef1e3a2",
+"score": 0.708
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Pasillos Silenciosos Vinyl Release Party - 3RU + Antonio Ocasio",
+"category": "nightclub",
+"venueName": "Dead Letter No. 9",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9648332,
+40.7160369
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": "2026-09-27T01:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 240.0,
+"sigma": 0.1,
+"p75Min": 256.7,
+"source": "event_times"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab75585cc2d68c5eef1e3a3",
+"score": 0.583
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Lovers & Friends Boat Party - R&B, Afrobeats, Reggae NYC Yacht Cruise",
+"category": "nightclub",
+"venueName": "Pier 78 at Hudson River Park",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00395309999999,
+40.7596927
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": "2026-09-27T06:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75586cc2d68c5eef1e3ac",
+"score": 0.431
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Reggaeton on Houston - Latin & Reggaeton Party NYC",
+"category": "nightclub",
+"venueName": "San Antonios",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98981789999999,
+40.72285590000001
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": "2026-09-27T07:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75588cc2d68c5eef1e3c1",
+"score": 0.577
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "VIVA RUIZ / Benny Soto",
+"category": "nightclub",
+"venueName": "MAD Radio NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9663357,
+40.7111507
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75588cc2d68c5eef1e3c4",
+"score": 0.687
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Afro Reggaeton Party at The #1 Latin Bar NYC",
+"category": "nightclub",
+"venueName": "San Antonios",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98981789999999,
+40.72285590000001
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": "2026-09-27T07:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75589cc2d68c5eef1e3c6",
+"score": 0.548
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Verano Eterno",
+"category": "nightclub",
+"venueName": "The Sultan Room",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.92230599999999,
+40.705609
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": "2026-09-27T03:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7558acc2d68c5eef1e3d7",
+"score": 0.467
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Silva Bumpa",
+"category": "nightclub",
+"venueName": "The Chocolate Factory",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.922434,
+40.7098471
+]
+},
+"start": "2026-09-26T21:00:00Z",
+"end": "2026-09-27T04:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 20.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7558bcc2d68c5eef1e3ee",
+"score": 0.76
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T21:15:00Z",
+"end": "2026-09-26T21:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872211",
+"score": 0.46
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Thelma & Louise (1991)",
+"category": "other",
+"venueName": "Williams Center - Cinema Underground - Rutherford",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.10333,
+40.82711
+]
+},
+"start": "2026-09-26T21:15:00Z",
+"end": "2026-09-26T23:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 105.0,
+"sigma": 0.1,
+"p75Min": 112.3,
+"source": "event_times"
+},
+"price": {
+"min": 13.63,
+"max": 15.69,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872212",
+"score": 0.636
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Linda Linda Linda (2005)",
+"category": "other",
+"venueName": "Williams Center - Cinema Underground - Rutherford",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.10333,
+40.82711
+]
+},
+"start": "2026-09-26T21:20:00Z",
+"end": "2026-09-26T23:20:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": {
+"min": 7.45,
+"max": 15.69,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872213",
+"score": 0.591
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T21:30:00Z",
+"end": "2026-09-26T23:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872214",
+"score": 0.825
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Gabrielle Stravelli Trio",
+"category": "live_music",
+"venueName": "Birdland Jazz Club",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9896861,
+40.7590167
+]
+},
+"start": "2026-09-26T21:30:00Z",
+"end": "2026-09-26T22:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 75.0,
+"sigma": 0.1,
+"p75Min": 80.2,
+"source": "event_times"
+},
+"price": {
+"min": 35.46,
+"max": 45.76,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872215",
+"score": 0.712
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T21:30:00Z",
+"end": "2026-09-26T21:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872216",
+"score": 0.455
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "MEZAME FESTIVAL: Objekt, Skee Mask, Araabmuzik, Jessy Lanza + +",
+"category": "nightclub",
+"venueName": "St. Bartholomew's Church",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9731084,
+40.7572236
+]
+},
+"start": "2026-09-26T21:30:00Z",
+"end": "2026-09-27T05:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 45.0,
+"max": 45.0,
+"currency": "USD",
+"tier": 3,
+"isFree": false
+},
+"_id": "6ab75587cc2d68c5eef1e3b6",
+"score": 0.913
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Saturday Night Yacht Party NYC \u2013 Sunset Yacht Party",
+"category": "nightclub",
+"venueName": "Skyport Marina",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9739209,
+40.7353579
+]
+},
+"start": "2026-09-26T21:30:00Z",
+"end": "2026-09-27T02:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 25.0,
+"max": 400.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7558acc2d68c5eef1e3d8",
+"score": 0.938
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "All White Party NYC \u2013 Sunset Yacht Party at Jewel Yacht",
+"category": "nightclub",
+"venueName": "Skyport Marina",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9739209,
+40.7353579
+]
+},
+"start": "2026-09-26T21:30:00Z",
+"end": "2026-09-27T02:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 30.0,
+"max": 500.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7558acc2d68c5eef1e3d9",
+"score": 0.817
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Sufi Sessions NYC",
+"category": "nightclub",
+"venueName": "SILO",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.92280389999999,
+40.710589
+]
+},
+"start": "2026-09-26T21:30:00Z",
+"end": "2026-09-27T01:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 240.0,
+"sigma": 0.1,
+"p75Min": 256.7,
+"source": "event_times"
+},
+"price": {
+"min": 21.18,
+"max": 21.18,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7558bcc2d68c5eef1e3e9",
+"score": 0.842
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T21:45:00Z",
+"end": "2026-09-26T22:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872217",
+"score": 0.484
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Flex Fight Series 62: American Muscle",
+"category": "sports_event",
+"venueName": "Infosys Theater at Madison Square Garden",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9916006,
+40.7497062
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.2,
+"p75Min": 206.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872218",
+"score": 0.414
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "An Evening With: Hollis Brown",
+"category": "live_music",
+"venueName": "Mercury Lounge",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.986806,
+40.722036
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872219",
+"score": 0.818
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": "2026-09-27T00:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087221a",
+"score": 0.625
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Joe Russo's Almost Dead",
+"category": "live_music",
+"venueName": "The Rooftop at Pier 17",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.002899,
+40.708801
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087221b",
+"score": 0.619
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": "2026-09-26T22:15:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087221c",
+"score": 0.925
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Joe Russo's Almost Dead",
+"category": "live_music",
+"venueName": "The Rooftop at Pier 17",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.003827,
+40.706369
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087221d",
+"score": 0.436
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "EDMBoat.com - #1 EDM HOUSE SUNSET BOAT 2026",
+"category": "nightclub",
+"venueName": "Skyport Marina",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9751256,
+40.73544709999999
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": "2026-09-27T02:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 240.0,
+"sigma": 0.1,
+"p75Min": 256.7,
+"source": "event_times"
+},
+"price": {
+"min": 29.99,
+"max": 29.99,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75584cc2d68c5eef1e395",
+"score": 0.798
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Analog Culture x Happyfun Happyhour",
+"category": "nightclub",
+"venueName": "Happyfun Hideaway",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9316542,
+40.6975613
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": "2026-09-28T02:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab75588cc2d68c5eef1e3bc",
+"score": 0.913
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Amelia Holt, fleet.dreams & NAP",
+"category": "nightclub",
+"venueName": "Mansions",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9213576,
+40.7139981
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 20.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75589cc2d68c5eef1e3c7",
+"score": 0.628
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "CRUSH + HAMILTON SUNSET",
+"category": "nightclub",
+"venueName": "Le Bain",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00828400000002,
+40.7410761
+]
+},
+"start": "2026-09-26T22:00:00Z",
+"end": "2026-09-27T02:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 240.0,
+"sigma": 0.1,
+"p75Min": 256.7,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab75589cc2d68c5eef1e3ca",
+"score": 0.39
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T22:15:00Z",
+"end": "2026-09-26T22:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087221e",
+"score": 0.547
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Wacko | The Limiting Factors | Friends of Friends",
+"category": "live_music",
+"venueName": "Bowery Palace",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.991673,
+40.7257
+]
+},
+"start": "2026-09-26T22:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": {
+"min": 12.44,
+"max": 12.44,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e087221f",
+"score": 0.594
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T22:30:00Z",
+"end": "2026-09-27T00:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.1,
+"p75Min": 96.3,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872220",
+"score": 0.782
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Singfeld! A Musical About Nothing!",
+"category": "theater",
+"venueName": "The Theater Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9846,
+40.761604
+]
+},
+"start": "2026-09-26T22:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872221",
+"score": 0.386
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T22:30:00Z",
+"end": "2026-09-26T22:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872222",
+"score": 0.382
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "OUTLINE: Flying Lotus, \u2208Y\u220b, Olof Dreijer, Black Dice, + more",
+"category": "nightclub",
+"venueName": "Knockdown Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.91412090000001,
+40.7154969
+]
+},
+"start": "2026-09-26T22:30:00Z",
+"end": "2026-09-27T05:30:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7558bcc2d68c5eef1e3e8",
+"score": 0.797
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Schmooze with Lily Lester & Sarah Adelman ft. Marito Lopez, Amy Cardinale, Alison Leiby, and Harshil Shukla",
+"category": "comedy",
+"venueName": "Brooklyn Improv (The Lab)",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.959998,
+40.7207511
+]
+},
+"start": "2026-09-26T22:45:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 100.0,
+"sigma": 0.2,
+"p75Min": 114.4,
+"source": "category_prior"
+},
+"price": {
+"min": 20.37,
+"max": 20.37,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872223",
+"score": 0.629
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T22:45:00Z",
+"end": "2026-09-26T23:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872224",
+"score": 0.706
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Slam Frank",
+"category": "theater",
+"venueName": "Orpheum Theatre NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.987498,
+40.728188
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872225",
+"score": 0.796
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Booyah! Kids",
+"category": "live_music",
+"venueName": "Night Club 101",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.984043,
+40.725911
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": {
+"min": 23.1,
+"max": 23.1,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872226",
+"score": 0.894
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "THE ROAST OF US",
+"category": "other",
+"venueName": "Night Club 101",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.984043,
+40.725911
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab7556fe5453857e0872227",
+"score": 0.486
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Heated Rivalry: The Unauthorized Musical Parody",
+"category": "other",
+"venueName": "The Culture Club",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.996696,
+40.75
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872228",
+"score": 0.425
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Banksy Museum New York!",
+"category": "gallery",
+"venueName": "Banksy Museum New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00135811,
+40.7196025
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": "2026-09-27T00:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.1,
+"p75Min": 64.2,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872229",
+"score": 0.949
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Maybe Happy Ending",
+"category": "theater",
+"venueName": "Belasco Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9839612,
+40.75662668
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087222a",
+"score": 0.95
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Kamelot - Dark Asylum World Tour",
+"category": "live_music",
+"venueName": "Palladium Times Square",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985763,
+40.757201
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087222b",
+"score": 0.36
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Stranger Things: The First Shadow",
+"category": "theater",
+"venueName": "Marquis Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98577449,
+40.75852584
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087222c",
+"score": 0.752
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Matt Wilson's Good Trouble",
+"category": "live_music",
+"venueName": "Birdland Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9896861,
+40.7590167
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": "2026-09-27T00:15:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 75.0,
+"sigma": 0.1,
+"p75Min": 80.2,
+"source": "event_times"
+},
+"price": {
+"min": 35.46,
+"max": 45.76,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e087222d",
+"score": 0.451
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Maybe Happy Ending",
+"category": "other",
+"venueName": "Belasco Theatre - NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087222e",
+"score": 0.787
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "School Girls:Or, The African Mean Girls",
+"category": "other",
+"venueName": "Samuel J. Friedman Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087222f",
+"score": 0.57
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Hamilton (NY)",
+"category": "theater",
+"venueName": "Richard Rodgers Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98676323,
+40.75920382
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872230",
+"score": 0.661
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "School Girls; Or, the African Mean Girls Play",
+"category": "theater",
+"venueName": "Samuel J Friedman Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.986739,
+40.760371
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872231",
+"score": 0.736
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Book of Mormon",
+"category": "theater",
+"venueName": "Eugene O'Neill Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872232",
+"score": 0.444
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DAYDREAM | Air Becomes Art - Balloon Museum",
+"category": "community_event",
+"venueName": "Balloon Museum NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00227716,
+40.70623961
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": "2026-09-26T23:15:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 15.0,
+"sigma": 0.1,
+"p75Min": 16.0,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872233",
+"score": 0.57
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Pre-Existing Condition",
+"category": "theater",
+"venueName": "Greenwich House Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.013199,
+40.7034
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872234",
+"score": 0.932
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Beth Stelling: Let Me Get Loose",
+"category": "comedy",
+"venueName": "The Bell House",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.99156,
+40.67373
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 100.0,
+"sigma": 0.2,
+"p75Min": 114.4,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872235",
+"score": 0.646
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Outlander in Concert",
+"category": "other",
+"venueName": "Kings Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.956398,
+40.646301
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872236",
+"score": 0.599
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Tinlicker",
+"category": "nightclub",
+"venueName": "Brooklyn Paramount",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.981399,
+40.6899509
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": "2026-09-27T03:59:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 59.5,
+"max": 71.0,
+"currency": "USD",
+"tier": 3,
+"isFree": false
+},
+"_id": "6ab75586cc2d68c5eef1e3a7",
+"score": 0.488
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "GENRELESS Happy Hour - 'Don't Ask, We'll Tell'",
+"category": "nightclub",
+"venueName": "Bossa Nova Civic Club",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.92794719999999,
+40.6979626
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": "2026-09-27T02:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.1,
+"p75Min": 192.6,
+"source": "event_times"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab75587cc2d68c5eef1e3b2",
+"score": 0.52
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "poetry me, please: Summer's Last Breath",
+"category": "nightclub",
+"venueName": "SOBs",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00504389999999,
+40.7284237
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": "2026-09-27T02:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.1,
+"p75Min": 192.6,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab75587cc2d68c5eef1e3b4",
+"score": 0.372
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "she.they.dj",
+"category": "nightclub",
+"venueName": "Mood Ring",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9269266,
+40.6977725
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": "2026-09-27T02:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.1,
+"p75Min": 192.6,
+"source": "event_times"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab7558acc2d68c5eef1e3da",
+"score": 0.351
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "BEYOND THE STARDUST",
+"category": "nightclub",
+"venueName": "The Flea Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.0059811,
+40.7160232
+]
+},
+"start": "2026-09-26T23:00:00Z",
+"end": "2026-09-27T00:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.1,
+"p75Min": 64.2,
+"source": "event_times"
+},
+"price": {
+"min": 29.5,
+"max": 39.75,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7558acc2d68c5eef1e3e3",
+"score": 0.798
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Midnight",
+"category": "theater",
+"venueName": "Daryl Roth Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.989443,
+40.735318
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872237",
+"score": 0.742
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Midnight",
+"category": "other",
+"venueName": "Daryl Roth Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.989098,
+40.731602
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872238",
+"score": 0.466
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Rocky Horror Picture Show: Live with the New York Cast",
+"category": "cinema",
+"venueName": "Berlin",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98608,
+40.722974
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 140.0,
+"sigma": 0.15,
+"p75Min": 154.9,
+"source": "category_prior"
+},
+"price": {
+"min": 31.52,
+"max": 31.52,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872239",
+"score": 0.89
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Schmigadoon!",
+"category": "theater",
+"venueName": "Nederlander Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9882368,
+40.75554795
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087223a",
+"score": 0.743
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Aladdin",
+"category": "theater",
+"venueName": "New Amsterdam Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98792867,
+40.75605705
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087223b",
+"score": 0.664
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Rock Never Dies",
+"category": "theater",
+"venueName": "Hard Rock Cafe - NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.986351,
+40.757141
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": "2026-09-27T02:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.1,
+"p75Min": 160.5,
+"source": "event_times"
+},
+"price": {
+"min": 99.0,
+"max": 99.0,
+"currency": "USD",
+"tier": 4,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e087223c",
+"score": 0.421
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Lion King (New York, NY)",
+"category": "theater",
+"venueName": "Minskoff Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98577175,
+40.757986
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087223d",
+"score": 0.544
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Buena Vista Social Club",
+"category": "theater",
+"venueName": "Gerald Schoenfeld Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.987426,
+40.758506
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087223e",
+"score": 0.378
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Operation Mincemeat: A New Musical",
+"category": "theater",
+"venueName": "John Golden Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98791,
+40.758841
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087223f",
+"score": 0.851
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Music City",
+"category": "other",
+"venueName": "St. Luke's Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872240",
+"score": 0.64
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Lion King",
+"category": "theater",
+"venueName": "Minskoff Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872241",
+"score": 0.739
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Schmigadoon!",
+"category": "other",
+"venueName": "Nederlander Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872242",
+"score": 0.623
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Soul Supper - Live Motown & Soul Dining Experience",
+"category": "live_music",
+"venueName": "Sony Hall",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.987302,
+40.759631
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872243",
+"score": 0.393
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The 25th Annual Putnam County Spelling Bee",
+"category": "theater",
+"venueName": "New World Stages - Stage 3",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9876273,
+40.76301415
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872244",
+"score": 0.442
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Heathers: The Musical",
+"category": "theater",
+"venueName": "New World Stages - Stage 1",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9876273,
+40.76301415
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872245",
+"score": 0.422
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Heathers",
+"category": "theater",
+"venueName": "New World Stages - Stage 1",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872246",
+"score": 0.603
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "ROYA (21 and Over)",
+"category": "other",
+"venueName": "Baby's All Right",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.956497,
+40.711102
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872247",
+"score": 0.773
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "New York Philharmonic: Dudamel Conducts Mahler?& Tania Leon",
+"category": "live_music",
+"venueName": "David Geffen Hall",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9841,
+40.7761
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872248",
+"score": 0.591
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "New York City Ballet: Jewels",
+"category": "theater",
+"venueName": "David H. Koch Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9841,
+40.7761
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872249",
+"score": 0.682
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Phoebe Bridgers: The Lost Tour",
+"category": "live_music",
+"venueName": "Barclays Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.97519,
+40.68285
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087224a",
+"score": 0.799
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "COLTRANE 100 BrownstoneJAZZ FEST CELEBRATION",
+"category": "live_music",
+"venueName": "BrownstoneJAZZ",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.947016,
+40.6815228
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": "2026-09-27T00:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 75.0,
+"sigma": 0.1,
+"p75Min": 80.2,
+"source": "event_times"
+},
+"price": {
+"min": 55.3,
+"max": 55.3,
+"currency": "USD",
+"tier": 3,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e087224b",
+"score": 0.865
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Disco Ball 2026",
+"category": "live_music",
+"venueName": "St. George Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.077484,
+40.6422839
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087224c",
+"score": 0.526
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "New York Red Bulls vs. St. Louis City SC",
+"category": "sports_event",
+"venueName": "Sports Illustrated Stadium",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.151703,
+40.744202
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.2,
+"p75Min": 206.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087224d",
+"score": 0.749
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Preseason: New Jersey Devils v New York Islanders",
+"category": "sports_event",
+"venueName": "UBS Arena",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.72602467,
+40.71179844
+]
+},
+"start": "2026-09-26T23:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.2,
+"p75Min": 206.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087224e",
+"score": 0.472
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Linda Linda Linda (2005)",
+"category": "other",
+"venueName": "Williams Center - Cinema Underground - Rutherford",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.10333,
+40.82711
+]
+},
+"start": "2026-09-26T23:35:00Z",
+"end": "2026-09-27T01:35:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": {
+"min": 7.45,
+"max": 15.69,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e087224f",
+"score": 0.772
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Thelma & Louise (1991)",
+"category": "other",
+"venueName": "Williams Center - Cinema Underground - Rutherford",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.10333,
+40.82711
+]
+},
+"start": "2026-09-26T23:45:00Z",
+"end": "2026-09-27T01:20:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 95.0,
+"sigma": 0.1,
+"p75Min": 101.6,
+"source": "event_times"
+},
+"price": {
+"min": 13.63,
+"max": 15.69,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872250",
+"score": 0.41
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Hypnotic Brass Ensemble",
+"category": "live_music",
+"venueName": "Blue Note Jazz Club",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00065,
+40.73094
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": {
+"min": 38.1,
+"max": 54.99,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872251",
+"score": 0.885
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Hypnotic Brass Ensemble",
+"category": "live_music",
+"venueName": "Blue Note Jazz Club - NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.997902,
+40.7253
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872252",
+"score": 0.8
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Harry Styles: Together, Together",
+"category": "live_music",
+"venueName": "Madison Square Garden",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9916006,
+40.7497062
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872253",
+"score": 0.466
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Matches - \"Decomposer\" 20 Years Later",
+"category": "live_music",
+"venueName": "Bowery Ballroom",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.993542,
+40.720364
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872254",
+"score": 0.416
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Autumnal Revival",
+"category": "live_music",
+"venueName": "Town Hall",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98447747,
+40.75599205
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872255",
+"score": 0.948
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Outsiders",
+"category": "theater",
+"venueName": "Bernard B. Jacobs Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98775745,
+40.75866664
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872256",
+"score": 0.7
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Death Becomes Her",
+"category": "other",
+"venueName": "Lunt-Fontanne Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872257",
+"score": 0.862
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Six: The Musical",
+"category": "other",
+"venueName": "Lena Horne Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872258",
+"score": 0.855
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Imaginary Invalid",
+"category": "other",
+"venueName": "Todd Haimes Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872259",
+"score": 0.67
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "CATS: The Jellicle Ball",
+"category": "other",
+"venueName": "Broadhurst Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087225a",
+"score": 0.699
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Outsiders",
+"category": "other",
+"venueName": "Jacobs Theatre-NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087225b",
+"score": 0.888
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Hadestown",
+"category": "other",
+"venueName": "Walter Kerr Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087225c",
+"score": 0.458
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Lost Boys Musical",
+"category": "other",
+"venueName": "Palace Theatre-NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087225d",
+"score": 0.391
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Harry Potter and the Cursed Child",
+"category": "theater",
+"venueName": "Lyric Theatre - NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087225e",
+"score": 0.491
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Two Strangers",
+"category": "other",
+"venueName": "Longacre Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087225f",
+"score": 0.365
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "& Juliet",
+"category": "theater",
+"venueName": "Stephen Sondheim Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872260",
+"score": 0.568
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Lost Boys",
+"category": "theater",
+"venueName": "Palace Theatre New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9846789,
+40.7591003
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872261",
+"score": 0.67
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Six (New York, NY)",
+"category": "theater",
+"venueName": "Lena Horne Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9868161,
+40.7600563
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872262",
+"score": 0.917
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Two Strangers (Carry a Cake Across New York)",
+"category": "theater",
+"venueName": "Longacre Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985974,
+40.760363
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872263",
+"score": 0.374
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Role Model Presents: Chuck On Tour",
+"category": "live_music",
+"venueName": "Radio City Music Hall",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9803981,
+40.7599136
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872264",
+"score": 0.799
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Chicago",
+"category": "theater",
+"venueName": "Ambassador Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98502357,
+40.76136801
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872265",
+"score": 0.524
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Perfect Crime",
+"category": "theater",
+"venueName": "The Theater Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9846,
+40.761604
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872266",
+"score": 0.521
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Just In Time",
+"category": "theater",
+"venueName": "Circle In The Square Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985349,
+40.762173
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872267",
+"score": 0.455
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Wicked (NY)",
+"category": "theater",
+"venueName": "Gershwin Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98502682,
+40.76254204
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872268",
+"score": 0.442
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Play That Goes Wrong",
+"category": "theater",
+"venueName": "New World Stages - Stage 4",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9876273,
+40.76301415
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872269",
+"score": 0.474
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Jamie Allan's Amaze",
+"category": "other",
+"venueName": "New World Stages - Stage 5",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9876273,
+40.76301415
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087226a",
+"score": 0.773
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "MJ",
+"category": "theater",
+"venueName": "Neil Simon Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98399646,
+40.76314609
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087226b",
+"score": 0.475
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Great Gatsby",
+"category": "theater",
+"venueName": "Broadway Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98299113,
+40.76351799
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087226c",
+"score": 0.772
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Express Entry - Shwayze - Not a Concert Ticket",
+"category": "other",
+"venueName": "Brooklyn Bowl",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.957346,
+40.721926
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087226d",
+"score": 0.875
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "VIP Bowling Lane Add On - Shwayze - Not a Concert Ticket",
+"category": "other",
+"venueName": "Brooklyn Bowl",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.957346,
+40.721926
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087226e",
+"score": 0.754
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Shwayze - The Nostalgia Tour",
+"category": "live_music",
+"venueName": "Brooklyn Bowl",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.957346,
+40.721926
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087226f",
+"score": 0.754
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Great Gatsby",
+"category": "other",
+"venueName": "Broadway Theatre-New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872270",
+"score": 0.514
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Chicago - The Musical",
+"category": "theater",
+"venueName": "Ambassador Theatre-NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872271",
+"score": 0.861
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Paranormal Activity (NY)",
+"category": "theater",
+"venueName": "August Wilson Theatre-NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872272",
+"score": 0.7
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Rocky Horror Show",
+"category": "theater",
+"venueName": "Studio 54",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872273",
+"score": 0.357
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Play That Goes Wrong",
+"category": "theater",
+"venueName": "New World Stages - Stage 4",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872274",
+"score": 0.58
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Wicked",
+"category": "theater",
+"venueName": "Gershwin Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872275",
+"score": 0.447
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "MJ (NY)",
+"category": "other",
+"venueName": "Neil Simon Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872276",
+"score": 0.842
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Just In Time",
+"category": "theater",
+"venueName": "Circle in the Square Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.985298,
+40.765202
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872277",
+"score": 0.665
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Charlatans UK (16 and Over)",
+"category": "live_music",
+"venueName": "Brooklyn Steel",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.945602,
+40.7272
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872278",
+"score": 0.372
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Margaret Glaspy (18 and Over)",
+"category": "live_music",
+"venueName": "Music Hall of Williamsburg",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.956497,
+40.711102
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872279",
+"score": 0.492
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "creation stories and all the important importants",
+"category": "theater",
+"venueName": "Lincoln Center - Claire Tow Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98432273,
+40.77387758
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087227a",
+"score": 0.574
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "creation stories and all the important importants",
+"category": "other",
+"venueName": "Lincoln Center - Claire Tow Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9841,
+40.7761
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087227b",
+"score": 0.699
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Pat Metheny Side-Eye III+",
+"category": "live_music",
+"venueName": "Beacon Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.980673,
+40.779925
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087227c",
+"score": 0.415
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Little Shop Of Horrors",
+"category": "theater",
+"venueName": "Westside Theatre Upstairs",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.97954763,
+40.78541366
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087227d",
+"score": 0.466
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Little Shop of Horrors",
+"category": "theater",
+"venueName": "Westside Theatre Upstairs - NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9758,
+40.785999
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087227e",
+"score": 0.451
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Petite Rouge (21+ Event)",
+"category": "other",
+"venueName": "Theatre XIV",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.921204,
+40.704399
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087227f",
+"score": 0.916
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Tito Nieves - 50 A\u00f1os La Historia Continua",
+"category": "live_music",
+"venueName": "New Jersey Performing Arts Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.16809,
+40.739502
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872280",
+"score": 0.636
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Kany Garcia: Puerta Abierta Tour",
+"category": "live_music",
+"venueName": "Prudential Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.17121214,
+40.73340555
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872281",
+"score": 0.493
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "La Sonora Carruseles & Grupo Gal\u00e9",
+"category": "live_music",
+"venueName": "Lehman Center for the Performing Arts",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.8916914,
+40.8745364
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872282",
+"score": 0.439
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Andrew Dice Clay",
+"category": "comedy",
+"venueName": "Bergen Performing Arts Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.97511,
+40.895358
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 100.0,
+"sigma": 0.2,
+"p75Min": 114.4,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872283",
+"score": 0.691
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Robin Trower",
+"category": "live_music",
+"venueName": "The Wellmont Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.2165153,
+40.8124988
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872284",
+"score": 0.612
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Perverse - a play by Borna Barzin; Night 3",
+"category": "nightclub",
+"venueName": "Qncc",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9012451,
+40.6729499
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": "2026-09-27T01:30:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 90.0,
+"sigma": 0.1,
+"p75Min": 96.3,
+"source": "event_times"
+},
+"price": {
+"min": 45.0,
+"max": 150.0,
+"currency": "USD",
+"tier": 3,
+"isFree": false
+},
+"_id": "6ab75585cc2d68c5eef1e399",
+"score": 0.851
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Outer Heaven presents: Momo Trossman",
+"category": "nightclub",
+"venueName": "Outer Heaven",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9924233,
+40.7220379
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 50.0,
+"max": 50.0,
+"currency": "USD",
+"tier": 3,
+"isFree": false
+},
+"_id": "6ab75587cc2d68c5eef1e3af",
+"score": 0.609
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Stop1",
+"category": "nightclub",
+"venueName": "Honey's",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9231575,
+40.710449
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": "2026-09-27T07:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 20.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75587cc2d68c5eef1e3b1",
+"score": 0.76
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "GRUPO GAL\u00c9 & SONORA CARRUSELES @Lehman Center, Saturday, Sept. 26, @8PM",
+"category": "nightclub",
+"venueName": "Lehman Center for the Performing Arts",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.8945999,
+40.8739962
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": "2026-09-27T02:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 120.0,
+"sigma": 0.1,
+"p75Min": 128.4,
+"source": "event_times"
+},
+"price": {
+"min": 30.0,
+"max": 90.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75587cc2d68c5eef1e3ba",
+"score": 0.652
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Pataphysics 021",
+"category": "nightclub",
+"venueName": "Delight Factory",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9163732,
+40.6753426
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": "2026-09-27T03:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.1,
+"p75Min": 192.6,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab75588cc2d68c5eef1e3c0",
+"score": 0.788
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "XP1ONAGE",
+"category": "nightclub",
+"venueName": "XTC Bushwick",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9222626,
+40.7092592
+]
+},
+"start": "2026-09-27T00:00:00Z",
+"end": "2026-09-27T07:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 5.0,
+"max": 5.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab75588cc2d68c5eef1e3c2",
+"score": 0.602
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Oh, Mary!",
+"category": "theater",
+"venueName": "Lyceum Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98451117,
+40.7577032
+]
+},
+"start": "2026-09-27T00:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872285",
+"score": 0.413
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "COLTRANE REVISITED CENTENNIAL CELEBRATION with Jimmy Greene, Troy Roberts, Helen Sung, Steve Smith, Lonnie Plaxico",
+"category": "live_music",
+"venueName": "Birdland Jazz Club",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9896861,
+40.7590167
+]
+},
+"start": "2026-09-27T00:30:00Z",
+"end": "2026-09-27T01:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 75.0,
+"sigma": 0.1,
+"p75Min": 80.2,
+"source": "event_times"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab7556fe5453857e0872286",
+"score": 0.807
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Oh, Mary!",
+"category": "other",
+"venueName": "Lyceum Theatre - NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-27T00:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872287",
+"score": 0.849
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Friends! The Musical Parody (New York)",
+"category": "theater",
+"venueName": "The Theater Center",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9846,
+40.761604
+]
+},
+"start": "2026-09-27T00:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.2,
+"p75Min": 171.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872288",
+"score": 0.476
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Roomful of Blues",
+"category": "live_music",
+"venueName": "Iridium",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.983389,
+40.761816
+]
+},
+"start": "2026-09-27T00:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": {
+"min": 51.06,
+"max": 62.25,
+"currency": "USD",
+"tier": 3,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872289",
+"score": 0.559
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Mind Cargo - Carpet (F.L.H.P)",
+"category": "nightclub",
+"venueName": "Lullaby",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9857347,
+40.7191507
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": "2026-09-27T06:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab75589cc2d68c5eef1e3c8",
+"score": 0.656
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Drunk Dracula",
+"category": "other",
+"venueName": "The Ruby Theatre",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.996696,
+40.755699
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087228b",
+"score": 0.379
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "BROOKLYN BRUJERIA DAY II: Magic Market + Fair & Noche de Salsa + Fiesta",
+"category": "other",
+"venueName": "BRIC HOUSE",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.979128,
+40.688639
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": "2026-09-27T06:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087228c",
+"score": 0.655
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Cabros Chicos - Underground Y2K & Top 40 Parrty (18+)",
+"category": "nightclub",
+"venueName": "Mehanata Bar",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98884699999999,
+40.7194834
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": "2026-09-27T07:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75584cc2d68c5eef1e38c",
+"score": 0.604
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Chatroom: DJ Soko + Donwill",
+"category": "nightclub",
+"venueName": "Chatroom at Elsewhere",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9232707,
+40.7095367
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": "2026-09-27T05:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 240.0,
+"sigma": 0.1,
+"p75Min": 256.7,
+"source": "event_times"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab75585cc2d68c5eef1e3a0",
+"score": 0.434
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DJ SWISHA, Deo'jorge, Maddylane, KARL BLANCHARD, Will Buck - Dead Letter No.9",
+"category": "nightclub",
+"venueName": "Dead Letter No. 9",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9648332,
+40.7160369
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 20.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75585cc2d68c5eef1e3a4",
+"score": 0.351
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Stiff Dance // ALL NIGHT LONG",
+"category": "nightclub",
+"venueName": "Gabriela",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9583887,
+40.72179200000001
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": "2026-09-27T07:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 0,
+"isFree": false
+},
+"_id": "6ab75586cc2d68c5eef1e3a6",
+"score": 0.542
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Party Right Here (Vol. 18)",
+"category": "nightclub",
+"venueName": "Culture Lab LIC",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9543849,
+40.7470048
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab75588cc2d68c5eef1e3be",
+"score": 0.947
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Club Rawhide SATURDAY NIGHT w/ DJ Lina, Dawson, Boomer Banks",
+"category": "nightclub",
+"venueName": "Club Rawhide",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.996299,
+40.746635
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 30.0,
+"max": 30.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75588cc2d68c5eef1e3bf",
+"score": 0.709
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Holdup",
+"category": "live_music",
+"venueName": "Mercury Lounge",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.986806,
+40.722036
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087228a",
+"score": 0.706
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Two Watermark Dates",
+"category": "nightclub",
+"venueName": "Watermark",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00341150000001,
+40.7047376
+]
+},
+"start": "2026-09-27T01:00:00Z",
+"end": "2026-09-27T07:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7558acc2d68c5eef1e3dd",
+"score": 0.59
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Matt Wilson's Good Trouble",
+"category": "live_music",
+"venueName": "Birdland Theater",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9896861,
+40.7590167
+]
+},
+"start": "2026-09-27T01:30:00Z",
+"end": "2026-09-27T02:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 75.0,
+"sigma": 0.1,
+"p75Min": 80.2,
+"source": "event_times"
+},
+"price": {
+"min": 35.46,
+"max": 45.76,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e087228d",
+"score": 0.696
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Matt Wilson",
+"category": "live_music",
+"venueName": "Birdland",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.990196,
+40.7593
+]
+},
+"start": "2026-09-27T01:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e087228e",
+"score": 0.558
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Live! from Brooklyn Comedy Showcase ft. Sahib Singh, Rojo Perez, Brittany Schmitt, Eagle Witt, Marley Gotterer, and more!",
+"category": "other",
+"venueName": "Brooklyn Improv (The Main Room)",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.959998,
+40.7207511
+]
+},
+"start": "2026-09-27T01:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 60.0,
+"sigma": 0.5,
+"p75Min": 84.0,
+"source": "category_prior"
+},
+"price": {
+"min": 15.81,
+"max": 15.81,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e087228f",
+"score": 0.802
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Beth Stelling: Let Me Get Loose",
+"category": "comedy",
+"venueName": "The Bell House",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.99156,
+40.67373
+]
+},
+"start": "2026-09-27T01:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 100.0,
+"sigma": 0.2,
+"p75Min": 114.4,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872290",
+"score": 0.418
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "COLTRANE 100 BrownstoneJAZZ FEST CELEBRATION",
+"category": "live_music",
+"venueName": "BrownstoneJAZZ",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.947016,
+40.6815228
+]
+},
+"start": "2026-09-27T01:30:00Z",
+"end": "2026-09-27T02:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 75.0,
+"sigma": 0.1,
+"p75Min": 80.2,
+"source": "event_times"
+},
+"price": {
+"min": 55.3,
+"max": 55.3,
+"currency": "USD",
+"tier": 3,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872291",
+"score": 0.913
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "KPOP CLUB NIGHT FEATURING HYPE GIRL MADI",
+"category": "live_music",
+"venueName": "Williams Center - Black Box - Rutherford",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.10333,
+40.82711
+]
+},
+"start": "2026-09-27T01:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": {
+"min": 26.4,
+"max": 31.52,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872292",
+"score": 0.386
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Club Stars: UNiiQU3, Miley Serious, Arielle Lana b2b Syd + Shyboi, DJ Goth Girl",
+"category": "nightclub",
+"venueName": "Paragon",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9340684,
+40.6961068
+]
+},
+"start": "2026-09-27T01:30:00Z",
+"end": "2026-09-27T07:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 25.0,
+"max": 25.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75584cc2d68c5eef1e392",
+"score": 0.74
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "feedbk - soft opening season with Tony Price (live), Sweater On Polo (live) & CAMILLA",
+"category": "nightclub",
+"venueName": "feedbk",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.93335069999999,
+40.7093794
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75587cc2d68c5eef1e3b3",
+"score": 0.519
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Ron Like Hell invites: Alissa Brianna + HONEY B",
+"category": "nightclub",
+"venueName": "Signal",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.93356589999999,
+40.71003959999999
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T09:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7558bcc2d68c5eef1e3ef",
+"score": 0.781
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Labyrinth presents: Caiiro extended set",
+"category": "nightclub",
+"venueName": "Brooklyn Roots Collective",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.92242879999999,
+40.7108584
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 25.0,
+"max": 109.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75584cc2d68c5eef1e38d",
+"score": 0.728
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The 2000s Forever Parrty by THE Y2K Parrty - Saturdays at Mehanata NYC",
+"category": "nightclub",
+"venueName": "Mehanata Bar",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98884699999999,
+40.7194834
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75584cc2d68c5eef1e38f",
+"score": 0.388
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "THE Y2K Parrty at the Legendary Mehanata NYC - 18",
+"category": "nightclub",
+"venueName": "Mehanata Bar",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98884699999999,
+40.7194834
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75584cc2d68c5eef1e390",
+"score": 0.889
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Nonstop: Andy Martin, Introspekt, OK Williams, RHR, Shonky, Tano",
+"category": "nightclub",
+"venueName": "Nowadays",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9018573,
+40.6923919
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T19:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 20.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75584cc2d68c5eef1e391",
+"score": 0.561
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "COMA: 002",
+"category": "nightclub",
+"venueName": "314 Scholes",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9354822,
+40.7094531
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T10:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75584cc2d68c5eef1e396",
+"score": 0.805
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Refuge 1st Birthday Celebration Marathon with Victor Calderone",
+"category": "nightclub",
+"venueName": "Refuge",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9352198,
+40.7117144
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T23:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75585cc2d68c5eef1e39c",
+"score": 0.653
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "NOCASINO's Deep End Tour: NYC",
+"category": "nightclub",
+"venueName": "KEYBAR",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9295542,
+40.7000775
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab75585cc2d68c5eef1e39d",
+"score": 0.427
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Refuge Saturday: John Dimatteo, Shorty + Special Guest",
+"category": "nightclub",
+"venueName": "Refuge",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9352198,
+40.7117144
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T09:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75585cc2d68c5eef1e39f",
+"score": 0.899
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Jukeboxx: James Juke + shanty mane",
+"category": "nightclub",
+"venueName": "Jupiter Disco",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9236007,
+40.7082
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75585cc2d68c5eef1e3a1",
+"score": 0.935
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Endless Summer: Felix Cartal, Alastair Lane, Makez",
+"category": "nightclub",
+"venueName": "House of Yes",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.90604619999999,
+40.6966341
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 10.0,
+"max": 40.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab75586cc2d68c5eef1e3a9",
+"score": 0.768
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Lujuria: Spanish Post Punk & Synth",
+"category": "nightclub",
+"venueName": "TV EYE",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9053376,
+40.69789910000001
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T07:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab75586cc2d68c5eef1e3ab",
+"score": 0.864
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Birthrite (Volume XIV)",
+"category": "nightclub",
+"venueName": "The Chocolate Factory",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.922434,
+40.7098471
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T10:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75586cc2d68c5eef1e3ad",
+"score": 0.744
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Mood Ring 9th Anniversary ~ Day Two",
+"category": "nightclub",
+"venueName": "Mood Ring",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9269266,
+40.6977725
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75583cc2d68c5eef1e38a",
+"score": 0.629
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Denham Audio, Kellam Matthews, Arina Krondeva & Rebekah Abdeen",
+"category": "nightclub",
+"venueName": "Good Room",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9529201,
+40.7269364
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T09:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 10.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab75587cc2d68c5eef1e3b7",
+"score": 0.613
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "NOWHERE with Uche, TYBASS, FEEZ, DJ MANNY, DYLAN ALI, J-Cush, NINE 11",
+"category": "nightclub",
+"venueName": "Bossa Nova Civic Club",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.92794719999999,
+40.6979626
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 10.0,
+"max": 15.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab75587cc2d68c5eef1e3b9",
+"score": 0.371
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "808 Rendezvous presents: Pirate Radio, Kota Lano",
+"category": "nightclub",
+"venueName": "Idle Mind Tavern",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9509594,
+40.7236106
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab75588cc2d68c5eef1e3bb",
+"score": 0.799
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Jeff Mendoza",
+"category": "nightclub",
+"venueName": "Eavesdrop",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9511959,
+40.724898
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T03:59:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 119.0,
+"sigma": 0.1,
+"p75Min": 127.3,
+"source": "event_times"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab75588cc2d68c5eef1e3bd",
+"score": 0.491
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Oscar G Musica Residence Launch Party with Cristian Arango and More",
+"category": "nightclub",
+"venueName": "Musica Club NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9961862,
+40.7667367
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 30.0,
+"max": 30.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75589cc2d68c5eef1e3c5",
+"score": 0.914
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Orson ALL NIGHT",
+"category": "nightclub",
+"venueName": "Le Bain",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00828400000002,
+40.7410761
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75589cc2d68c5eef1e3c9",
+"score": 0.554
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Viva Saturdays: Put Your Drinks Up! at Viva Toro Brooklyn \u2013 Sep 26",
+"category": "nightclub",
+"venueName": "Viva Toro Nightclub",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.935351,
+40.71349
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 25.0,
+"currency": "USD",
+"tier": 0,
+"isFree": false
+},
+"_id": "6ab75589cc2d68c5eef1e3d0",
+"score": 0.642
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Saturday Nights NYC - Latin Night Saturday - Sep 26",
+"category": "nightclub",
+"venueName": "Club 51",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.99549979999999,
+40.7671836
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 35.8,
+"max": 35.8,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75589cc2d68c5eef1e3d1",
+"score": 0.361
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Uproot Andy x Epic B x Run P",
+"category": "nightclub",
+"venueName": "Friends & Lovers",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9584608,
+40.6785521
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 5.0,
+"max": 10.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab7558acc2d68c5eef1e3d4",
+"score": 0.596
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "RISQU\u00c9 X BOOGEYMAN W/ Jesse Calosso, Shahar, INLFAIR + MORE",
+"category": "nightclub",
+"venueName": "ARTSPACE",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9920935,
+40.7231104
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T09:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 30.0,
+"max": 30.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7558acc2d68c5eef1e3d5",
+"score": 0.575
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Klub Kitsch presents International: World Music Dance Party",
+"category": "nightclub",
+"venueName": "Danger Danger",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9258874,
+40.7028125
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 0.0,
+"currency": "USD",
+"tier": 0,
+"isFree": true
+},
+"_id": "6ab7558acc2d68c5eef1e3db",
+"score": 0.852
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Well, Yes! w/ Jon Ali & Jaceound",
+"category": "nightclub",
+"venueName": "Oberon",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9548741,
+40.7186899
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7558acc2d68c5eef1e3de",
+"score": 0.495
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "BENITO BOAT TRIBUTES: La Corriente Summer Closing Yacht Cruise Party",
+"category": "nightclub",
+"venueName": "Pier 78 at Hudson River Park",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00395309999999,
+40.7596927
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T06:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 240.0,
+"sigma": 0.1,
+"p75Min": 256.7,
+"source": "event_times"
+},
+"price": {
+"min": 29.95,
+"max": 29.95,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7558acc2d68c5eef1e3df",
+"score": 0.887
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "R&B on the RIVER - Hip Hop & R&B Boat Party Yacht Cruise NYC",
+"category": "nightclub",
+"venueName": "Pier 78 at Hudson River Park",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00395309999999,
+40.7596927
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T06:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 240.0,
+"sigma": 0.1,
+"p75Min": 256.7,
+"source": "event_times"
+},
+"price": {
+"min": 29.95,
+"max": 29.95,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7558acc2d68c5eef1e3e0",
+"score": 0.489
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "AFROWAVES: NIGERIA INDEPENDENCE - Afrobeats After Party Yacht Cruise",
+"category": "nightclub",
+"venueName": "Pier 78 at Hudson River Park",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00395309999999,
+40.7596927
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T06:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 240.0,
+"sigma": 0.1,
+"p75Min": 256.7,
+"source": "event_times"
+},
+"price": null,
+"_id": "6ab7558acc2d68c5eef1e3e1",
+"score": 0.412
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Sights & Sounds: Et al \u2013 Spray + Special Guest",
+"category": "nightclub",
+"venueName": "Substance Skatepark",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9354822,
+40.7094531
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T10:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7558acc2d68c5eef1e3e5",
+"score": 0.931
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "House Music Icons with The Shapeshifters, Hector Romero, Rissa Garcia",
+"category": "nightclub",
+"venueName": "The Ornate Studio",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9835164,
+40.6781701
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 20.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7558bcc2d68c5eef1e3e7",
+"score": 0.67
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Golden Record NYC presents Magda B2B Mike Servito, Maara, Bruno Schmidt",
+"category": "nightclub",
+"venueName": "Green Room NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9341634,
+40.71075159999999
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T12:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 20.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7558bcc2d68c5eef1e3eb",
+"score": 0.924
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "ReSolute x Yoyaku",
+"category": "nightclub",
+"venueName": "H0L0",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9021664,
+40.6943165
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T19:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 20.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7558bcc2d68c5eef1e3ec",
+"score": 0.801
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Reggaeton Rave | 10pm FULLY INDOORS (21+)",
+"category": "nightclub",
+"venueName": "The Brooklyn Monarch",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.93630379999999,
+40.7109796
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 15.0,
+"max": 15.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab7558bcc2d68c5eef1e3ed",
+"score": 0.441
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "BLOND:ISH with special guest Luciano",
+"category": "nightclub",
+"venueName": "Pacha New York",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.92575269999999,
+40.7108956
+]
+},
+"start": "2026-09-27T02:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75584cc2d68c5eef1e38b",
+"score": 0.76
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Hypnotic Brass Ensemble",
+"category": "live_music",
+"venueName": "Blue Note Jazz Club",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00065,
+40.73094
+]
+},
+"start": "2026-09-27T02:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": {
+"min": 38.1,
+"max": 54.99,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872293",
+"score": 0.478
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Graham Hunt, Tanner York",
+"category": "live_music",
+"venueName": "Night Club 101",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.984043,
+40.725911
+]
+},
+"start": "2026-09-27T02:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": {
+"min": 23.1,
+"max": 23.1,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872294",
+"score": 0.766
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Hypnotic Brass Ensemble",
+"category": "live_music",
+"venueName": "Blue Note Jazz Club - NY",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.997902,
+40.7253
+]
+},
+"start": "2026-09-27T02:30:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872295",
+"score": 0.723
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "COLTRANE REVISITED CENTENNIAL CELEBRATION with Jimmy Greene, Troy Roberts, Helen Sung, Steve Smith, Lonnie Plaxico",
+"category": "live_music",
+"venueName": "Birdland Jazz Club",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9896861,
+40.7590167
+]
+},
+"start": "2026-09-27T02:30:00Z",
+"end": "2026-09-27T03:45:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 75.0,
+"sigma": 0.1,
+"p75Min": 80.2,
+"source": "event_times"
+},
+"price": {
+"min": 45.76,
+"max": 56.06,
+"currency": "USD",
+"tier": 3,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872296",
+"score": 0.515
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Anyasa [Anjunadeep], Joseph Ray [Anjunadeep], & Harji B2B Firungi",
+"category": "nightclub",
+"venueName": "SILO",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.92280389999999,
+40.710589
+]
+},
+"start": "2026-09-27T02:30:00Z",
+"end": "2026-09-27T08:30:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 20.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75584cc2d68c5eef1e38e",
+"score": 0.52
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Mina, LOSTBOYJAY, Losing Stereo, Beneath x ELECTROSOL",
+"category": "nightclub",
+"venueName": "Elsewhere",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9232707,
+40.7095367
+]
+},
+"start": "2026-09-27T02:30:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75585cc2d68c5eef1e397",
+"score": 0.654
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "RuPaul, 2Charm, Disco Shrine, Cosmo, k.tea",
+"category": "nightclub",
+"venueName": "Industry City",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.00606719999999,
+40.6573822
+]
+},
+"start": "2026-09-27T02:30:00Z",
+"end": "2026-09-27T07:30:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 35.0,
+"max": 75.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75587cc2d68c5eef1e3b8",
+"score": 0.728
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Reggaeton Boat Party NYC - Avalon Yacht",
+"category": "nightclub",
+"venueName": "Skyport Marina",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9739209,
+40.7353579
+]
+},
+"start": "2026-09-27T02:30:00Z",
+"end": "2026-09-27T07:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 30.0,
+"max": 500.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75589cc2d68c5eef1e3ce",
+"score": 0.372
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Mac Declos / Marcal / Cora / Perfect Lovers / Victor Rodriguez / Chris Cruse / Kilopatrah Jones",
+"category": "nightclub",
+"venueName": "BASEMENT",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.91412090000001,
+40.7154969
+]
+},
+"start": "2026-09-27T02:30:00Z",
+"end": "2026-09-27T11:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7558acc2d68c5eef1e3e4",
+"score": 0.375
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Apollo Studio presents",
+"category": "nightclub",
+"venueName": "Apollo Studio",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9377183,
+40.7265972
+]
+},
+"start": "2026-09-27T03:00:00Z",
+"end": "2026-09-27T10:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75584cc2d68c5eef1e394",
+"score": 0.477
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Afrobeats v Perreo Reggaeton Party Nightclub",
+"category": "nightclub",
+"venueName": "Nexo",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9851185,
+40.7504503
+]
+},
+"start": "2026-09-27T03:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75583cc2d68c5eef1e389",
+"score": 0.856
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Soul Clap, A lana / Nita Aviance, Dee Diggs / David Paglia",
+"category": "nightclub",
+"venueName": "public records",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98639829999999,
+40.68226749999999
+]
+},
+"start": "2026-09-27T03:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75585cc2d68c5eef1e398",
+"score": 0.767
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "MUSIC FOR THE MASSES [DARK '80s NEW WAVE NITE]",
+"category": "nightclub",
+"venueName": "TV EYE",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9053376,
+40.69789910000001
+]
+},
+"start": "2026-09-27T03:00:00Z",
+"end": "2026-09-27T07:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 240.0,
+"sigma": 0.1,
+"p75Min": 256.7,
+"source": "event_times"
+},
+"price": {
+"min": 10.0,
+"max": 10.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab75586cc2d68c5eef1e3a5",
+"score": 0.503
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DJ Assault BROOKLYN RESIDENCY",
+"category": "nightclub",
+"venueName": "Market Hotel",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9345858,
+40.6969513
+]
+},
+"start": "2026-09-27T03:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab75586cc2d68c5eef1e3a8",
+"score": 0.666
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "SOCA & FRIENDS - Dancehall & Soca Party in NYC",
+"category": "nightclub",
+"venueName": "Concord NYC",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.98895209999999,
+40.7183228
+]
+},
+"start": "2026-09-27T03:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 10.0,
+"max": 10.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab75587cc2d68c5eef1e3b0",
+"score": 0.672
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Reggaeton Paradise Rooftop Party \u2013 Lost in Paradise",
+"category": "nightclub",
+"venueName": "Lost in Paradise Rooftop",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.94732119999999,
+40.7520767
+]
+},
+"start": "2026-09-27T03:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 10.0,
+"max": 60.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab75589cc2d68c5eef1e3cd",
+"score": 0.782
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "The Libra Effect - AURA Saturdays \u2013 Sep 26",
+"category": "nightclub",
+"venueName": "Level Astoria",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.91024089999999,
+40.76978769999999
+]
+},
+"start": "2026-09-27T03:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 0.0,
+"max": 25.0,
+"currency": "USD",
+"tier": 0,
+"isFree": false
+},
+"_id": "6ab75589cc2d68c5eef1e3cf",
+"score": 0.734
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "DISTRICT PERREO - Latin & Reggaeton Dance Party - Nexo CLUB NYC",
+"category": "nightclub",
+"venueName": "Nexo",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9851185,
+40.7504503
+]
+},
+"start": "2026-09-27T03:00:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7558acc2d68c5eef1e3e2",
+"score": 0.724
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "kybba (18 and Over)",
+"category": "live_music",
+"venueName": "Webster Hall",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.989098,
+40.731602
+]
+},
+"start": "2026-09-27T03:55:00Z",
+"end": null,
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 150.0,
+"sigma": 0.3,
+"p75Min": 183.6,
+"source": "category_prior"
+},
+"price": null,
+"_id": "6ab7556fe5453857e0872297",
+"score": 0.717
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "After Hours (1985) *Midnight Screening*",
+"category": "other",
+"venueName": "Williams Center - Cinema Underground - Rutherford",
+"location": {
+"type": "Point",
+"coordinates": [
+-74.10333,
+40.82711
+]
+},
+"start": "2026-09-27T03:55:00Z",
+"end": "2026-09-27T06:00:00Z",
+"attendance": "fixed_start",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 125.0,
+"sigma": 0.1,
+"p75Min": 133.7,
+"source": "event_times"
+},
+"price": {
+"min": 13.63,
+"max": 15.69,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab7556fe5453857e0872298",
+"score": 0.587
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Pacha NYC presents: BLOND:ISH special guest Luciano",
+"category": "nightclub",
+"venueName": "Pacha NYC Basement",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.997441,
+40.7636663
+]
+},
+"start": "2026-09-27T03:59:00Z",
+"end": "2026-09-27T10:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 55.0,
+"max": 55.0,
+"currency": "USD",
+"tier": 3,
+"isFree": false
+},
+"_id": "6ab75583cc2d68c5eef1e388",
+"score": 0.761
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "Club Mustang: FREAKQUENCIES",
+"category": "nightclub",
+"venueName": "Hart Bar",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9299786,
+40.696374
+]
+},
+"start": "2026-09-27T03:59:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 5.0,
+"max": 10.0,
+"currency": "USD",
+"tier": 1,
+"isFree": false
+},
+"_id": "6ab75585cc2d68c5eef1e39b",
+"score": 0.489
+},
+{
+"kind": "event",
+"city": "nyc",
+"name": "VICE: Summer's End",
+"category": "nightclub",
+"venueName": "Boxers HK",
+"location": {
+"type": "Point",
+"coordinates": [
+-73.9893458,
+40.7634099
+]
+},
+"start": "2026-09-27T03:59:00Z",
+"end": "2026-09-27T08:00:00Z",
+"attendance": "drop_in",
+"timezone": "America/New_York",
+"weeklyHours": null,
+"duration": {
+"medianMin": 180.0,
+"sigma": 0.35,
+"p75Min": 227.9,
+"source": "category_prior"
+},
+"price": {
+"min": 20.0,
+"max": 20.0,
+"currency": "USD",
+"tier": 2,
+"isFree": false
+},
+"_id": "6ab75588cc2d68c5eef1e3c3",
+"score": 0.717
+}
+]

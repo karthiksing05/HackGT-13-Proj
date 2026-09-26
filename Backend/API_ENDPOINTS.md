@@ -57,6 +57,17 @@ Rule of thumb: the server owns anything that must be correct for everyone — eq
 - POST /plans/route — option id + stop order (+ ride, modes) → recalculated legs, stop times, arrival, late flag (after drag-to-reorder)
 - POST /itineraries — save the chosen option + visibility (just me / friends / open), lock time, max group size
 
+### How plans are built
+`/plans/generate` ranks candidates with the ML service, then the itinerary optimizer (`pkg/itinerary`) builds feasible, time-ordered plans: no overlapping stops, travel time between stops, back at the end location by `back_by_time`.
+
+- `start_location` / `end_location`: `"lat,lng"`, e.g. `"33.7766,-84.3890"`. Send the start again as the end for a round trip. An unparseable start falls back to the user's last location.
+- `date` (`YYYY-MM-DD`), `start_time` and `back_by_time` (`HH:MM`) are local to the city. A back-by time at or before the start time means the next day.
+- `range_km`: longest straight-line leg between stops. `pace`: `chill` | `balanced` | `packed` (max stops and idle time).
+- Each stop has `arrive_time` / `depart_time` (the scheduled visit), `kind` and `flexible`. `legs` has one more entry than `stops`: `from_stop_id` `"start"` for the first leg, `to_stop_id` `"end"` for the last.
+- `late_flag` is true when an event with an estimated length could run over and break the plan.
+- The response includes `"planner": "dag"`. When the optimizer finds nothing it falls back to the old builder, unless `PLANNER=dag` (then `options` is empty and `reason` says why). `PLANNER=legacy` turns the optimizer off.
+- `/plans/generate/more` pages through the same run. `/plans/route` re-times a reordered plan and adds `stop_times`, `minutes_late` and `broken_at` (first stop reached late, or -1).
+
 ## Itineraries (Home)
 - GET /itineraries?status=active — cards + timelines
 - GET /itineraries/{id}
