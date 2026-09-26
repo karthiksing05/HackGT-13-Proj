@@ -1,3 +1,7 @@
 typesafe-sdk>=0.7.1
 python-dotenv>=1.0
 numpy>=1.26
+torch>=2.2
+datasets>=3.0
+sentence-transformers>=3.0
+transformers>=4.51
