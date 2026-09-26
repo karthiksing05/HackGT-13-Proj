@@ -5,4 +5,5 @@
     make_golden     regenerate tests/fixtures: profile/search texts and local Qwen embeddings
     parity_check    cosine of a provider's (or a running service's) vectors against the local goldens
     embed_missing   embed activities without a current vector through the running service (systemd timer)
+    rank_smoke      rank stored catalog vectors for a fixture profile through a running service, by eye
 """

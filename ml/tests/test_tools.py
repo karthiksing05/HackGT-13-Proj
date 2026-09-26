@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx
 import numpy as np
 
-from tools import hf_probe, parity_check, vertex_probe
+from tools import hf_probe, parity_check, rank_smoke, vertex_probe
 
 FIXTURES = Path(__file__).parent / "fixtures"
 GOLDEN = json.loads((FIXTURES / "qwen3_golden.json").read_text())
@@ -155,6 +155,46 @@ class ParityCheckTests(unittest.TestCase):
         out = io.StringIO()
         self.assertEqual(parity_check.run(["--provider", "hf"], env={}, out=out), 2)
         self.assertIn("HF_TOKEN", out.getvalue())
+
+
+class RankSmokeTests(unittest.TestCase):
+    ACTIVITIES = [
+        {"_id": f"a{i}", "name": f"Activity {i}", "category": "park" if i % 2 else "bar", "embedding": [float(i + 1), 1.0]}
+        for i in range(20)
+    ]
+
+    def test_prints_the_best_and_the_worst(self):
+        requests = []
+
+        def handler(request):
+            body = json.loads(request.content)
+            requests.append((request.url.path, body))
+            if request.url.path == "/v1/user-profile":
+                return httpx.Response(200, json={"positive_text": "Interests:\n- hiking", "negative_text": "", "positive_embedding": [1.0, 0.0],
+                                                 "negative_embedding": [0.0, 0.0], "profile_text_hash": "profile-v1:abc", "provider": "local"})
+            if request.url.path == "/v1/search-profile":
+                return httpx.Response(200, json={"search_text": "Pace:\n- chill", "search_embedding": [0.0, 1.0]})
+            events = sorted(body["events"], key=lambda e: -e["embedding"][0])
+            return httpx.Response(200, json={"events": [{"event_id": e["id"], "score": 1 - i / 20, "rerank_score": None} for i, e in enumerate(events)],
+                                             "model_version": "classifier-v1", "reranked": False})
+
+        out = io.StringIO()
+        code = rank_smoke.run(["--mood", "something chill", "--top", "5"], activities=self.ACTIVITIES, transport=httpx.MockTransport(handler), out=out)
+        output = out.getvalue()
+        self.assertEqual(code, 0, output)
+        self.assertIn("   1. 1.000  park             Activity 19", output)
+        self.assertIn("  20. 0.050  bar              Activity 0", output)
+        self.assertIn("search: Pace: | - chill", output)
+        rank_body = requests[-1][1]
+        self.assertEqual(rank_body["options"], {"rerank": False})
+        self.assertEqual(rank_body["search_text"], "Pace:\n- chill")
+        self.assertNotIn("start_time", rank_body["events"][0])
+
+    def test_service_errors_exit_1(self):
+        out = io.StringIO()
+        transport = httpx.MockTransport(lambda request: httpx.Response(503, json={"detail": "Embedding provider unavailable."}))
+        self.assertEqual(rank_smoke.run([], activities=self.ACTIVITIES, transport=transport, out=out), 1)
+        self.assertIn("HTTP 503", out.getvalue())
 
 
 if __name__ == "__main__":
