@@ -36,7 +36,7 @@ type Planner interface {
 	More(ctx context.Context, user *models.User, cursor string) (contract.PlanBatch, error)
 	Route(ctx context.Context, user *models.User, req contract.RouteRequest) (contract.RouteResult, error)
 	Alternatives(ctx context.Context, user *models.User, req contract.AlternativesRequest) ([]contract.PlanAlternative, error)
-	ResolveStop(ctx context.Context, stopID string) (*StopDetail, error)
+	ResolveStop(ctx context.Context, user *models.User, optionID, stopID string) (*StopDetail, error)
 }
 
 // CheckoutRunner works agentic checkout runs (pkg/agent implements it and
@@ -62,7 +62,7 @@ type Deps struct {
 
 	authOnce sync.Once
 	auth     *middleware.Auth
-	demo     demoState // DEMO_DATE's clock and who is a demo account (democlock.go)
+	demo     demoState // DEMO_DATE's optional clock (democlock.go)
 }
 
 // Clock is the current real time from the testable clock (tokens, rate

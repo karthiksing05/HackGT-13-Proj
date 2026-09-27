@@ -107,8 +107,8 @@ PUBLIC_BASE_URL=http://127.0.0.1:8080 DEMO_PASSWORD=demo \
 
 `seed-demo` creates the demo account and its friends, plans and chats (idempotent; it refuses to run
 before the demo catalog is imported). Then run the app with `-SQAPIBaseURL http://127.0.0.1:8080
--SQWebSocketURL ws://127.0.0.1:8080/ws -SQDemoPassword demo`. `make build-native` in `Backend/` builds
-both binaries (`bin/sidequestz-server`, `bin/sidequestz-admin`) for the Mac.
+-SQWebSocketURL ws://127.0.0.1:8080/ws -SQDemoPassword demo`. `make build-native` in `Backend/` builds the server for the Mac;
+`make build-admin` also builds the optional maintenance CLI.
 
 **Data ingestion** (Python 3.12; only needed to refresh the real catalog, keys in the root `.env`):
 

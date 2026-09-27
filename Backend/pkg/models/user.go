@@ -84,7 +84,6 @@ type User struct {
 	BirthDate     *time.Time    `bson:"birthDate,omitempty"`
 	School        *string       `bson:"school,omitempty"`
 	SetupComplete bool          `bson:"setupComplete"`
-	Catalog       string        `bson:"catalog"` // activities | demo_activities
 	City          string        `bson:"city"`
 	HomeBase      *HomeBase     `bson:"homeBase,omitempty"`
 

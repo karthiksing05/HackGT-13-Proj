@@ -16,7 +16,6 @@ import (
 
 const (
 	connectTimeout    = 10 * time.Second
-	pingTimeout       = 2 * time.Second
 	disconnectTimeout = 5 * time.Second
 )
 
@@ -42,13 +41,6 @@ func MustConnect(ctx context.Context, cfg *config.Config) *mongo.Client {
 		log.Fatal().Err(err).Msg("MongoDB unreachable; refusing to start")
 	}
 	return client
-}
-
-// Ping is the /healthz probe (2 s).
-func Ping(ctx context.Context, client *mongo.Client) error {
-	ctx, cancel := context.WithTimeout(ctx, pingTimeout)
-	defer cancel()
-	return client.Ping(ctx, readpref.Primary())
 }
 
 // Disconnect closes the client, logging rather than returning a failure.
