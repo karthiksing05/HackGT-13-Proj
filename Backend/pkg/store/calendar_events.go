@@ -25,7 +25,7 @@ func (s *Store) CalendarEvents() CalendarEvents { return CalendarEvents{s} }
 func (c CalendarEvents) coll() *mongo.Collection { return c.s.db.Collection(CollCalendarEvents) }
 
 // Overlapping is userID's events that overlap [from, to), by start (ties by
-// id).
+// id). An event that ends before it starts is no busy time and is left out.
 func (c CalendarEvents) Overlapping(ctx context.Context, userID string, from, to time.Time) ([]models.CalendarEvent, error) {
 	out := []models.CalendarEvent{}
 	if userID == "" || !to.After(from) {
@@ -36,8 +36,14 @@ func (c CalendarEvents) Overlapping(ctx context.Context, userID string, from, to
 	if err != nil {
 		return nil, err
 	}
-	if err := cursor.All(ctx, &out); err != nil {
+	var docs []models.CalendarEvent
+	if err := cursor.All(ctx, &docs); err != nil {
 		return nil, err
+	}
+	for _, ev := range docs {
+		if ev.End.After(ev.Start) {
+			out = append(out, ev)
+		}
 	}
 	return out, nil
 }

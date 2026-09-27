@@ -22,6 +22,7 @@ func TestCalendarEventsOverlappingIsPerUser(t *testing.T) {
 		lecture,
 		ev("u1", "Office hours", day(14, 0), day(15, 0)),
 		ev("u2", "Someone else's class", day(17, 0), day(18, 0)),
+		ev("u1", "Ends before it starts", day(16, 0), day(15, 30)),
 	); err != nil {
 		t.Fatal(err)
 	}
