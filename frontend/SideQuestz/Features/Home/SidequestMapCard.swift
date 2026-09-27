@@ -128,16 +128,8 @@ struct SidequestMapCard: View {
             framesYou = false
             moveCamera(to: Self.camera(path))
         }
-        .onChange(of: env.locationFeed.coordinate) {
-            // Following you: keep you and the stop in view as you move.
-            guard framesYou else { return }
-            if let focus = youAndTarget(route) {
-                moveCamera(to: focus)
-            } else {
-                framesYou = false
-                moveCamera(to: Self.camera(route.path))
-            }
-        }
+        .onChange(of: env.locationFeed.coordinate) { followYou(route) }
+        .onChange(of: progress.target?.id) { followYou(route) }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Map of \(itinerary.title)")
         .accessibilityIdentifier("sidequest.map")
@@ -216,12 +208,15 @@ struct SidequestMapCard: View {
         }
         .buttonStyle(.sqPressable)
         .accessibilityLabel("Stop \(stop.number), \(stop.item.title), \(env.format.time(stop.item.start))")
-        .accessibilityValue(isTarget ? (progress.isHere ? "You're here" : pinStatus) : isDone ? "Done" : "")
+        .accessibilityValue(status(isTarget: isTarget, isDone: isDone))
         .accessibilityHint("Opens details")
     }
 
-    /// "Now" at the stop you're at, "Next" on the way to one.
-    private var pinStatus: String {
+    /// A stop's state for VoiceOver: "Now" (or "You're here") at the one you're at, "Next" for the
+    /// one you're heading to, "Done" once it's over.
+    private func status(isTarget: Bool, isDone: Bool) -> String {
+        guard isTarget else { return isDone ? "Done" : "" }
+        if progress.isHere { return "You're here" }
         if case .atStop = progress.phase { return "Now" }
         return "Next"
     }
@@ -238,6 +233,18 @@ struct SidequestMapCard: View {
 
     private static func camera(_ coordinates: [Coordinate], minimumMeters: Double = 800) -> MapCameraPosition {
         SidequestRoute.frame(coordinates, minimumMeters: minimumMeters).map { .rect($0) } ?? .region(PlaceSearch.defaultRegion)
+    }
+
+    /// Framing you and the next stop: keep both in view as you move and as the next stop changes
+    /// (back to the whole route once the phone stops saying where you are).
+    private func followYou(_ route: SidequestRoute) {
+        guard framesYou else { return }
+        if let focus = youAndTarget(route) {
+            moveCamera(to: focus)
+        } else {
+            framesYou = false
+            moveCamera(to: Self.camera(route.path))
+        }
     }
 
     private func moveCamera(to position: MapCameraPosition) {

@@ -44,7 +44,7 @@ In Xcode, go to Product → Scheme → Edit Scheme → Run → **Arguments** and
 | Argument | What it does |
 | --- | --- |
 | `-SQAPIMode mock` | Runs fully offline on the demo backend (Atlanta, Friday Sep 25, user Jordan Lee; any valid email with any password signs in). Without it the app uses the live server from Info.plist |
-| `-SQRoute home/calendar` | Opens straight to a screen, signed in as the demo user; needs `-SQAPIMode mock` (in live mode a signed-out launch lands on Login). Also: `login`, `forgot/2`, `setup/3`, `home`, `home/past`, `home/sheet/a3`, `home/rate/x1`, `home/edit/itin-fri` (Edit sidequest), `create/1`…`create/4`, `create/4/more`, `create/4/swap` (the swap sheet for stop 2), `forum`, `forum/filter`, `groups`, `thread/g1/splits`, `thread/dm-maya`, `account/friends`, `account/facebook` (connects the demo Facebook and opens its sheet), `gallery` (the design-system gallery) |
+| `-SQRoute home/calendar` | Opens straight to a screen, signed in as the demo user; needs `-SQAPIMode mock` (in live mode a signed-out launch lands on Login). Also: `login`, `forgot/2`, `setup/3`, `home`, `home/past`, `home/sheet/a3`, `home/rate/x1`, `home/edit/itin-fri` (Edit sidequest), `home/map/itin-fri` (that sidequest on its map), `create/1`…`create/4`, `create/4/more`, `create/4/swap` (the swap sheet for stop 2), `forum`, `forum/filter`, `groups`, `thread/g1/splits`, `thread/dm-maya`, `account/friends`, `account/facebook` (connects the demo Facebook and opens its sheet), `gallery` (the design-system gallery) |
 | `-SQSkipIntro YES` | Skips the opening animation, which otherwise plays on every cold launch |
 | `-SQDemoPassword …` | The demo account's password for this launch, so Login shows "Use the demo account" (live mode only; wins over the `SQ_DEMO_PASSWORD` build setting) |
 | `-SQAPIBaseURL http://127.0.0.1:8080` | Uses another server for this launch, with `-SQWebSocketURL ws://127.0.0.1:8080/ws` for realtime (see [Pointing the app at a server](#pointing-the-app-at-a-server)) |
@@ -66,8 +66,8 @@ In Xcode, go to Product → Scheme → Edit Scheme → Run → **Arguments** and
 
 Press **⌘U** to run both suites (about 3 minutes, most of it the UI tests).
 
-- **Unit tests** (`SideQuestzTests`, a few seconds) check that the equal-split preview always adds up to the total, to the cent; that reordering stops re-times the route and flags lateness, matching the prototype's numbers; the validation copy; time formatting; the demo backend's forum filters, sidequest edits and stop alternatives (same kind, never already in the plan); must-see picks (the catalog search's rules, `must_include` on the plan request, why a batch can come back empty, and the demo planner putting every pick in every option); how the app reads Facebook's sign-in result and merges suggested likes (never replacing one you picked in Setup); how the demo password is read (a launch argument beats Info.plist, blank means none) and that a `-SQRoute` deep link never skips sign-in in live mode; and that every model round-trips through the API's JSON format.
-- **UI tests** (`SideQuestzUITests`) run thirteen flows on the demo backend, plus one launch check against the live configuration:
+- **Unit tests** (`SideQuestzTests`, a few seconds) check that the equal-split preview always adds up to the total, to the cent; that reordering stops re-times the route and flags lateness, matching the prototype's numbers; the validation copy; time formatting; the demo backend's forum filters, sidequest edits and stop alternatives (same kind, never already in the plan); must-see picks (the catalog search's rules, `must_include` on the plan request, why a batch can come back empty, and the demo planner putting every pick in every option); how the app reads Facebook's sign-in result and merges suggested likes (never replacing one you picked in Setup); how the demo password is read (a launch argument beats Info.plist, blank means none) and that a `-SQRoute` deep link never skips sign-in in live mode; where a sidequest stands at a given time and place (the progress strip's stages, how full each stop is, "You're here" within 150 m and "far away" past 50 km), how distances and countdowns read, the order of the map's route, and each sidequest keeping its own Timeline | Map; and that every model round-trips through the API's JSON format.
+- **UI tests** (`SideQuestzUITests`) run fifteen flows on the demo backend, plus one launch check against the live configuration:
   - create an account through all five Setup steps;
   - reset a password and sign in with it;
   - plan and start a sidequest;
@@ -80,12 +80,18 @@ Press **⌘U** to run both suites (about 3 minutes, most of it the UI tests).
   - add a $40 expense split three ways;
   - connect Facebook in Setup and see step 3 filled in;
   - review Facebook's suggestions in Account and save them;
+  - switch a sidequest to its map, open a stop from the map, and swipe to the next sidequest, which keeps its timeline;
+  - open a sidequest's map from its deep link;
   - in live mode with a demo password, the app starts on Login and shows "Use the demo account" (nothing is tapped, so no request leaves the simulator).
 
   Tab bar buttons have the accessibility identifiers `tab.home`, `tab.forum`, `tab.plan`, `tab.groups` and `tab.account`.
 
 To run one suite from Terminal, pass `-only-testing:SideQuestzTests` (or `SideQuestzUITests`) to
 `xcodebuild test -project SideQuestz.xcodeproj -scheme SideQuestz -destination 'platform=iOS Simulator,name=iPhone 17e'`.
+
+### Sidequest maps and your location
+
+Home › Sidequests shows each sidequest's progress (a bar per stop, and what's on now or next) above its timeline. The pill next to the page dots switches that sidequest to a map of its route and stops; tap it or swipe across it, and each sidequest remembers its own choice. The progress line and the map use your location while Home is on screen, but never ask for it on their own: iOS asks when you tap **Show my location** on a map (or pick Current location in Create). The offline demo places you at Tech Square.
 
 ### Facebook
 
