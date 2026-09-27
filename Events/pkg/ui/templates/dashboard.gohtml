@@ -204,7 +204,7 @@
 
 <div class="sandbox-banner">
   <span>Booth Live Screen</span>
-  Real-time Merchant Feeds · Agent TAP & Visa Network Verification
+  Sandbox · Signed agent requests (TAP) · Stripe test-mode payments
 </div>
 
 <header class="nav-header">
@@ -248,17 +248,20 @@
     <h2>Demo Scenario Controller</h2>
     <p>Toggle merchant behavior to demonstrate resilience and fraud/budget rejection during live demos.</p>
     <div class="scenario-btns">
-      <button class="scen-btn {{if eq .Scenario "normal"}}active{{end}}" onclick="setScenario('normal')">
+      <button class="scen-btn {{if eq .Scenario "normal"}}active{{end}}" onclick="setScenario('normal', this)">
         ✓ Normal (Approved)
       </button>
-      <button class="scen-btn {{if eq .Scenario "sold_out"}}active{{end}}" onclick="setScenario('sold_out')">
+      <button class="scen-btn {{if eq .Scenario "sold_out"}}active{{end}}" onclick="setScenario('sold_out', this)">
         🚫 Sold Out (409)
       </button>
-      <button class="scen-btn {{if eq .Scenario "price_bump"}}active{{end}}" onclick="setScenario('price_bump')">
-        📈 Price Bump +40% (409 / Over Budget)
+      <button class="scen-btn {{if eq .Scenario "price_bump"}}active{{end}}" onclick="setScenario('price_bump', this)">
+        📈 Price Bump +40% (409 · agent re-checks budget)
       </button>
-      <button class="scen-btn {{if eq .Scenario "slow"}}active{{end}}" onclick="setScenario('slow')">
-        ⏱ Slow Latency (3s delay)
+      <button class="scen-btn {{if eq .Scenario "overcharge"}}active{{end}}" onclick="setScenario('overcharge', this)">
+        💳 Overcharge +25% (Stripe declines)
+      </button>
+      <button class="scen-btn {{if eq .Scenario "slow"}}active{{end}}" onclick="setScenario('slow', this)">
+        ⏱ Slow Latency (2.5s delay)
       </button>
     </div>
   </div>
@@ -279,13 +282,14 @@
           </div>
           <div class="order-details">
             <span style="color:#00e676;">✓ Signed Agent ({{.AgentKeyID}})</span>
-            <span>Visa •••• {{.Payment.Last4}}</span>
+            <span>{{brandName .Payment.Brand}} •••• {{.Payment.Last4}} · Stripe SPT</span>
+            {{if .Payment.LimitCents}}<span>Limit {{centsToDollars .Payment.LimitCents}} · charged {{centsToDollars .TotalCents}}</span>{{end}}
             <span>Admit: {{.Quantity}}</span>
             <a href="/t/{{.Ticket.TicketID}}" style="color:var(--accent-cyan); text-decoration:none;">View Ticket →</a>
           </div>
         </div>
         {{else}}
-        <p style="color: var(--text-dim); font-size: 14px;" id="no-orders-msg">No orders recorded yet. Run agent checkout or click "Simulate Agent Purchase" on any ticket page!</p>
+        <p style="color: var(--text-dim); font-size: 14px;" id="no-orders-msg">No orders yet. Start agentic checkout from the SideQuestz app.</p>
         {{end}}
       </div>
     </div>
@@ -325,9 +329,19 @@
 </main>
 
 <script>
-const demoKey = "{{.DemoKey}}";
+const demoKey = {{.DemoKey}};
 
-async function setScenario(s) {
+// esc makes feed text safe for innerHTML: request paths come from anyone.
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function money(cents) { return "$" + (Number(cents) / 100).toFixed(2); }
+function brandName(b) {
+  const names = {visa: 'Visa', mastercard: 'Mastercard', amex: 'Amex', discover: 'Discover'};
+  return names[b] || (b ? b : 'Card');
+}
+
+async function setScenario(s, btn) {
   try {
     const res = await fetch("/_demo/scenario", {
       method: "POST",
@@ -339,7 +353,7 @@ async function setScenario(s) {
     });
     if (res.ok) {
       document.querySelectorAll('.scen-btn').forEach(b => b.classList.remove('active'));
-      event.target.classList.add('active');
+      btn.classList.add('active');
     }
   } catch (err) {
     console.error("setScenario error", err);
@@ -365,35 +379,36 @@ async function pollFeed() {
     // Update orders
     const ordersContainer = document.getElementById('orders-container');
     if (data.orders && data.orders.length > 0) {
-      ordersContainer.innerHTML = data.orders.map(o => ` + "`" + `
+      ordersContainer.innerHTML = data.orders.map(o => `
         <div class="order-card">
           <div class="order-header">
-            <span class="order-event">${o.event_title}</span>
-            <span class="order-total">$${(o.total_cents / 100).toFixed(2)}</span>
+            <span class="order-event">${esc(o.event_title)}</span>
+            <span class="order-total">${money(o.total_cents)}</span>
           </div>
           <div class="order-details">
-            <span style="color:#00e676;">✓ Signed Agent (${o.agent_key_id})</span>
-            <span>Visa •••• ${o.card_last4}</span>
-            <span>Admit: ${o.quantity}</span>
-            <a href="${o.ticket_url}" style="color:var(--accent-cyan); text-decoration:none;">View Ticket →</a>
+            <span style="color:#00e676;">✓ Signed Agent (${esc(o.agent_key_id)})</span>
+            <span>${esc(brandName(o.card_brand))} •••• ${esc(o.card_last4)} · Stripe SPT</span>
+            ${o.limit_cents ? `<span>Limit ${money(o.limit_cents)} · charged ${money(o.total_cents)}</span>` : ''}
+            <span>Admit: ${Number(o.quantity)}</span>
+            <a href="${esc(o.ticket_url)}" style="color:var(--accent-cyan); text-decoration:none;">View Ticket →</a>
           </div>
         </div>
-      ` + "`" + `).join('');
+      `).join('');
       document.getElementById('order-count-badge').innerText = data.orders.length + " Recorded";
     }
 
     // Update rejected requests
     const rejContainer = document.getElementById('rejected-container');
     if (data.rejected && data.rejected.length > 0) {
-      rejContainer.innerHTML = data.rejected.map(r => ` + "`" + `
+      rejContainer.innerHTML = data.rejected.map(r => `
         <div class="rejected-item">
           <div class="rej-top">
-            <span class="rej-code">${r.status_code} ${r.reason}</span>
+            <span class="rej-code">${Number(r.status_code)} ${esc(r.reason)}</span>
             <span style="font-size: 11px; color: var(--text-dim);">${new Date(r.timestamp).toLocaleTimeString()}</span>
           </div>
-          <div class="rej-path">${r.method} ${r.path}</div>
+          <div class="rej-path">${esc(r.method)} ${esc(r.path)}</div>
         </div>
-      ` + "`" + `).join('');
+      `).join('');
       document.getElementById('rej-count-badge').innerText = data.rejected.length;
     }
   } catch (err) {

@@ -116,25 +116,13 @@
 }
 
 /* Live Simulation Box */
-.sim-box {
-  background: rgba(138, 43, 226, 0.08);
-  border: 1px solid rgba(138, 43, 226, 0.3);
-  border-radius: 16px;
-  padding: 20px;
-  text-align: center;
-}
-.sim-box h3 {
-  font-size: 16px;
-  color: #c084fc;
-  margin-bottom: 8px;
-}
 </style>
 </head>
 <body>
 
 <div class="sandbox-banner">
   <span>Sandbox Active</span>
-  Official Ticketmaster Partner Demo · Simulated Visa Agent Network
+  SideQuestz Events sandbox · No real tickets or payments
 </div>
 
 <header class="nav-header">
@@ -145,7 +133,6 @@
     </a>
     <nav class="nav-links">
       <a href="/{{.Event.Slug}}">← Event Details</a>
-      <a href="/dashboard">Booth Dashboard</a>
     </nav>
   </div>
 </header>
@@ -190,26 +177,16 @@
 
     <div class="agent-notice-box">
       <strong>🤖 Agentic Checkout Enabled</strong>
-      Tickets for this sandbox are bought by the SideQuestz agent using Visa's Trusted Agent Protocol (TAP).
-      The agent reads this page's <code style="color:var(--accent-cyan);">&lt;link rel="agent-checkout"&gt;</code> to secure cryptographic quotes and book via authenticated tokens.
+      Tickets here are bought by the SideQuestz agent (sandbox). It signs every request with Visa's Trusted Agent Protocol (TAP),
+      reads this page's <code style="color:var(--accent-cyan);">&lt;link rel="agent-checkout"&gt;</code> for a quote, and pays with a
+      Stripe shared payment token limited to that quote. Nothing is really charged.
     </div>
 
-    <div class="sim-box">
-      <h3>Live Demo: Test Agentic Checkout</h3>
-      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
-        Click below to simulate an autonomous Visa Agent purchase (generates quote, simulates TAP Ed25519 signature, authorizes single-use Visa token, and issues ticket pass).
-      </p>
-      <button class="btn btn-primary" id="sim-btn" onclick="runSimulatedAgentPurchase()" style="width: 100%;">
-        ⚡ Simulate Agent Purchase
-      </button>
-      <div id="sim-status" style="margin-top: 12px; font-size: 13px; display: none;"></div>
-    </div>
   </div>
 </main>
 
 <script>
 const unitCents = {{.Event.UnitCents}};
-const slug = "{{.Event.Slug}}";
 let qty = 2;
 
 function updateQty(delta) {
@@ -218,11 +195,8 @@ function updateQty(delta) {
   document.getElementById('qty-label').innerText = qty;
 
   const subtotal = unitCents * qty;
-  // Calculate fees: 8% + 50 cents/ea (+18 adjust for 2 at 1200)
-  let fees = Math.floor((subtotal * 8) / 100) + (50 * qty);
-  if (unitCents === 1200 && qty === 2) {
-    fees = 310;
-  }
+  // Fees: 8% of the subtotal plus $0.50 per ticket (models.CalculateFees)
+  const fees = Math.floor((subtotal * 8) / 100) + (50 * qty);
   const total = subtotal + fees;
 
   document.getElementById('subtotal-val').innerText = "$" + (subtotal / 100).toFixed(2);
@@ -230,42 +204,7 @@ function updateQty(delta) {
   document.getElementById('total-val').innerText = "$" + (total / 100).toFixed(2);
 }
 
-async function runSimulatedAgentPurchase() {
-  const btn = document.getElementById('sim-btn');
-  const status = document.getElementById('sim-status');
-  btn.disabled = true;
-  btn.innerText = "Authorizing with Visa...";
-  status.style.display = "block";
-  status.style.color = "var(--accent-cyan)";
-  status.innerText = "Requesting signed quote from /api/events/" + slug + "/offer...";
-
-  try {
-    const res = await fetch("/_demo/sim-purchase", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug: slug, quantity: qty })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      status.style.color = "#ff4444";
-      status.innerText = "Error (" + res.status + "): " + (data.message || "Failed");
-      btn.disabled = false;
-      btn.innerText = "⚡ Simulate Agent Purchase";
-      return;
-    }
-
-    status.style.color = "var(--accent-emerald)";
-    status.innerText = "✓ Purchased! Redirecting to Ticket Pass...";
-    setTimeout(() => {
-      window.location.href = "/t/" + data.ticket.ticket_id;
-    }, 800);
-  } catch (err) {
-    status.style.color = "#ff4444";
-    status.innerText = "Network error: " + err.message;
-    btn.disabled = false;
-    btn.innerText = "⚡ Simulate Agent Purchase";
-  }
-}
+updateQty(0);
 </script>
 
 </body>

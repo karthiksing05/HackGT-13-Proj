@@ -150,12 +150,16 @@ func (h *H) cardPage(token, problem string) page {
 	hints := make([]string, 0, len(testCards))
 	for _, tc := range testCards {
 		n := tc.number
-		hints = append(hints, n[0:4]+" "+n[4:8]+" "+n[8:12]+" "+n[12:16]+" ("+tc.card.brand+")")
+		label := tc.card.brand
+		if tc.note != "" {
+			label += ", " + tc.note
+		}
+		hints = append(hints, n[0:4]+" "+n[4:8]+" "+n[8:12]+" "+n[12:16]+" ("+label+")")
 	}
 	return page{
 		Title: "Add a card",
 		Error: problem,
-		Body:  []string{"This is a demo card page: SideQuests doesn't charge cards yet. Only a card's brand and last four digits are saved, never the full number."},
+		Body:  []string{"This is a sandbox card page: pick one of Stripe's test cards. Agentic checkout pays with it in Stripe test mode, so nothing is ever charged. Only a card's brand and last four digits are saved, never the full number."},
 		Form:  &cardForm{Action: h.publicURL("/pay/setup"), Token: token, TestCards: hints},
 	}
 }
@@ -172,8 +176,8 @@ func (h *H) CardPage(w http.ResponseWriter, r *http.Request) {
 }
 
 // SubmitCardPage is POST /pay/setup (form: t, card=demo|number, number).
-// Simulated: "demo" saves the next demo card (Visa 4242, Mastercard 5454,
-// then Visa 1881); "number" accepts only the listed test numbers. It uses up
+// Simulated: "demo" saves the next demo card (Visa 4242, Mastercard 4444,
+// then Visa 5556); "number" accepts only the listed Stripe test numbers. It uses up
 // the link, saves brand and last four, and 302s to sidequestz://payments/done.
 // A wrong number shows the page again without using up the link; the typed
 // number is never stored, logged or echoed back.

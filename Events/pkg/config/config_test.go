@@ -1,38 +1,49 @@
 package config
 
 import (
-	"os"
 	"testing"
 )
 
 func TestConfigFromEnv(t *testing.T) {
-	os.Setenv("PAYMENTS_MODE", "sandbox")
+	t.Setenv("PAYMENTS_MODE", "sandbox")
 	cfg, err := FromEnv()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.PaymentsMode != "sandbox" {
-		t.Errorf("expected PaymentsMode=sandbox, got %s", cfg.PaymentsMode)
+	if cfg.PaymentsMode != "sandbox" || !cfg.IsDev() {
+		t.Errorf("got PaymentsMode=%s dev=%v", cfg.PaymentsMode, cfg.IsDev())
 	}
 }
 
 func TestConfigRejectsNonSandbox(t *testing.T) {
-	os.Setenv("PAYMENTS_MODE", "production")
-	defer os.Setenv("PAYMENTS_MODE", "sandbox")
-
-	_, err := FromEnv()
-	if err == nil {
+	t.Setenv("PAYMENTS_MODE", "production")
+	if _, err := FromEnv(); err == nil {
 		t.Fatal("expected error when PAYMENTS_MODE != sandbox, got nil")
 	}
 }
 
-func TestConfigRejectsNonSandboxVisaURL(t *testing.T) {
-	os.Setenv("PAYMENTS_MODE", "sandbox")
-	os.Setenv("VISA_AUTHORIZE_URL", "https://api.visa.com/v1/pay")
-	defer os.Unsetenv("VISA_AUTHORIZE_URL")
+func TestConfigRejectsLiveStripeKey(t *testing.T) {
+	t.Setenv("STRIPE_SECRET_KEY", "sk_live_abc")
+	if _, err := FromEnv(); err == nil {
+		t.Fatal("expected error for a live Stripe key, got nil")
+	}
+	t.Setenv("STRIPE_SECRET_KEY", "sk_test_abc")
+	if _, err := FromEnv(); err != nil {
+		t.Fatalf("test key rejected: %v", err)
+	}
+}
 
-	_, err := FromEnv()
-	if err == nil {
-		t.Fatal("expected error for production visa URL, got nil")
+func TestConfigProdNeedsRealKeys(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	if _, err := FromEnv(); err == nil {
+		t.Fatal("expected error without TAP_AGENT_PUBLIC_KEY in production")
+	}
+	t.Setenv("TAP_AGENT_PUBLIC_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+	if _, err := FromEnv(); err == nil {
+		t.Fatal("expected error with the default DEMO_KEY in production")
+	}
+	t.Setenv("DEMO_KEY", "booth-secret")
+	if _, err := FromEnv(); err != nil {
+		t.Fatalf("production config rejected: %v", err)
 	}
 }

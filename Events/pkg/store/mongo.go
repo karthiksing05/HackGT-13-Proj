@@ -166,6 +166,9 @@ func (m *MongoStore) GetQuote(ctx context.Context, quoteID string) (*models.Quot
 func (m *MongoStore) SaveOrder(ctx context.Context, order *models.OrderConfirmation, idempotencyKey string) error {
 	order.IdempotencyKey = idempotencyKey
 	_, err := m.db.Collection(CollOrders).InsertOne(ctx, order)
+	if mongo.IsDuplicateKeyError(err) {
+		return ErrDuplicateOrder
+	}
 	return err
 }
 

@@ -3,10 +3,12 @@ package api_test
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"events/pkg/api"
 	"events/pkg/config"
 	"events/pkg/models"
+	"events/pkg/payments"
 	"events/pkg/router"
 	"events/pkg/store"
 	"events/pkg/tap"
@@ -22,20 +24,34 @@ import (
 func setupTestServer(t *testing.T) (http.Handler, *api.Deps) {
 	t.Helper()
 	cfg := &config.Config{
-		AppEnv:            "test",
-		HTTPAddr:          ":8085",
-		MerchantHost:      "events.sidequestz.tech",
-		MerchantBaseURL:   "http://localhost:8085",
-		PaymentsMode:      "sandbox",
-		DemoKey:           "test-demo-key",
-		SandboxNetworkKey: "test-network-key",
+		AppEnv:          "test",
+		HTTPAddr:        ":8085",
+		MerchantHost:    "events.sidequestz.tech",
+		MerchantBaseURL: "http://localhost:8085",
+		PaymentsMode:    "sandbox",
+		DemoKey:         "test-demo-key",
 	}
 	memStore := store.NewMemoryStore()
 	memStore.SeedDefaultEvents()
 
-	deps := api.NewDeps(cfg, memStore)
+	deps, err := api.NewDeps(cfg, memStore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := payments.NewFake(nil)
+	for _, spt := range []string{"spt_happy", "spt_idem", "spt_conc_1", "spt_conc_2", "spt_bump", "spt_over"} {
+		fake.Grant(spt, payments.FakeToken{MaxCents: 100000})
+	}
+	fake.Grant("spt_declined", payments.FakeToken{MaxCents: 100000, Decline: true})
+	deps.Charger = fake
 	h := router.New(deps)
 	return h, deps
+}
+
+// demoPriv is the demo agent key the test server trusts (APP_ENV=test).
+func demoPriv() ed25519.PrivateKey {
+	_, priv := tap.DefaultKeyPair()
+	return priv
 }
 
 func TestSignatureRejection(t *testing.T) {
@@ -62,13 +78,13 @@ func TestSignatureRejection(t *testing.T) {
 }
 
 func TestGetOfferAndOrderHappyPath(t *testing.T) {
-	h, deps := setupTestServer(t)
+	h, _ := setupTestServer(t)
 	now := time.Now().UTC()
 
 	// 1. Get Offer (signed with agent-browser-auth)
 	offerReq := httptest.NewRequest(http.MethodGet, "/api/events/sunset-jazz-on-pier-nine/offer?quantity=2", nil)
 	offerReq.Host = "events.sidequestz.tech"
-	if err := tap.Sign(offerReq, deps.DemoPrivKey, tap.DefaultDemoAgentKeyID, "agent-browser-auth", "events.sidequestz.tech", now); err != nil {
+	if err := tap.Sign(offerReq, demoPriv(), tap.DefaultDemoAgentKeyID, "agent-browser-auth", "events.sidequestz.tech", now); err != nil {
 		t.Fatal(err)
 	}
 	wOffer := httptest.NewRecorder()
@@ -82,7 +98,7 @@ func TestGetOfferAndOrderHappyPath(t *testing.T) {
 	if err := json.Unmarshal(wOffer.Body.Bytes(), &quote); err != nil {
 		t.Fatal(err)
 	}
-	if quote.QuoteID == "" || quote.Quantity != 2 || quote.TotalCents != 2710 {
+	if quote.QuoteID == "" || quote.Quantity != 2 || quote.TotalCents != 2692 {
 		t.Fatalf("unexpected quote values: %+v", quote)
 	}
 
@@ -92,10 +108,8 @@ func TestGetOfferAndOrderHappyPath(t *testing.T) {
 		Quantity:           2,
 		ExpectedTotalCents: quote.TotalCents,
 		Payment: models.PaymentCredential{
-			Scheme:        "visa_agent_token",
-			InstructionID: "sbx_ins_demo123",
-			Token:         "sbx_vtok_test_1881",
-			Cryptogram:    "sbx_cgm_test_4567",
+			Scheme: "stripe_spt",
+			Token:  "spt_happy",
 		},
 		Buyer: models.BuyerInfo{
 			Name:  "Sandy Byte",
@@ -108,7 +122,7 @@ func TestGetOfferAndOrderHappyPath(t *testing.T) {
 	orderReq.Host = "events.sidequestz.tech"
 	orderReq.Header.Set("Idempotency-Key", "intent-999")
 	orderReq.Header.Set("Content-Type", "application/json")
-	if err := tap.Sign(orderReq, deps.DemoPrivKey, tap.DefaultDemoAgentKeyID, "agent-payer-auth", "events.sidequestz.tech", now); err != nil {
+	if err := tap.Sign(orderReq, demoPriv(), tap.DefaultDemoAgentKeyID, "agent-payer-auth", "events.sidequestz.tech", now); err != nil {
 		t.Fatal(err)
 	}
 
@@ -123,10 +137,16 @@ func TestGetOfferAndOrderHappyPath(t *testing.T) {
 	if err := json.Unmarshal(wOrder.Body.Bytes(), &conf); err != nil {
 		t.Fatal(err)
 	}
-	if conf.Status != "confirmed" || !conf.Sandbox || conf.TotalCents != 2710 {
+	if conf.Payment.Scheme != "stripe_spt" || conf.Payment.PaymentIntentID == "" || conf.Payment.Last4 != "4242" || conf.Payment.LimitCents != 100000 {
+		t.Fatalf("payment summary = %+v", conf.Payment)
+	}
+	if strings.Contains(wOrder.Body.String(), "spt_happy") {
+		t.Fatal("the confirmation echoes the payment token")
+	}
+	if conf.Status != "confirmed" || !conf.Sandbox || conf.TotalCents != 2692 {
 		t.Fatalf("unexpected order confirmation: %+v", conf)
 	}
-	if conf.Ticket.TicketID == "" || conf.Payment.Last4 != "1881" {
+	if conf.Ticket.TicketID == "" || conf.Payment.Last4 != "4242" {
 		t.Fatalf("missing ticket ID or last4: %+v", conf)
 	}
 
@@ -152,7 +172,7 @@ func TestGetOfferAndOrderHappyPath(t *testing.T) {
 		t.Fatalf("expected 200 on ticket HTML, got %d", wTktHTML.Code)
 	}
 	bodyStr := wTktHTML.Body.String()
-	if !strings.Contains(bodyStr, conf.ConfirmationCode) || !strings.Contains(bodyStr, "Paid with Visa agent token") {
+	if !strings.Contains(bodyStr, conf.ConfirmationCode) || !strings.Contains(bodyStr, "Paid with a Stripe shared payment token") {
 		t.Fatalf("ticket HTML missing confirmation code or payment note")
 	}
 }
@@ -177,9 +197,8 @@ func TestIdempotentReplay(t *testing.T) {
 		Quantity:           1,
 		ExpectedTotalCents: 1350,
 		Payment: models.PaymentCredential{
-			Scheme:     "visa_agent_token",
-			Token:      "sbx_vtok_idem_1",
-			Cryptogram: "sbx_cgm_idem_1",
+			Scheme: "stripe_spt",
+			Token:  "spt_idem",
 		},
 		Buyer: models.BuyerInfo{Name: "Sandy", Email: "demo@sidequestz.tech"},
 	}
@@ -190,7 +209,7 @@ func TestIdempotentReplay(t *testing.T) {
 	req1.Host = "events.sidequestz.tech"
 	req1.Header.Set("Idempotency-Key", "idem-key-100")
 	req1.Header.Set("Content-Type", "application/json")
-	_ = tap.Sign(req1, deps.DemoPrivKey, tap.DefaultDemoAgentKeyID, "agent-payer-auth", "events.sidequestz.tech", now)
+	_ = tap.Sign(req1, demoPriv(), tap.DefaultDemoAgentKeyID, "agent-payer-auth", "events.sidequestz.tech", now)
 	w1 := httptest.NewRecorder()
 	h.ServeHTTP(w1, req1)
 
@@ -205,7 +224,7 @@ func TestIdempotentReplay(t *testing.T) {
 	req2.Host = "events.sidequestz.tech"
 	req2.Header.Set("Idempotency-Key", "idem-key-100")
 	req2.Header.Set("Content-Type", "application/json")
-	_ = tap.Sign(req2, deps.DemoPrivKey, tap.DefaultDemoAgentKeyID, "agent-payer-auth", "events.sidequestz.tech", now.Add(time.Second))
+	_ = tap.Sign(req2, demoPriv(), tap.DefaultDemoAgentKeyID, "agent-payer-auth", "events.sidequestz.tech", now.Add(time.Second))
 	w2 := httptest.NewRecorder()
 	h.ServeHTTP(w2, req2)
 
@@ -257,9 +276,8 @@ func TestConcurrentOrdersOnLastSeat(t *testing.T) {
 			Quantity:           1,
 			ExpectedTotalCents: 1670,
 			Payment: models.PaymentCredential{
-				Scheme:     "visa_agent_token",
-				Token:      token,
-				Cryptogram: "sbx_cgm_test",
+				Scheme: "stripe_spt",
+				Token:  token,
 			},
 			Buyer: models.BuyerInfo{Name: "Buyer", Email: "b@example.com"},
 		}
@@ -268,15 +286,15 @@ func TestConcurrentOrdersOnLastSeat(t *testing.T) {
 		r.Host = "events.sidequestz.tech"
 		r.Header.Set("Idempotency-Key", idem)
 		r.Header.Set("Content-Type", "application/json")
-		_ = tap.Sign(r, deps.DemoPrivKey, tap.DefaultDemoAgentKeyID, "agent-payer-auth", "events.sidequestz.tech", now)
+		_ = tap.Sign(r, demoPriv(), tap.DefaultDemoAgentKeyID, "agent-payer-auth", "events.sidequestz.tech", now)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
 		codes[idx] = w.Code
 	}
 
 	wg.Add(2)
-	go makeOrder(0, "q_last_1", "sbx_vtok_conc_1", "idem-conc-1")
-	go makeOrder(1, "q_last_2", "sbx_vtok_conc_2", "idem-conc-2")
+	go makeOrder(0, "q_last_1", "spt_conc_1", "idem-conc-1")
+	go makeOrder(1, "q_last_2", "spt_conc_2", "idem-conc-2")
 	wg.Wait()
 
 	has201 := (codes[0] == http.StatusCreated || codes[1] == http.StatusCreated)
@@ -305,15 +323,14 @@ func TestInventoryReleasedOnDecline(t *testing.T) {
 	}
 	_ = deps.Store.SaveQuote(context.Background(), q)
 
-	// Send an invalid token that the Visa network will decline
+	// A token whose card declines
 	payload := models.OrderRequest{
 		QuoteID:            "q_decline_test",
 		Quantity:           2,
 		ExpectedTotalCents: 1200,
 		Payment: models.PaymentCredential{
-			Scheme:     "visa_agent_token",
-			Token:      "invalid_prefix_token", // Will decline
-			Cryptogram: "sbx_cgm_test",
+			Scheme: "stripe_spt",
+			Token:  "spt_declined", // the card behind it declines
 		},
 		Buyer: models.BuyerInfo{Name: "Buyer", Email: "test@example.com"},
 	}
@@ -322,7 +339,7 @@ func TestInventoryReleasedOnDecline(t *testing.T) {
 	r.Host = "events.sidequestz.tech"
 	r.Header.Set("Idempotency-Key", "idem-decline-1")
 	r.Header.Set("Content-Type", "application/json")
-	_ = tap.Sign(r, deps.DemoPrivKey, tap.DefaultDemoAgentKeyID, "agent-payer-auth", "events.sidequestz.tech", now)
+	_ = tap.Sign(r, demoPriv(), tap.DefaultDemoAgentKeyID, "agent-payer-auth", "events.sidequestz.tech", now)
 
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
@@ -368,7 +385,7 @@ func TestJSONLDValidity(t *testing.T) {
 		ConfirmationCode: "SL-TEST1",
 		Status:           "confirmed",
 		Quantity:         2,
-		TotalCents:       2710,
+		TotalCents:       2692,
 		Event: models.EventSummary{
 			Title:    "Sunset Jazz",
 			Venue:    "Pier Nine",
@@ -429,6 +446,126 @@ func TestReservedSlugChecks(t *testing.T) {
 		h.ServeHTTP(w, r)
 		if w.Code == http.StatusOK {
 			t.Errorf("reserved slug %q unexpectedly returned 200 for tickets page", slug)
+		}
+	}
+}
+
+// signedOrder posts body to /api/orders signed as the payer agent.
+func signedOrder(t *testing.T, h http.Handler, idem string, body models.OrderRequest) *httptest.ResponseRecorder {
+	t.Helper()
+	b, _ := json.Marshal(body)
+	r := httptest.NewRequest(http.MethodPost, "/api/orders", bytes.NewReader(b))
+	r.Host = "events.sidequestz.tech"
+	r.Header.Set("Idempotency-Key", idem)
+	r.Header.Set("Content-Type", "application/json")
+	if err := tap.Sign(r, demoPriv(), tap.DefaultDemoAgentKeyID, "agent-payer-auth", "events.sidequestz.tech", time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	return w
+}
+
+// saveQuote stores a live quote for 2 tickets to slug at total.
+func saveQuote(t *testing.T, deps *api.Deps, id, slug string, unit int) *models.Quote {
+	t.Helper()
+	ev, err := deps.Store.GetEvent(context.Background(), slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fees := models.CalculateFees(unit, 2)
+	q := &models.Quote{
+		QuoteID: id, Event: ev.SummaryView(), Quantity: 2, Currency: "usd",
+		UnitCents: unit, SubtotalCents: unit * 2, FeesCents: fees, TotalCents: unit*2 + fees,
+		ExpiresAt: time.Now().Add(10 * time.Minute),
+	}
+	if err := deps.Store.SaveQuote(context.Background(), q); err != nil {
+		t.Fatal(err)
+	}
+	return q
+}
+
+func TestOverchargeIsDeclinedByThePaymentLayer(t *testing.T) {
+	h, deps := setupTestServer(t)
+	fake := deps.Charger.(*payments.Fake)
+	slug := "sunset-jazz-on-pier-nine"
+	q := saveQuote(t, deps, "q_over", slug, 1200)
+	// The agent's token allows exactly the quoted total.
+	fake.Grant("spt_exact", payments.FakeToken{MaxCents: q.TotalCents})
+	deps.Store.SetScenario(context.Background(), models.ScenarioOvercharge)
+	before, _ := deps.Store.GetEvent(context.Background(), slug)
+
+	w := signedOrder(t, h, "idem-over", models.OrderRequest{
+		QuoteID: q.QuoteID, Quantity: 2, ExpectedTotalCents: q.TotalCents,
+		Payment: models.PaymentCredential{Scheme: "stripe_spt", Token: "spt_exact"},
+		Buyer:   models.BuyerInfo{Name: "Sandy Byte", Email: "demo@sidequestz.tech"},
+	})
+	var e models.APIError
+	_ = json.Unmarshal(w.Body.Bytes(), &e)
+	if w.Code != http.StatusPaymentRequired || e.Code != "declined" || e.DeclineReason != payments.ReasonOverLimit {
+		t.Fatalf("got %d %+v, want 402 declined/over_limit", w.Code, e)
+	}
+	after, _ := deps.Store.GetEvent(context.Background(), slug)
+	if after.Remaining != before.Remaining {
+		t.Fatalf("seats not released: %d → %d", before.Remaining, after.Remaining)
+	}
+}
+
+func TestPriceBumpRepricesOnce(t *testing.T) {
+	h, deps := setupTestServer(t)
+	q := saveQuote(t, deps, "q_bump", "sunset-jazz-on-pier-nine", 1200)
+	deps.Store.SetScenario(context.Background(), models.ScenarioPriceBump)
+	order := models.OrderRequest{
+		QuoteID: q.QuoteID, Quantity: 2, ExpectedTotalCents: q.TotalCents,
+		Payment: models.PaymentCredential{Scheme: "stripe_spt", Token: "spt_bump"},
+		Buyer:   models.BuyerInfo{Name: "Sandy Byte", Email: "demo@sidequestz.tech"},
+	}
+	w := signedOrder(t, h, "idem-bump-1", order)
+	var e models.APIError
+	_ = json.Unmarshal(w.Body.Bytes(), &e)
+	if w.Code != http.StatusConflict || e.Code != "price_changed" || e.QuoteID == "" || e.TotalCents <= q.TotalCents {
+		t.Fatalf("got %d %+v, want 409 price_changed with a higher total", w.Code, e)
+	}
+	// Ordering against the new quote goes through: the surge applies once.
+	order.QuoteID, order.ExpectedTotalCents = e.QuoteID, e.TotalCents
+	w = signedOrder(t, h, "idem-bump-2", order)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("order on the repriced quote: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestOrderRejectsBadPaymentAndQuantity(t *testing.T) {
+	h, deps := setupTestServer(t)
+	q := saveQuote(t, deps, "q_bad", "sunset-jazz-on-pier-nine", 1200)
+	base := models.OrderRequest{
+		QuoteID: q.QuoteID, Quantity: 2, ExpectedTotalCents: q.TotalCents,
+		Buyer: models.BuyerInfo{Name: "Sandy Byte", Email: "demo@sidequestz.tech"},
+	}
+	visa := base
+	visa.Payment = models.PaymentCredential{Scheme: "visa_agent_token", Token: "sbx_vtok_1"}
+	if w := signedOrder(t, h, "idem-bad-1", visa); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "unsupported_payment") {
+		t.Fatalf("non-SPT payment: %d %s", w.Code, w.Body.String())
+	}
+	more := base
+	more.Quantity = 5
+	more.Payment = models.PaymentCredential{Scheme: "stripe_spt", Token: "spt_happy"}
+	if w := signedOrder(t, h, "idem-bad-2", more); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "quantity_mismatch") {
+		t.Fatalf("quantity above the quote: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestDashboardNeedsTheDemoKey(t *testing.T) {
+	h, _ := setupTestServer(t)
+	for _, path := range []string{"/dashboard", "/api/dashboard/feed"} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("%s without key: %d", path, w.Code)
+		}
+		w = httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path+"?key=test-demo-key", nil))
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s with key: %d", path, w.Code)
 		}
 	}
 }

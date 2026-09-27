@@ -88,9 +88,17 @@ def popularity(name: str, rating_count: int | None) -> float:
     return round(min(1.0, base + (_hash(name) % 20) / 100), 2)
 
 
-def source(name: str) -> dict:
+# DEMO_BASE is where the fictional city's places live (no such site);
+# MERCHANT_BASE is the sandbox ticket merchant (Events/, events.sidequestz.tech),
+# which serves a page for every ticketed event and sells its tickets to the
+# SideQuestz checkout agent.
+DEMO_BASE = "https://saltlight.example"
+MERCHANT_BASE = "https://events.sidequestz.tech"
+
+
+def source(name: str, base: str = DEMO_BASE) -> dict:
     s = slug(name)
-    url = f"https://saltlight.example/{s}"
+    url = f"{base}/{s}"
     return dict(url=url, sourceKeys=[f"demo:{s}"], sources=[SourceRef(name="demo", id=s, url=url, fetchedAt=FETCHED)])
 
 
@@ -331,8 +339,8 @@ def build_event(row) -> Activity:
         category=cat, sourceCategory=cat, tags=tags, location=loc, address=addr, venueName=venue,
         start=start.astimezone(timezone.utc), end=end.astimezone(timezone.utc), attendance=attendance,
         timezone=str(TZ), duration=duration, price=price_from_range(lo, hi, "USD", TIERS),
-        popularity=popularity(name, None), ticketUrl=None if hi == 0 else f"https://saltlight.example/{slug(name)}/tickets",
-        expiresAt=end.astimezone(timezone.utc), **source(name),
+        popularity=popularity(name, None), ticketUrl=None if hi == 0 else f"{MERCHANT_BASE}/{slug(name)}/tickets",
+        expiresAt=end.astimezone(timezone.utc), **source(name, DEMO_BASE if hi == 0 else MERCHANT_BASE),
     )
 
 

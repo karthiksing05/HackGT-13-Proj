@@ -224,6 +224,9 @@ func stopItem(s contract.PlanStop, window contract.StopWindow, detail *api.StopD
 		if detail.WebsiteURL != nil && *detail.WebsiteURL != "" {
 			item.WebsiteURL = detail.WebsiteURL
 		}
+		if detail.TicketURL != nil && *detail.TicketURL != "" {
+			item.TicketURL = detail.TicketURL
+		}
 		item.Bookable = detail.Bookable
 	}
 	return item

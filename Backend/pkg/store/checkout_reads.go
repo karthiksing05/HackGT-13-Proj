@@ -82,3 +82,23 @@ func (r CheckoutReads) SaveTicket(ctx context.Context, userID, itineraryID, item
 		options.UpdateOne().SetUpsert(true))
 	return err
 }
+
+// Tickets are userID's booked tickets among itemIDs, by item id.
+func (r CheckoutReads) Tickets(ctx context.Context, userID string, itemIDs []string) (map[string]models.ItemTicket, error) {
+	cursor, err := r.s.db.Collection(CollItemStates).Find(ctx,
+		bson.M{"userId": userID, "itemId": bson.M{"$in": itemIDs}, "ticket": bson.M{"$exists": true}})
+	if err != nil {
+		return nil, err
+	}
+	var states []models.ItemState
+	if err := cursor.All(ctx, &states); err != nil {
+		return nil, err
+	}
+	out := make(map[string]models.ItemTicket, len(states))
+	for _, st := range states {
+		if st.Ticket != nil {
+			out[st.ItemID] = *st.Ticket
+		}
+	}
+	return out, nil
+}
