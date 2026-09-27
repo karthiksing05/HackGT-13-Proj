@@ -145,7 +145,7 @@ body {
   color: var(--accent-cyan);
 }
 
-.visa-badge {
+.pay-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -153,7 +153,7 @@ body {
   color: var(--text-dim);
   margin-top: 8px;
 }
-.visa-badge span {
+.pay-badge span {
   color: var(--accent-amber);
   font-weight: 600;
 }
@@ -188,7 +188,7 @@ body {
         </div>
         <div>
           <div class="t-label">Payment Method</div>
-          <div class="t-val">Visa •••• {{.Order.Payment.Last4}}</div>
+          <div class="t-val">{{brandName .Order.Payment.Brand}} •••• {{.Order.Payment.Last4}}</div>
         </div>
       </div>
     </div>
@@ -248,8 +248,8 @@ body {
         <div class="barcode-text">{{.Order.Ticket.Barcode}}</div>
       </div>
 
-      <div class="visa-badge">
-        Paid with Visa agent token •••• {{.Order.Payment.Last4}} · <span>Sandbox Demo</span>
+      <div class="pay-badge">
+        Paid with a Stripe shared payment token •••• {{.Order.Payment.Last4}} · <span>Sandbox: not valid for entry</span>
       </div>
 
       <div style="margin-top: 20px;">

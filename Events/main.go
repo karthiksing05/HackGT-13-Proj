@@ -36,7 +36,13 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to initialize event merchant store")
 	}
 
-	deps := api.NewDeps(cfg, st)
+	deps, err := api.NewDeps(cfg, st)
+	if err != nil {
+		log.Fatal().Err(err).Msg("invalid configuration")
+	}
+	if cfg.StripeSecretKey == "" {
+		log.Warn().Msg("STRIPE_SECRET_KEY is not set: orders answer 503 until it is")
+	}
 	handler := router.New(deps)
 
 	srv := &http.Server{
@@ -55,10 +61,10 @@ func main() {
 			Str("addr", cfg.HTTPAddr).
 			Str("merchant_host", cfg.MerchantHost).
 			Str("payments_mode", cfg.PaymentsMode).
-			Msg("SideQuestz Events Merchant (Ticketmaster Demo) listening")
+			Msg("SideQuestz Events merchant (sandbox) listening")
 
 		log.Info().Msgf("🎟  Event Discovery:  http://localhost%s/", cfg.HTTPAddr)
-		log.Info().Msgf("📊  Booth Dashboard:  http://localhost%s/dashboard", cfg.HTTPAddr)
+		log.Info().Msgf("📊  Booth Dashboard:  http://localhost%s/dashboard?key=<DEMO_KEY>", cfg.HTTPAddr)
 
 		errs <- srv.ListenAndServe()
 	}()

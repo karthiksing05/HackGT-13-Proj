@@ -115,6 +115,9 @@ func (m *MemoryStore) GetQuote(ctx context.Context, quoteID string) (*models.Quo
 func (m *MemoryStore) SaveOrder(ctx context.Context, order *models.OrderConfirmation, idempotencyKey string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if idempotencyKey != "" && m.ordersByIdem[idempotencyKey] != nil {
+		return ErrDuplicateOrder
+	}
 	cp := *order
 	cp.IdempotencyKey = idempotencyKey
 	m.orders[order.OrderID] = &cp

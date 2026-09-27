@@ -114,14 +114,6 @@ func Verify(req *http.Request, keyDir KeyDirectory, nonces NonceStore, expectedT
 		}
 	}
 
-	// 4. Nonce check: single-use
-	if nonces != nil && parsed.Nonce != "" {
-		expTime := time.Unix(parsed.Expires, 0)
-		if err := nonces.CheckAndRecordNonce(parsed.Nonce, expTime); err != nil {
-			return nil, ErrReplayedNonce
-		}
-	}
-
 	// 5. Extract signature bytes
 	sigBytes, err := extractSignatureBytes(sigHeader, parsed.Label)
 	if err != nil {
@@ -147,18 +139,27 @@ func Verify(req *http.Request, keyDir KeyDirectory, nonces NonceStore, expectedT
 	sigBase := fmt.Sprintf("\"@authority\": %s\n\"@path\": %s\n\"@signature-params\": %s",
 		authority, path, parsed.RawParams)
 
-	if !ed25519.Verify(pubKey, []byte(sigBase), sigBytes) {
+	valid := ed25519.Verify(pubKey, []byte(sigBase), sigBytes)
+	if !valid && expectedAuthority != "" && authority != expectedAuthority {
 		// Also try with expectedAuthority if req.Host had a port difference
-		if expectedAuthority != "" && authority != expectedAuthority {
-			altBase := fmt.Sprintf("\"@authority\": %s\n\"@path\": %s\n\"@signature-params\": %s",
-				expectedAuthority, path, parsed.RawParams)
-			if ed25519.Verify(pubKey, []byte(altBase), sigBytes) {
-				return parsed, nil
-			}
-		}
+		altBase := fmt.Sprintf("\"@authority\": %s\n\"@path\": %s\n\"@signature-params\": %s",
+			expectedAuthority, path, parsed.RawParams)
+		valid = ed25519.Verify(pubKey, []byte(altBase), sigBytes)
+	}
+	if !valid {
 		return nil, ErrBadSignature
 	}
 
+	// 8. Nonce check: single-use. Recorded only for a valid signature, so
+	// unsigned junk can't burn nonces.
+	if parsed.Nonce == "" {
+		return nil, fmt.Errorf("%w: missing nonce", ErrBadParams)
+	}
+	if nonces != nil {
+		if err := nonces.CheckAndRecordNonce(parsed.Nonce, time.Unix(parsed.Expires, 0)); err != nil {
+			return nil, ErrReplayedNonce
+		}
+	}
 	return parsed, nil
 }
 

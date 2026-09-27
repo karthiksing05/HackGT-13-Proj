@@ -8,7 +8,19 @@ const (
 	ScenarioSoldOut   = "sold_out"
 	ScenarioPriceBump = "price_bump"
 	ScenarioSlow      = "slow"
+	// ScenarioOvercharge makes the merchant try to charge 25% more than it
+	// quoted. Stripe refuses: the charge is over the token's max_amount.
+	ScenarioOvercharge = "overcharge"
 )
+
+// ValidScenario reports whether s is a scenario the booth can switch to.
+func ValidScenario(s string) bool {
+	switch s {
+	case ScenarioNormal, ScenarioSoldOut, ScenarioPriceBump, ScenarioSlow, ScenarioOvercharge:
+		return true
+	}
+	return false
+}
 
 // ScenarioState tracks the current active scenario.
 type ScenarioState struct {
@@ -28,18 +40,19 @@ type RejectedRequest struct {
 
 // DashboardFeedItem is an item in the live order stream.
 type DashboardFeedItem struct {
-	OrderID               string    `json:"order_id"`
-	EventTitle            string    `json:"event_title"`
-	EventSlug             string    `json:"event_slug"`
-	Quantity              int       `json:"quantity"`
-	TotalCents            int       `json:"total_cents"`
-	AgentSigned           bool      `json:"agent_signed"`
-	AgentKeyID            string    `json:"agent_key_id"`
-	CardLast4             string    `json:"card_last4"`
-	InstructionID         string    `json:"instruction_id"`
-	InstructionLimitCents int       `json:"instruction_limit_cents"`
-	TicketURL             string    `json:"ticket_url"`
-	CreatedAt             time.Time `json:"created_at"`
+	OrderID         string    `json:"order_id"`
+	EventTitle      string    `json:"event_title"`
+	EventSlug       string    `json:"event_slug"`
+	Quantity        int       `json:"quantity"`
+	TotalCents      int       `json:"total_cents"`
+	AgentSigned     bool      `json:"agent_signed"`
+	AgentKeyID      string    `json:"agent_key_id"`
+	CardBrand       string    `json:"card_brand"`
+	CardLast4       string    `json:"card_last4"`
+	LimitCents      int       `json:"limit_cents"`
+	PaymentIntentID string    `json:"payment_intent_id"`
+	TicketURL       string    `json:"ticket_url"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 // DashboardFeed represents the payload for live feed polling.

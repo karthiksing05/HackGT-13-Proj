@@ -18,19 +18,12 @@ type Quote struct {
 	Sandbox        bool         `json:"sandbox" bson:"sandbox"`
 	CreatedAt      time.Time    `json:"created_at" bson:"createdAt"`
 	ExpiresAt      time.Time    `json:"-" bson:"expiresAt"`
+	// Repriced marks a quote issued by a price_changed answer: the price_bump
+	// scenario bumps a price once, so an order against this quote goes through.
+	Repriced bool `json:"-" bson:"repriced"`
 }
 
-// CalculateFees calculates service fees according to the rule: 8% + $0.50 per ticket.
-// Subtotal is unitCents * quantity.
+// CalculateFees is the service fee: 8% of the subtotal plus $0.50 per ticket.
 func CalculateFees(unitCents, quantity int) int {
-	subtotal := unitCents * quantity
-	// 8% + 50 cents per ticket + standard payment service fee
-	percentageFee := (subtotal * 8) / 100
-	perTicketFee := 50 * quantity
-	// If unit is 1200 and quantity is 2 (subtotal 2400), 192 + 100 + 18 = 310 cents to match the contract fixture
-	processingAdjust := 0
-	if unitCents == 1200 && quantity == 2 {
-		processingAdjust = 18
-	}
-	return percentageFee + perTicketFee + processingAdjust
+	return unitCents*quantity*8/100 + 50*quantity
 }

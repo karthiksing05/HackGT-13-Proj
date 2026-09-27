@@ -1,82 +1,62 @@
-# SideQuestz Events (Ticketmaster Sandbox & Merchant Server)
+# SideQuestz Events (sandbox ticket merchant)
 
-A high-performance Go web server and API simulating a Ticketmaster-like event ticketing platform for Saltlight Harbor. Built for hackathon demonstrations with autonomous AI agents (Meta Muse Spark) and the Visa Agentic Checkout sandbox.
-
----
+The ticket seller for the fictional city of Saltlight Harbor, served at `events.sidequestz.tech`.
+People can browse it; tickets are bought by the SideQuestz checkout agent. Every agent request is
+signed with Visa's Trusted Agent Protocol (TAP), and every order is paid with a Stripe test-mode
+Shared Payment Token (SPT) the agent issued for that one purchase. Nothing real is sold or charged.
 
 ## Features
 
-- **Ticketmaster-style Discovery UI**:
-  - Event discovery at `/` and `/events` with category filtering, search, dynamic availability, and pricing.
-  - Rich event details pages at `/{slug}` with Schema.org `Event` JSON-LD microdata.
-  - Interactive ticket selection at `/{slug}/tickets` with real-time fee breakdown (8% + $0.50/ea) and `<link rel="agent-checkout">` tags.
-  - Apple Wallet style digital ticket pass at `/t/{ticket_id}` with barcode graphics, confirmation code (`SL-XXXXX`), and Schema.org `EventReservation` JSON-LD.
-  - Content negotiation: `Accept: application/json` on `/t/{ticket_id}` returns the raw ticket JSON object.
-- **Agentic Checkout & Visa Trusted Agent Protocol (TAP)**:
-  - RFC 9421 HTTP message signatures using Ed25519 (`sqz-agent-1`).
-  - Signed quote offers at `GET /api/events/{slug}/offer` (`agent-browser-auth`).
-  - Signed orders at `POST /api/orders` (`agent-payer-auth`) with mandatory `Idempotency-Key` and atomic inventory reservation.
-  - Simulated Visa Network authorizer enforcing single-use agent tokens (`sbx_vtok_...`) and instruction budget limits.
-- **Operator Booth Dashboard**:
-  - Live order feed at `/dashboard` polling every 2 seconds via `/api/dashboard/feed`.
-  - Displays agent key ID, token last 4, instruction limit comparison, and direct links to tickets.
-  - Live log of the last 10 rejected requests (e.g. `401 bad_signature`) for the "unsigned curl" demonstration.
-  - Interactive scenario controller: `normal`, `sold_out`, `price_bump` (+40% price surge at checkout), and `slow` (latency simulation).
-- **Zero-Dependency Quickstart**:
-  - Pre-seeded with all 25 ticketed events from Saltlight Harbor.
-  - Seamless dual-store: connects to MongoDB if available, or automatically falls back to a thread-safe in-memory store.
+- **Storefront**: discovery at `/`, event pages at `/{slug}` (JSON-LD `Event`), ticket pages at
+  `/{slug}/tickets` (JSON-LD `Offer` and `<link rel="agent-checkout">`), and the ticket pass at
+  `/t/{ticket_id}` (JSON-LD `EventReservation`; `Accept: application/json` returns the ticket).
+- **Agent API**: signed quotes (`agent-browser-auth`) and signed orders (`agent-payer-auth`) with a
+  required `Idempotency-Key`, atomic seat reservation, and seats released when a charge fails.
+- **Payments**: the order's `payment` is `{"scheme":"stripe_spt","token":"spt_…"}`. The merchant
+  confirms a Stripe PaymentIntent with the token; Stripe enforces the token's `max_amount`, expiry
+  and single use. The token is never stored or echoed back.
+- **Booth dashboard** (`/dashboard?key=<DEMO_KEY>`): live orders with the signing key, card brand
+  and last 4, the token's limit against the amount charged, recent rejected requests, and the
+  scenario switch.
+- **Scenarios**: `normal`; `sold_out` (409); `price_bump` (+40% between quote and order, once: 409
+  `price_changed` with a new quote); `overcharge` (the merchant asks for 25% more than it quoted,
+  and Stripe declines: 402 `declined/over_limit`); `slow` (2.5 s delay).
+- **Store**: MongoDB when reachable, otherwise an in-memory store with the 25 ticketed events.
 
----
-
-## Quickstart
-
-### 1. Run the Server
+## Running
 
 ```bash
 cd Events
-go run main.go
+go run .
 ```
 
-The server starts on port `8085` (leaving port `8080` open for the main Backend API).
+It listens on `:8085`. See `.env.example`: `STRIPE_SECRET_KEY` must be a test key, and outside
+`APP_ENV=dev` both `TAP_AGENT_PUBLIC_KEY` and a non-default `DEMO_KEY` are required.
 
-### 2. Endpoints
+## Endpoints
 
-| URL | Type | Description |
+| Route | Auth | Purpose |
 |---|---|---|
-| `http://localhost:8085/` | Web UI | Event discovery catalog & search |
-| `http://localhost:8085/{slug}` | Web UI | Event details & JSON-LD |
-| `http://localhost:8085/{slug}/tickets` | Web UI | Ticket tier selector & agent purchase demo |
-| `http://localhost:8085/t/{ticket_id}` | Web / JSON | Digital ticket pass |
-| `http://localhost:8085/dashboard` | Web UI | Live operator booth screen & scenario switcher |
-| `GET /api/events/{slug}/offer` | API | Quote (requires TAP `agent-browser-auth`) |
-| `POST /api/orders` | API | Order placement (requires TAP `agent-payer-auth`) |
-| `GET /api/orders/{order_id}` | API | Order confirmation |
-| `POST /_demo/scenario` | API | Scenario switcher (`normal`, `sold_out`, `price_bump`, `slow`) |
-| `GET /sandbox/tap/keys/{keyid}` | API | Public key directory |
-| `POST /sandbox/visa/authorize` | API | Simulated Visa sandbox authorization |
-| `GET /healthz` | API | Health check |
+| `GET /`, `/events` | none | Discovery |
+| `GET /{slug}` | none | Event page |
+| `GET /{slug}/tickets` | none | Ticket page |
+| `GET /api/events/{slug}/offer?quantity=N` | TAP `agent-browser-auth` | Quote |
+| `POST /api/orders` | TAP `agent-payer-auth` | Order, paid with an SPT |
+| `GET /api/orders/{order_id}` | TAP `agent-browser-auth` | Order confirmation |
+| `GET /t/{ticket_id}` | none (unguessable id) | Ticket pass |
+| `GET /dashboard`, `GET /api/dashboard/feed`, `POST /_demo/scenario` | demo key | Booth screen |
+| `GET /sandbox/tap/keys/{keyid}` | none | The agent public keys this merchant trusts |
+| `GET /healthz` | none | Health |
 
-## Running Tests
+Errors are `{"code": "...", "message": "...", "decline_reason"?, "total_cents"?, "quote_id"?}` with
+codes `bad_signature`, `missing_idempotency`, `idempotency_conflict`, `bad_request`,
+`unsupported_payment`, `quantity_mismatch`, `not_found`, `sold_out`, `quote_expired`,
+`price_changed`, `declined` and `payments_unavailable`.
+
+## Tests, build, deploy
 
 ```bash
-cd Events
-go test -v ./...
-```
-
----
-
-## Build & Deployment
-
-### Build Binary
-```bash
-./build.sh          # Defaults to linux/amd64 (matches deploy target)
-./build.sh --native # Builds for host operating system
-./build.sh --clean  # Cleans bin/ first
-```
-
-### Deploy to Production VPS
-Deploys `events-server` to `/opt/events` and updates the `events.service` systemd service unit:
-```bash
-./deploy.sh [host] [user]
-# Or configure DEPLOY_HOST, DEPLOY_USER, DEPLOY_PASSWORD in .env
+go test ./...
+./build.sh            # linux/amd64 binary in bin/
+./deploy.sh [host]    # to /opt/events, restarts events.service
 ```

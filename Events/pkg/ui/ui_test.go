@@ -85,9 +85,11 @@ func TestRenderAllGoHTMLTemplates(t *testing.T) {
 			Barcode:   "SLT-1234-5678",
 		},
 		Payment: models.PaymentSummary{
-			Scheme: "visa_agent_token",
-			Last4:  "1881",
-			AuthID: "sbx_auth_123",
+			Scheme:          "stripe_spt",
+			Brand:           "visa",
+			Last4:           "4242",
+			PaymentIntentID: "pi_123",
+			LimitCents:      2692,
 		},
 	}
 	var bufPass bytes.Buffer

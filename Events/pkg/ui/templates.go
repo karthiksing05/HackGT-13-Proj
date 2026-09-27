@@ -66,6 +66,21 @@ var funcMap = template.FuncMap{
 	"baseCSS": func() template.CSS {
 		return baseCSS
 	},
+	"brandName": func(brand string) string {
+		switch strings.ToLower(brand) {
+		case "visa":
+			return "Visa"
+		case "mastercard":
+			return "Mastercard"
+		case "amex", "american_express":
+			return "Amex"
+		case "discover":
+			return "Discover"
+		case "":
+			return "Card"
+		}
+		return brand
+	},
 	"centsToDollars": func(cents int) string {
 		return fmt.Sprintf("$%d.%02d", cents/100, cents%100)
 	},

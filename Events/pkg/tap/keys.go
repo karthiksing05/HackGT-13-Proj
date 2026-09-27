@@ -3,6 +3,7 @@ package tap
 import (
 	"crypto/ed25519"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"sync"
 )
@@ -55,26 +56,46 @@ func DefaultKeyPair() (ed25519.PublicKey, ed25519.PrivateKey) {
 	return pub, priv
 }
 
-// NewDefaultKeyDirectory creates a key directory pre-populated with the default agent key.
-func NewDefaultKeyDirectory(customSeedB64 string) (*InMemoryKeyDirectory, ed25519.PublicKey, ed25519.PrivateKey) {
+// NewDemoKeyDirectory is a directory holding only the demo agent key (dev and tests).
+func NewDemoKeyDirectory() (*InMemoryKeyDirectory, ed25519.PublicKey, ed25519.PrivateKey) {
+	pub, priv := DefaultKeyPair()
 	kd := NewKeyDirectory()
-	var pub ed25519.PublicKey
-	var priv ed25519.PrivateKey
-
-	if customSeedB64 != "" {
-		seedBytes, err := base64.StdEncoding.DecodeString(customSeedB64)
-		if err == nil && len(seedBytes) >= 32 {
-			priv = ed25519.NewKeyFromSeed(seedBytes[:32])
-			pub = priv.Public().(ed25519.PublicKey)
-		} else {
-			pub, priv = DefaultKeyPair()
-		}
-	} else {
-		pub, priv = DefaultKeyPair()
-	}
-
 	kd.Register(DefaultDemoAgentKeyID, pub)
 	return kd, pub, priv
+}
+
+// NewDirectory registers the SideQuestz agent's public key (TAP_AGENT_PUBLIC_KEY,
+// standard or URL base64 of the 32-byte Ed25519 key) under DefaultDemoAgentKeyID.
+// Without one it falls back to the demo key only when allowDemo is set: the
+// demo seed is in the repo, so anyone could sign with it.
+func NewDirectory(publicKeyB64 string, allowDemo bool) (*InMemoryKeyDirectory, error) {
+	if publicKeyB64 == "" {
+		if !allowDemo {
+			return nil, errors.New("TAP_AGENT_PUBLIC_KEY is required outside dev")
+		}
+		kd, _, _ := NewDemoKeyDirectory()
+		return kd, nil
+	}
+	pub, err := DecodePublicKey(publicKeyB64)
+	if err != nil {
+		return nil, err
+	}
+	kd := NewKeyDirectory()
+	kd.Register(DefaultDemoAgentKeyID, pub)
+	return kd, nil
+}
+
+// DecodePublicKey reads a base64 (standard or URL, padded or not) Ed25519 public key.
+func DecodePublicKey(s string) (ed25519.PublicKey, error) {
+	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+		if b, err := enc.DecodeString(s); err == nil {
+			if len(b) != ed25519.PublicKeySize {
+				return nil, fmt.Errorf("TAP agent public key is %d bytes, want %d", len(b), ed25519.PublicKeySize)
+			}
+			return ed25519.PublicKey(b), nil
+		}
+	}
+	return nil, errors.New("TAP agent public key is not base64")
 }
 
 type deterministicReader struct {

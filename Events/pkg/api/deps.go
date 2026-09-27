@@ -1,44 +1,46 @@
 package api
 
 import (
-	"crypto/ed25519"
 	"events/pkg/config"
+	"events/pkg/payments"
 	"events/pkg/store"
 	"events/pkg/tap"
-	"events/pkg/visa"
 	"time"
 )
+
+// MerchantID is this merchant's id in quotes and payment metadata.
+const MerchantID = "sidequestz-events"
 
 // Deps holds shared dependencies for all merchant HTTP handlers.
 type Deps struct {
 	Store        store.Store
 	Cfg          *config.Config
 	KeyDirectory *tap.InMemoryKeyDirectory
-	Authorizer   visa.Authorizer
-	VisaNet      *visa.SimulatedNetwork
-	DemoPubKey   ed25519.PublicKey
-	DemoPrivKey  ed25519.PrivateKey
+	Charger      payments.Charger
 	Now          func() time.Time
 }
 
-// NewDeps initializes default handler dependencies.
-func NewDeps(cfg *config.Config, st store.Store) *Deps {
-	keyDir, pub, priv := tap.NewDefaultKeyDirectory(cfg.TapAgentKey)
-
-	visaNet := visa.NewSimulatedNetwork(cfg.SandboxNetworkKey)
-	var auth visa.Authorizer = visaNet
-	if cfg.VisaAuthorizeURL != "" {
-		auth = visa.NewHTTPClientAuthorizer(cfg.VisaAuthorizeURL, cfg.SandboxNetworkKey)
+// NewDeps wires the handlers: the agent's public key (the demo key only in
+// dev) and the Stripe charger (unconfigured without a key).
+func NewDeps(cfg *config.Config, st store.Store) (*Deps, error) {
+	keyDir, err := tap.NewDirectory(cfg.TapAgentPublicKey, cfg.IsDev())
+	if err != nil {
+		return nil, err
 	}
-
+	var charger payments.Charger = payments.Unconfigured{}
+	if cfg.StripeSecretKey != "" {
+		charger = payments.NewStripe(cfg.StripeSecretKey, cfg.StripeAPIBase)
+	}
 	return &Deps{
 		Store:        st,
 		Cfg:          cfg,
 		KeyDirectory: keyDir,
-		Authorizer:   auth,
-		VisaNet:      visaNet,
-		DemoPubKey:   pub,
-		DemoPrivKey:  priv,
+		Charger:      charger,
 		Now:          time.Now,
-	}
+	}, nil
+}
+
+// demoKeyOK reports whether the request carries the booth's demo key.
+func (d *Deps) demoKeyOK(key string) bool {
+	return key != "" && key == d.Cfg.DemoKey
 }

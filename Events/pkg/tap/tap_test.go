@@ -28,7 +28,7 @@ func (m *memoryNonceStore) CheckAndRecordNonce(nonce string, expiresAt time.Time
 }
 
 func TestTAPSignAndVerifyRoundTrip(t *testing.T) {
-	kd, _, priv := NewDefaultKeyDirectory("")
+	kd, _, priv := NewDemoKeyDirectory()
 	nonces := newMemoryNonceStore()
 
 	req := httptest.NewRequest("GET", "/api/events/sunset-jazz/offer", nil)
@@ -53,7 +53,7 @@ func TestTAPSignAndVerifyRoundTrip(t *testing.T) {
 }
 
 func TestTAPReplayedNonceRejected(t *testing.T) {
-	kd, _, priv := NewDefaultKeyDirectory("")
+	kd, _, priv := NewDemoKeyDirectory()
 	nonces := newMemoryNonceStore()
 
 	req := httptest.NewRequest("POST", "/api/orders", nil)
@@ -77,7 +77,7 @@ func TestTAPReplayedNonceRejected(t *testing.T) {
 }
 
 func TestTAPExpiredRejected(t *testing.T) {
-	kd, _, priv := NewDefaultKeyDirectory("")
+	kd, _, priv := NewDemoKeyDirectory()
 	nonces := newMemoryNonceStore()
 
 	req := httptest.NewRequest("GET", "/api/orders/SL-12345", nil)
@@ -97,7 +97,7 @@ func TestTAPExpiredRejected(t *testing.T) {
 }
 
 func TestTAPWrongTagRejected(t *testing.T) {
-	kd, _, priv := NewDefaultKeyDirectory("")
+	kd, _, priv := NewDemoKeyDirectory()
 	nonces := newMemoryNonceStore()
 
 	req := httptest.NewRequest("POST", "/api/orders", nil)
@@ -116,7 +116,7 @@ func TestTAPWrongTagRejected(t *testing.T) {
 }
 
 func TestTAPWrongAuthorityRejected(t *testing.T) {
-	kd, _, priv := NewDefaultKeyDirectory("")
+	kd, _, priv := NewDemoKeyDirectory()
 	nonces := newMemoryNonceStore()
 
 	req := httptest.NewRequest("GET", "/api/events/sunset-jazz/offer", nil)

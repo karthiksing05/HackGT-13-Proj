@@ -1,5 +1,5 @@
 [Unit]
-Description=SideQuestz Events Merchant Server (Ticketmaster Demo)
+Description=SideQuestz Events sandbox ticket merchant
 After=network.target mongod.service
 
 [Service]
