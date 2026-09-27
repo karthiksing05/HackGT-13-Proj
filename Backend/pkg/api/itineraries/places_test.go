@@ -185,7 +185,8 @@ func TestPlacesOnRealCatalogDocs(t *testing.T) {
 	for _, d := range docs {
 		rows = append(rows, d)
 	}
-	if _, err := srv.Store.Collection(store.CollActivities).InsertMany(ctx, rows); err != nil {
+	// Alice is a regular account, so she reads store.DefaultCatalog (store.CatalogFor).
+	if _, err := srv.Store.Collection(store.DefaultCatalog).InsertMany(ctx, rows); err != nil {
 		t.Fatal(err)
 	}
 	a := srv.Signup(t, "Alice Real")

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")"
-source ../deploy-env.sh
+source ../deploy-common.sh
 
 bash build.sh
 ssh "$server" 'mkdir -p /opt/backend'
@@ -12,8 +12,6 @@ cd /opt/backend
 chmod 755 sidequestz-server.new
 mv -f sidequestz-server.new sidequestz-server
 id -u sidequestz >/dev/null 2>&1 || useradd --system --shell /usr/sbin/nologin sidequestz
-chown sidequestz:sidequestz .env
-chmod 600 .env
 systemctl daemon-reload
 systemctl enable sidequestz
 systemctl restart sidequestz

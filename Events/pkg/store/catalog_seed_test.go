@@ -93,7 +93,7 @@ func TestMongoStoreSeedFromCatalog(t *testing.T) {
 			"start": start, "end": start.Add(2 * time.Hour), "price": bson.M{"min": 25.0, "max": 30.0, "isFree": false},
 			"ticketUrl": "https://events.sidequestz.tech/beer-biscuits-brunch/tickets"},
 		bson.M{"kind": "place", "name": "Zoo Atlanta", "venueName": "Zoo Atlanta", "category": "zoo_aquarium",
-			"price": bson.M{"min": 30.0, "max": 35.0, "isFree": false},
+			"price":     bson.M{"min": 30.0, "max": 35.0, "isFree": false},
 			"ticketUrl": "https://events.sidequestz.tech/zoo-atlanta/tickets"},
 		bson.M{"kind": "place", "name": "Piedmont Park", "price": bson.M{"min": 0.0, "isFree": true}, "ticketUrl": nil},
 	})
