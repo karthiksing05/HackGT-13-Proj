@@ -178,7 +178,7 @@ func TestLimiter(t *testing.T) {
 	now := time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
 	l := NewLimiter(60, 3)
 	l.SetClock(func() time.Time { return now })
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if !l.Allow("a") {
 			t.Fatalf("burst request %d refused", i)
 		}
@@ -199,7 +199,7 @@ func TestLimiter(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/auth/login", nil)
 	r.RemoteAddr = "10.0.0.1:5555"
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		w = httptest.NewRecorder()
 		h.ServeHTTP(w, r)
 	}

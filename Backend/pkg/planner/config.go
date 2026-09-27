@@ -12,7 +12,9 @@ import (
 	"Backend/pkg/models"
 	"Backend/pkg/store"
 	"Backend/pkg/travel"
+	"maps"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -198,9 +200,7 @@ func FromEnv() Config {
 // parseRangeKm accepts "walkable=2,transit=10,anywhere=25" or "2,10,25".
 func parseRangeKm(v string, def map[string]float64) map[string]float64 {
 	out := map[string]float64{}
-	for k, d := range def {
-		out[k] = d
-	}
+	maps.Copy(out, def)
 	order := []string{"walkable", "transit", "anywhere"}
 	for i, part := range strings.Split(v, ",") {
 		part = strings.TrimSpace(part)
@@ -221,28 +221,22 @@ func parseRangeKm(v string, def map[string]float64) map[string]float64 {
 }
 
 func envInt(name string, def int) int {
-	if v := os.Getenv(name); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			return n
-		}
+	if n, err := strconv.Atoi(os.Getenv(name)); err == nil {
+		return n
 	}
 	return def
 }
 
 func envFloat(name string, def float64) float64 {
-	if v := os.Getenv(name); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			return f
-		}
+	if f, err := strconv.ParseFloat(os.Getenv(name), 64); err == nil {
+		return f
 	}
 	return def
 }
 
 func envMillis(name string, def time.Duration) time.Duration {
-	if v := os.Getenv(name); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
-			return time.Duration(n) * time.Millisecond
-		}
+	if n, err := strconv.Atoi(os.Getenv(name)); err == nil && n >= 0 {
+		return time.Duration(n) * time.Millisecond
 	}
 	return def
 }
@@ -311,16 +305,12 @@ func facetKey(s string) string {
 
 // Covers reports whether an activity satisfies the facet.
 func (f Facet) Covers(a *models.Activity) bool {
-	for _, c := range f.Cats {
-		if a.Category == c {
-			return true
-		}
+	if slices.Contains(f.Cats, a.Category) {
+		return true
 	}
 	for _, t := range f.Tags {
-		for _, at := range a.Tags {
-			if at == t {
-				return true
-			}
+		if slices.Contains(a.Tags, t) {
+			return true
 		}
 	}
 	return false
@@ -397,12 +387,7 @@ func NearestCity(p travel.Point, maxKm float64) (City, bool) {
 }
 
 func citySlugs() []string {
-	out := make([]string, 0, len(cities))
-	for s := range cities {
-		out = append(out, s)
-	}
-	sortStrings(out)
-	return out
+	return slices.Sorted(maps.Keys(cities))
 }
 
 // Catalog names that may be used as collection names.

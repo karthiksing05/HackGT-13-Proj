@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -163,7 +164,7 @@ func searchVectorFor(in SearchInput) []float64 {
 			}
 		}
 	}
-	for _, w := range strings.Fields(strings.ToLower(in.MoodText)) {
+	for w := range strings.FieldsSeq(strings.ToLower(in.MoodText)) {
 		switch strings.Trim(w, ",.!") {
 		case "outside", "outdoors", "nature":
 			tokens = append(tokens, "outdoor", "nature")
@@ -364,13 +365,13 @@ func effectiveSpec(t *testing.T, spec PlanSpec, pool *PlanPool, relaxed []string
 	t.Helper()
 	eff := spec
 	if pool.Window.MaxLegKm != spec.MaxLegKm {
-		if !containsString(relaxed, "range") || pool.Window.MaxLegKm < spec.MaxLegKm {
+		if !slices.Contains(relaxed, "range") || pool.Window.MaxLegKm < spec.MaxLegKm {
 			t.Errorf("leg range changed %.2f → %.2f without a range relaxation (%v)", spec.MaxLegKm, pool.Window.MaxLegKm, relaxed)
 		}
 		eff.MaxLegKm = pool.Window.MaxLegKm
 	}
 	if pool.Spec.Budget != spec.Budget {
-		if !containsString(relaxed, "budget") || spec.Budget.FreeOnly {
+		if !slices.Contains(relaxed, "budget") || spec.Budget.FreeOnly {
 			t.Errorf("budget changed %+v → %+v without a budget relaxation (%v)", spec.Budget, pool.Spec.Budget, relaxed)
 		}
 		eff.Budget = pool.Spec.Budget
@@ -457,7 +458,7 @@ func synthPlace(name, category string, at travel.Point, hours []models.WeeklyHou
 // dailyHours is open→close every day, as minutes of the week.
 func dailyHours(openHour, closeHour int) []models.WeeklyHourRange {
 	var out []models.WeeklyHourRange
-	for d := 0; d < 7; d++ {
+	for d := range 7 {
 		out = append(out, models.WeeklyHourRange{Open: d*1440 + openHour*60, Close: d*1440 + closeHour*60})
 	}
 	return out

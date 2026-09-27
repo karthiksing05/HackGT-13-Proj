@@ -675,13 +675,15 @@ Run from `ml/` as `python -m tools.<name>`; each has `--help`.
 
 ## Deploying
 
-`./deploy.sh [--skip-tests] [host] [user] [password]` runs the unit tests, snapshots `/opt/ml` to
-`/opt/ml.prev`, uploads the code (never `.env`, `gcp-sa.json`, keys, caches, venvs, `datagen/` or
-`data/`), sets directories 755, files 644 and secrets 600, installs `requirements-serve.txt` (CPU torch),
-fetches the model weights into `/opt/ml/.cache`, installs `ml.service` and the embed-missing timer, and
-fails unless `/healthz` and `/healthz?probe=1` answer. Secrets are placed by hand: `/opt/ml/.env` (600)
-with `HF_TOKEN`, `TYPESAFE_API_KEY` and `GOOGLE_APPLICATION_CREDENTIALS=/opt/ml/gcp-sa.json`, plus
-`/opt/ml/gcp-sa.json` (600). Rollback: `rm -rf /opt/ml && mv /opt/ml.prev /opt/ml && systemctl restart ml`.
+Run `bash deploy.sh` (or the root `bash deploy.sh` to deploy all services). It uploads the
+serving packages and checkpoints to `/opt/ml`, installs `requirements-serve.txt` (CPU torch),
+fetches model weights into `/opt/ml/.cache`, installs the service and embedding timer, and
+restarts them. Tests run separately. Connection settings come from `DEPLOY_HOST`, `DEPLOY_USER`
+and `DEPLOY_PASSWORD` in the root `.env`; optional `[host] [user]` arguments override the destination.
+
+Server secrets, caches and the venv are left alone. Place `/opt/ml/.env` (600) by hand with
+`HF_TOKEN`, `TYPESAFE_API_KEY` and `GOOGLE_APPLICATION_CREDENTIALS=/opt/ml/gcp-sa.json`, plus
+`/opt/ml/gcp-sa.json` (600). Check readiness with `curl -f http://127.0.0.1:8000/healthz` on the VPS.
 
 ## Data and training
 

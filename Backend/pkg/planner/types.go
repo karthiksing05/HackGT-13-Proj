@@ -4,7 +4,7 @@ import (
 	"Backend/pkg/itinerary"
 	"Backend/pkg/travel"
 	"encoding/json"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -112,12 +112,12 @@ type HardConstraints struct {
 }
 
 func (h HardConstraints) excludesCategory(c string) bool {
-	return containsString(h.ExcludeCategories, c)
+	return slices.Contains(h.ExcludeCategories, c)
 }
 
 func (h HardConstraints) excludesAnyTag(tags []string) bool {
 	for _, t := range tags {
-		if containsString(h.ExcludeTags, t) {
+		if slices.Contains(h.ExcludeTags, t) {
 			return true
 		}
 	}
@@ -184,17 +184,6 @@ func (s *PlanSpec) Window() itinerary.Window {
 type RequestError struct{ Reason string }
 
 func (e *RequestError) Error() string { return "invalid_request: " + e.Reason }
-
-func containsString(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
-func sortStrings(s []string) { sort.Strings(s) }
 
 // uniqueStrings keeps the first occurrence of each value, in order.
 func uniqueStrings(in []string) []string {

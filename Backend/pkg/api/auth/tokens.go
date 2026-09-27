@@ -11,10 +11,6 @@ import (
 	"net/http"
 )
 
-// errNotFoundAlias exists so callers can errors.Is against the store sentinel
-// through this package without importing store everywhere.
-var errNotFoundAlias = store.ErrNotFound
-
 func isNotFound(err error) bool { return errors.Is(err, store.ErrNotFound) }
 
 // issue signs an access JWT and opens a new refresh-token family.

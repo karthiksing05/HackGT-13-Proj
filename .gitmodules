@@ -1,0 +1,4 @@
+[submodule "HEARSAY"]
+	path = HEARSAY
+	url = https://github.com/kevinharvey2025/HactGT13AudioAuthentication.git
+	branch = main

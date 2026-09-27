@@ -93,7 +93,7 @@ type Activity struct {
 	Timezone          string            `bson:"timezone" json:"timezone"` // "America/New_York"
 	WeeklyHours       []WeeklyHourRange `bson:"weeklyHours" json:"weeklyHours"`
 	HoursSource       *string           `bson:"hoursSource" json:"hoursSource"`
-	Recurrence        interface{}       `bson:"recurrence" json:"recurrence"`
+	Recurrence        any               `bson:"recurrence" json:"recurrence"`
 	Duration          *ActivityDuration `bson:"duration" json:"duration"`
 	Price             *ActivityPrice    `bson:"price" json:"price"`
 	Rating            *float64          `bson:"rating" json:"rating"`

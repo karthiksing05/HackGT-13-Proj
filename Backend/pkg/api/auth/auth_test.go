@@ -189,7 +189,7 @@ func TestVerifyLocksAfterFiveAttempts(t *testing.T) {
 	sess := srv.Signup(t, "Reset Person")
 	var forgot contract.ForgotResponse
 	srv.Do(t, "POST", "/auth/password/forgot", contract.EmailRequest{Email: sess.Email}, nil).Expect(t, 200).JSON(t, &forgot)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		srv.Do(t, "POST", "/auth/password/verify", contract.VerifyResetRequest{Email: sess.Email, Code: "999999"}, nil).Expect(t, 400)
 	}
 	if res := srv.Do(t, "POST", "/auth/password/verify", contract.VerifyResetRequest{Email: sess.Email, Code: *forgot.Code}, nil); res.Status != 400 {
@@ -218,7 +218,7 @@ func TestExpiredAccessTokenIs401(t *testing.T) {
 func TestLoginRateLimitPerEmail(t *testing.T) {
 	srv := testutil.New(t, testutil.WithConfig(func(c *config.Config) { c.DisableRateLimits = false }))
 	sess := srv.Signup(t, "Limited Person")
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		srv.Do(t, "POST", "/auth/login", contract.LoginRequest{Email: sess.Email, Password: "wrong-pass-1"}, nil).Expect(t, 401)
 	}
 	if res := srv.Do(t, "POST", "/auth/login", contract.LoginRequest{Email: sess.Email, Password: sess.Password}, nil); res.Status != 429 {

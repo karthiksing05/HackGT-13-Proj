@@ -21,8 +21,7 @@ Owners: **ios-1** (§1A), **ios-2** (§1B), **ios-3** (§1C–1E), **docs** (§2
   scratchpad, Docker Desktop with `sq-mongo` (mongo:7, seeded), python3 3.13, simulator `iPhone 17e`
   (`SQ-Main`), device build already proven (`-destination id=00008140-001A68AE1A82801C
   -allowProvisioningUpdates`, team `RBKLNCY6HZ`, bundle `com.karthiksing05.SideQuestz`).
-- Root `.env` (values never printed): `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PASSWORD`, `DEPLOY_REMOTE_DIR`,
-  `DEPLOY_SERVICE`, plus `HF_TOKEN`, `TYPESAFE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS`, `DEMO_PASSWORD`.
+- Root `.env` (values never printed): `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PASSWORD`, plus `HF_TOKEN`, `TYPESAFE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS`, `DEMO_PASSWORD`.
 
 ## 1. iOS change list
 
@@ -133,7 +132,6 @@ PLANNER=dag
 TRUST_PROXY=1
 FB_APP_ID=<from meta_app_id>
 FB_APP_SECRET=<from meta_app_secret>
-DEMO_PASSWORD=<chosen>
 EOF
 }
 chmod 600 /opt/backend/.env
@@ -143,19 +141,19 @@ Verify: both `.env` files are `-rw-------`; `ufw status` still blocks 8080/8000/
 
 ### 3.3 Ordered steps
 1. `cd ml && ./deploy.sh` → `systemctl is-active ml`; `curl -s 127.0.0.1:8000/healthz` shows the provider; `journalctl -u ml -n 30`.
-2. `cd Backend && ./build.sh --amd64` (runs `go test ./...`) → `file bin/sidequestz-server` (static x86-64) → `./deploy.sh` → `systemctl is-active backend`; log shows Mongo connected and `127.0.0.1:8080`; `ss -ltnp | grep 8080` loopback only; `curl -s 127.0.0.1:8080/healthz`.
-3. On the server: `sidequestz-admin reset-app-data --yes`, `ensure-indexes`, `drop-ttl demo_activities`, `seed-demo` (env from `/opt/backend/.env`); verify Sandy: `mongosh freetime --eval 'db.users.findOne({email:"demo@sidequestz.tech"},{name:1,homeBase:1,city:1,setupComplete:1,embeddingModel:1})'`.
+2. `cd Backend && bash build.sh` (tests run separately) → `file bin/sidequestz-server` (static x86-64) → `./deploy.sh` → `systemctl is-active sidequestz`; log shows Mongo connected and `127.0.0.1:8080`; `ss -ltnp | grep 8080` loopback only; `curl -s 127.0.0.1:8080/healthz`.
+3. On the server: verify the existing demo account: `mongosh freetime --eval 'db.users.findOne({email:"demo@sidequestz.tech"},{name:1,homeBase:1,city:1,setupComplete:1,embeddingModel:1})'`.
 4. From the Mac: `scripts/smoke.sh` with `BASE_URL=https://api.sidequestz.tech` (throwaway signup → preferences → plan in Atlanta → route → save → list; Sandy sign-in → plan in Saltlight → forum → websocket 101). Time the plan call (Cloudflare caps requests at 100 s; target p95 < 30 s).
 5. Simulator against live (`SQ_DEMO_PASSWORD` build setting) → demo link signs in, Home loads.
 6. iPhone: `xcodebuild -project frontend/SideQuestz.xcodeproj -scheme SideQuestz -configuration Debug -destination id=00008140-001A68AE1A82801C -derivedDataPath $SCR/DD-device -allowProvisioningUpdates SQ_DEMO_PASSWORD="…" build`; `xcrun devicectl device install app --device 00008140-001A68AE1A82801C …/SideQuestz.app`; launch.
-7. Rollback: backend `mv -f /opt/backend/sidequestz-server.prev /opt/backend/sidequestz-server && systemctl restart backend`; ML `rm -rf /opt/ml && mv /opt/ml.prev /opt/ml && systemctl restart ml`; seeding is idempotent; app: reinstall the previous `.app` or relaunch with `-SQAPIMode mock`.
+7. Redeploy earlier code: check out that revision and run the root `bash deploy.sh`. Deploy scripts do not create backups. App: reinstall the previous `.app` or relaunch with `-SQAPIMode mock`.
 
 ### 3.4 Local dev loop
 ```
 docker start sq-mongo                       # freetime already holds the Atlanta sample + demo_activities
 cd ml && .venv/bin/uvicorn api.main:app --port 8000
 cd Backend && APP_ENV=dev HTTP_ADDR=127.0.0.1:8080 MONGO_URI=mongodb://127.0.0.1:27017 MONGO_DB=freetime ML_SERVICE_URL=http://127.0.0.1:8000 \
-  JWT_SECRET=dev-secret-dev-secret-dev-secret-dev PLANNER=dag PUBLIC_BASE_URL=http://127.0.0.1:8080 DEMO_PASSWORD=demo go run ./cmd/sidequestz-admin seed-demo && go run .
+  JWT_SECRET=dev-secret-dev-secret-dev-secret-dev PLANNER=dag PUBLIC_BASE_URL=http://127.0.0.1:8080 go run .
 # Simulator: -SQAPIBaseURL http://127.0.0.1:8080 -SQWebSocketURL ws://127.0.0.1:8080/ws -SQDemoPassword demo
 ```
 

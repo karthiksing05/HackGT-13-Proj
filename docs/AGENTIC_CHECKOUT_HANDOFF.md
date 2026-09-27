@@ -9,7 +9,7 @@ and who does it. Branch: `wp/agentic-checkout`.
 |---|---|---|
 | Merchant on Stripe SPTs; fake agent, Visa sim and Ticketmaster wording removed; fee hack, double price bump, unchecked quantity, dashboard auth and XSS fixed; `overcharge` scenario | `Events/` | `cd Events && go test ./...` |
 | Stripe smoke test for the SPT preview | `Backend/scripts/stripe-spt-smoke.sh` | not yet run against real test accounts |
-| Config, ticket URL on saved items, TAP signer + `tap-keygen`, SPT issuer, test-card mapping, checkout runs (store, endpoints, realtime), Muse client, agent runner with fallback | `Backend/` | `go test ./...`, and the Mongo-backed tests with `-race` (`MONGO_TEST_URI`) |
+| Config, ticket URL on saved items, TAP signer, SPT issuer, test-card mapping, checkout runs (store, endpoints, realtime), Muse client, agent runner with fallback | `Backend/` | `go test ./...`, and the Mongo-backed tests with `-race` (`MONGO_TEST_URI`) |
 | Catalog's 25 ticketed events on `events.sidequestz.tech` (generator, JSON, planner fixture and goldens) | `dataingestion/demo`, `Backend/pkg/planner/testdata` | slugs match `Events/pkg/store/seed_data.go` |
 | Production catalog migration script | `Backend/scripts/migrate-ticket-host.sh` | tested on a local copy: 25 updated, idempotent; **not run on production** |
 | iOS: models, API client (live + mock), `checkout.run`, "Let Muse get your tickets" sheet with Face ID, progress and results; Account toggle is "Agentic checkout" + default budget | `frontend/SideQuestz` | build + `SideQuestzTests` (7 new tests, incl. a mock run within budget); not yet checked by eye in the simulator |
@@ -26,8 +26,8 @@ and who does it. Branch: `wp/agentic-checkout`.
    `Events/pkg/payments/stripe.go`.
 2. **Hosting** (owner: infra). DNS, nginx and the certificate for `events.sidequestz.tech`; deploy
    `Events/` (`Events/deploy.sh`, `events.service`) with the env in DEPLOY.md › Events merchant; add
-   the agentic checkout env to `/opt/backend/.env`. Generate keys with
-   `sidequestz-admin tap-keygen` (seed on the API, public key on Events).
+   the agentic checkout env to `/opt/backend/.env`. Use a matching Ed25519 key pair
+   (base64 32-byte seed on the API, base64 public key on Events).
 3. **Production catalog.** `Backend/scripts/migrate-ticket-host.sh` (dry run), then `--apply`, once
    the merchant is live.
 4. **End to end.** Locally first (AGENTIC_CHECKOUT.md › Local end to end), then against

@@ -5,7 +5,6 @@ import (
 	"Backend/pkg/store"
 	"bytes"
 	"errors"
-	"fmt"
 	"html/template"
 	"net/http"
 
@@ -96,7 +95,7 @@ func (h *H) Ticket(w http.ResponseWriter, r *http.Request) {
 		total = intent.SubtotalCents
 	}
 	if total != nil {
-		view.Total = money(*total)
+		view.Total = httpx.DollarsFixed(*total)
 	}
 	if intent.CardLast4 != "" {
 		view.Card = intent.CardBrand + " •••• " + intent.CardLast4
@@ -135,13 +134,4 @@ func writeTicket(w http.ResponseWriter, r *http.Request, status int, view ticket
 	if _, err := w.Write(buf.Bytes()); err != nil {
 		log.Warn().Err(err).Msg("write ticket page")
 	}
-}
-
-// money is "$24.00" (a ticket shows cents).
-func money(cents int) string {
-	sign := ""
-	if cents < 0 {
-		sign, cents = "-", -cents
-	}
-	return fmt.Sprintf("%s$%d.%02d", sign, cents/100, cents%100)
 }

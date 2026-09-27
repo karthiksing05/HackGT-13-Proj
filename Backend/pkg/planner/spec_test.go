@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"slices"
 	"testing"
 	"time"
 )
@@ -53,7 +54,7 @@ func TestParseAppRequestFromContractExample(t *testing.T) {
 		t.Errorf("facets = %v", names)
 	}
 	// "Something chill and outside, then cheap food after." adds Chill.
-	if !containsString(names, "Chill") {
+	if !slices.Contains(names, "Chill") {
 		t.Errorf("mood should add the Chill facet: %v", names)
 	}
 	if spec.AgeBracket != "21_plus" || spec.SnappedStart {
@@ -243,7 +244,7 @@ func TestParseLegacyRequestParity(t *testing.T) {
 		t.Errorf("points: %+v %+v", spec.Start, spec.End)
 	}
 	names := facetNames(spec.Facets)
-	if len(names) < 2 || names[0] != "Music" || !containsString(names, "Chill") {
+	if len(names) < 2 || names[0] != "Music" || !slices.Contains(names, "Chill") {
 		t.Errorf("facets = %v", names)
 	}
 	// Legacy with drive in travel_modes keeps the old rule.

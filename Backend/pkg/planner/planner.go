@@ -2,6 +2,7 @@ package planner
 
 import (
 	"Backend/pkg/itinerary"
+	"Backend/pkg/store"
 	"Backend/pkg/travel"
 	"context"
 	"errors"
@@ -9,7 +10,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -70,7 +70,7 @@ func New(cfg Config, d Deps) (*Planner, error) {
 		p.Clock = SystemClock{}
 	}
 	if p.NewID == nil {
-		p.NewID = NewID
+		p.NewID = store.NewID
 	}
 	if p.Cfg.Itinerary.Paces == nil {
 		p.Cfg.Itinerary = itinerary.DefaultConfig()
@@ -80,15 +80,6 @@ func New(cfg Config, d Deps) (*Planner, error) {
 		p.Cfg.SearchTimeout = 5 * time.Second
 	}
 	return p, nil
-}
-
-// NewID is a UUID v7 (time-ordered) string.
-func NewID() string {
-	id, err := uuid.NewV7()
-	if err != nil {
-		return uuid.NewString()
-	}
-	return id.String()
 }
 
 // ErrNoStart means the spec has no start point at all.
@@ -283,10 +274,7 @@ func pageBatch(pool *PlanPool, offset, n int) Batch {
 		b.Done = true
 		return b
 	}
-	end := offset + n
-	if end > len(pool.Options) {
-		end = len(pool.Options)
-	}
+	end := min(offset+n, len(pool.Options))
 	b.Options = append(b.Options, pool.Options[offset:end]...)
 	if end < len(pool.Options) {
 		b.Cursor = EncodeCursor(pool.ID, end)

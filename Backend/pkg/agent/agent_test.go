@@ -254,9 +254,7 @@ func TestResumeFinishesARunLeftRunning(t *testing.T) {
 	}
 }
 
-// A demo account's run keeps the account's clock (pkg/democlock): created
-// and finished on DEMO_DATE like everything else it sees, never finished
-// before it began, while the token's expiry stays on the real clock.
+// Demo-role checkout uses business time while payment tokens expire on real time.
 func TestADemoAccountsRunStaysOnTheDemoDate(t *testing.T) {
 	ny, _ := time.LoadLocation(testutil.TimeZone)
 	demoDate := time.Now().In(ny).AddDate(0, 0, -3).Format("2006-01-02")

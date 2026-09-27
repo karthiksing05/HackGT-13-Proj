@@ -181,7 +181,7 @@ func Solve(g *Graph, w Window, cfg Config) []Itinerary {
 		}
 	}
 
-	for j := 0; j < n; j++ {
+	for j := range n {
 		var next []*label
 		for ei := range g.In[j] {
 			e := &g.In[j][ei]

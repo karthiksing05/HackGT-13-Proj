@@ -40,7 +40,7 @@ func TestCheckoutRunBudgetIsNeverExceeded(t *testing.T) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	won := 0
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

@@ -47,7 +47,6 @@ func BadRequest(message string) *StatusError   { return E(http.StatusBadRequest,
 func Unauthorized(message string) *StatusError { return E(http.StatusUnauthorized, message) }
 func Forbidden(message string) *StatusError    { return E(http.StatusForbidden, message) }
 func NotFound(message string) *StatusError     { return E(http.StatusNotFound, message) }
-func Conflict(message string) *StatusError     { return E(http.StatusConflict, message) }
 
 // ErrorBody is the wire shape of every non-2xx response: {"error": "<code>", "message": "<sentence>"}.
 type ErrorBody struct {

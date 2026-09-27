@@ -29,7 +29,8 @@ func tasteVectors(u *models.User) ml.UserVectors {
 // SuggestPeople is GET /people/suggested → [PersonSuggestion]: people in the
 // viewer's catalog whose taste best matches theirs (likes minus clashes, from
 // the ML service), best first. Not the viewer, not their friends, not bots.
-// A viewer without a taste profile gets []; the ML service being down is 503.
+// The demo cast (whose catalog holds only bots besides them) and a viewer
+// without a taste profile get []; the ML service being down is 503.
 func (h *H) SuggestPeople(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	viewer, err := h.d.CurrentUser(r)
@@ -41,7 +42,7 @@ func (h *H) SuggestPeople(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, httpx.E(http.StatusServiceUnavailable, msgSuggestWarmingUp))
 		return
 	}
-	if !ml.Usable(viewer.PositiveEmbedding, ml.Dim) {
+	if store.IsDemoCast(viewer) || !ml.Usable(viewer.PositiveEmbedding, ml.Dim) {
 		httpx.JSON(w, http.StatusOK, []contract.PersonSuggestion{})
 		return
 	}
@@ -51,7 +52,7 @@ func (h *H) SuggestPeople(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	people, err := h.d.Store.Users().Suggestable(ctx, store.CatalogFor(viewer), append(friendIDs, viewerID), suggestPool)
+	people, err := h.d.Store.Users().Suggestable(ctx, append(friendIDs, viewerID), suggestPool)
 	if err != nil {
 		api.Fail(w, r, err)
 		return

@@ -105,8 +105,7 @@ func TestSuggestPeople(t *testing.T) {
 	far := srv.Signup(t, "Far Match")
 	friend := srv.Signup(t, "Old Friend")
 	bot := srv.Signup(t, "Bot Match")
-	other := srv.Signup(t, "Other Catalog")
-	noTaste := srv.Signup(t, "No Taste")
+	srv.Signup(t, "No Taste") // no taste profile: never suggested
 
 	// Without ML wired: 503.
 	if res := srv.Do(t, "GET", "/people/suggested", nil, viewer); res.Status != http.StatusServiceUnavailable {
@@ -124,11 +123,12 @@ func TestSuggestPeople(t *testing.T) {
 	setTaste(t, srv, far, 0.3, nil)
 	setTaste(t, srv, friend, 0.95, nil)
 	setTaste(t, srv, bot, 0.99, bson.M{"roles": []string{"bot"}})
-	setTaste(t, srv, other, 0.97, bson.M{"roles": []string{"demo"}})
-	_ = noTaste
 	befriend(t, srv, viewer, friend)
 	var req contract.FriendRequest
 	srv.Do(t, "POST", "/friends/requests", contract.StartDMRequest{UserID: far.UserID}, viewer).Expect(t, http.StatusCreated).JSON(t, &req)
+
+	demo := srv.Signup(t, "Demo Account")
+	setTaste(t, srv, demo, 0.98, bson.M{"roles": []string{"demo"}})
 
 	got := suggested(t, srv, viewer)
 	if len(got) != 2 || got[0].Person.ID != closeMatch.UserID || got[1].Person.ID != far.UserID {
@@ -141,10 +141,9 @@ func TestSuggestPeople(t *testing.T) {
 		t.Fatalf("far match: %+v", got[1])
 	}
 
-	// The demo catalog's account only sees its own catalog.
-	setTaste(t, srv, noTaste, 0.6, bson.M{"roles": []string{"demo"}})
-	if got := suggested(t, srv, other); len(got) != 1 || got[0].Person.ID != noTaste.UserID {
-		t.Fatalf("demo catalog: %+v", got)
+	// The demo cast is never suggested and gets no suggestions (its catalog is Saltlight).
+	if got := suggested(t, srv, demo); len(got) != 0 {
+		t.Fatalf("demo account: %+v", got)
 	}
 }
 

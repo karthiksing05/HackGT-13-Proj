@@ -3,6 +3,7 @@ package itinerary
 import (
 	"Backend/pkg/models"
 	"Backend/pkg/travel"
+	"slices"
 	"sort"
 	"time"
 )
@@ -52,12 +53,7 @@ func Clippable(a *models.Activity) bool {
 }
 
 func hasTag(a *models.Activity, tag string) bool {
-	for _, t := range a.Tags {
-		if t == tag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(a.Tags, tag)
 }
 
 // EventStay is when an event runs and how it can be attended.
@@ -140,10 +136,7 @@ func clippedNodes(w Window, n Node, st EventStay, cfg Config) []Node {
 	if w.End != nil {
 		homeBy = w.BackBy.Add(-travel.Estimate(n.Loc, *w.End, w.Mode).Duration).Truncate(time.Minute)
 	}
-	perStart := cfg.MaxSlots
-	if perStart < 2 {
-		perStart = 2
-	}
+	perStart := max(cfg.MaxSlots, 2)
 	var out []Node
 	for _, begin := range []time.Time{st.Start, st.Start.Add(LateArrival)} {
 		if begin.Before(w.From) {

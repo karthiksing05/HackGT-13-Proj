@@ -121,7 +121,7 @@ func TestMaxSocketsPerUser(t *testing.T) {
 	srv := testutil.New(t)
 	u := srv.Signup(t, "Many Devices")
 	var conns []*websocket.Conn
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		conn, _, err := srv.Dial(t, u.Access, i%2 == 0)
 		if err != nil {
 			t.Fatal(err)

@@ -147,14 +147,6 @@ func (t Threads) upsert(ctx context.Context, filter, update bson.M) (*models.Thr
 	return &th, res.UpsertedCount == 1, nil
 }
 
-// AddMembers puts users into a thread.
-func (t Threads) AddMembers(ctx context.Context, threadID string, userIDs ...string) (*models.Thread, error) {
-	return t.update(ctx, threadID, bson.M{
-		"$addToSet": bson.M{"memberIds": bson.M{"$each": forumIDs(userIDs)}},
-		"$set":      bson.M{"updatedAt": t.s.BusinessNow(ctx)},
-	})
-}
-
 // RemoveMember takes a user out of a thread with their unread count.
 func (t Threads) RemoveMember(ctx context.Context, threadID, userID string) (*models.Thread, error) {
 	return t.update(ctx, threadID, bson.M{

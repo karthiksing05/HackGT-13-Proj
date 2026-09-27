@@ -4,6 +4,7 @@ import (
 	"Backend/pkg/models"
 	"context"
 	"errors"
+	"maps"
 	"regexp"
 	"strings"
 	"time"
@@ -28,9 +29,7 @@ func (it Itineraries) coll() *mongo.Collection { return it.s.db.Collection(CollI
 // live matches itineraries that are not deleted, plus extra conditions.
 func (Itineraries) live(extra bson.M) bson.M {
 	filter := bson.M{"status": bson.M{"$ne": models.ItineraryDeleted}}
-	for k, v := range extra {
-		filter[k] = v
-	}
+	maps.Copy(filter, extra)
 	return filter
 }
 
@@ -246,9 +245,7 @@ func (it Itineraries) PastStops(ctx context.Context, q PastStopsQuery) ([]PastSt
 // is gone or not theirs.
 func (it Itineraries) UpdateHost(ctx context.Context, id, hostID string, set bson.M) (*models.Itinerary, error) {
 	fields := bson.M{"updatedAt": it.s.BusinessNow(ctx)}
-	for k, v := range set {
-		fields[k] = v
-	}
+	maps.Copy(fields, set)
 	return it.findOneAndUpdate(ctx, it.live(bson.M{"_id": id, "hostId": hostID}), bson.M{"$set": fields})
 }
 

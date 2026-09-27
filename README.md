@@ -60,6 +60,7 @@ data pipeline and the training jobs run offline and are not deployed.
 | `dataingestion/` | The Python pipeline that fills MongoDB with events, places and trails, and the Saltlight Harbor demo snapshot | [dataingestion/README.md](dataingestion/README.md), [docs/DATA.md](docs/DATA.md) |
 | `Events/` | The sandbox ticket merchant for Saltlight's ticketed events ("Saltlight Tickets", `events.sidequestz.tech`, its own Go module): the ticket website on Stripe Checkout, and the TAP-signed API agentic checkout buys through with Stripe test-mode payment tokens | [Events/README.md](Events/README.md), [docs/AGENTIC_CHECKOUT.md](docs/AGENTIC_CHECKOUT.md) |
 | `docs/` | This documentation set, the generated API examples (`docs/api/examples/`) and the design notes behind the integration (`docs/design/`) | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| `HEARSAY/` | A git submodule: our separate NSA HEARSAY entry (synthetic-speech detection), developed in its own repository and not part of SideQuests | [Our NSA HEARSAY entry](#our-nsa-hearsay-entry) |
 
 ## Quick start
 
@@ -82,7 +83,7 @@ database `freetime`):
 ```sh
 ssh -N -L 27017:localhost:27017 user@IP
 # the demo city: copy the embedded Saltlight catalog (100 activities with embedding texts and vectors)
-# from production's demo_activities into the local Mongo (seed-demo and the planner need it)
+# from production's demo_activities into the local Mongo (the planner needs it)
 Backend/scripts/pull-demo-catalog.sh
 ```
 
@@ -101,14 +102,12 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cd Backend
 APP_ENV=dev HTTP_ADDR=127.0.0.1:8080 MONGO_URI=mongodb://127.0.0.1:27017 MONGO_DB=freetime \
 ML_SERVICE_URL=http://127.0.0.1:8000 JWT_SECRET=dev-secret-dev-secret-dev-secret-dev PLANNER=dag \
-PUBLIC_BASE_URL=http://127.0.0.1:8080 DEMO_PASSWORD=demo \
-  sh -c 'go run ./cmd/sidequestz-admin seed-demo && go run .'
+PUBLIC_BASE_URL=http://127.0.0.1:8080 go run .
 ```
 
-`seed-demo` creates the demo account and its friends, plans and chats (idempotent; it refuses to run
-before the demo catalog is imported). Then run the app with `-SQAPIBaseURL http://127.0.0.1:8080
--SQWebSocketURL ws://127.0.0.1:8080/ws -SQDemoPassword demo`. `make build-native` in `Backend/` builds the server for the Mac;
-`make build-admin` also builds the optional maintenance CLI.
+Create accounts through the app's signup flow. Run the app with
+`-SQAPIBaseURL http://127.0.0.1:8080 -SQWebSocketURL ws://127.0.0.1:8080/ws`.
+`make build-native` in `Backend/` builds the server for this machine.
 
 **Data ingestion** (Python 3.12; only needed to refresh the real catalog, keys in the root `.env`):
 
@@ -130,7 +129,7 @@ xcodebuild test -project frontend/SideQuestz.xcodeproj -scheme SideQuestz \
 TEST_RUNNER_SQ_LIVE_DEMO_PASSWORD='…' xcodebuild test -project frontend/SideQuestz.xcodeproj -scheme SideQuestz \
   -destination 'platform=iOS Simulator,name=iPhone 17e' -only-testing:SideQuestzUITests/LiveSmokeUITests
 # opt-in: nine interactive demo-account flows (rate, plan + start, note, join + chat, expense, settle up, free-now,
-# accept Theo, status). They change Sandy's data: run seed-demo before and after
+# accept Theo, status). They change Sandy's data: use a disposable fixture database
 TEST_RUNNER_SQ_LIVE_DEMO_PASSWORD='…' xcodebuild test -project frontend/SideQuestz.xcodeproj -scheme SideQuestz \
   -destination 'platform=iOS Simulator,name=iPhone 17e' -only-testing:SideQuestzUITests/LiveFlowUITests
 # regenerate docs/api/examples from the app's ContractTests (run from frontend/; see docs/api/README.md)
@@ -144,7 +143,7 @@ cd Backend && make test-db       # the whole suite against sq-mongo with -race; 
 cd Backend && go test -tags integration ./pkg/planner/mongosource/   # the planner against copies of the real catalogs
 cd Backend && BASE_URL=https://api.sidequestz.tech scripts/smoke.sh   # healthz, sign-up, me, refresh rotation, logout
 # every feature end to end through the real API, responses decoded strictly into pkg/contract (Backend/e2e/doc.go);
-# leaves three e2e.*@example.test accounts and changes Sandy's data: run seed-demo afterwards
+# leaves three e2e.*@example.test accounts and changes Sandy's data: restore the fixture database afterwards
 cd Backend && E2E_BASE_URL=https://api.sidequestz.tech E2E_DEMO_PASSWORD='…' E2E_DEMO_DATE=2026-09-27 \
   go test -tags e2e -count=1 -timeout 20m ./e2e/
 
@@ -161,9 +160,11 @@ python3 docs/scripts/check_links.py
 ## Deploy
 
 The API (`sidequestz.service`) and the ML service (`ml.service`) run on one VPS behind Cloudflare.
-`cd ml && ./deploy.sh`, then `cd Backend && ./deploy.sh`; the ordered runbook, rollback, logs and health
-checks are in [docs/DEPLOY.md](docs/DEPLOY.md). Credentials come from the root `.env` and are never
-printed or uploaded. There is no website: `sidequestz.tech` has no DNS record, and the API's root
+Run `bash deploy.sh` from the repository root to deploy ML, Events, then Backend, stopping on the
+first failure. Connection settings come from `DEPLOY_HOST`, `DEPLOY_USER` and `DEPLOY_PASSWORD`
+in the root `.env`; optional `[host] [user]` arguments override the destination. Deployments
+do not run tests. The ordered runbook, rollback, logs and health checks are in [docs/DEPLOY.md](docs/DEPLOY.md).
+There is no website: `sidequestz.tech` has no DNS record, and the API's root
 answers a JSON 404 by design. The sandbox ticket merchant (`Events/`, `events.sidequestz.tech`) is a
 separate service with its own `deploy.sh`; see [docs/DEPLOY.md](docs/DEPLOY.md) › Events merchant.
 
@@ -171,11 +172,11 @@ separate service with its own `deploy.sh`; see [docs/DEPLOY.md](docs/DEPLOY.md) 
 
 The judges' account is **Sandy Byte** (`@sandybyte`, `demo@sidequestz.tech`), a student in Saltlight
 Harbor, a fictional seaside city whose 100 activities are the `demo_activities` catalog. Her password is
-not in the repository: the server's seed reads it from `DEMO_PASSWORD`, and the app receives it through
+not in the repository: the account's password hash is stored in MongoDB, and the app receives the password through
 the `SQ_DEMO_PASSWORD` build setting (`xcodebuild … SQ_DEMO_PASSWORD='…'`) or the `-SQDemoPassword`
 launch argument. When the app has it, the sign-in screen shows **Use the demo account**, which fills in
 her email and password and signs in. Without it, sign in by typing them, or create your own account (new
-accounts get the real Atlanta catalog). The walkthrough is in [docs/DEMO.md](docs/DEMO.md), and a one-page
+accounts use the Atlanta pitch catalog). The walkthrough is in [docs/DEMO.md](docs/DEMO.md), and a one-page
 brief for the account in [docs/DEMO_ACCOUNT.md](docs/DEMO_ACCOUNT.md).
 
 ## Configuration and secrets
@@ -184,8 +185,8 @@ Names only; values live in gitignored files with mode 0600 and are never committ
 
 | Where | Names | Read by |
 |---|---|---|
-| Root `.env` (a developer's Mac, gitignored) | `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PASSWORD`, `DEPLOY_REMOTE_DIR`, `DEPLOY_SERVICE` (the API's systemd unit, `sidequestz`), `HF_TOKEN`, `TYPESAFE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS` (path to the gitignored `gcp-sa.json`), `DEMO_PASSWORD` | the deploy scripts (they read only `DEPLOY_*`), local ML tools, the seed |
-| `/opt/backend/.env` (VPS; template `Backend/.env.example`) | `APP_ENV`, `HTTP_ADDR`, `PUBLIC_BASE_URL`, `MONGO_URI`, `MONGO_DB`, `JWT_SECRET`, `ML_SERVICE_URL`, `PLANNER`, `TRUST_PROXY`, `FB_APP_ID`, `FB_APP_SECRET`, `FB_TOKEN_KEY` (set it in production), `DEMO_PASSWORD`; optional `ML_*`, `PLANNER_*`, `FB_GRAPH_VERSION`, `DEMO_DATE` (demo accounts' fixed date, `2026-09-27` in production), `DEMO_TZ`, `DEV_RESET_CODES`, `CHECKOUT_STEP_DELAY`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `MAX_PHOTO_BYTES`, `MAX_JSON_BYTES`; agentic checkout (off until set): `PAYMENTS_MODE`, `STRIPE_SECRET_KEY` (test keys only), `STRIPE_SELLER_PROFILE`, `MERCHANT_HOST`, `MERCHANT_BASE_URL`, `TAP_AGENT_KEY`, `MUSE_API_KEY`, `MUSE_MODEL`, `MUSE_BASE_URL`, `AGENT_MAX_TURNS`, `CHECKOUT_RUN_TIMEOUT` | the Go API and `sidequestz-admin` |
+| Root `.env` (a developer's Mac, gitignored) | `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PASSWORD`, `HF_TOKEN`, `TYPESAFE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS` (path to the gitignored `gcp-sa.json`), `DEMO_PASSWORD` | the deploy scripts (they read only `DEPLOY_*`), local ML tools, app demo-password builds |
+| `/opt/backend/.env` (VPS; template `Backend/.env.example`) | `APP_ENV`, `HTTP_ADDR`, `PUBLIC_BASE_URL`, `MONGO_URI`, `MONGO_DB`, `JWT_SECRET`, `ML_SERVICE_URL`, `PLANNER`, `TRUST_PROXY`, `FB_APP_ID`, `FB_APP_SECRET`, `FB_TOKEN_KEY` (set it in production); optional `ML_*`, `PLANNER_*`, `FB_GRAPH_VERSION`, `DEMO_DATE` (demo accounts' fixed date, `2026-09-27` in production), `DEMO_TZ`, `DEV_RESET_CODES`, `CHECKOUT_STEP_DELAY`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `MAX_PHOTO_BYTES`, `MAX_JSON_BYTES`; agentic checkout (off until set): `PAYMENTS_MODE`, `STRIPE_SECRET_KEY` (test keys only), `STRIPE_SELLER_PROFILE`, `MERCHANT_HOST`, `MERCHANT_BASE_URL`, `TAP_AGENT_KEY`, `MUSE_API_KEY`, `MUSE_MODEL`, `MUSE_BASE_URL`, `AGENT_MAX_TURNS`, `CHECKOUT_RUN_TIMEOUT` | the Go API |
 | `/opt/events/.env` (VPS; uploaded from the gitignored `Events/.env` by `Events/deploy.sh`; template `Events/.env.example`) | `APP_ENV`, `HTTP_ADDR`, `MERCHANT_HOST`, `MERCHANT_BASE_URL`, `PAYMENTS_MODE`, `DEMO_KEY`, `TAP_AGENT_PUBLIC_KEY`, `STRIPE_MERCHANT_SECRET_KEY` (or `STRIPE_SECRET_KEY`: the merchant's own Stripe test account), `MONGO_URI`, `MONGO_DB` | the Events merchant |
 | `/opt/ml/.env` (VPS) | `HF_TOKEN`, `TYPESAFE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS`; optional `EMBED_*`, `HF_EMBED_*`, `HF_ROUTER_BASE`, `HF_AUTH_BACKOFF`, `VERTEX_*`, `RANKING_*`, `SEARCH_WEIGHT`, `USER_EMBEDDING_ALPHA`, `RERANK_TOP_K`, `RERANK_TIMEOUT_SECONDS`, `LOG_LEVEL` (`ml.service` sets several of these itself) | the ML service and its timer job |
 | Root `.env`, ingestion keys (see `dataingestion/.env.example`) | `MONGODB_URI`, `MONGODB_DB`, `TICKETMASTER_API_KEY`, `GOOGLE_MAPS_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `MUSE_API_KEY`, `SERPAPI_API_KEY`, `PREDICTHQ_TOKEN`, `NPS_API_KEY`, `HF_TOKEN`, `CONTACT_EMAIL` | `python -m ingest …` (offline) |
@@ -211,6 +212,21 @@ Embedding-provider settings exist only on the ML service; the Go API never holds
 | [Backend/pkg/api/README.md](Backend/pkg/api/README.md) | The Go API's package layout and the seams a handler uses (store, realtime, planner, profiles) |
 | [ml/README.md](ml/README.md), [ml/models.md](ml/models.md), [ml/training.md](ml/training.md), [ml/dataset.md](ml/dataset.md) | The ML service API, the compatibility model card, the training recipe, the synthetic datasets |
 | [dataingestion/README.md](dataingestion/README.md), [dataingestion/DATA_COLLECTION_SPEC.md](dataingestion/DATA_COLLECTION_SPEC.md) | Running the pipeline, and the full data-collection design |
+
+## Our NSA HEARSAY entry
+
+For information on our NSA challenge submission, follow
+[this link](https://github.com/kevinharvey2025/HactGT13AudioAuthentication). HEARSAY, synthetic-speech
+detection for the NSA audio authentication challenge, is a separate HackGT 13 submission by the same
+team and has nothing to do with SideQuests.
+
+- **Where the code lives:** `HEARSAY/` is a git submodule of that repository. It is developed there,
+  and `HEARSAY/` is only here for reference.
+- **Staying current:** `.github/workflows/update-hearsay.yml` moves the pointer to its latest `main`
+  every six hours, or on demand from the Actions tab.
+- **Getting it locally:** clone with `git clone --recurse-submodules`, or run
+  `git submodule update --init` in an existing clone. `git submodule update --remote HEARSAY` fetches
+  its latest `main` by hand.
 
 ## Credits
 

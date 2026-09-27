@@ -2,6 +2,7 @@ package planner
 
 import (
 	"Backend/pkg/models"
+	"slices"
 	"testing"
 	"time"
 )
@@ -38,8 +39,8 @@ func TestAvoidTagsCoverCategories(t *testing.T) {
 	user := sandy()
 	user.Prefs.AvoidTags = []string{"LIVE_MUSIC", " Crowded "}
 	spec := tp.spec(t, user, defaultReq())
-	if !containsString(spec.Hard.ExcludeCategories, "live_music") || !containsString(spec.Hard.ExcludeTags, "crowded") ||
-		!containsString(spec.AvoidTags, "live_music") {
+	if !slices.Contains(spec.Hard.ExcludeCategories, "live_music") || !slices.Contains(spec.Hard.ExcludeTags, "crowded") ||
+		!slices.Contains(spec.AvoidTags, "live_music") {
 		t.Errorf("hard %+v avoid %v", spec.Hard, spec.AvoidTags)
 	}
 	gig := synthEvent("Gig", "live_music", offsetKm(seasideMkt, 0.5, 0), localAt(19, 0), 60, nil, priceOf(5))
@@ -54,7 +55,7 @@ func TestAvoidTagsCoverCategories(t *testing.T) {
 // scores; every slot still reaches the pool.
 func TestSeriesShareOneRankerSlot(t *testing.T) {
 	var acts []models.Activity
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		a := synthEvent("Balloon Museum", "gallery", offsetKm(seasideMkt, 0.5, 0), localAt(18, 30*i), 30, []string{"art"}, priceOf(10))
 		a.VenueName = strp("Balloon Hall")
 		a.End = timep(localAt(18, 30*i).Add(30 * time.Minute))
@@ -122,12 +123,12 @@ func TestSolverCaps(t *testing.T) {
 func TestNewCategoriesJoinTheirFacets(t *testing.T) {
 	food, _ := FacetByName("Food")
 	for _, c := range []string{"bakery", "dessert", "food_hall"} {
-		if !containsString(food.Cats, c) {
+		if !slices.Contains(food.Cats, c) {
 			t.Errorf("Food misses %s", c)
 		}
 	}
 	night, _ := FacetByName("Nightlife")
-	if !containsString(night.Cats, "brewery") {
+	if !slices.Contains(night.Cats, "brewery") {
 		t.Error("Nightlife misses brewery")
 	}
 	brewery := models.Activity{Kind: "place", Category: "brewery"}

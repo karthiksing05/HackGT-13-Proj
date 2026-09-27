@@ -1,18 +1,18 @@
 # The demo account
 
 **Sandy Byte** (`@sandybyte`) is the shared account for showing SideQuests. She lives in Saltlight Harbor,
-the fictional seaside city made for HackGT, and plans only from its `demo_activities` catalog (100 activities,
+the fictional seaside city made for HackGT, and was originally populated from its `demo_activities` catalog (100 activities,
 45 of them events on Sep 26 – Oct 2, 2026; [DATA.md](DATA.md#the-demo-snapshot)). Full walkthrough: [DEMO.md](DEMO.md).
 
 ## Signing in
 
 - **Email:** `demo@sidequestz.tech`, on the live API `https://api.sidequestz.tech` (the app's default).
 - **Password:** never in git. It is the `DEMO_PASSWORD` entry in the repo-root `.env` (gitignored); the
-  server's `/opt/backend/.env` has the same entry, and `seed-demo` sets her password from it.
+  app uses it for demo sign-in; the account password is already stored as a hash in MongoDB.
 - **Use the demo account:** a link under "Create an account" on the sign-in screen that fills both fields
   and signs in. It shows only in live mode, when the build has the `SQ_DEMO_PASSWORD` build setting or the
   launch has `-SQDemoPassword` ([how](../frontend/README.md#pointing-the-app-at-a-server)).
-- Anyone can sign up for their own account (real Atlanta catalog). Everyone signed in as Sandy shares her data.
+- Anyone can sign up for their own account. Demo/bot roles use `demo_activities`; other accounts use `pitch_activities`. Everyone signed in as Sandy shares her data.
 
 ## Sandy at a glance
 
@@ -23,14 +23,14 @@ the fictional seaside city made for HackGT, and plans only from its `demo_activi
 | Likes (1–5) | outdoors 5, long walks 5, live music 4, food 4, early mornings 4, museums 3, sports 3, shopping 2, nightlife 2, big crowds 1 |
 | How she plans | small group, balanced pace, under $15 (a bit over is OK), prefers free, splits equally |
 | In her words | a walk along the water, a market snack, small live music at sundown; never packed clubs, huge crowds or after-midnight plans; plans around sunrise swims and the Saturday market |
-| Taste vectors | built by the live ML service from her preferences and rated stops when the seed runs |
+| Taste vectors | built by the live ML service from her preferences and rated stops when preferences or ratings change |
 
 ## What's already there
 
 The demo accounts live on the server's `DEMO_DATE` (2026-09-27, a Sunday: the catalog's busiest day,
 17 events), at the real time of day in `DEMO_TZ` (`America/New_York`), whatever the real date is. Seed
 times hang off that date: Marin's plan is Mon Sep 28, 5:30–8 PM, and the crew outing and the solo walk
-were on Sat Sep 26. Re-seed before a demo so the free-now post is live again.
+were on Sat Sep 26. Expired fixture posts must be recreated through the app or restored from a fixture backup.
 
 | Tab | What she sees |
 |---|---|
@@ -53,30 +53,5 @@ were on Sat Sep 26. Re-seed before a demo so the free-now post is live again.
 
 ## Resetting
 
-On the VPS, as root. The API (`sidequestz.service`) keeps running; no restart is needed.
-
-```sh
-/opt/backend/sidequestz-admin --env-file /opt/backend/.env seed-demo
-```
-
-It needs `DEMO_PASSWORD` in that file and the Saltlight catalog, or it writes nothing. It is idempotent:
-every record it writes has a fixed id, so nothing is ever duplicated. It re-times the world to the new run and:
-
-- **resets** Sandy's profile, preferences, home base and password, clears her learned taste tags and
-  refreshes her taste vectors (if the ML service is down, it still succeeds and says so);
-- **rewrites** the 3 plans, both chats (unread counts too), the 5 seeded messages, the 2 expenses, her 2 crew
-  ratings, the Marin friendship, Theo's request (pending again), the free-now post and the Visa (default again);
-- **undoes** her greenway rating, an accepted friendship with Theo and anyone's place in Marin's plan and
-  its chat (the chat and its messages stay);
-- **leaves** everything else a demo made: new plans, sent messages, added expenses (still counted in
-  Splits), photos, other cards and the chat created by joining Marin's plan.
-
-A full wipe deletes **every account** and all app data, not just the demo (the catalogs stay):
-
-```sh
-/opt/backend/sidequestz-admin --env-file /opt/backend/.env reset-app-data --yes --users
-/opt/backend/sidequestz-admin --env-file /opt/backend/.env ensure-indexes   # recreate the dropped indexes
-/opt/backend/sidequestz-admin --env-file /opt/backend/.env seed-demo
-```
-
-Without `--users` accounts survive, but everyone's plans, chats and friends still go ([DEPLOY.md](DEPLOY.md#runbook)).
+The backend no longer includes seed/reset tooling. Restore a fixture database backup to reset
+these records. Existing accounts, password hashes and app data are unaffected by removing the tool.

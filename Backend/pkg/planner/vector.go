@@ -154,9 +154,7 @@ func Shortlist(cands []*Candidate, qv QueryVector, spec *PlanSpec, cfg Config) [
 			if got >= cfg.FacetQuota {
 				break
 			}
-			if all[i].c.covers(f) && !taken[i] && take(i) {
-				got++
-			} else if all[i].c.covers(f) && taken[i] {
+			if all[i].c.covers(f) && (taken[i] || take(i)) {
 				got++
 			}
 		}
@@ -228,10 +226,7 @@ func expansionCosRank(c *Candidate) float64 {
 }
 
 func dot(a, b []float64) float64 {
-	n := len(a)
-	if len(b) < n {
-		n = len(b)
-	}
+	n := min(len(b), len(a))
 	s := 0.0
 	for i := 0; i < n; i++ {
 		s += a[i] * b[i]

@@ -241,7 +241,7 @@ func bruteForce(g *Graph, w Window, cfg Config) float64 {
 	best := math.Inf(-1)
 	for mask := 1; mask < 1<<n; mask++ {
 		var seq []int
-		for i := 0; i < n; i++ {
+		for i := range n {
 			if mask&(1<<i) != 0 {
 				seq = append(seq, i)
 			}
@@ -301,7 +301,7 @@ func randomInstance(r *rand.Rand, n int, constrained bool) (Window, []models.Act
 	w.MaxLegKm = 4
 	cats := []string{"theater", "comedy", "cinema"} // attended whole: one node per event
 	var acts []models.Activity
-	for i := 0; i < n; i++ {
+	for range n {
 		start := at(14, 0).Add(time.Duration(r.Intn(15*30)) * time.Minute)
 		a := event("E", offset(r.Float64()*3-1.5, r.Float64()*3-1.5), start, 30+r.Intn(4)*30, tau+0.05+(0.95-tau)*r.Float64())
 		a.Name = a.ID.Hex()
@@ -334,7 +334,7 @@ func TestSolveMatchesBruteForce(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r := rand.New(rand.NewSource(tc.seed))
 			compared, multiStop, infeasible := 0, 0, 0
-			for trial := 0; trial < 200; trial++ {
+			for trial := range 200 {
 				constrained := trial%2 == 1
 				cfg := DefaultConfig()
 				if !constrained {

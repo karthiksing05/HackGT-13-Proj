@@ -4,6 +4,7 @@ import (
 	"Backend/pkg/models"
 	"context"
 	"errors"
+	"maps"
 	"sort"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -203,9 +204,7 @@ func (f Friends) Cancel(ctx context.Context, id, fromID string) (*models.FriendR
 
 func (f Friends) transition(ctx context.Context, filter bson.M, status string) (*models.FriendRequest, error) {
 	pending := bson.M{"status": models.RequestPending}
-	for k, v := range filter {
-		pending[k] = v
-	}
+	maps.Copy(pending, filter)
 	var req models.FriendRequest
 	err := f.requests().FindOneAndUpdate(ctx, pending,
 		bson.M{"$set": bson.M{"status": status, "updatedAt": f.s.BusinessNow(ctx)}},

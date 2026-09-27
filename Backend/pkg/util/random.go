@@ -10,20 +10,20 @@ import (
 // RandomToken returns n random bytes as unpadded base64url (refresh tokens,
 // web-session tokens). crypto/rand failing is not recoverable.
 func RandomToken(n int) string {
-	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		panic("util: crypto/rand failed: " + err.Error())
-	}
-	return base64.RawURLEncoding.EncodeToString(b)
+	return base64.RawURLEncoding.EncodeToString(randomBytes(n))
 }
 
 // RandomHex returns n random bytes as lowercase hex (2n characters).
 func RandomHex(n int) string {
+	return hex.EncodeToString(randomBytes(n))
+}
+
+func randomBytes(n int) []byte {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
 		panic("util: crypto/rand failed: " + err.Error())
 	}
-	return hex.EncodeToString(b)
+	return b
 }
 
 // SHA256Hex is the hex digest stored instead of a secret (refresh tokens, reset codes).

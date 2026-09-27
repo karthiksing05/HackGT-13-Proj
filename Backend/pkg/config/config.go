@@ -3,7 +3,7 @@
 package config
 
 import (
-	"crypto/rand"
+	"Backend/pkg/util"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -42,9 +42,8 @@ type Config struct {
 	FBGraphVersion string
 	FBTokenKey     string // 32-byte hex for AES-256-GCM; empty = HKDF from JWTSecret (facebook agent)
 
-	DemoPassword string
-	DemoTZ       string
-	DemoDate     string // DEMO_DATE (YYYY-MM-DD): demo accounts live on this date (demo.go); empty = real time
+	DemoTZ   string
+	DemoDate string // DEMO_DATE (YYYY-MM-DD): demo accounts live on this date (demo.go); empty = real time
 
 	DevResetCodes     bool          // DEV_RESET_CODES=1 returns the reset code in the forgot response
 	CheckoutStepDelay time.Duration // CHECKOUT_STEP_DELAY, 1.5 s (tests use 0)
@@ -139,7 +138,6 @@ func Parse(getenv func(string) string) (*Config, error) {
 		FBAppSecret:         get("FB_APP_SECRET", ""),
 		FBGraphVersion:      get("FB_GRAPH_VERSION", "v26.0"),
 		FBTokenKey:          get("FB_TOKEN_KEY", ""),
-		DemoPassword:        get("DEMO_PASSWORD", ""),
 		DemoTZ:              get("DEMO_TZ", "America/New_York"),
 		DemoDate:            get("DEMO_DATE", ""),
 		DevResetCodes:       boolean(get("DEV_RESET_CODES", "0")),
@@ -199,7 +197,7 @@ func (c *Config) Validate() error {
 		errs = append(errs, fmt.Errorf("APP_ENV must be prod or dev, got %q", c.AppEnv))
 	}
 	if c.JWTSecret == "" && c.Dev() {
-		c.JWTSecret = randomSecret()
+		c.JWTSecret = util.RandomToken(48)
 	}
 	switch {
 	case c.JWTSecret == "":
@@ -264,7 +262,7 @@ func (c *Config) validateAgentCheckout() []error {
 	}
 	if c.TapAgentKey != "" {
 		if seed, err := base64.StdEncoding.DecodeString(c.TapAgentKey); err != nil || len(seed) != 32 {
-			errs = append(errs, errors.New("TAP_AGENT_KEY must be a base64 32-byte Ed25519 seed (sidequestz-admin tap-keygen)"))
+			errs = append(errs, errors.New("TAP_AGENT_KEY must be a base64 32-byte Ed25519 seed"))
 		}
 	}
 	if c.AgentMaxTurns < 0 || c.CheckoutRunTimeout < 0 {
@@ -294,14 +292,6 @@ func localHost(addr string) string {
 		return "127.0.0.1" + addr
 	}
 	return strings.Replace(addr, "0.0.0.0", "127.0.0.1", 1)
-}
-
-func randomSecret() string {
-	b := make([]byte, 48)
-	if _, err := rand.Read(b); err != nil {
-		panic("config: crypto/rand failed: " + err.Error())
-	}
-	return base64.RawURLEncoding.EncodeToString(b)
 }
 
 // repoRootFacebookFiles reads the gitignored meta_app_id / meta_app_secret files

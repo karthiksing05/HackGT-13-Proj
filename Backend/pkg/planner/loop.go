@@ -6,6 +6,8 @@ import (
 	"Backend/pkg/travel"
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -64,7 +66,7 @@ type Run struct {
 // half, once per run; walking legs stay within the walk cap. It reports
 // whether it did anything.
 func (r *Run) relaxRange() bool {
-	if containsString(r.Relaxed, "range") {
+	if slices.Contains(r.Relaxed, "range") {
 		return false
 	}
 	r.RadiusKm = minFloat(30, r.RadiusKm*2)
@@ -95,7 +97,7 @@ func (r *Run) droppedIDs() []string {
 }
 
 func appendUnique(list []string, s string) []string {
-	if containsString(list, s) {
+	if slices.Contains(list, s) {
 		return list
 	}
 	return append(list, s)
@@ -259,9 +261,7 @@ func (r *Run) solverActivities(util func(a *models.Activity) float64) ([]models.
 
 func copyBoosts(b map[string]float64) map[string]float64 {
 	out := map[string]float64{}
-	for k, v := range b {
-		out[k] = v
-	}
+	maps.Copy(out, b)
 	return out
 }
 
@@ -304,10 +304,7 @@ func (p *Planner) runLoop(ctx context.Context, run *Run) {
 		}
 		ladderBefore := run.ladder
 		adapted := adapt(run, issues, cur)
-		n := cfg.MaxExpansions
-		if n > len(issues) {
-			n = len(issues)
-		}
+		n := min(cfg.MaxExpansions, len(issues))
 		added := p.expand(ctx, run, issues[:n], r+1, cur)
 		if added == 0 && !adapted {
 			cur.Stop = "nothing_to_add"
@@ -365,7 +362,7 @@ func diagnose(run *Run) []Issue {
 	for _, f := range run.Spec.Facets {
 		covered := false
 		for _, sp := range top {
-			if containsString(sp.Metrics.CoveredFacets, f.Name) {
+			if slices.Contains(sp.Metrics.CoveredFacets, f.Name) {
 				covered = true
 				break
 			}
@@ -633,7 +630,7 @@ func (p *Planner) expansionQuery(run *Run, is Issue) (expansion, bool) {
 func placeCategoriesAndEvents(cats, excluded []string) []string {
 	var out []string
 	for _, c := range cats {
-		if !containsString(excluded, c) {
+		if !slices.Contains(excluded, c) {
 			out = append(out, c)
 		}
 	}

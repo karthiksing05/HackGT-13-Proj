@@ -9,7 +9,6 @@ import (
 	"Backend/pkg/httpx"
 	"Backend/pkg/models"
 	"Backend/pkg/util"
-	"errors"
 	"net/http"
 	"strings"
 
@@ -179,7 +178,7 @@ func (h *H) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, err := h.d.Store.Users().ByEmail(r.Context(), email)
-	if err != nil && !errors.Is(err, errNotFoundAlias) && !isNotFound(err) {
+	if err != nil && !isNotFound(err) {
 		api.Fail(w, r, err)
 		return
 	}

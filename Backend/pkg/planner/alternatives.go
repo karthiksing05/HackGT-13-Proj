@@ -6,6 +6,7 @@ import (
 	"Backend/pkg/travel"
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"time"
 )
@@ -204,7 +205,7 @@ func round2(v float64) float64 { return float64(int(v*100+0.5)) / 100 }
 func sharedTags(a, b []string) int {
 	n := 0
 	for _, t := range a {
-		if containsString(b, t) {
+		if slices.Contains(b, t) {
 			n++
 		}
 	}
@@ -272,10 +273,7 @@ func (p *Planner) scheduleAlternative(ctx context.Context, c *Candidate, slot Ti
 	}
 	latestEnd = minTime(latestEnd, w.BackBy.Add(-outLeg.Duration))
 	_, median := visitLengths(&c.Act)
-	visit := median
-	if visit < itCfg.MinDuration {
-		visit = itCfg.MinDuration
-	}
+	visit := max(median, itCfg.MinDuration)
 	if visit > itCfg.MaxDuration {
 		visit = itCfg.MaxDuration
 	}
