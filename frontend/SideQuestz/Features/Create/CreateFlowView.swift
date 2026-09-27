@@ -62,11 +62,18 @@ private struct CreateFlowScreen: View {
         }
         .ignoresSafeArea(.container, edges: .bottom)
         .background(Theme.cream.ignoresSafeArea())
-        .sqSheet(isPresented: $model.moreOpen, style: .cream(.fitted(max: 740))) {
+        .sqSheet(isPresented: $model.moreOpen, style: .cream(.fitted(max: 740)), onDismiss: moreOptionsClosed) {
             CreateMoreOptionsSheet(model: model) { step in
                 model.moreOpen = false
                 go(to: step)
+            } friends: {
+                model.openFriendsAfterMore = true
+                model.moreOpen = false
             }
+        }
+        // Vibe › Bring friends, and More options › Friends. It opens on the whole list again.
+        .sqSheet(isPresented: $model.friendsPickerOpen, style: CreateFriendsPicker.style, onDismiss: { model.friendQuery = "" }) {
+            CreateFriendsPicker(model: model) { model.friendsPickerOpen = false }
         }
         // Review › hold a stop › "Swap for something similar".
         .sqSheet(item: $model.swapTarget, style: CreateSwapSheet.style) { target in
@@ -208,6 +215,13 @@ private struct CreateFlowScreen: View {
         router.createDraft = nil
     }
 
+    /// More options is gone: its Friends row opens the picker now (one cover at a time).
+    private func moreOptionsClosed() {
+        guard model.openFriendsAfterMore else { return }
+        model.openFriendsAfterMore = false
+        model.friendsPickerOpen = true
+    }
+
     /// The details pane is gone: its Swap opens the swap sheet now (one cover at a time), and its
     /// Remove takes the stop out with the route card's animation, in view.
     private func stopDetailClosed() {
@@ -235,12 +249,19 @@ private struct CreateFlowScreen: View {
         }
     }
 
-    /// Demo deep links (`create/2/calendar`, `create/4/more`, `create/4/swap`, `create/4/stop`) + first loads.
+    /// Demo deep links (`create/2/calendar`, `create/3/friends`, `create/4/more`, `create/4/swap`,
+    /// `create/4/stop`) + first loads.
     private func start() {
         if let parts = router.consumeLaunch("create") {
             switch parts.dropFirst().first {
             case "calendar":
                 model.calendarOpen = true
+            case "friends":
+                // The Bring friends picker, once the cover's own presentation has finished.
+                Task {
+                    try? await Task.sleep(nanoseconds: 700_000_000)
+                    model.friendsPickerOpen = true
+                }
             case "more":
                 // Wait for the cover's own presentation to finish before stacking the sheet on it.
                 Task {

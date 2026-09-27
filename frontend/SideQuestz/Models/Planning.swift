@@ -348,4 +348,40 @@ struct CreateItineraryRequest: Codable, Hashable {
     var visibility: Visibility
     var lockAt: Date?
     var maxGroupSize: Int?
+    /// Create › Vibe › Bring friends: the friends (user ids, in the order picked) who are on the plan
+    /// from the start. The server adds them like an accepted join, with the plan's group chat; each
+    /// must be a friend, 12 at most. Sent as `invite_user_ids`, and left out when there are none.
+    var inviteUserIds: [String] = []
+
+    enum CodingKeys: String, CodingKey {
+        case plan, option, stopOrder, route, visibility, lockAt, maxGroupSize, inviteUserIds
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(plan, forKey: .plan)
+        try c.encode(option, forKey: .option)
+        try c.encode(stopOrder, forKey: .stopOrder)
+        try c.encode(route, forKey: .route)
+        try c.encode(visibility, forKey: .visibility)
+        try c.encodeIfPresent(lockAt, forKey: .lockAt)
+        try c.encodeIfPresent(maxGroupSize, forKey: .maxGroupSize)
+        if !inviteUserIds.isEmpty { try c.encode(inviteUserIds, forKey: .inviteUserIds) }
+    }
+}
+
+extension CreateItineraryRequest {
+    /// The app sends this; it decodes only in the contract tests. `invite_user_ids` may be missing
+    /// (it's left out when nobody is brought along).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        plan = try c.decode(PlanRequest.self, forKey: .plan)
+        option = try c.decode(PlanOption.self, forKey: .option)
+        stopOrder = try c.decode([String].self, forKey: .stopOrder)
+        route = try c.decode(RouteResult.self, forKey: .route)
+        visibility = try c.decode(Visibility.self, forKey: .visibility)
+        lockAt = try c.decodeIfPresent(Date.self, forKey: .lockAt)
+        maxGroupSize = try c.decodeIfPresent(Int.self, forKey: .maxGroupSize)
+        inviteUserIds = try c.decodeIfPresent([String].self, forKey: .inviteUserIds) ?? []
+    }
 }

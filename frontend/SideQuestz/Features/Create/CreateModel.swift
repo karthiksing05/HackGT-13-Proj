@@ -213,6 +213,25 @@ final class CreateFlowModel {
     private(set) var searchingMustSee = false
     @ObservationIgnored private var mustSeeGeneration = 0
 
+    // MARK: Bring friends
+
+    /// The most friends a plan can start with (the server's cap).
+    static let maxInvites = 12
+    /// Friends coming along, in the order picked (`CreateItineraryRequest.inviteUserIds`).
+    private(set) var invitees: [PersonRef] = []
+    /// The Bring friends picker is open.
+    var friendsPickerOpen = false
+    /// Review › More options › Friends: the picker opens once More options has closed.
+    @ObservationIgnored var openFriendsAfterMore = false
+    /// Your friends (`GET /friends`), loaded when the picker first opens.
+    private(set) var friends: Loadable<[Friend]> = .loading
+    @ObservationIgnored private var friendsGeneration = 0
+    /// The picker's search field.
+    var friendQuery = ""
+    /// A line about a change the flow made to Who's coming for your picks; it stands in for the
+    /// choice's own note until Who's coming or the picks change again.
+    private(set) var whoNotice: String?
+
     // MARK: More options
 
     /// Getting around: from the ride answer until the user changes it (`toggleMode`).
@@ -349,8 +368,8 @@ final class CreateFlowModel {
             pace = prefs.pace
             paceTouched = false
         }
-        // The demo keeps the prototype's "Friends only".
-        if !env.isMock, !whoTouched {
+        // The demo keeps the prototype's "Friends only"; friends already picked keep theirs.
+        if !env.isMock, !whoTouched, invitees.isEmpty {
             who = Self.visibility(for: prefs.company)
             whoTouched = false
         }
@@ -626,6 +645,86 @@ final class CreateFlowModel {
     /// A pick's chip ×.
     func removeMustSee(_ id: String) {
         mustSee.removeAll { $0.id == id }
+    }
+
+    // MARK: - Vibe: who's coming + bring friends
+
+    /// Under Who's coming: the flow's own line about your picks, else the choice's note.
+    var whoNote: String { whoNotice ?? who.note }
+
+    /// Why picking a friend left "Just me".
+    static let switchedToFriendsNote = "Switched to \(Visibility.friends.label) so your friends can come."
+
+    /// Who's coming, tapped. "Just me" means nobody else, so friends you picked are taken off (the
+    /// note names them); the other choices keep them.
+    func chooseWho(_ choice: Visibility) {
+        whoNotice = nil
+        if choice == .justMe, !invitees.isEmpty {
+            let names = Self.names(invitees)
+            let were = invitees.count == 1 ? "was" : "were"
+            invitees = []
+            whoNotice = "Just you now, so \(names) \(were) taken off."
+        }
+        who = choice
+    }
+
+    func isInvited(_ id: String) -> Bool { invitees.contains { $0.id == id } }
+
+    /// Room for another friend (12 at most).
+    var canInviteMore: Bool { invitees.count < Self.maxInvites }
+
+    /// A picker row: picks the friend, or takes them off. The first pick while Who's coming is
+    /// "Just me" switches it to "Friends only" (with a note); taking everyone off doesn't switch
+    /// back. The group grows to fit you and everyone picked.
+    func toggleInvite(_ person: PersonRef) {
+        if let index = invitees.firstIndex(where: { $0.id == person.id }) {
+            invitees.remove(at: index)
+            if invitees.isEmpty { whoNotice = nil }
+            return
+        }
+        guard canInviteMore else { return }
+        invitees.append(person)
+        maxGroupSize = min(max(maxGroupSize, minGroupSize), Self.groupSizes.upperBound)
+        if who == .justMe {
+            who = .friends
+            whoNotice = Self.switchedToFriendsNote
+        }
+    }
+
+    /// Loads your friends for the picker. Once they're in, reopening shows them at once; "Try
+    /// again" (`force`) loads again, keeping the list on screen if there is one.
+    func loadFriends(force: Bool = false) async {
+        if !force, friends.value != nil { return }
+        friendsGeneration += 1
+        let generation = friendsGeneration
+        if friends.value == nil { friends = .loading }
+        let result: Loadable<[Friend]> = await .run { try await env.api.friends() }
+        guard generation == friendsGeneration else { return }
+        if force, result.value == nil, friends.value != nil { return }
+        friends = result
+    }
+
+    /// The picker's rows: your friends whose name or @handle has the search in it, in the server's
+    /// order.
+    var friendResults: [Friend] {
+        let query = friendQuery.trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet(charactersIn: "@")))
+        let list = friends.value ?? []
+        guard !query.isEmpty else { return list }
+        return list.filter {
+            $0.person.name.localizedCaseInsensitiveContains(query) || ($0.person.username?.localizedCaseInsensitiveContains(query) ?? false)
+        }
+    }
+
+    /// First names as one line: "Maya", "Maya and Dev", "Maya, Dev and Sam". More people than
+    /// `limit` keeps the line to `limit` parts, the last one counting the rest: "Maya, Dev and 3 others".
+    static func names(_ people: [PersonRef], limit: Int = .max) -> String {
+        var parts = people.map(\.firstName)
+        if parts.count > limit, limit > 1 {
+            let shown = limit - 1
+            parts = Array(parts.prefix(shown)) + ["\(parts.count - shown) others"]
+        }
+        guard let last = parts.last, parts.count > 1 else { return parts.first ?? "" }
+        return parts.dropLast().joined(separator: ", ") + " and " + last
     }
 
     // MARK: - Review: options
@@ -1019,7 +1118,8 @@ final class CreateFlowModel {
         let shared = who != .justMe
         let request = CreateItineraryRequest(
             plan: plan, option: option, stopOrder: state.order, route: route, visibility: who,
-            lockAt: shared ? lockAt : nil, maxGroupSize: shared ? maxGroupSize : nil
+            lockAt: shared ? lockAt : nil, maxGroupSize: shared ? maxGroupSize : nil,
+            inviteUserIds: invitees.map(\.id)
         )
         do {
             return try await env.api.createItinerary(request)
@@ -1067,9 +1167,12 @@ final class CreateFlowModel {
         lockLeadMinutes = max(0, Int((startTime.timeIntervalSince(lock) / 60).rounded()))
     }
 
-    /// More options › Group › "Max group size" − / +.
+    /// The smallest "Max group size" that still fits you and the friends you're bringing.
+    var minGroupSize: Int { max(Self.groupSizes.lowerBound, invitees.count + 1) }
+
+    /// More options › Group › "Max group size" − / +. It never drops below `minGroupSize`.
     func changeMaxGroupSize(by delta: Int) {
-        maxGroupSize = min(max(maxGroupSize + delta, Self.groupSizes.lowerBound), Self.groupSizes.upperBound)
+        maxGroupSize = min(max(maxGroupSize + delta, minGroupSize), Self.groupSizes.upperBound)
     }
 
     // MARK: - More options

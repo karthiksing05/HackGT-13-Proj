@@ -30,10 +30,11 @@ struct CreateVibeStep: View {
             CreateChoiceGrid(options: CreateFlowModel.budgetLabels.enumerated().map { ($0.offset, $0.element) },
                              selection: model.budget, fontSize: 15) { model.budget = $0 }
             CreateEyebrow(text: "WHO'S COMING", topMargin: 4)
-            CreateChoiceGrid(options: Visibility.allCases.map { ($0, $0.label) }, selection: model.who) { model.who = $0 }
-            CreateCrossfade(value: model.who) {
-                CreateWrapText(text: model.who.note, size: 13, color: Theme.text2)
+            CreateChoiceGrid(options: Visibility.allCases.map { ($0, $0.label) }, selection: model.who) { model.chooseWho($0) }
+            CreateCrossfade(value: model.whoNote) {
+                CreateWrapText(text: model.whoNote, size: 13, color: Theme.text2)
             }
+            CreateBringFriendsRow(model: model)
             CreateMustSeeSection(model: model, focus: focus)
         }
     }
