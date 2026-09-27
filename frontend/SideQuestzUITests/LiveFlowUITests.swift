@@ -11,8 +11,8 @@ import XCTest
 ///
 /// Unlike LiveSmokeUITests, this CHANGES the demo account's data: it rates the Heron Creek stop,
 /// starts sidequests (and writes a note on one), joins Marin's "Golden hour by the market" and
-/// messages its chat, adds an expense to "Saturday market crew", posts (and takes down) a free-now
-/// post, accepts Theo's friend request and changes (then restores) Sandy's status. It expects a
+/// messages its chat, adds expenses to "Saturday market crew" and settles up there, posts (and takes
+/// down) a free-now post, accepts Theo's friend request and changes (then restores) Sandy's status. It expects a
 /// freshly seeded account, so seed the server before a run and again afterwards
 /// (`sidequestz-admin seed-demo`: it undoes the rating, the join and Theo's friendship; the new
 /// sidequests, messages and expenses stay, and the tests allow for them). The tests don't depend
@@ -258,6 +258,43 @@ final class LiveFlowUITests: XCTestCase {
         XCTAssertEqual(expenseCount(balance.label), countBefore + 1, "Wrong expense count: \(balance.label)")
         settle()
         snap(app, "split-3-added")
+    }
+
+    /// Groups › Saturday market crew › Splits: Marin pays $30 for the three of you, so you owe Marin;
+    /// "Settle up" offers what you owe (Marin's share, not the group's net, since Theo may owe you),
+    /// and settling says so and clears what you owe.
+    func testSettleUpPaysWhatYouOwe() throws {
+        let app = try launchSignedIn()
+
+        app.buttons["tab.groups"].tapWhenReady(timeout)
+        element(app, type: .button, labelBeginsWith: "Saturday market crew").tapWhenReady(timeout)
+        app.buttons["Splits"].tapWhenReady(timeout)
+        expect(element(app, labelBeginsWith: "Your balance in this group"))
+
+        let round = "Lemonade (QA \(Self.stamp()))"
+        app.buttons["Add an expense"].tapWhenReady(timeout)
+        type(app.textFields["What was it for?"], round)
+        type(app.textFields["Total amount in dollars"], "30")
+        app.buttons.matching(NSPredicate(format: "label == %@", "Marin")).firstMatch.tapWhenReady(timeout) // Paid by
+        expect(share(app, "You owe Marin", "$10.00"), "Your share of Marin's round isn't $10.00")
+        element(app, type: .button, labelBeginsWith: "Add $30.00 · split 3 ways").tapWhenReady(timeout)
+        expect(element(app, labelContains: "Added \"\(round)\""), "No confirmation banner")
+
+        // What you owe, row by row; the button pays exactly that.
+        let owe = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "You owe "))
+        let marin = element(app, labelBeginsWith: "You owe Marin ")
+        expect(marin, "You don't owe Marin after Marin paid")
+        let owed = owe.allElementsBoundByIndex.compactMap { cents($0.label) }.reduce(0, +)
+        let settleButton = element(app, type: .button, labelBeginsWith: "Settle up $")
+        expect(settleButton, "No Settle up button while you owe Marin")
+        XCTAssertEqual(cents(settleButton.label), owed, "Settle up offers \(settleButton.label), you owe \(owed)¢")
+        settleButton.tap()
+        expect(element(app, labelBeginsWith: "Settled up "), "Settling didn't confirm (the server refused the amount?)")
+        XCTAssertFalse(element(app, labelContains: "The balance changed").exists, "The server called the amount stale")
+        expectGone(marin)
+        expectGone(settleButton)
+        settle()
+        snap(app, "settle-1-settled")
     }
 
     // MARK: Account
