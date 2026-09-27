@@ -40,52 +40,59 @@ func slotsAt(hour, minute int) [][3]int {
 	return [][3]int{{1, hour, minute}, {2, hour, minute}, {3, hour, minute}, {4, hour, minute}}
 }
 
+var (
+	grantPark = travel.Point{Lat: 33.7470, Lng: -84.3690}
+	fernbank  = travel.Point{Lat: 33.7739, Lng: -84.3280}
+)
+
+// upcomingByFlavor are the default upcoming sidequests of each story: new
+// places and titles, not the showcase's plans or the history's again.
 var upcomingByFlavor = map[string][]upcomingPlan{
 	"outdoors": {
-		{key: "host", title: "Sunset picnic in Piedmont Park", mood: "blankets, snacks, then dinner", members: []string{"diego", "sofia"},
-			visibility: models.VisibilityOpen, maxSize: 6, anchor: piedmontPark, names: []int{0}, slots: slotsAt(17, 30),
-			stops: []stopSpec{stop(75, parks, "Piedmont Park"), stop(60, eats, "Sugar Factory American Brasserie")},
+		{key: "host", title: "Centennial Park at dusk, then dinner", mood: "a walk downtown, then food", members: []string{"diego", "sofia"},
+			visibility: models.VisibilityOpen, maxSize: 6, anchor: downtown, names: []int{0}, slots: slotsAt(17, 30),
+			stops: []stopSpec{stop(60, parks, "Centennial Olympic Park"), stop(75, eats, "42 Bar and Grill")},
 			chat: []chatLine{
 				{"diego", 3 * time.Hour, "I'll bring the frisbee. {s1} at {start} {when}?"},
 				{"sofia", 2*time.Hour + 20*time.Minute, "In! Dinner at {s2} after"},
 			}},
-		{key: "join", title: "Eastside Trail to Ponce City Market", mood: "a walk and the food hall", host: "sofia", members: []string{"diego"},
-			visibility: models.VisibilityOpen, maxSize: 8, anchor: ponceCityMarket, names: []int{0, 1}, slots: slotsAt(16, 0),
+		{key: "join", title: "BeltLine walk and the food hall", mood: "a walk, then a snack", host: "sofia", members: []string{"diego"},
+			visibility: models.VisibilityOpen, maxSize: 8, anchor: ponceCityMarket, slots: slotsAt(16, 0),
 			stops: []stopSpec{stop(75, []string{"hike", "park"}, "Atlanta Beltline Eastside Trail"), stop(60, []string{"market", "restaurant"}, "Ponce City Market")},
 			chat: []chatLine{
-				{"sofia", 5 * time.Hour, "Walking the Eastside Trail {when} at {start}, then {s2}. Who's in?"},
+				{"sofia", 5 * time.Hour, "Walking {s1} {when} at {start}, then {s2}. Who's in?"},
 				{"diego", 4 * time.Hour, "Me. Saving room for tacos"},
 			}},
 	},
 	"nightlife": {
-		{key: "host", title: "Blues night in Virginia-Highland", mood: "wings, then live blues", members: []string{"jalen", "marcus"},
-			visibility: models.VisibilityOpen, maxSize: 6, anchor: virginiaHighland, slots: slotsAt(19, 30),
+		{key: "host", title: "Wings, then live blues", mood: "wings, then the house band", members: []string{"jalen", "marcus"},
+			visibility: models.VisibilityOpen, maxSize: 6, anchor: virginiaHighland, names: []int{1}, slots: slotsAt(19, 30),
 			stops: []stopSpec{stop(60, eats, "Moe's and Joe's"), stop(120, night, "Blind Willie's")},
 			chat: []chatLine{
 				{"jalen", 3 * time.Hour, "Wings at {s1} at {start} {when}, then the band at {s2}"},
 				{"marcus", 90 * time.Minute, "I'm there. First round's on me"},
 			}},
-		{key: "join", title: "Duckpin bowling on the Westside", mood: "bowling, then blues", host: "marcus", members: []string{"amara"},
-			visibility: models.VisibilityOpen, maxSize: 8, anchor: westsideAnchor, names: []int{0}, slots: slotsAt(19, 0),
-			stops: []stopSpec{stop(90, games, "The Painted Duck"), stop(90, night, "Northside Tavern")},
+		{key: "join", title: "Grant Park bar hop", mood: "two bars, one walk", host: "jalen", members: []string{"amara"},
+			visibility: models.VisibilityOpen, maxSize: 8, anchor: grantPark, slots: slotsAt(20, 0),
+			stops: []stopSpec{stop(60, []string{"restaurant", "bar"}, "Milltown Arms Tavern"), stop(75, []string{"restaurant", "bar"}, "Manny's - Grant Park")},
 			chat: []chatLine{
-				{"marcus", 6 * time.Hour, "Lanes at {s1} {when} at {start}. Grabbing two lanes"},
-				{"amara", 5 * time.Hour, "Blues at {s2} after, obviously"},
+				{"jalen", 6 * time.Hour, "Bar hop {when} from {start}: {s1}, then {s2}"},
+				{"amara", 5 * time.Hour, "Wouldn't miss it"},
 			}},
 	},
 	"arts": {
 		{key: "host", title: "Design museum, then dinner", mood: "an hour of design, then food", members: []string{"hana", "lily"},
-			visibility: models.VisibilityFriends, anchor: piedmontPark, slots: slotsAt(17, 0),
+			visibility: models.VisibilityFriends, anchor: piedmontPark, names: []int{0}, slots: slotsAt(17, 0),
 			stops: []stopSpec{stop(60, arts, "MODA (Museum of Design Atlanta)"), stop(75, eats, "Sugar Factory American Brasserie")},
 			chat: []chatLine{
 				{"hana", 3 * time.Hour, "{s1} closes at seven, so {start} {when}?"},
 				{"lily", 2 * time.Hour, "Perfect. Dinner at {s2} after"},
 			}},
-		{key: "join", title: "Galleries and the Krog Street Tunnel", mood: "street art and a late lunch", host: "hana", members: []string{"omar"},
-			visibility: models.VisibilityOpen, maxSize: 6, anchor: cabbagetown, names: []int{1}, slots: slotsAt(15, 30),
-			stops: []stopSpec{stop(60, arts, "ABV Gallery"), stop(30, []string{"landmark", "gallery"}, "Krog Street Tunnel"), stop(60, eats, "Milltown Arms Tavern")},
+		{key: "join", title: "Fernbank Museum, then Candler Park", mood: "a museum hour and a walk", host: "hana", members: []string{"omar"},
+			visibility: models.VisibilityOpen, maxSize: 6, anchor: fernbank, names: []int{0, 1}, slots: slotsAt(15, 30),
+			stops: []stopSpec{stop(60, arts, "Fernbank Museum"), stop(60, parks, "Candler Park")},
 			chat: []chatLine{
-				{"hana", 5 * time.Hour, "Gallery hop {when} from {start}: {s1}, then the tunnel"},
+				{"hana", 5 * time.Hour, "{s1} {when} at {start}, then a walk in {s2}"},
 				{"omar", 4 * time.Hour, "Bringing my camera"},
 			}},
 	},
@@ -147,24 +154,28 @@ func planUpcoming(hp *histPerson, cat *catalog, crew map[string]*models.User, no
 }
 
 // laySlot is the first slot of up that is at least leadTime away, open for
-// every stop, and clear of busy blocks and the plans already laid out.
+// every stop, and clear of busy blocks and the plans already laid out:
+// preferably one where the plan is exactly as its title says (its named
+// places open), else the first that fits with places standing in.
 func laySlot(cat *catalog, up *upcomingPlan, now time.Time, loc *time.Location, used map[string]bool,
 	busy []models.CalendarEvent, taken []upcomingDoc) (laidOut, bool) {
 	local := now.In(loc)
 	reach := &worldSpec{center: up.anchor, maxFromCenter: historyReach}
-	for _, s := range up.slots {
-		start := time.Date(local.Year(), local.Month(), local.Day()+s[0], s[1], s[2], 0, 0, loc)
-		if start.Before(now.Add(leadTime)) {
-			continue
+	for _, exact := range []bool{true, false} {
+		for _, s := range up.slots {
+			start := time.Date(local.Year(), local.Month(), local.Day()+s[0], s[1], s[2], 0, 0, loc)
+			if start.Before(now.Add(leadTime)) {
+				continue
+			}
+			lay, ok := cat.layOutAt(reach, up.anchor, up.stops, start, loc, map[string]bool{})
+			if !ok || overlaps(lay.start, lay.backBy, busy, taken) || (exact && !(lay.exact && titleNamesHold(up.names, lay))) {
+				continue
+			}
+			for _, st := range lay.stops {
+				used[st.place.ID.Hex()] = true
+			}
+			return lay, true
 		}
-		lay, ok := cat.layOutAt(reach, up.anchor, up.stops, start, loc, map[string]bool{})
-		if !ok || overlaps(lay.start, lay.backBy, busy, taken) {
-			continue
-		}
-		for _, st := range lay.stops {
-			used[st.place.ID.Hex()] = true
-		}
-		return lay, true
 	}
 	return laidOut{}, false
 }
