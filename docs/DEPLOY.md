@@ -87,7 +87,7 @@ keys only: both services refuse live keys.
 ```
 PAYMENTS_MODE=sandbox
 STRIPE_SECRET_KEY=sk_test_…              # the agent's Stripe test account
-STRIPE_SELLER_PROFILE=profile_…          # the Events merchant's Stripe profile (tokens are scoped to it)
+STRIPE_SELLER_PROFILE=profile_test_…     # the Events merchant sandbox TEST profile (stripe-spt-smoke.sh prints it)
 MERCHANT_HOST=events.sidequestz.tech     # the authority the TAP signature covers
 MERCHANT_BASE_URL=https://events.sidequestz.tech
 TAP_AGENT_KEY=<from sidequestz-admin tap-keygen>   # secret; its public half goes on Events
@@ -111,7 +111,7 @@ MERCHANT_BASE_URL=https://events.sidequestz.tech
 PAYMENTS_MODE=sandbox
 DEMO_KEY=<openssl rand -hex 16>          # X-Demo-Key for POST /_demo/scenario; the default is refused outside dev
 TAP_AGENT_PUBLIC_KEY=<from sidequestz-admin tap-keygen>   # required outside dev
-STRIPE_SECRET_KEY=sk_test_…              # the merchant's Stripe test account
+STRIPE_SECRET_KEY=sk_test_…              # the merchant sandbox: a DIFFERENT Stripe account from the Backend
 MONGO_URI=mongodb://127.0.0.1:27017
 MONGO_DB=sidequestz_events
 ```

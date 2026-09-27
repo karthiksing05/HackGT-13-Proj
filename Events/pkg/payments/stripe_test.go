@@ -27,6 +27,12 @@ func fakeStripe(t *testing.T, charge func(w http.ResponseWriter, r *http.Request
 		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v1/shared_payment/granted_tokens/spt_missing"):
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"error":{"type":"invalid_request_error","code":"resource_missing","message":"No such shared payment token"}}`))
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v1/shared_payment/granted_tokens/spt_expired"):
+			_, _ = w.Write([]byte(`{"id":"spt_expired","deactivated_at":1790478408,"deactivated_reason":"expired","usage_limits":{"currency":"usd","expires_at":1790478408,"max_amount":1000}}`))
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v1/shared_payment/granted_tokens/spt_consumed"):
+			_, _ = w.Write([]byte(`{"id":"spt_consumed","deactivated_at":1790478408,"deactivated_reason":"consumed","usage_limits":{"currency":"usd","expires_at":1798761600,"max_amount":1000}}`))
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v1/shared_payment/granted_tokens/spt_lapsed"):
+			_, _ = w.Write([]byte(`{"id":"spt_lapsed","usage_limits":{"currency":"usd","expires_at":1600000000,"max_amount":1000}}`))
 		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v1/shared_payment/granted_tokens/"):
 			_, _ = w.Write([]byte(`{"id":"spt_1","usage_limits":{"currency":"usd","expires_at":1798761600,"max_amount":2692}}`))
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/payment_intents":
@@ -79,6 +85,10 @@ func TestStripeDeclines(t *testing.T) {
 		{"spent (live wording)", "spt_1", `{"error":{"type":"invalid_request_error","message":"The shared payment granted token cannot be used because it is already in a deactivated state."}}`, 400, ReasonUsed},
 		{"card declined", "spt_1", `{"error":{"type":"card_error","code":"card_declined","decline_code":"generic_decline","message":"Your card was declined."}}`, 402, ReasonCardDeclined},
 		{"unknown token", "spt_missing", ``, 0, ReasonUnknownToken},
+		// Stripe's charge error is the same for both; the token's deactivated_reason decides.
+		{"expired token", "spt_expired", ``, 0, ReasonExpired},
+		{"expiry passed, not yet deactivated", "spt_lapsed", ``, 0, ReasonExpired},
+		{"spent token", "spt_consumed", ``, 0, ReasonUsed},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
