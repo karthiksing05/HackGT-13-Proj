@@ -1,97 +1,151 @@
-# Handoff: ticket listings for the Atlanta pitch catalog
+# Handoff: the Atlanta events website and Stripe
 
-For whoever builds the ticket site that sells the pitch catalog's paid items. State as of
-2026-09-27. The catalog itself: [REPORT.md](REPORT.md) and [HANDOFF.md](HANDOFF.md).
+For whoever builds the ticket website for the Atlanta pitch catalog and sets up its payments. State
+as of 2026-09-27 (pitch day), production verified that morning. Background on the catalog:
+[REPORT.md](REPORT.md).
 
-## What's needed
+## The goal
 
-`freetime.pitch_activities` (250 synthetic Atlanta activities for the pitch) now has **150 paid items**,
-and each one carries a `ticketUrl`:
+At the pitch, anyone who signs up for SideQuests plans from `freetime.pitch_activities`: 250 synthetic
+Atlanta activities on real venues. Only the demo account, Sandy Byte, plans in the fictional Saltlight
+Harbor. **150 of the 250 are paid**, and the demo shows buying them in two ways, both on Stripe test mode:
 
-```
-https://events.sidequestz.tech/{slug}/tickets
-```
+1. **Agentic checkout:** in the app, "Buy tickets for this plan" lets the SideQuests agent buy every
+   paid stop, paying with a Stripe Shared Payment Token (SPT).
+2. **By hand:** the stop's ticket link opens the website, and the buyer pays on Stripe Checkout.
 
-The app shows those items as bookable, and the checkout agent buys them from that URL. **None of the 150
-slugs exists on the ticket site yet**, so every purchase fails until the site has a listing per slug.
-The site today holds only the 25 Saltlight listings. The 100 free items have no ticket link and need
-nothing.
+Both go through the existing ticket site in `Events/` (`events.sidequestz.tech`, today branded
+"Saltlight Tickets"). **What's missing is the 150 Atlanta listings.** Every paid pitch item links to
+`https://events.sidequestz.tech/{slug}/tickets`, none of those slugs exists on the site yet, and so
+every purchase of an Atlanta item currently fails with a 404. Saltlight's 25 listings work.
 
-The simplest route is to add the 150 listings to the existing `Events/` service. The backend only buys
-from `MERCHANT_HOST` (`events.sidequestz.tech`), and the agent already speaks that service's API. A
-separate site would need its own host added to the backend config.
+## What's already done
 
-## The contract the site must keep
-
-The backend and the checkout agent depend on these; see `Backend/pkg/agent/merchant.go`.
-
-- **Paths.**
-  - `GET /{slug}` is the listing page.
-  - `GET /{slug}/tickets` is the checkout page, the URL stored in the catalog.
-  - `GET /api/events/{slug}/offer?quantity=N` returns a quote.
-  - `POST /api/orders` places the order.
-  - The agent reads the page text, its JSON-LD and `<link rel="agent-checkout">`, exactly as for
-    Saltlight.
-- **Slugs are fixed.** Each is lowercase ASCII with hyphens. Every date of a weekly series has its own
-  slug, for example `bluegrass-brunch-sep-27` and `bluegrass-brunch-oct-4`. None collides with a Saltlight
-  slug or a reserved one (`api`, `t`, `events`, `orders`, ...); the catalog validator checks both.
-- **Price.**
-  - The app charges a stop's `price.min`, so the ticket's `unit_cents` must equal the listing's minimum
-    price, or the agent's quote won't match the plan's budget.
-  - `max_unit_cents` is the top of the range, for a premium tier if the site wants one.
-  - Fees are the site's own (`models.CalculateFees`), as today.
-- **Times** are UTC in the data. Show them in Atlanta time (`America/New_York`).
-- **Dates** run from Sun Sep 27 (the pitch day) to Sat Oct 10, 2026. Past listings shouldn't sell.
-
-## The data
-
-`dataingestion/pitch/out/ticket_listings.json` has one object per listing. Regenerate it with
-`cd dataingestion && .venv/bin/python -m pitch.tickets`. The file is gitignored like the rest of
-`pitch/out/`, because it carries addresses from Google Places records, so share it through the handoff
-bundle and not through git.
-
-Its fields map one to one onto `Events/pkg/models.Event`: `slug`, `title`, `description`, `summary`,
-`category`, `tags`, `venue`, `address`, `starts_at`, `ends_at`, `unit_cents`, `max_unit_cents`, `capacity`,
-`remaining` and `image_url` (empty; no approved images exist). A few extra fields help render the listing
-correctly:
-
-| Field | Meaning |
+| Piece | State |
 |---|---|
-| `listing_type` | `event` (97), `reservation` (23 restaurants and cafés: a prepaid amount toward the bill), `admission_pass` (23 museums, venues and tours) or `cover` (7 bars and clubs) |
-| `age_21_plus` | show a 21+ notice and ask the buyer to confirm |
-| `series` | for a weekly series, e.g. "Fridays at 9 PM, Oct 2 – Oct 9, 2026" |
-| `attendance` | `fixed_start` (arrive on time) or `drop_in` (come any time in the window) |
-| `catalog_id`, `ticket_url` | the `pitch_activities` document and the exact URL the app will open |
+| Catalog | `pitch_activities`: 250 items with texts and vectors; the 150 paid ones carry `ticketUrl` |
+| Backend routing | deployed: every account except the demo cast plans from `pitch_activities` |
+| Ticket site | live at `events.sidequestz.tech` (`/opt/events`, port 8085, `events.service`), with 25 Saltlight listings |
+| Stripe | configured in **test mode** on both sides (next section); a test order already went through |
+| Listing data | `dataingestion/pitch/out/ticket_listings.json`: the 150 listings in the site's own format |
 
-**Places have no single date.** A reservation, pass or cover is valid on any day of the range during the
-venue's opening hours. Their `starts_at`/`ends_at` span the whole range so that `models.Event` stays
-valid. The page should say "Valid any day, Sep 27 – Oct 10" rather than show a showtime.
+## Stripe: how it's set up
 
-`capacity` is a rough room size per category for events and 1000 for places. `remaining` starts equal to it.
+Two **separate** Stripe test accounts are needed, because Stripe won't let one account issue a
+payment token to itself.
 
-## What the site should look like
+| Where | Setting | Role | State in production |
+|---|---|---|---|
+| Backend `/opt/backend/.env` | `STRIPE_SECRET_KEY` | the **agent** account (SideQuests): issues an SPT per purchase | set, `sk_test_…` |
+| | `STRIPE_SELLER_PROFILE` | the **merchant** account's test profile (`profile_test_…`) that SPTs are issued for | set |
+| | `PAYMENTS_MODE=sandbox`, `MERCHANT_HOST`, `MERCHANT_BASE_URL` | the agent only buys from `events.sidequestz.tech` | set |
+| | `TAP_AGENT_KEY` | the agent's Ed25519 signing key (Visa Trusted Agent Protocol) | set |
+| Ticket site `/opt/events/.env` | `STRIPE_MERCHANT_SECRET_KEY` | the **merchant** account: confirms PaymentIntents (agent orders) and creates Checkout Sessions (web orders) | set, `sk_test_…` |
+| | `TAP_AGENT_PUBLIC_KEY` | verifies the agent's signatures; must pair with the backend's `TAP_AGENT_KEY` | set |
+| | `PAYMENTS_MODE=sandbox`, `DEMO_KEY` | sandbox only; the key guards `POST /_demo/scenario` | set |
 
-- **Home:** "Atlanta" listings next to Saltlight's, with the pitch day (Sun Sep 27) first. Group them by
-  day and filter by category (music, nightlife, food, classes, stage, outdoors, culture).
-- **Listing page:** title, venue and address, the Atlanta date and time or "valid any day", price or price
-  range, 21+ badge, description and a Buy button. Keep the JSON-LD (`Event` or `Offer`) and the
-  agent-checkout link that the Saltlight pages already have.
-- **Checkout page:** as today. A quantity, the Stripe (test mode) payment step and the confirmation with a
-  ticket and barcode.
-- **Say it's a demo.** The events and prices are invented and the venues are real, so a footer line such
-  as "Demo listings for SideQuests: not real tickets" keeps it honest.
+What that means for you:
 
-## Checking it
+- **You don't need to change Stripe to add the Atlanta listings.** Payments don't depend on the
+  listing: a new slug is sellable as soon as it exists on the site.
+- **Stay in test mode.** Both services refuse live keys. Pay by hand with the test card
+  `4242 4242 4242 4242`, any future expiry and any CVC. The agent uses a saved demo card in the app.
+- **Web checkout** creates a Stripe Checkout Session whose success URL is
+  `https://events.sidequestz.tech/orders/complete?session_id={CHECKOUT_SESSION_ID}`. The site issues
+  the ticket on that return, so no webhook is configured or needed.
+- **Keys:** never commit them, and never paste them in chat. They live only in the two `.env` files
+  (mode 600).
+- **If you change a key:**
+  - Changing `STRIPE_SECRET_KEY` or the merchant account means `STRIPE_SELLER_PROFILE` must name the
+    new merchant account's profile. `Backend/scripts/stripe-spt-smoke.sh` prints it and proves the SPT
+    path end to end.
+  - Regenerating the TAP key means `TAP_AGENT_PUBLIC_KEY` must match it
+    (`sidequestz-admin tap-keygen`).
+  - Restart both services afterwards (`systemctl restart sidequestz events`).
+- **Worth fixing:** `/opt/events/.env` has `APP_ENV=dev`, which lets the site fall back to the repo's
+  demo TAP key. With `TAP_AGENT_PUBLIC_KEY` set that key isn't used, but `APP_ENV=prod` is safer.
+
+## What to build
+
+### 1. Add the 150 listings (required)
+
+The site reads listings from MongoDB `sidequestz_events.merchant_events` (25 today). At startup it
+seeds them idempotently from `DefaultDemoEvents` in `Events/pkg/store/seed_data.go`. There are two
+ways to add Atlanta:
+
+- **Seed from code (recommended):** generate a `seed_atlanta.go` from `ticket_listings.json` and seed
+  it alongside Saltlight. It's reproducible and survives a database reset.
+- **Insert into `merchant_events`:** quicker, but lost if that database is rebuilt.
+
+Each JSON object maps onto `models.Event`:
+
+| JSON field | `models.Event` | bson |
+|---|---|---|
+| `slug`, `title`, `description`, `summary`, `category`, `tags` | same names | same names |
+| `venue`, `address` | `Venue`, `Address` | `venue`, `address` |
+| `starts_at`, `ends_at` (UTC) | `Start`, `End` | `start`, `end` |
+| `unit_cents`, `max_unit_cents` | `UnitCents`, `MaxUnitCents` | `unitCents`, `maxUnitCents` |
+| `capacity`, `remaining` | `Capacity`, `Remaining` | `capacity`, `remaining` |
+| `image_url` (empty) | `ImageURL` | `imageUrl` |
+
+Fields the site should honour:
+
+- **Keep every `slug` exactly**, including the date suffix on weekly series (`bluegrass-brunch-sep-27`,
+  `bluegrass-brunch-oct-4`). The app links to them.
+- **`unit_cents` must equal the catalog's minimum price.** The app budgets a stop at `price.min`, and
+  the agent's quote has to match. `max_unit_cents` is the top of the range.
+- `listing_type` is `event` (97), `reservation` (23 restaurants and cafés, a prepaid amount toward the
+  bill), `admission_pass` (23 museums, venues and tours) or `cover` (7 bars and clubs).
+  - Places have no showtime. Their window spans Sep 27 – Oct 10; show "Valid any day, Sep 27 – Oct 10".
+- `age_21_plus`: show a 21+ badge and ask the buyer to confirm their age.
+- `series`, for example "Fridays at 9 PM, Oct 2 – Oct 9, 2026", and `attendance`: `fixed_start`
+  (arrive on time) or `drop_in` (come and go).
+
+The file is gitignored because it carries addresses from Google Places. Regenerate it with
+`cd dataingestion && .venv/bin/python -m pitch.tickets` (it reads `pitch/out/pitch_activities.json`),
+or ask for a copy.
+
+### 2. Design (the site is yours to shape)
+
+- **Atlanta first.** Rebrand from "Saltlight Tickets" to something covering both cities, or show
+  Atlanta on `/` with Saltlight as a second tab. Lead with the pitch day, Sun Sep 27: 16 ticketed
+  events plus the day's passes.
+- **Home:** listings grouped by day, with filter chips for music, nightlife, food and drink, classes,
+  stage, outdoors and culture, plus search. Show price ranges, e.g. "$15–$20".
+- **Listing page:** title, venue and address, Atlanta time (`America/New_York`) or "valid any day",
+  price or range, 21+ badge, description and a Buy button.
+- **Keep the machine-readable parts the agent relies on:**
+  - JSON-LD `Event` (or `Offer` for passes) on the listing page;
+  - the `<link rel="agent-checkout">` tag;
+  - the checkout form at `/{slug}/tickets`.
+  - The agent reads the page text, JSON-LD and that link (`Backend/pkg/agent/merchant.go`), then
+    calls `GET /api/events/{slug}/offer` and `POST /api/orders`. Don't change those paths or
+    payloads.
+- **Checkout and ticket:** as today. Pick a quantity, pay on Stripe Checkout (test mode), and get a
+  ticket page with a barcode at `/t/{id}`.
+- **Honesty line:** the events and prices are invented and the venues are real, so add a footer such
+  as "Demo listings for SideQuests: not real tickets".
+
+### 3. Ship it
+
+`Events/deploy.sh` builds and restarts `events.service` in `/opt/events`. Then check:
 
 ```sh
-# every listing answers (expect 150 lines of 200)
+# every listing answers (expect 150 × 200)
 jq -r '.listings[].slug' dataingestion/pitch/out/ticket_listings.json | while read s; do
-  curl -s -o /dev/null -w "%{http_code} $s\n" "https://events.sidequestz.tech/$s/tickets"; done | sort | uniq -c | sort -rn | head
-# the quote matches the catalog price (unit_cents = price.min)
-curl -s "https://events.sidequestz.tech/api/events/beer-biscuits-brunch/offer?quantity=2" | jq
+  curl -s -o /dev/null -A curl -w "%{http_code}\n" "https://events.sidequestz.tech/$s/tickets"; done | sort | uniq -c
+# the listing price is the catalog's minimum
+curl -s -A curl "https://events.sidequestz.tech/beer-biscuits-brunch" | grep -o '\$[0-9.]*' | head -3
 ```
 
-Then make an end-to-end purchase from the app with an account on the `pitch_activities` catalog.
+Then do an end-to-end run:
+1. Sign up in the app with any new account; it plans in Atlanta.
+2. Plan a Sunday afternoon with a paid stop and save it.
+3. Tap "Buy tickets" and watch the agent buy the stop.
+4. Also buy one by hand from the ticket link with the 4242 card.
+
+Scenarios for the booth (`POST /_demo/scenario` with `X-Demo-Key`): `sold_out`, `price_bump`,
+`overcharge` and `slow` show how the agent handles failures. Reset with `normal`.
 
 ## All 150 listings
 
