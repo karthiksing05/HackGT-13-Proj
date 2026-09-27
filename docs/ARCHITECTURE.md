@@ -15,6 +15,10 @@ designs are in [design/](design/README.md); this page is the map.
 | ML service → embedding provider | Vertex AI REST `:predict`, or the HF router (`deepinfra`, `hf-inference`), or local sentence-transformers; chosen by `EMBED_PROVIDER` | service-account JSON, `HF_TOKEN`, none | `ml/embedding`, [EMBEDDINGS.md](EMBEDDINGS.md) |
 | ML service → Jev | TypeSafe SDK, LLM rerank of the top-k | `TYPESAFE_API_KEY` | `ml/reranking` |
 | Go API → Facebook Graph API v26.0 | HTTPS with `appsecret_proof`; OAuth redirect to `PUBLIC_BASE_URL/integrations/facebook/callback` | `FB_APP_ID`, `FB_APP_SECRET`; user tokens sealed with AES-256-GCM (`FB_TOKEN_KEY`, else a key derived from `JWT_SECRET`); without the app id and secret the connector answers 503 | `Backend/pkg/api/facebook` |
+| Go API → Events merchant (`events.sidequestz.tech`, separate Go service in `Events/`, `:8085`) | HTTPS JSON: `GET /api/events/{slug}/offer`, `POST /api/orders` (`Idempotency-Key`), plus the ticket pages Muse reads | every request signed with Visa TAP (RFC 9421, Ed25519, `agent-browser-auth` / `agent-payer-auth`, key id `sqz-agent-1`): `TAP_AGENT_KEY` on the API, `TAP_AGENT_PUBLIC_KEY` on Events; the API only ever contacts `MERCHANT_HOST` | `Backend/pkg/agent/merchant.go`, `Events/pkg/api`, `Backend/pkg/tap` = `Events/pkg/tap` (pinned by `vector_test.go`), [AGENTIC_CHECKOUT.md](AGENTIC_CHECKOUT.md) |
+| Go API → Stripe (agent side) | `POST /v1/shared_payment/issued_tokens` (+ `/revoke`), `Stripe-Version: 2026-04-22.preview` | `STRIPE_SECRET_KEY` (test keys only, `PAYMENTS_MODE=sandbox`); tokens scoped to `STRIPE_SELLER_PROFILE`, capped at the quote, 10-minute expiry | `Backend/pkg/payments` |
+| Events → Stripe (merchant side) | `POST /v1/payment_intents` with `payment_method_data[shared_payment_granted_token]`, `GET /v1/shared_payment/granted_tokens/{id}` | the merchant's own test key | `Events/pkg/payments` |
+| Go API → Meta Model API (Muse) | Responses API `POST https://api.meta.ai/v1/responses`, function tools, `previous_response_id` | `MUSE_API_KEY`; the model never receives payment credentials | `Backend/pkg/muse`, `Backend/pkg/agent/muse.go` |
 | Go API → the app (deep links) | `sidequestz://integrations/{provider}/done`, `sidequestz://integrations/facebook?status=…`, `sidequestz://payments/done`, `sidequestz://invite/<code>` | one-time `web_sessions` tokens on the hosted pages | `Backend/pkg/api/integrations`, `frontend/SideQuestz/App/Router.swift` |
 | dataingestion → MongoDB | pymongo, upserts by `sourceKeys` | — | `dataingestion/ingest/db.py`, [DATA.md](DATA.md) |
 | dataingestion → sources | Ticketmaster, Google Places, Overpass and OpenTopoData, Resident Advisor, Muse research, Gemini writes | API keys from the root `.env` | `dataingestion/ingest/adapters`, `dataingestion/ingest/agent` |
@@ -36,7 +40,8 @@ configuration (`pkg/config`, which refuses a missing, short or placeholder `JWT_
 `APP_ENV=dev`), connects to Mongo and pings it (exit on failure), ensures every index, wires the
 profile service and the planner (a planner that fails to start leaves `/plans/*` answering 503
 "Planning is warming up. Try again in a moment."), starts the realtime hub and the checkout agent,
-then listens on `HTTP_ADDR`.
+then listens on `HTTP_ADDR`. When Stripe, the merchant and a TAP key are configured it also starts the
+agentic checkout runner and resumes runs left `running` by a restart.
 
 ## Token lifecycle
 
@@ -237,9 +242,25 @@ it on that stop.
 | `friend.request` | `FriendRequest` | recipient |
 | `forum.update` | `{}` | everyone (refetch the feed) |
 | `checkout.status` | `{intent_id, state}` | intent owner |
+| `checkout.run` | `{run_id, state, spent_cents}` | run owner |
 | `itinerary.updated` / `itinerary.removed` | `Itinerary` per recipient / `{itinerary_id}` | members |
 | `expense.added` / `photo.added` | `{group_id, expense}` / `{group_id, photo}` | group members |
 | `transit.delay` | `{itinerary_id, item_id, minutes}` | members (helper only; nothing emits it yet) |
+
+### Agentic checkout
+
+```
+app ──GET /itineraries/{id}/checkout──▶ API          (paid stops on MERCHANT_HOST, suggested budget)
+app ──Face ID, POST …/checkout-runs {budget, items}──▶ API ─▶ checkout_runs + one intent per item
+API runner (lease, 90 s renewals) ─▶ Muse loop: open_page → get_offer → buy_tickets | skip_item → finish
+  buy_tickets (all in code, never trusting the model's arguments):
+    reserve budget atomically in Mongo (reserved + spent + total ≤ budget) or fail over_budget
+    Stripe: issue SPT (max = quote total, 10 min) ──▶ Events: POST /api/orders (TAP-signed, Idempotency-Key)
+    Events: PaymentIntent with the SPT ──▶ Stripe (rejects anything above the cap: declined/over_limit)
+    201 → commit spend, save ticket, intent booked · 409/402 → release, revoke SPT, failure_code
+  Muse errors or runs out of turns → the same tools in itinerary order (agent = fallback)
+API ─▶ checkout.status per step, checkout.run per item and at the end; summary written from results
+```
 
 ## Contract governance
 

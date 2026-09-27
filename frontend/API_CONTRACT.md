@@ -182,7 +182,7 @@ same kind (views, art, food, park, games, books) that aren't already in the plan
 | `pastInsights` | `GET /me/insights` | | `PastInsights {headline, highlights: [{id, title, value, detail?, symbol?}], top_tags, based_on}`: what the sidequests you rated 4–5 stars have in common (Home › Past, top card). `based_on: 0` = not enough ratings; `headline` is then a nudge |
 | `rate` | `PUT /ratings/{itemId}` | `Rating` | 2xx; updates the taste profile server-side |
 
-### Agent checkout (Visa)
+### Agent checkout (single item)
 The agent works in the background. States: `preparing` (finding tickets, building the quote) →
 `awaiting_approval` → `processing` (paying) → `booked`, or `failed` (with `failure_reason`) / `cancelled`.
 Push every change as `checkout.status`; the app also polls `GET /checkout/intents/{id}` while it waits.
@@ -194,6 +194,31 @@ Push every change as `checkout.status`; the app also polls `GET /checkout/intent
 | `updateCheckoutIntent` | `PATCH /checkout/intents/{id}` | `{payment_method_id}` (Checkout › "Change") | `CheckoutIntent` |
 | `approveCheckout` | `POST /checkout/intents/{id}/approve` | | `CheckoutIntent` (`processing`, then `booked` via event/poll). This is the only call that spends money. Once booked, the item carries its `ticket` |
 | `cancelCheckout` | `POST /checkout/intents/{id}/cancel` | | 2xx |
+
+### Agentic checkout (Muse buys a plan's tickets)
+After a plan is saved, Muse (`muse-spark-1.3` with function tools, driven by the backend) buys the tickets for
+its paid stops on the SideQuestz Events sandbox merchant (`events.sidequestz.tech`), within one budget the user
+approves with Face ID. Payment is **Stripe test mode** Shared Payment Tokens: one token per purchase, capped at
+that purchase's quote; the backend reserves the budget atomically before issuing each one. Muse never sees a
+payment credential. The app asks after saving a plan when agentic checkout is on (Account › Payments, stored as
+`instant_checkout` / `instant_checkout_limit_cents` = the default budget) and from the plan's
+"Get tickets with Muse". The server answers **503** on these endpoints until Stripe and the merchant are configured.
+
+| Method | HTTP | Body | Response |
+|---|---|---|---|
+| `checkoutPlan` | `GET /itineraries/{id}/checkout` | | `CheckoutPlan`: paid stops whose `ticket_url` is on the merchant (with `booked` when you already have a ticket), `estimate_cents` (tickets before fees), `default_budget_cents`, `suggested_budget_cents` (estimate + 15%, rounded up to dollars, at least the default), the default card, `available`, `agentic_checkout`, and `active_run_id` when a run is going |
+| `startCheckoutRun` | `POST /itineraries/{id}/checkout-runs` | `{budget_cents (100…100000), items: [{item_id, quantity}] (1…10), payment_method_id?}` | 201 `CheckoutRun` (`running`). 409 when a run is already going or everything is booked; 400 for a bad budget, no items or no card |
+| `checkoutRun` | `GET /checkout/runs/{id}` | | `CheckoutRun` with every item's `CheckoutIntent` |
+| `cancelCheckoutRun` | `POST /checkout/runs/{id}/cancel` | | `CheckoutRun` (`cancelled`; tickets already bought stay) |
+
+Each item is a `CheckoutIntent` with the run fields: `run_id`, `merchant`, `checkout_url`, `max_authorized_cents`
+(the token's cap), `final_cents` (what was charged), `confirmation`, `order_ref`, `ticket_url` (the pass), and
+`failure_code` when it didn't go through: `sold_out`, `price_changed`, `over_budget`, `declined` (the payment
+limit stopped a charge above the quote), `card_declined`, `merchant_error`, `agent_error`, `skipped`, `cancelled`.
+No new intent states: outcomes are `booked` or `failed` + `failure_code`. The run's `summary` is written from
+what actually happened (never from the model's own claims); `agent` is `muse`, or `fallback` when the server
+finished without Muse. Booked items carry their `ticket` on the itinerary. Saved `ItineraryItem`s now carry
+`ticket_url`.
 
 ### Forum
 | Method | HTTP | Body / query | Response |
@@ -251,7 +276,8 @@ decodes them and publishes to screens through `RealtimeHub`.
 | `friend.status` | `{user_id, status_line}` | Friends |
 | `friend.request` | `FriendRequest` | Friends › Requests |
 | `forum.update` | `{}` (refetch the feed) | Forum |
-| `checkout.status` | `{intent_id, state}` | Checkout |
+| `checkout.status` | `{intent_id, state}` | Checkout, Muse sheet |
+| `checkout.run` | `{run_id, state: running\|done\|cancelled, spent_cents}` | Muse sheet, Home (reload tickets when done) |
 | `transit.delay` | `{itinerary_id, item_id, minutes}` | Home timeline, Event sheet |
 | `itinerary.updated` | `Itinerary` | Home |
 | `itinerary.removed` | `{itinerary_id}` | Home |
@@ -269,7 +295,7 @@ The app is built against this file. Where `Backend/API_ENDPOINTS.md` says someth
 
 - **Missing there, needed by the app:** `GET /search`, `GET /me/insights`, `GET /threads/{id}`, `POST /threads/{id}/read`, `GET /forum/posts/mine`,
   `PATCH /events/{id}` and `GET`/`PUT /events/{id}/transit` (calendar-only blocks), `PUT …/items/{itemId}/transit`,
-  `POST /itineraries/{id}/leave`, `PATCH /checkout/intents/{id}`, `POST /me/payment-methods/setup`,
+  `POST /itineraries/{id}/leave`, `PATCH /checkout/intents/{id}`, the agentic checkout endpoints (`GET /itineraries/{id}/checkout`, `POST /itineraries/{id}/checkout-runs`, `GET /checkout/runs/{id}`, `POST /checkout/runs/{id}/cancel`), `POST /me/payment-methods/setup`,
   `DELETE /friends/requests/{id}`, `POST /invites/{code}/accept`, `DELETE /me/devices/{push_token}`, and the
   realtime events above beyond `message.new`, `POST /plans/alternatives` (Review's swap), and the Facebook endpoints (`GET`/`DELETE /integrations/facebook`,
   `POST /integrations/facebook/connect`, `POST /integrations/facebook/import`, plus the callbacks below).
@@ -1978,6 +2004,79 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
       "text": "Waiting for your approval"
     }
   ]
+}
+```
+</details>
+
+<details><summary><code>CheckoutPlan</code> (GET /itineraries/{id}/checkout)</summary>
+
+```json
+{
+  "agentic_checkout": true,
+  "available": true,
+  "card_brand": "Visa",
+  "card_last4": "4242",
+  "default_budget_cents": 5000,
+  "estimate_cents": 4200,
+  "itinerary_id": "665f1c2e9b1e8a0012345678",
+  "items": [
+    {
+      "booked": false,
+      "item_id": "stop-2",
+      "merchant": "events.sidequestz.tech",
+      "price_cents": 2400,
+      "quantity": 1,
+      "start": "2026-09-26T19:00:00-04:00",
+      "ticket_url": "https://events.sidequestz.tech/sunset-jazz-on-pier-nine/tickets",
+      "title": "Sunset Jazz on Pier Nine"
+    }
+  ],
+  "payment_method_id": "pm-4242",
+  "suggested_budget_cents": 5000
+}
+```
+</details>
+
+<details><summary><code>CheckoutRun</code> (GET /checkout/runs/{id})</summary>
+
+```json
+{
+  "agent": "muse",
+  "budget_cents": 6000,
+  "card_brand": "Visa",
+  "card_last4": "4242",
+  "created_at": "2026-09-26T18:00:00Z",
+  "currency": "usd",
+  "finished_at": "2026-09-26T18:01:10Z",
+  "id": "run-9",
+  "intents": [
+    {
+      "card_brand": "Visa",
+      "card_last4": "4242",
+      "checkout_url": "https://events.sidequestz.tech/sunset-jazz-on-pier-nine/tickets",
+      "confirmation": "SQZ-7KD4Q2",
+      "fees_cents": 242,
+      "final_cents": 2642,
+      "id": "ci-51",
+      "instant": false,
+      "item_id": "stop-2",
+      "item_title": "Sunset Jazz on Pier Nine",
+      "max_authorized_cents": 2642,
+      "merchant": "events.sidequestz.tech",
+      "order_ref": "ord_01J9",
+      "quantity": 1,
+      "run_id": "run-9",
+      "state": "booked",
+      "steps": [{"done": true, "text": "Paid $26.42 with Visa •••• 4242 (sandbox)"}],
+      "subtotal_cents": 2400,
+      "ticket_url": "https://events.sidequestz.tech/tickets/tk_01J9",
+      "total_cents": 2642
+    }
+  ],
+  "itinerary_id": "665f1c2e9b1e8a0012345678",
+  "spent_cents": 2642,
+  "state": "done",
+  "summary": "Got tickets for Sunset Jazz on Pier Nine ($26.42 of your $60 budget)."
 }
 ```
 </details>
