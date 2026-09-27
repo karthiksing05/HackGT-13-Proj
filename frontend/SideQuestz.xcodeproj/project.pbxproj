@@ -456,7 +456,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take a profile photo or add photos to a group album.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Approve Muse buying tickets for your plan.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save group album photos to your library.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Start a sidequest from where you are right now.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Show where you are on your sidequest's map, and start a sidequest from where you are.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Describe what you're in the mood for by voice.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Turns what you say into text for your plans.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -495,7 +495,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take a profile photo or add photos to a group album.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Approve Muse buying tickets for your plan.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save group album photos to your library.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Start a sidequest from where you are right now.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Show where you are on your sidequest's map, and start a sidequest from where you are.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Describe what you're in the mood for by voice.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Turns what you say into text for your plans.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
