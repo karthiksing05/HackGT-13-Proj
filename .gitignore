@@ -21,6 +21,7 @@ DerivedData/
 mpcdf-skills
 
 hf_token
+hf_token_full_access
 wandb_token
 
 meta_app_id
