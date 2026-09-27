@@ -54,16 +54,16 @@ fi
 ssh_options=(-o StrictHostKeyChecking=accept-new)
 
 # Check the remote configuration before building or uploading.
-"${auth[@]}" ssh "${ssh_options[@]}" "$user@$host" "test -s '$remote_dir/.env'" || {
+${auth[@]+"${auth[@]}"} ssh "${ssh_options[@]}" "$user@$host" "test -s '$remote_dir/.env'" || {
   echo "Remote connection failed or $remote_dir/.env is missing or empty." >&2; exit 1;
 }
-GOOS=linux GOARCH=amd64 bash ./build.sh "${build_args[@]}"
+GOOS=linux GOARCH=amd64 bash ./build.sh ${build_args[@]+"${build_args[@]}"}
 for name in "${names[@]}"; do
-  "${auth[@]}" scp "${ssh_options[@]}" "bin/$name" "$user@$host:$remote_dir/$name.new"
+  ${auth[@]+"${auth[@]}"} scp "${ssh_options[@]}" "bin/$name" "$user@$host:$remote_dir/$name.new"
 done
-"${auth[@]}" scp "${ssh_options[@]}" backend.service "$user@$host:$remote_dir/backend.service.new"
+${auth[@]+"${auth[@]}"} scp "${ssh_options[@]}" backend.service "$user@$host:$remote_dir/backend.service.new"
 
-"${auth[@]}" ssh "${ssh_options[@]}" "$user@$host" "bash -s -- '$remote_dir' '$service' ${names[*]}" <<'REMOTE'
+${auth[@]+"${auth[@]}"} ssh "${ssh_options[@]}" "$user@$host" "bash -s -- '$remote_dir' '$service' ${names[*]}" <<'REMOTE'
 set -euo pipefail
 remote_dir=$1; service=$2; shift 2
 cd "$remote_dir"
