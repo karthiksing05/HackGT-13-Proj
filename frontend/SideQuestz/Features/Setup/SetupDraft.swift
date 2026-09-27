@@ -63,6 +63,18 @@ final class SetupDraft {
         birthDate.map { Validation.age(birthDate: $0, on: now, calendar: calendar) }
     }
 
+    /// Where the date-of-birth wheels start: the date already picked, or the same day 20 years back.
+    func birthDateStart(now: Date, calendar: Calendar) -> Date {
+        if let birthDate { return birthDate }
+        return calendar.startOfDay(for: calendar.date(byAdding: .year, value: -20, to: now) ?? now)
+    }
+
+    /// Done in the date-of-birth sheet: the day the wheels show, at midnight in the app's time zone
+    /// (how `date_of_birth` is sent).
+    func setBirthDate(_ shown: Date, calendar: Calendar) {
+        birthDate = calendar.startOfDay(for: shown)
+    }
+
     /// Initials for the avatar and the Photo sheet; empty until a name is typed (a person glyph
     /// stands in, never someone else's initials).
     var initials: String { Initials.from(trimmedName, fallback: "") }

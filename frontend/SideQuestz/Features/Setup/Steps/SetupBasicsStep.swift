@@ -13,6 +13,7 @@ struct SetupBasicsStep: View {
     let serverError: String?
     var focus: FocusState<AuthFocus?>.Binding
     let onEditPhoto: () -> Void
+    @State private var showsBirthDate = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -59,6 +60,15 @@ struct SetupBasicsStep: View {
         .authMotion(value: errorMessages)
         .authMotion(Motion.quick, value: tooYoung)
         .authMotion(Motion.quick, value: draft.birthDate == nil)
+        .sqSheet(isPresented: $showsBirthDate) {
+            BirthDateSheet(start: draft.birthDateStart(now: env.clock.now, calendar: env.clock.calendar),
+                           latest: env.clock.now) { date in
+                draft.setBirthDate(date, calendar: env.clock.calendar)
+                showsBirthDate = false
+            } cancel: {
+                showsBirthDate = false
+            }
+        }
     }
 
     private var errorMessages: [String] {
@@ -101,54 +111,46 @@ struct SetupBasicsStep: View {
 
     // MARK: Date of birth
 
-    private var birthDateBinding: Binding<Date> {
-        Binding(
-            get: { draft.birthDate ?? defaultBirthDate },
-            set: { draft.birthDate = $0 }
-        )
+    /// "June 14, 2003", or nil until one is picked.
+    private var birthDateText: String? {
+        draft.birthDate.map { BirthDateSheet.text($0, clock: env.clock) }
     }
 
-    /// Where the calendar opens before a date is picked (20 years back).
-    private var defaultBirthDate: Date {
-        env.clock.calendar.date(byAdding: .year, value: -20, to: env.clock.now) ?? env.clock.now
-    }
-
+    /// The whole card is one button that opens the wheels (`BirthDateSheet`).
     private var birthDateField: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Date of birth")
-                .sqFont(12, relativeTo: .caption)
-                .foregroundStyle(Theme.text3)
-                .authLineHeight(1.35, size: 12)
-                .accessibilityHidden(true)
-            ZStack(alignment: .leading) {
-                DatePicker("Date of birth", selection: birthDateBinding, in: ...env.clock.now, displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .labelsHidden()
-                    // Until a date is picked, the (still tappable) picker hides behind a placeholder.
-                    .opacity(draft.birthDate == nil ? 0.02 : 1)
-                    .accessibilityLabel("Date of birth")
-                    .accessibilityHint(draft.birthDate == nil ? "Not set yet" : "")
-                if draft.birthDate == nil {
-                    // Covers the picker's pill; taps fall through to it.
-                    Text("Select date")
+        let card = RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous)
+        return Button {
+            focus.wrappedValue = nil
+            showsBirthDate = true
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Date of birth")
+                    .sqFont(12, relativeTo: .caption)
+                    .foregroundStyle(Theme.text3)
+                    .authLineHeight(1.35, size: 12)
+                HStack(spacing: 8) {
+                    Text(birthDateText ?? "Select date")
                         .sqFont(17)
+                        .foregroundStyle(draft.birthDate == nil ? Theme.text3 : Theme.ink)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    CalendarGlyph(size: 18, lineWidth: 1.8)
                         .foregroundStyle(Theme.text3)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                        .background(.white)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                        .transition(.opacity)
+                        .frame(width: 18, height: 18)
                 }
+                .frame(minHeight: 22.95)
             }
-            .padding(.vertical, -6)
-            .frame(minHeight: 22.95)
-            .environment(\.timeZone, env.clock.timeZone)
-            .environment(\.calendar, env.clock.calendar)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.white, in: card)
+            .contentShape(card)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white, in: RoundedRectangle(cornerRadius: Metrics.fieldRadius, style: .continuous))
+        .buttonStyle(.sqPressable)
+        .accessibilityLabel("Date of birth")
+        .accessibilityValue(birthDateText ?? "Not set")
+        .accessibilityHint("Opens month, day and year wheels")
+        .accessibilityIdentifier("setup.birthDate")
     }
 
     // MARK: Age note
