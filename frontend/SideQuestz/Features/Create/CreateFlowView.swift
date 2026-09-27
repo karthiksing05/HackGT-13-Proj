@@ -72,6 +72,10 @@ private struct CreateFlowScreen: View {
         .sqSheet(item: $model.swapTarget, style: CreateSwapSheet.style) { target in
             CreateSwapSheet(model: model, target: target) { model.swapTarget = nil }
         }
+        // Review › tap a stop: its details, with Swap and Remove.
+        .sqSheet(item: $model.stopDetail, style: CreateStopDetailSheet.style, onDismiss: stopDetailClosed) { target in
+            CreateStopDetailSheet(model: model, target: target) { model.stopDetail = nil }
+        }
         .onAppear(perform: start)
         .onChange(of: env.preferences) { model.applyPreferenceDefaults() }
         .onChange(of: forward) {
@@ -204,6 +208,19 @@ private struct CreateFlowScreen: View {
         router.createDraft = nil
     }
 
+    /// The details pane is gone: its Swap opens the swap sheet now (one cover at a time), and its
+    /// Remove takes the stop out with the route card's animation, in view.
+    private func stopDetailClosed() {
+        switch model.takeStopDetailAction() {
+        case .swap(let target):
+            model.openSwap(target.stop.id, in: target.optionId)
+        case .remove(let target):
+            withMotion { model.removeStop(target.stop.id, in: target.optionId) }
+        case nil:
+            break
+        }
+    }
+
     private func startSidequest() {
         Task {
             guard let itinerary = await model.startSidequest() else { return }
@@ -224,7 +241,7 @@ private struct CreateFlowScreen: View {
         router.agentCheckout = AgentCheckoutRoute(itineraryId: itinerary.id)
     }
 
-    /// Demo deep links (`create/2/calendar`, `create/4/more`, `create/4/swap`) + first loads.
+    /// Demo deep links (`create/2/calendar`, `create/4/more`, `create/4/swap`, `create/4/stop`) + first loads.
     private func start() {
         if let parts = router.consumeLaunch("create") {
             switch parts.dropFirst().first {
@@ -244,6 +261,16 @@ private struct CreateFlowScreen: View {
                         model.openSwap(model.orderedStops(option)[1].id, in: option.id)
                     } else {
                         model.openSwapAfterLoad = true
+                    }
+                }
+            case "stop":
+                // The details pane for the selected option's first stop, once options are in.
+                Task {
+                    try? await Task.sleep(nanoseconds: 700_000_000)
+                    if let option = model.selectedOption, let first = model.orderedStops(option).first {
+                        model.openStopDetail(first.id, in: option.id)
+                    } else {
+                        model.openStopDetailAfterLoad = true
                     }
                 }
             default:

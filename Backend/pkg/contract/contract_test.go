@@ -20,6 +20,7 @@ const examplesDir = "../../../docs/api/examples"
 // through. A ".<variant>" suffix (PlanBatch.dag) selects the same type; aliases
 // map differently named dumps.
 var examples = map[string]func() any{
+	"ActivityDetail":         func() any { return &ActivityDetail{} },
 	"ActivityHits":           func() any { return &[]ActivityHit{} },
 	"AuthResponse":           func() any { return &AuthResponse{} },
 	"CalendarDays":           func() any { return &[]CalendarDay{} },

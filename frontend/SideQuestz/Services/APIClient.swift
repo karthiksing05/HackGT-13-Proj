@@ -93,6 +93,10 @@ protocol APIClient: AnyObject {
     /// Similar things that could take `stopId`'s place in the option (Review › hold a stop › Swap).
     /// `stopOrder` is the option's current order, so suggestions fit around the other stops.
     func stopAlternatives(optionId: String, stopId: String, stopOrder: [String]) async throws -> [PlanAlternative]
+    /// Review › tap a stop: what the catalog knows about the stop's activity (`PlanStop.activityId`),
+    /// with the opening hours on `date` (the plan's day; the account's today when nil). An id the
+    /// user's catalog doesn't have, or a server without this endpoint, is `APIError.notFound`.
+    func activity(id: String, date: Date?) async throws -> ActivityDetail
     func createItinerary(_ request: CreateItineraryRequest) async throws -> Itinerary
 
     // MARK: Itineraries

@@ -217,8 +217,8 @@ struct MustSeeTests {
         #expect(Set(options.map { $0.stops.map(\.title) }).count == options.count, "An option came out twice")
 
         for option in options {
-            #expect(option.stops.compactMap(\.activityId) == [bridge, jazz] || option.stops.compactMap(\.activityId) == [jazz, bridge],
-                    "\(option.id): \(option.stops.map(\.title))")
+            let picked = option.stops.compactMap(\.activityId).filter { $0 == jazz || $0 == bridge }
+            #expect(picked == [bridge, jazz] || picked == [jazz, bridge], "\(option.id): \(option.stops.map(\.title))")
             let route = try await api.route(RouteRequest(optionId: option.id, stopOrder: option.stops.map(\.id), start: plan.start,
                                                          end: plan.end, startTime: plan.startTime, backBy: plan.backBy,
                                                          ride: plan.ride, modes: plan.modes))

@@ -1,6 +1,8 @@
 {
   "generated_by": "frontend ContractTests dump (TEST_RUNNER_SQ_DUMP_CONTRACT) via scripts/gen_contract_examples.py",
   "examples": [
+    "ActivityDetail",
+    "ActivityDetail.event",
     "ActivityHits",
     "AuthResponse",
     "CalendarDays",

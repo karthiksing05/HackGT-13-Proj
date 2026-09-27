@@ -1,0 +1,28 @@
+{
+  "address": "1280 Peachtree St NE, Atlanta, GA 30309",
+  "category": "art",
+  "category_label": "Gallery talk",
+  "end": "2026-09-25T20:15:00Z",
+  "id": "act-gallery-talk-at-the-high",
+  "kind": "event",
+  "place": {
+    "coordinate": {
+      "lat": 33.7901,
+      "lng": -84.3856
+    },
+    "name": "High Museum of Art"
+  },
+  "price_cents": 1800,
+  "price_label": "$18",
+  "start": "2026-09-25T19:30:00Z",
+  "summary": "A curator walks through the new exhibition in 45 minutes; museum admission is included.",
+  "tags": [
+    "art",
+    "museum",
+    "talk"
+  ],
+  "ticket_url": "https://events.sidequestz.tech/gallery-talk-at-the-high/tickets",
+  "title": "Gallery talk at the High",
+  "url": "https://high.org",
+  "venue_name": "High Museum of Art"
+}
