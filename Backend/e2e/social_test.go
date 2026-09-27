@@ -422,9 +422,17 @@ func TestSharedPlan(t *testing.T) {
 			t.Errorf("Alice's private note: %v", mine.Notes)
 		}
 	}
+	// Until a member picks, a stop's transit choice is the mode of the leg that reaches it.
+	before := get[contract.ItineraryItem](t, alice, "/events/"+stop.ID)
+	if before.TransitMode == nil {
+		t.Fatalf("a stop should default to its inbound leg's transit mode")
+	}
 	do(t, bob, "PUT", "/itineraries/"+plan.ID+"/items/"+stop.ID+"/transit", contract.TransitSelection{Mode: contract.ModeRideshare}).NoContent(t)
-	if mine := get[contract.ItineraryItem](t, alice, "/events/"+stop.ID); mine.TransitMode != nil {
-		t.Errorf("Bob's transit choice leaked to Alice: %v", *mine.TransitMode)
+	if mine := get[contract.ItineraryItem](t, alice, "/events/"+stop.ID); mine.TransitMode == nil || *mine.TransitMode != *before.TransitMode {
+		t.Errorf("Bob's transit choice leaked to Alice: %v (her default was %v)", mine.TransitMode, *before.TransitMode)
+	}
+	if his := get[contract.ItineraryItem](t, bob, "/events/"+stop.ID); his.TransitMode == nil || *his.TransitMode != contract.ModeRideshare {
+		t.Errorf("Bob's own transit choice: %v", his.TransitMode)
 	}
 
 	// The group tab: Bob pays, split two ways; Alice settles.
