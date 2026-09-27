@@ -50,8 +50,9 @@ In Xcode, go to Product → Scheme → Edit Scheme → Run → **Arguments** and
 | `-SQAPIBaseURL http://127.0.0.1:8080` | Uses another server for this launch, with `-SQWebSocketURL ws://127.0.0.1:8080/ws` for realtime (see [Pointing the app at a server](#pointing-the-app-at-a-server)) |
 | `-SQSlowLoadingAfter 0` | Seconds a first load shows its skeleton before the S loader takes over (default 2; `0` shows the S at once, a large number never) |
 | `-SQMockLatency 0` | Removes the demo backend's fake network delay (each demo call otherwise takes about as long as a real one, 0.1–0.9 s) |
-| `-SQMockFail forum,itineraries` | Makes those demo endpoints fail, to see error states (also `facebook`, `me`, `friends`, `profile`, `splits`, `album`, …) |
+| `-SQMockFail forum,itineraries` | Makes those demo endpoints fail, to see error states (also `facebook`, `me`, `friends`, `profile`, `tickets`, `splits`, `album`, …) |
 | `-SQMockFriends none` | Starts the demo account with no friends or friend requests yet, like a new account (an empty Forum › Friends under People for you) |
+| `-SQMockTickets none` | Starts the demo without tickets (Account › Your tickets' empty state). The list itself is `-SQRoute account/tickets`, one ticket `tickets/tkt_5b1f0c9a2e7d4a13`, and `-SQMockFail tickets` its error state |
 | `-SQVoiceDemo YES` | Voice buttons return sample transcripts instead of using the mic |
 
 ### Pointing the app at a server

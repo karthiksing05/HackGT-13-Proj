@@ -116,6 +116,7 @@ struct ContractTests {
         try roundTrip(NewFreePost(visibility: .everyone, until: clock.date(2026, 9, 25, 18, 30), area: ForumArea.midtown, radiusMi: 2), "NewFreePost")
         try roundTrip(ForumQuery(), "ForumQuery")
         try roundTrip(Ticket(id: "tk-1", quantity: 2, totalCents: 2400, confirmation: "SQ-4F7K2", url: URL(string: "https://tickets.example/SQ-4F7K2"), mine: true), "Ticket")
+        try roundTrip(try await api.myTickets(), "MyTickets")
         try roundTrip(Message(id: "m-9", senderId: MockPeople.me.id, senderName: "You", text: "omw", sentAt: clock.now, clientId: "c-5A1B"), "Message")
     }
 

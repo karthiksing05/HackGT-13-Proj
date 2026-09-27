@@ -39,6 +39,10 @@ final class Router {
     var setupRedo: SetupEntry?
     /// Non-nil → "Let Muse get your tickets" for this plan (agentic checkout).
     var agentCheckout: AgentCheckoutRoute?
+    /// Non-nil → Account › Your tickets slides over the Account tab (`TicketsScreenHost`).
+    var tickets: TicketsRoute?
+    /// Your tickets › "Go to sidequest": Home opens this stop once it has selected its plan.
+    var stopToOpen: String?
 
     /// Demo deep link from `-SQRoute …`; features consume the parts meant for them.
     private(set) var pendingLaunch: [String]?
@@ -97,6 +101,8 @@ final class Router {
 
     func signedOut() {
         agentCheckout = nil
+        tickets = nil
+        stopToOpen = nil
         createDraft = nil
         openThread = nil
         setupRedo = nil
@@ -127,6 +133,24 @@ final class Router {
     func showPast() {
         tab = .home
         homeSegment = .past
+    }
+
+    /// Account › Your tickets (`ticketId`: with that ticket open).
+    func showTickets(ticketId: String? = nil) {
+        withAnimation(.easeInOut(duration: 0.28)) { tickets = TicketsRoute(ticketId: ticketId) }
+    }
+
+    func closeTickets() {
+        withAnimation(.easeInOut(duration: 0.28)) { tickets = nil }
+    }
+
+    /// Your tickets › "Go to sidequest": Home, the plan selected (`selectedItineraryId`) and the
+    /// stop's sheet open (`stopToOpen`).
+    func goToStop(_ itemId: String, itineraryId: String) {
+        stopToOpen = itemId
+        select(.home)
+        homeSegment = .itineraries
+        selectedItineraryId = itineraryId
     }
 
     // MARK: Demo deep links
@@ -193,6 +217,11 @@ final class Router {
             case "account":
                 tab = .account
                 accountSegment = parts.dropFirst().first == "friends" ? .friends : .me
+                if parts.dropFirst().first == "tickets" { tickets = TicketsRoute() }
+            case "tickets":
+                // `tickets/<ticketId>`: Account › Your tickets with that ticket open.
+                tab = .account
+                tickets = TicketsRoute(ticketId: parts.dropFirst().first)
             default:
                 break
             }
@@ -257,7 +286,7 @@ struct SetupEntry: Identifiable, Equatable {
 /// - `forum`, `forum/area`, `forum/filter`, `forum/friends`
 /// - `profile/<userId>` (someone's profile over the Forum, e.g. `profile/u-mr`)
 /// - `groups`, `thread/<id>/<chat|album|splits>`, `thread/g1/splits/expense`, `thread/dm-maya`
-/// - `account`, `account/friends`, `account/photo`, `account/facebook`
+/// - `account`, `account/friends`, `account/photo`, `account/facebook`, `account/tickets`, `tickets/<ticketId>`
 struct LaunchRoute: Equatable {
     var parts: [String]
 

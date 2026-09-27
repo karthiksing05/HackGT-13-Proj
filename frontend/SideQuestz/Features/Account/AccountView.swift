@@ -44,6 +44,9 @@ struct AccountView: View {
         }
         .sqPullToRefresh()
         .background(Theme.cream.ignoresSafeArea())
+        // Your tickets slides over the tab like a pushed screen (the tab bar stays).
+        .accessibilityHidden(router.tickets != nil)
+        .overlay { TicketsScreenHost(model: me.tickets) }
         .sqSheet(isPresented: $showPhoto) {
             PhotoSheet(initials: env.user?.initials ?? "", color: avatarColor) { showPhoto = false }
         }

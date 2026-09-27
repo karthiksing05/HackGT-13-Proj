@@ -52,6 +52,8 @@ struct HomeEventSheet: View {
     @State private var ratingError: String?
     @State private var ratingStatus: HomeSaveState = .idle
     @State private var browserLink: HomeBrowserLink?
+    /// "View ticket": the ticket's own sheet (code, QR, its page).
+    @State private var ticketDetail: MyTicket?
     @State private var showsCheckout = false
     /// The checkout in the Checkout sheet (kept while the sheet animates away).
     @State private var shownCheckout: HomeCheckoutSession?
@@ -136,6 +138,9 @@ struct HomeEventSheet: View {
         }
         // A chat opened from a profile shows over the tabs: this sheet steps aside too.
         .personProfileSheet($profileRoute, leave: close)
+        .sqSheet(item: $ticketDetail, style: TicketDetailSheet.style) { ticket in
+            TicketDetailSheet(ticket: ticket) { ticketDetail = nil }
+        }
     }
 
     // MARK: Content
@@ -446,7 +451,7 @@ struct HomeEventSheet: View {
             Color.clear.frame(height: 0).accessibilityHidden(true)
         }
         if let ticket {
-            ticketStub(ticket)
+            ticketStub(ticket, item: item)
                 .sqTransition(.rise)
         }
     }
@@ -456,15 +461,18 @@ struct HomeEventSheet: View {
     /// bought; failing both, the one another member of the group booked.
     private func ticketInfo(_ item: ItineraryItem) -> HomeTicketInfo? {
         if let ticket = item.ticket, ticket.isMine {
-            return HomeTicketInfo(quantity: ticket.quantity, confirmation: ticket.confirmation, url: ticket.url, mine: true)
+            return HomeTicketInfo(id: ticket.id, quantity: ticket.quantity, totalCents: ticket.totalCents,
+                                  confirmation: ticket.confirmation, url: ticket.url, mine: true)
         }
         if let session = store.latestCheckout(for: item.id), session.state == .booked {
             let ticket = session.bookedItem?.ticket.flatMap { $0.isMine ? $0 : nil }
-            return HomeTicketInfo(quantity: ticket?.quantity ?? session.intent.value?.quantity ?? 1,
+            return HomeTicketInfo(id: ticket?.id, quantity: ticket?.quantity ?? session.intent.value?.quantity ?? 1,
+                                  totalCents: ticket?.totalCents ?? session.intent.value?.totalCents,
                                   confirmation: ticket?.confirmation, url: ticket?.url, mine: true)
         }
         guard let ticket = item.ticket else { return nil }
-        return HomeTicketInfo(quantity: ticket.quantity, confirmation: ticket.confirmation, url: ticket.url, mine: false)
+        return HomeTicketInfo(id: ticket.id, quantity: ticket.quantity, totalCents: ticket.totalCents,
+                              confirmation: ticket.confirmation, url: ticket.url, mine: false)
     }
 
     /// "Get tickets", or "Buy instantly" when instant checkout covers the known price. While a
@@ -504,8 +512,8 @@ struct HomeEventSheet: View {
     }
 
     /// The ticket in place of "Get tickets": how many, the confirmation code (press and hold to
-    /// copy it) and "View" when the ticket is a page.
-    private func ticketStub(_ ticket: HomeTicketInfo) -> some View {
+    /// copy it) and "View ticket", which opens the ticket's own sheet (its page is one tap from there).
+    private func ticketStub(_ ticket: HomeTicketInfo, item: ItineraryItem) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "ticket")
                 .font(.system(size: 17, weight: .medium))
@@ -528,12 +536,9 @@ struct HomeEventSheet: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
-            if let url = ticket.url {
-                Button("View") { browserLink = HomeBrowserLink(url: url) }
-                    .buttonStyle(.sqPill(fill: Theme.sage, foreground: Theme.ink, height: 32, fontSize: 13, horizontalPadding: 14))
-                    .accessibilityLabel("View ticket")
-                    .accessibilityHint("Opens your ticket in the app")
-            }
+            Button("View ticket") { showTicket(ticket, item: item) }
+                .buttonStyle(.sqPill(fill: Theme.sage, foreground: Theme.ink, height: 32, fontSize: 13, horizontalPadding: 14))
+                .accessibilityHint("Shows the ticket with its code")
         }
         .padding(.vertical, 10)
         .padding(.leading, 12)
@@ -544,6 +549,14 @@ struct HomeEventSheet: View {
     private static func ticketTitle(_ ticket: HomeTicketInfo) -> String {
         let count = ticket.quantity == 1 ? "Ticket booked" : "\(ticket.quantity) tickets booked"
         return ticket.mine ? count : "\(count) by the group"
+    }
+
+    /// The ticket's sheet (as in Account › Your tickets), from what this sheet knows about it.
+    private func showTicket(_ info: HomeTicketInfo, item: ItineraryItem) {
+        let plan = store.itinerary(containing: item.id)?.itinerary
+        let ticket = Ticket(id: info.id ?? "booked-\(item.id)", quantity: info.quantity, totalCents: info.totalCents,
+                            confirmation: info.confirmation, url: info.url, mine: info.mine)
+        ticketDetail = MyTicket(ticket: ticket, item: item, itineraryId: route.itineraryId ?? plan?.id, itineraryTitle: plan?.title)
     }
 
     // MARK: Notes
@@ -910,7 +923,10 @@ private struct HomeNotesError: Equatable {
 
 /// A booked ticket as the Event sheet shows it.
 private struct HomeTicketInfo {
+    /// nil while a checkout that just booked hasn't brought the ticket back yet.
+    let id: String?
     let quantity: Int
+    let totalCents: Int?
     let confirmation: String?
     let url: URL?
     /// false: another member booked it, so the viewer can still get their own.

@@ -144,6 +144,11 @@ protocol APIClient: AnyObject {
     /// Stops what hasn't been bought yet; tickets already bought stay.
     func cancelCheckoutRun(id: String) async throws -> CheckoutRun
 
+    // MARK: Your tickets
+    /// Every ticket you bought (yourself or through Muse) with its stop: upcoming soonest first, then
+    /// past, latest first (`GET /me/tickets`).
+    func myTickets() async throws -> [MyTicket]
+
     // MARK: Forum
     func forumPosts(_ query: ForumQuery) async throws -> [ForumPost]
     /// `GET /forum/posts/mine`: your live "I'm free" post, or nil.

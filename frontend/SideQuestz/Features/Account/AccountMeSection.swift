@@ -18,6 +18,8 @@ final class AccountMeModel {
     /// Facebook: the Connected row and the Facebook sheet.
     let facebook = FacebookModel()
     var showsFacebook = false
+    /// Your tickets: the row's count and the list it opens (they load themselves).
+    let tickets = TicketsModel()
 
     /// Loads (or quietly reloads) every card in parallel.
     func load(_ env: AppEnvironment) async {
@@ -125,6 +127,9 @@ struct AccountMeSection: View {
 
             sectionTitle("Payments")
             AccountPaymentsCard(model: model, shimmers: onScreen)
+                .padding(.horizontal, Metrics.side)
+            TicketsAccountRow(model: model.tickets, shimmers: onScreen)
+                .padding(.top, 10)
                 .padding(.horizontal, Metrics.side)
 
             HStack(alignment: .firstTextBaseline) {

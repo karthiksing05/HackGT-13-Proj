@@ -45,6 +45,7 @@ var examples = map[string]func() any{
 	"Message":                func() any { return &Message{} },
 	"Messages":               func() any { return &[]Message{} },
 	"MyFreePost":             func() any { return &MyFreePost{} },
+	"MyTickets":              func() any { return &[]MyTicket{} },
 	"NewExpense":             func() any { return &NewExpense{} },
 	"OutgoingFriendRequest":  func() any { return &FriendRequest{} },
 	"PastEvents":             func() any { return &[]PastEvent{} },
