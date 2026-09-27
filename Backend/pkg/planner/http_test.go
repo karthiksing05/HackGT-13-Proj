@@ -107,7 +107,7 @@ func seedDemoCatalog(t *testing.T, db *mongo.Database) []models.Activity {
 			t.Fatal(err)
 		}
 	}
-	if _, err := db.Collection(store.ActivityCollection).InsertMany(ctx, docs); err != nil {
+	if _, err := db.Collection(store.DefaultCatalog).InsertMany(ctx, docs); err != nil {
 		t.Fatal(err)
 	}
 	return acts

@@ -181,9 +181,5 @@ func (p fakePlanner) ResolveStop(_ context.Context, _ *models.User, _, stopID st
 	return nil, errors.New("unknown stop " + stopID)
 }
 
-func otherActivityCollection() string {
-	if store.ActivityCollection == store.CollActivities {
-		return store.CollDemoActivities
-	}
-	return store.CollActivities
-}
+// otherActivityCollection is a catalog signed-up (non-demo) accounts never read.
+func otherActivityCollection() string { return store.CollDemoActivities }

@@ -13,7 +13,7 @@
 //
 //	E2E_BASE_URL       the API root (required; without it every test skips)
 //	E2E_DEMO_PASSWORD  Sandy Byte's existing account password (the demo tests skip without it)
-//	E2E_DEMO_EMAIL     the demo account (default demo@gatech.edu)
+//	E2E_DEMO_EMAIL     the demo account (default demo@sidequestz.tech)
 //	E2E_WS_URL         the websocket (default: E2E_BASE_URL with ws(s):// and /ws)
 //	E2E_TIME_ZONE      the X-Time-Zone every request sends (default America/New_York)
 //	E2E_DEMO_DATE      the server's DEMO_DATE, when it runs the demo on a fixed date: adds the demo-clock checks

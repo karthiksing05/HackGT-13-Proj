@@ -64,10 +64,11 @@ const (
 	CollPlanTogether     = "plan_together"
 	CollActivities       = "activities"
 	CollDemoActivities   = "demo_activities"
+	CollPitchActivities  = "pitch_activities"
 )
 
 // CatalogCollections are read-only here and never reset or TTL-touched.
-var CatalogCollections = []string{CollActivities, CollDemoActivities}
+var CatalogCollections = []string{CollActivities, CollDemoActivities, CollPitchActivities}
 
 // Store wraps the database and the clock used for createdAt/updatedAt.
 type Store struct {

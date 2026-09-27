@@ -175,7 +175,7 @@ not in the repository: the account's password hash is stored in MongoDB, and the
 the `SQ_DEMO_PASSWORD` build setting (`xcodebuild … SQ_DEMO_PASSWORD='…'`) or the `-SQDemoPassword`
 launch argument. When the app has it, the sign-in screen shows **Use the demo account**, which fills in
 her email and password and signs in. Without it, sign in by typing them, or create your own account (new
-accounts use the same configured activity collection). The walkthrough is in [docs/DEMO.md](docs/DEMO.md), and a one-page
+accounts use the Atlanta pitch catalog). The walkthrough is in [docs/DEMO.md](docs/DEMO.md), and a one-page
 brief for the account in [docs/DEMO_ACCOUNT.md](docs/DEMO_ACCOUNT.md).
 
 ## Configuration and secrets

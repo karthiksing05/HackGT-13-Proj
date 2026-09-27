@@ -308,7 +308,7 @@ func assertClose(t *testing.T, name string, got, want []float64) {
 
 func TestRefreshStoresTheProfile(t *testing.T) {
 	fx := newFixture(t)
-	park := fx.activity(store.ActivityCollection, bson.M{"name": "Anchor Park", "category": "park", "tags": bson.A{"outdoor"}, "embedding": basis(3)})
+	park := fx.activity(store.DefaultCatalog, bson.M{"name": "Anchor Park", "category": "park", "tags": bson.A{"outdoor"}, "embedding": basis(3)})
 	user := fx.user(jordanPrefs(), "Hiking")
 	fx.rate(user, park, 5, []string{"Great people"}, testutil.Fixed.Add(-time.Hour))
 	fx.rate(user, "", 2, []string{"Too crowded"}, testutil.Fixed.Add(-2*time.Hour))
@@ -468,7 +468,7 @@ func TestRatedMovesTheVectors(t *testing.T) {
 	if !ml.IsZero(start.NegativeEmbedding) {
 		t.Fatal("no dislikes yet")
 	}
-	park := fx.activity(store.ActivityCollection, bson.M{"category": "park", "embedding": basis(7), "embeddingText": "Interests:\n- parks"})
+	park := fx.activity(store.DefaultCatalog, bson.M{"category": "park", "embedding": basis(7), "embeddingText": "Interests:\n- parks"})
 
 	if err := fx.svc.Rated(fx.ctx, user, park, 5); err != nil {
 		t.Fatal(err)
@@ -505,7 +505,7 @@ func TestRatedEmbedsAnActivityOnDemandOnce(t *testing.T) {
 	fx := newFixture(t)
 	user := fx.user(models.UserPrefs{Company: "solo"})
 	text := "Interests:\n- live jazz\n\nCost:\n- free admission"
-	market := fx.activity(store.ActivityCollection, bson.M{"category": "live_music", "embeddingText": text, "embeddingTextHash": ml.TextHash(text)})
+	market := fx.activity(store.DefaultCatalog, bson.M{"category": "live_music", "embeddingText": text, "embeddingTextHash": ml.TextHash(text)})
 
 	if err := fx.svc.Rated(fx.ctx, user, market, 4); err != nil {
 		t.Fatal(err)
@@ -517,7 +517,7 @@ func TestRatedEmbedsAnActivityOnDemandOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, err := fx.st.Collection(store.ActivityCollection).FindOne(fx.ctx, bson.M{"_id": oid}).Raw()
+	raw, err := fx.st.Collection(store.DefaultCatalog).FindOne(fx.ctx, bson.M{"_id": oid}).Raw()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -562,11 +562,11 @@ func TestRatedEmbedsAnActivityOnDemandOnce(t *testing.T) {
 func TestRatedDoesNotStoreAVectorForAChangedText(t *testing.T) {
 	fx := newFixture(t)
 	user := fx.user(models.UserPrefs{Company: "solo"})
-	activity := fx.activity(store.ActivityCollection, bson.M{"embeddingText": "Interests:\n- opera", "embeddingTextHash": "0123456789abcdef0123456789abcdef01234567"})
+	activity := fx.activity(store.DefaultCatalog, bson.M{"embeddingText": "Interests:\n- opera", "embeddingTextHash": "0123456789abcdef0123456789abcdef01234567"})
 	if err := fx.svc.Rated(fx.ctx, user, activity, 5); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := fx.raw(store.ActivityCollection, activity)["embedding"]; ok {
+	if _, ok := fx.raw(store.DefaultCatalog, activity)["embedding"]; ok {
 		t.Fatal("a text whose hash no longer matches must not get a vector")
 	}
 	if u := fx.load(user); !ml.Usable(u.PositiveEmbedding, ml.Dim) {
@@ -578,7 +578,7 @@ func TestRatedWithoutAUsableActivityIsANoOp(t *testing.T) {
 	fx := newFixture(t)
 	user := fx.user(models.UserPrefs{Company: "solo"})
 	elsewhere := fx.activity(otherActivityCollection(), bson.M{"category": "park", "embedding": basis(9)}) // not in the user's catalog
-	bare := fx.activity(store.ActivityCollection, bson.M{"category": "park"})
+	bare := fx.activity(store.DefaultCatalog, bson.M{"category": "park"})
 	cases := map[string]string{
 		"unknown id":          bson.NewObjectID().Hex(),
 		"not an object id":    "stop_42",
@@ -604,7 +604,7 @@ func TestRatedWithoutAUsableActivityIsANoOp(t *testing.T) {
 func TestRatedWhenTheServiceIsDown(t *testing.T) {
 	fx := newFixture(t)
 	user := fx.user(models.UserPrefs{Company: "solo"})
-	park := fx.activity(store.ActivityCollection, bson.M{"category": "park", "embedding": basis(7)})
+	park := fx.activity(store.DefaultCatalog, bson.M{"category": "park", "embedding": basis(7)})
 	fx.ml.set("/v1/compatibility/user-embedding/update", true)
 	if err := fx.svc.Rated(fx.ctx, user, park, 5); !errors.Is(err, ml.ErrUnavailable) {
 		t.Fatalf("err = %v", err)
@@ -625,9 +625,5 @@ func TestWithoutAnMLClient(t *testing.T) {
 	}
 }
 
-func otherActivityCollection() string {
-	if store.ActivityCollection == store.CollActivities {
-		return store.CollDemoActivities
-	}
-	return store.CollActivities
-}
+// otherActivityCollection is a catalog accounts outside the demo never read.
+func otherActivityCollection() string { return store.CollDemoActivities }

@@ -12,7 +12,7 @@ the fictional seaside city made for HackGT, and was originally populated from it
 - **Use the demo account:** a link under "Create an account" on the sign-in screen that fills both fields
   and signs in. It shows only in live mode, when the build has the `SQ_DEMO_PASSWORD` build setting or the
   launch has `-SQDemoPassword` ([how](../frontend/README.md#pointing-the-app-at-a-server)).
-- Anyone can sign up for their own account. All accounts use `store.ActivityCollection`. Everyone signed in as Sandy shares her data.
+- Anyone can sign up for their own account. Demo/bot roles use `demo_activities`; other accounts use `pitch_activities`. Everyone signed in as Sandy shares her data.
 
 ## Sandy at a glance
 

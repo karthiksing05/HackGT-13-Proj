@@ -489,6 +489,14 @@ final class MockAPIClient: APIClient {
         return found
     }
 
+    /// Review › tap a stop (see `MockActivityDetails`; the same hours on every day). An id the demo
+    /// catalog doesn't have is a 404, like the server's.
+    func activity(id: String, date: Date?) async throws -> ActivityDetail {
+        try await simulate("activity", 300)
+        guard let detail = MockActivityDetails.detail(id: id) else { throw APIError.notFound }
+        return detail
+    }
+
     private func planOption(_ id: String) -> PlanOption? {
         options[id] ?? (MockData.firstOptions + MockData.moreOptionBatches.flatMap { $0 }).first { $0.id == id }
     }

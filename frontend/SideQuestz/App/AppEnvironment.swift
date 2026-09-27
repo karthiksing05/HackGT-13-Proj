@@ -23,6 +23,8 @@ final class AppEnvironment {
     let voice: VoiceInput
     let places: PlaceSearch
     let location: LocationService
+    /// Where you are, live, while Home's sidequests are on screen (their progress and maps).
+    let locationFeed: LocationFeed
     /// The demo account's password when this build or launch was given one (`SQ_DEMO_PASSWORD`
     /// build setting, `-SQDemoPassword`); nil hides the demo link on Login.
     let demoPassword: String?
@@ -55,6 +57,7 @@ final class AppEnvironment {
         self.voice = VoiceInput(allowDemoFallback: mode == .mock, forceDemo: forceVoiceDemo)
         self.places = PlaceSearch(api: api, isMock: mode == .mock)
         self.location = LocationService(isMock: mode == .mock)
+        self.locationFeed = LocationFeed(isMock: mode == .mock)
         self.socket = mode == .live ? socketURL.map { url in
             WebSocketService(url: url, hub: hub, timeZone: clock.calendar.timeZone) { [auth] in auth.tokens?.accessToken }
         } : nil

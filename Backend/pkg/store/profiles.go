@@ -25,8 +25,8 @@ func (p Profiles) users() *mongo.Collection { return p.s.db.Collection(CollUsers
 func (p Profiles) catalog(name string) (*mongo.Collection, error) {
 	switch name {
 	case "":
-		return p.s.db.Collection(ActivityCollection), nil
-	case CollActivities, CollDemoActivities:
+		return p.s.db.Collection(DefaultCatalog), nil
+	case CollActivities, CollDemoActivities, CollPitchActivities:
 		return p.s.db.Collection(name), nil
 	}
 	return nil, fmt.Errorf("unknown catalog %q", name)

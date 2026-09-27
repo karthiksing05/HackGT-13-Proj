@@ -2,8 +2,9 @@
 
 This page describes the existing demo fixture account and the three-minute walkthrough.
 The account brief is [DEMO_ACCOUNT.md](DEMO_ACCOUNT.md); city data lives in `dataingestion/demo/`.
-The backend no longer includes seed/reset tooling. The activity collection is selected globally
-by `store.ActivityCollection` in `Backend/pkg/store/catalog.go`.
+The backend no longer includes seed/reset tooling. `store.CatalogFor` in
+`Backend/pkg/store/catalog.go` selects `demo_activities` for demo/bot roles and `pitch_activities`
+for other accounts.
 
 ## Sandy Byte
 
@@ -71,7 +72,8 @@ the S logo appears only if the request takes more than 2 s.
    3 stops" (typical stop counts are in [PLANNER.md](PLANNER.md#measured-on-the-live-server)). Drag the
    ☰ handle to reorder:
    "Recalculating transit…" then updated times; if a fixed start breaks, the route header says "Some
-   stops would be late" and the stop reads "Late for a fixed start". Press and hold a stop → **Swap for
+   stops would be late" and the stop reads "Late for a fixed start". Tap a stop for its details (timing, map, description, price, links) with **Swap for something
+   similar** and **Remove stop**; press and hold does the same from a menu. **Swap for
    something similar**: up to five alternatives with a reason ("Also time outside · 0.4 mi away"); pick
    one and the route re-times. **Start this sidequest**.
 4. **Home again** (1:45). The new sidequest is selected, with its timeline of walks and stops. **Tap a
@@ -118,7 +120,7 @@ Lee), without the live planner.
   and anywhere days still spread over 8–12 miles.
 - **Facebook** works only for accounts added as testers of the Meta app while it is in Development
   mode; the demo does not go through it.
-- **One activity collection.** All accounts use the configured activity collection; new accounts have no fixture friends.
+- **Catalogs by role.** Demo/bot accounts use Saltlight; other accounts use the Atlanta pitch catalog and have no fixture friends.
 - **One shared account.** Two judges signing in as Sandy at once share her plans and realtime events; she
   can hold 5 live sockets, and a sixth connection closes the oldest.
 

@@ -59,7 +59,7 @@ func config(t testing.TB) suiteConfig {
 	t.Helper()
 	confOnce.Do(func() {
 		conf.BaseURL = strings.TrimRight(envOr("E2E_BASE_URL", ""), "/")
-		conf.DemoEmail = envOr("E2E_DEMO_EMAIL", "demo@gatech.edu")
+		conf.DemoEmail = envOr("E2E_DEMO_EMAIL", "demo@sidequestz.tech")
 		conf.DemoPassword = os.Getenv("E2E_DEMO_PASSWORD")
 		conf.TimeZone = envOr("E2E_TIME_ZONE", "America/New_York")
 		conf.Loc, confErr = time.LoadLocation(conf.TimeZone)

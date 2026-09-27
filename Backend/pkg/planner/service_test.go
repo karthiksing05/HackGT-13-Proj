@@ -24,7 +24,7 @@ func sandyModel() *models.User {
 	id, _ := bson.ObjectIDFromHex("5f00000000000000000000aa")
 	birth := time.Date(2003, 6, 14, 0, 0, 0, 0, time.UTC)
 	return &models.User{
-		ID: id, Email: "sandy@gatech.edu", City: "saltlight", BirthDate: &birth,
+		ID: id, Email: "sandy@gatech.edu", City: "saltlight", BirthDate: &birth, Roles: []string{"demo"},
 		HomeBase:          &models.HomeBase{Name: "Seaside Market Square", Lat: seasideMkt.Lat, Lng: seasideMkt.Lng},
 		Prefs:             models.UserPrefs{Company: "small_group", Pace: "balanced", Flexibility: "bit_over_ok", PreferFree: true},
 		PositiveEmbedding: sandyPositive, NegativeEmbedding: vectorOf("cat:nightclub", "high_energy"),
@@ -324,16 +324,24 @@ func TestUserFromModel(t *testing.T) {
 	u.Taste.AvoidTags = []string{"touristy"}
 	u.Embedding = []float64{9, 9, 9} // the legacy field: never read
 	uc := UserFromModel(u, now)
-	if uc.ID != u.ID.Hex() || uc.Catalog != store.ActivityCollection || uc.City != "saltlight" || uc.AgeBracket != "adult" {
+	if uc.ID != u.ID.Hex() || uc.Catalog != store.CollDemoActivities || uc.City != "saltlight" || uc.AgeBracket != "adult" {
 		t.Errorf("user %+v", uc)
 	}
 	u.City = "atlanta"
-	if got := UserFromModel(u, now).City; store.ActivityCollection == store.CollDemoActivities && got != "saltlight" {
-		t.Fatalf("account with the default city plans in %s", got)
+	if got := UserFromModel(u, now).City; got != "saltlight" {
+		t.Fatalf("the demo account with city atlanta plans in %s", got)
 	}
 	u.Email = "sandy@example.com"
-	if got := UserFromModel(u, now).Catalog; got != store.ActivityCollection {
+	if got := UserFromModel(u, now).Catalog; got != store.CollDemoActivities {
 		t.Fatalf("changing the email changed the collection to %s", got)
+	}
+	other := &models.User{ID: u.ID, Email: "student@gatech.edu", City: "saltlight"}
+	if got := UserFromModel(other, now); got.Catalog != store.CollPitchActivities || got.City != "atlanta" {
+		t.Fatalf("an account outside the demo plans in %s/%s, want pitch_activities/atlanta", got.Catalog, got.City)
+	}
+	bot := &models.User{ID: u.ID, Roles: []string{"bot"}}
+	if got := UserFromModel(bot, now).Catalog; got != store.CollDemoActivities {
+		t.Fatalf("a demo bot plans in %s", got)
 	}
 	if uc.HomeBase == nil || !uc.HomeBase.HasCoord || uc.HomeBase.Name != "Seaside Market Square" {
 		t.Errorf("home base %+v", uc.HomeBase)
@@ -380,8 +388,8 @@ func TestServiceResolveStopUsesActivityCollection(t *testing.T) {
 			calls := 0
 			svc := NewService(&Planner{Lookup: catalogLookupFunc(func(_ context.Context, catalog string, ids []string) ([]models.Activity, error) {
 				calls++
-				if catalog != store.ActivityCollection || len(ids) != 1 || ids[0] != act.ID.Hex() {
-					t.Fatalf("lookup in %s for %v, want %s for %s", catalog, ids, store.ActivityCollection, act.ID.Hex())
+				if catalog != store.DefaultCatalog || len(ids) != 1 || ids[0] != act.ID.Hex() {
+					t.Fatalf("lookup in %s for %v, want %s for %s", catalog, ids, store.DefaultCatalog, act.ID.Hex())
 				}
 				return []models.Activity{act}, nil
 			})})

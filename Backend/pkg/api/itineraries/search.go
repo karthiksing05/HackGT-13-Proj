@@ -61,7 +61,7 @@ func (h *H) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	places, err := h.d.Store.Catalog().SearchPlaces(ctx, store.ActivityCollection, q, homePoint(user), searchPlaces)
+	places, err := h.d.Store.Catalog().SearchPlaces(ctx, store.CatalogFor(user), q, homePoint(user), searchPlaces)
 	if err != nil {
 		api.Fail(w, r, err)
 		return

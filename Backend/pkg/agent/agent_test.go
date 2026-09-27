@@ -254,23 +254,21 @@ func TestResumeFinishesARunLeftRunning(t *testing.T) {
 	}
 }
 
-// A run follows the globally selected clock, never finishes before it
-// began, and keeps the payment token's expiry on the real clock.
-func TestCheckoutRunUsesSelectedClock(t *testing.T) {
+// Demo-role checkout uses business time while payment tokens expire on real time.
+func TestADemoAccountsRunStaysOnTheDemoDate(t *testing.T) {
 	ny, _ := time.LoadLocation(testutil.TimeZone)
 	demoDate := time.Now().In(ny).AddDate(0, 0, -3).Format("2006-01-02")
 	h := newHarnessWith(t, func(c *config.Config) { c.DemoDate = demoDate }, nil, map[string]int{"sunset-jazz": 1200}, "sunset-jazz")
-	wantDate := h.srv.Clock.Now().In(ny).Format("2006-01-02")
-	if store.ActivityCollection == store.CollDemoActivities {
-		wantDate = demoDate
+	if _, err := h.srv.Store.Users().Update(context.Background(), h.sess.UserID, bson.M{"roles": []string{"demo"}}); err != nil {
+		t.Fatal(err)
 	}
 	run := h.start(t, 5000, 1)
 	if run.State != contract.CheckoutRunDone || run.FinishedAt == nil || run.Intents[0].State != contract.CheckoutBooked {
 		t.Fatalf("run: %+v", run)
 	}
 	for name, at := range map[string]contract.Time{"created_at": run.CreatedAt, "finished_at": *run.FinishedAt} {
-		if day := at.In(ny).Format("2006-01-02"); day != wantDate {
-			t.Errorf("%s is on %s, want %s for collection %s", name, day, wantDate, store.ActivityCollection)
+		if day := at.In(ny).Format("2006-01-02"); day != demoDate {
+			t.Errorf("%s is on %s, want the demo date %s", name, day, demoDate)
 		}
 	}
 	if run.FinishedAt.Before(run.CreatedAt.Time) {
