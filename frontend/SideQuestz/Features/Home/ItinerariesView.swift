@@ -312,13 +312,15 @@ struct HomeItinerariesView: View {
             Menu {
                 menuItems(itinerary)
             } label: {
+                // Just the dots: no circle or system button background behind them.
                 Image(systemName: "ellipsis")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Theme.sageInk)
                     .frame(width: 30, height: 30)
-                    .background(.white, in: Circle())
                     .contentShape(Circle().inset(by: -7))
             }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
             // Centered on the title's letters, without making the row taller.
             .padding(.vertical, -8)
             .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 6 }

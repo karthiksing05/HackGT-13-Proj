@@ -1,12 +1,16 @@
 import SwiftUI
 
 /// Custom tab bar: 84 tall including the home indicator, white at 97%, 1pt top `line`, 5 equal
-/// columns, 26pt icons, 10pt Semibold labels. Active = sage, inactive = `text3`.
+/// columns, 26pt icons, 10pt Semibold labels. Active = `sageInk` on a `sageTint` rounded shade that
+/// slides to the tab you pick; inactive = `text3`.
 /// Center: raised + (58pt sage circle, ink plus, 4pt cream ring, shadow 0 6 16 18%, up 24pt) + "Plan".
 struct SQTabBar: View {
     let selection: Router.Tab
     let onSelect: (Router.Tab) -> Void
     let onPlan: () -> Void
+
+    @Namespace private var shade
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -16,6 +20,7 @@ struct SQTabBar: View {
             item(.groups, "Groups", .chat)
             item(.account, "Account", .person)
         }
+        .animation(reduceMotion ? nil : Motion.quick, value: selection)
         .padding(.top, 6)
         .frame(height: Metrics.tabBarContentHeight, alignment: .top)
         .frame(maxWidth: .infinity)
@@ -39,8 +44,18 @@ struct SQTabBar: View {
                     .sqBounce(when: active, scale: 1.12)
                 Text(title).font(.system(size: 10, weight: .semibold))
             }
+            // The selected tab sits on a soft sage shade (drawn outside the content, so nothing moves).
+            .background {
+                if active {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Theme.sageTint)
+                        .padding(.horizontal, -14)
+                        .padding(.vertical, -4)
+                        .matchedGeometryEffect(id: "tab.shade", in: shade)
+                }
+            }
             .padding(.top, 2)
-            .foregroundStyle(active ? Theme.sage : Theme.text3)
+            .foregroundStyle(active ? Theme.sageInk : Theme.text3)
             .frame(maxWidth: .infinity, minHeight: 48, alignment: .top)
             .contentShape(Rectangle())
         }
