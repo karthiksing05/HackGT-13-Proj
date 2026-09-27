@@ -20,6 +20,7 @@ const examplesDir = "../../../docs/api/examples"
 // through. A ".<variant>" suffix (PlanBatch.dag) selects the same type; aliases
 // map differently named dumps.
 var examples = map[string]func() any{
+	"ActivityHits":           func() any { return &[]ActivityHit{} },
 	"AuthResponse":           func() any { return &AuthResponse{} },
 	"CalendarDays":           func() any { return &[]CalendarDay{} },
 	"ChatThread":             func() any { return &ChatThread{} },
@@ -123,25 +124,67 @@ func TestExamplesRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			target := fresh()
-			dec := json.NewDecoder(bytes.NewReader(raw))
-			dec.DisallowUnknownFields()
-			if err := dec.Decode(target); err != nil {
-				t.Fatalf("decode: %v", err)
-			}
-			encoded, err := json.Marshal(target)
-			if err != nil {
-				t.Fatalf("encode: %v", err)
-			}
-			if got, want := canonical(t, encoded), canonical(t, raw); got != want {
-				t.Errorf("round trip differs\n got: %s\nwant: %s", got, want)
-			}
+			roundTrip(t, raw, fresh())
 		})
 	}
 	for name := range examples {
 		if !seen[name] {
 			t.Errorf("examples map names %s but docs/api/examples/%s.json does not exist", name, name)
 		}
+	}
+}
+
+// roundTrip decodes raw into target with unknown keys refused, re-encodes
+// it and compares the two documents by value.
+func roundTrip(t *testing.T, raw []byte, target any) []byte {
+	t.Helper()
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(target); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	encoded, err := json.Marshal(target)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	if got, want := canonical(t, encoded), canonical(t, raw); got != want {
+		t.Errorf("round trip differs\n got: %s\nwant: %s", got, want)
+	}
+	return encoded
+}
+
+// TestActivityHitShape pins GET /activities/search's hit as the server
+// writes it (catalog hex ids; an event with every field, a free place, a
+// place with neither price nor distance) and PlanRequest.must_include,
+// which stays out of the body when there are no picks.
+func TestActivityHitShape(t *testing.T) {
+	hits := `[
+	  {"id": "9bdbbc5e9aab712a5b769f72", "title": "Sunset Jazz on Pier Nine", "kind": "event", "category": "live_music",
+	   "subtitle": "Live music · 6:30 PM · 0.7 mi", "place": {"name": "Pier Nine Bandstand", "coordinate": {"lat": 31.376524, "lng": -81.41746}},
+	   "start": "2026-09-26T22:30:00Z", "end": "2026-09-27T01:00:00Z", "price_cents": 1200, "distance_mi": 0.7},
+	  {"id": "62248db0069b1dc732103903", "title": "Seaside Market Hall", "kind": "place", "category": "market",
+	   "subtitle": "Market · 0.2 mi", "place": {"name": "Seaside Market Hall", "coordinate": {"lat": 31.365972, "lng": -81.428348}},
+	   "price_cents": 0, "distance_mi": 0.2},
+	  {"id": "5f00000000000000000000ab", "title": "Anchor Park", "kind": "place", "category": "park",
+	   "subtitle": "Park", "place": {"name": "Anchor Park", "coordinate": {"lat": 31.374748, "lng": -81.4207}}}
+	]`
+	var out []ActivityHit
+	roundTrip(t, []byte(hits), &out)
+	if len(out) != 3 || out[0].Kind != StopKindEvent || out[0].Start == nil || out[0].End == nil || out[1].Start != nil ||
+		out[1].PriceCents == nil || *out[1].PriceCents != 0 || out[2].PriceCents != nil || out[2].DistanceMi != nil {
+		t.Errorf("decoded hits %+v", out)
+	}
+
+	var req PlanRequest
+	roundTrip(t, []byte(`{"start": {"name": "Home"}, "end": {"name": "Home"}, "date": "2026-09-26T22:00:00Z",
+	  "start_time": "2026-09-26T22:00:00Z", "back_by": "2026-09-27T03:00:00Z", "range": "walkable", "ride": "none",
+	  "mood_text": "", "tags": [], "budget": 2, "who": "friends", "pace": "balanced", "modes": ["walk"],
+	  "must_include": ["9bdbbc5e9aab712a5b769f72", "62248db0069b1dc732103903"]}`), &req)
+	if len(req.MustInclude) != 2 {
+		t.Errorf("must_include %v", req.MustInclude)
+	}
+	if empty, _ := json.Marshal(PlanRequest{}); strings.Contains(string(empty), "must_include") {
+		t.Errorf("no picks must leave must_include out: %s", empty)
 	}
 }
 

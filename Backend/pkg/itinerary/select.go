@@ -8,7 +8,8 @@ package itinerary
 // The first element is always the best itinerary. The whole pool is
 // ordered, so later pages ("more options") stay varied too. Itineraries
 // with the same stops in the same order (e.g. one drop-in visited at 16:00
-// or 16:30) collapse to the best of them.
+// or 16:30) collapse to the best of them. Required visits, which every
+// itinerary shares, are left out of the overlap.
 func Diverse(pool []Itinerary, mu float64) []Itinerary {
 	pool = dedupe(pool)
 	sets := make([]map[string]bool, len(pool))
@@ -44,10 +45,13 @@ func Diverse(pool []Itinerary, mu float64) []Itinerary {
 	return out
 }
 
+// seriesSet is the itinerary's series other than its required visits.
 func seriesSet(it Itinerary) map[string]bool {
 	s := make(map[string]bool, len(it.Stops))
 	for _, st := range it.Stops {
-		s[st.Node.SeriesKey] = true
+		if !st.Node.Required {
+			s[st.Node.SeriesKey] = true
+		}
 	}
 	return s
 }

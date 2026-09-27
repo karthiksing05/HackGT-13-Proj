@@ -17,6 +17,11 @@ var appLegModes = map[string]bool{"walk": true, "marta": true, "drive": true, "r
 // returns the user's catalog document behind an activity id. An empty
 // result means the option is sound. Generate runs it on every option it
 // renders (with the run's optimizer settings); tests run it on every page.
+// The must-see picks (spec.MustInclude) must all be in the option; they are
+// exempt from what they bypass (picks.go): the range on their own legs,
+// the per-stop price rules, the exclusions and sharing a category with
+// each other, and the budget's total grows to what they cost when that is
+// more.
 func CheckOption(spec *PlanSpec, opt *Option, lookup func(id string) (*models.Activity, bool)) []string {
 	return checkOption(spec, opt, lookup, itinerary.DefaultConfig())
 }
@@ -51,10 +56,23 @@ func checkOption(spec *PlanSpec, opt *Option, lookup func(id string) (*models.Ac
 		}
 	}
 	age := AgeRulesFor(spec.AgeBracket)
+	picks := map[string]bool{}
+	for _, id := range spec.MustInclude {
+		picks[id] = true
+	}
+	pickCats := map[string]bool{} // no other stop may take a pick's category
+	for _, s := range opt.Stops {
+		if a, ok := lookup(s.ActivityID); ok && picks[s.ActivityID] {
+			pickCats[strings.ToLower(a.Category)] = true
+		}
+	}
 	series := map[string]bool{}
 	cats := map[string]bool{}
-	var known int64
+	visited := map[string]bool{}
+	var known, knownPicks int64
 	for i, s := range opt.Stops {
+		visited[s.ActivityID] = true
+		pick := picks[s.ActivityID]
 		a, ok := lookup(s.ActivityID)
 		if !ok {
 			fail("stop %d activity %s is not in the user's catalog", i, s.ActivityID)
@@ -95,7 +113,9 @@ func checkOption(spec *PlanSpec, opt *Option, lookup func(id string) (*models.Ac
 				fail("stop %d has a known price but no price_cents", i)
 			} else {
 				known += *s.PriceCents
-				if spec.Budget.FreeOnly && *s.PriceCents != 0 {
+				if pick {
+					knownPicks += *s.PriceCents
+				} else if spec.Budget.FreeOnly && *s.PriceCents != 0 {
 					fail("stop %d costs %d on a free-only plan", i, *s.PriceCents)
 				}
 			}
@@ -103,32 +123,32 @@ func checkOption(spec *PlanSpec, opt *Option, lookup func(id string) (*models.Ac
 			if s.PriceCents != nil {
 				fail("stop %d has price_cents without a known price", i)
 			}
-			if spec.Budget.FreeOnly && (a.Price != nil || !freeIfUnknownCategories[a.Category]) {
+			if !pick && spec.Budget.FreeOnly && (a.Price != nil || !freeIfUnknownCategories[a.Category]) {
 				fail("stop %d has an unknown price on a free-only plan", i)
 			}
 		}
-		if spec.Budget.Tier < 3 && s.TierKnown && s.Tier > spec.Budget.Tier {
+		if !pick && spec.Budget.Tier < 3 && s.TierKnown && s.Tier > spec.Budget.Tier {
 			fail("stop %d tier %d over budget tier %d", i, s.Tier, spec.Budget.Tier)
 		}
 		if age.Blocks(a) {
 			fail("stop %d %q is age-gated for %s", i, a.Name, spec.AgeBracket)
 		}
-		if spec.Hard.excludesCategory(a.Category) || spec.Hard.excludesAnyTag(a.Tags) || tagsIntersect(a.Tags, spec.AvoidTags) {
+		if !pick && (spec.Hard.excludesCategory(a.Category) || spec.Hard.excludesAnyTag(a.Tags) || tagsIntersect(a.Tags, spec.AvoidTags)) {
 			fail("stop %d %q hits an exclusion", i, a.Name)
 		}
 		if series[s.SeriesKey] {
 			fail("series %s repeated", s.SeriesKey)
 		}
 		series[s.SeriesKey] = true
-		if c := strings.ToLower(a.Category); c != "" && c != "other" {
-			if cats[c] {
+		if c := strings.ToLower(a.Category); c != "" && c != "other" && !pick {
+			if cats[c] || pickCats[c] {
 				fail("category %s repeated", c)
 			}
 			cats[c] = true
 		}
 		if i > 0 {
 			prev := opt.Stops[i-1]
-			if d := travel.HaversineKm(travel.Point{Lat: prev.Place.Lat, Lng: prev.Place.Lng}, travel.Point{Lat: s.Place.Lat, Lng: s.Place.Lng}); d > spec.MaxLegKm+1e-9 {
+			if d := travel.HaversineKm(travel.Point{Lat: prev.Place.Lat, Lng: prev.Place.Lng}, travel.Point{Lat: s.Place.Lat, Lng: s.Place.Lng}); d > spec.MaxLegKm+1e-9 && !pick && !picks[prev.ActivityID] {
 				fail("leg into stop %d is %.2f km > %.2f", i, d, spec.MaxLegKm)
 			}
 			if s.Arrive.Before(prev.Depart) {
@@ -136,22 +156,27 @@ func checkOption(spec *PlanSpec, opt *Option, lookup func(id string) (*models.Ac
 			}
 		}
 	}
-	if spec.Budget.TotalCents > 0 && known > spec.Budget.TotalCents {
-		fail("known costs %d exceed %d", known, spec.Budget.TotalCents)
+	if limit := max(spec.Budget.TotalCents, knownPicks); spec.Budget.TotalCents > 0 && known > limit {
+		fail("known costs %d exceed %d", known, limit)
 	}
 	first, last := opt.Stops[0], opt.Stops[len(opt.Stops)-1]
-	if spec.Start != nil {
+	if spec.Start != nil && !picks[first.ActivityID] {
 		if d := travel.HaversineKm(*spec.Start, travel.Point{Lat: first.Place.Lat, Lng: first.Place.Lng}); d > spec.MaxLegKm+1e-9 {
 			fail("first leg %.2f km > %.2f", d, spec.MaxLegKm)
 		}
 	}
-	if spec.End != nil {
+	if spec.End != nil && !picks[last.ActivityID] {
 		if d := travel.HaversineKm(travel.Point{Lat: last.Place.Lat, Lng: last.Place.Lng}, *spec.End); d > spec.MaxLegKm+1e-9 {
 			fail("last leg %.2f km > %.2f", d, spec.MaxLegKm)
 		}
 	}
 	if opt.Depart.Before(spec.From) || opt.Arrival.After(spec.BackBy) {
 		fail("leaves %v, back %v, window %v–%v", opt.Depart, opt.Arrival, spec.From, spec.BackBy)
+	}
+	for _, id := range spec.MustInclude {
+		if !visited[id] {
+			fail("must-see %s is not in the option", id)
+		}
 	}
 	return out
 }

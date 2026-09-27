@@ -217,6 +217,15 @@ func TestGuaranteeChecklistCatchesViolations(t *testing.T) {
 		{"outside the catalog", "not in the user's catalog", func(o *Option, sp *PlanSpec, cat map[string]models.Activity) {
 			delete(cat, s1.ActivityID)
 		}},
+		{"a must-see pick left out", "is not in the option", func(o *Option, sp *PlanSpec, cat map[string]models.Activity) {
+			sp.MustInclude = []string{s0.ActivityID, jazzID}
+		}},
+		{"a stop sharing a pick's category", "category", func(o *Option, sp *PlanSpec, cat map[string]models.Activity) {
+			sp.MustInclude = []string{s0.ActivityID}
+			a := cat[s1.ActivityID]
+			a.Category = cat[s0.ActivityID].Category
+			cat[s1.ActivityID] = a
+		}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -232,5 +241,53 @@ func TestGuaranteeChecklistCatchesViolations(t *testing.T) {
 				t.Errorf("violation %q not reported: %v", c.want, guaranteeViolations(sp, o, cat))
 			}
 		})
+	}
+}
+
+// TestGuaranteeChecklistExemptsPicks: what a must-see pick bypasses (its
+// own legs' range, the per-stop price rules, the exclusions, sharing a
+// category with another pick, a total over the budget it alone causes) is
+// not reported for it, and still is for the other stops.
+func TestGuaranteeChecklistExemptsPicks(t *testing.T) {
+	acts := saltlight(t)
+	tp := newTestPlanner(acts, testConfig())
+	o := defaultReq()
+	o.rng, o.modes = "transit", []string{"marta", "walk"}
+	batch, spec := tp.generate(t, sandy(), o)
+	var base Option
+	for _, opt := range tp.allOptions(t, sandy(), batch) {
+		if len(opt.Stops) >= 2 {
+			base = opt
+			break
+		}
+	}
+	if len(base.Stops) < 2 {
+		t.Fatal("need a two-stop option")
+	}
+	catalog := catalogByID(acts)
+	s0, s1 := base.Stops[0], base.Stops[1]
+	o0 := base
+	o0.Stops = append([]Stop(nil), base.Stops...)
+	sp := spec
+	sp.MustInclude = []string{s0.ActivityID, s1.ActivityID}
+	sp.Budget = Budget{Tier: 0, FreeOnly: true}
+	sp.Hard.ExcludeCategories = []string{catalog[s0.ActivityID].Category}
+	a1 := catalog[s1.ActivityID]
+	a1.Category = catalog[s0.ActivityID].Category
+	catalog[s1.ActivityID] = a1
+	far := offsetKm(travel.Point{Lat: s0.Place.Lat, Lng: s0.Place.Lng}, 40, 0)
+	o0.Stops[1].Place.Lat, o0.Stops[1].Place.Lng = far.Lat, far.Lng
+	cents := int64(9000)
+	o0.Stops[0].PriceCents, o0.Stops[0].PriceKnown, o0.Stops[0].TierKnown, o0.Stops[0].Tier = &cents, true, true, 3
+	if v := guaranteeViolations(sp, o0, catalog); len(v) != 0 {
+		t.Errorf("picks bending only what they may: %v", v)
+	}
+	// The same option without the picks breaks every one of those rules.
+	sp.MustInclude = nil
+	v := strings.Join(guaranteeViolations(sp, o0, catalog), "; ")
+	for _, want := range []string{"free-only", "tier", "exclusion", "category", "km >"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("without picks %q is not reported: %s", want, v)
+		}
 	}
 }

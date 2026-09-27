@@ -328,6 +328,14 @@ final class LiveAPIClient: APIClient {
 
     // MARK: - Planning
 
+    func searchActivities(q: String, near: Coordinate?, date: Date?, limit: Int) async throws -> [ActivityHit] {
+        var items = [URLQueryItem(name: "q", value: q)]
+        if let near { items.append(URLQueryItem(name: "near", value: "\(near.lat),\(near.lng)")) }
+        if let date { items.append(URLQueryItem(name: "date", value: dayString(date))) }
+        items.append(URLQueryItem(name: "limit", value: String(limit)))
+        return try await list("activities/search", query: items)
+    }
+
     func generatePlans(_ request: PlanRequest) async throws -> PlanBatch { try await call("POST", "plans/generate", body: request) }
 
     func moreOptions(cursor: String) async throws -> PlanBatch {

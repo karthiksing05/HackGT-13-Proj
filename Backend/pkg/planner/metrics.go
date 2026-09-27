@@ -54,11 +54,17 @@ func (r *Run) evaluate(it itinerary.Itinerary) ScoredPlan {
 		if c := r.Pool.Get(s.Node.Act.ID.Hex()); c != nil {
 			raw = c.Raw()
 		}
+		if s.Node.Required {
+			raw = r.pickScore(raw)
+		}
 		fit += raw
-		if b := clamp01(base(s.Node.Act)); b > tau && tau < 1 {
+		// A pick is a stop the plan wants, whatever it scores: never weak.
+		if b := clamp01(base(s.Node.Act)); (b > tau && tau < 1) || s.Node.Required {
 			good[i] = true
 			m.GoodStops++
-			fill += (b - tau) / (1 - tau)
+			if tau < 1 {
+				fill += math.Max(0, b-tau) / (1 - tau)
+			}
 		} else {
 			m.WeakStops++
 		}
@@ -99,8 +105,8 @@ func (r *Run) evaluate(it itinerary.Itinerary) ScoredPlan {
 	if win := r.Window.BackBy.Sub(r.Window.From).Minutes(); win > 0 {
 		m.IdleShare = clamp01(float64(it.WaitMin) / win)
 	}
-	if r.Spec.Budget.TotalCents > 0 {
-		m.BudgetUse = float64(it.CostCents) / float64(r.Spec.Budget.TotalCents)
+	if b := r.Window.BudgetCents; b > 0 { // the plan's total, or the picks' cost when that is more
+		m.BudgetUse = float64(it.CostCents) / float64(b)
 	}
 	return ScoredPlan{It: it, Metrics: m, Score: planScore(m, r.Cfg.Weights), Signature: signature(it)}
 }
@@ -207,10 +213,7 @@ func mergeBest(best, fresh []ScoredPlan, poolSize int, mu float64) []ScoredPlan 
 func diverseOrder(plans []ScoredPlan, mu float64) []ScoredPlan {
 	sets := make([]map[string]bool, len(plans))
 	for i, p := range plans {
-		sets[i] = map[string]bool{}
-		for _, s := range p.It.Stops {
-			sets[i][s.Node.SeriesKey] = true
-		}
+		sets[i] = seriesSet(p.It) // the picks, which every plan has, are no overlap
 	}
 	used := make([]bool, len(plans))
 	out := make([]ScoredPlan, 0, len(plans))

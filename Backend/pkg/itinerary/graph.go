@@ -34,7 +34,9 @@ type edgeCandidate struct {
 
 // BuildGraph finds every feasible transition. Pairs are pruned with cheap
 // checks (time order, same series or category, straight-line distance, a
-// travel-time lower bound) before one batched call to the provider.
+// travel-time lower bound) before one batched call to the provider. Legs
+// into and out of a required visit are not held to the range (only to the
+// clock), and two required visits may have any wait between them.
 func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider, cfg Config) *Graph {
 	pace := cfg.Pace(w.Pace)
 	n := len(nodes)
@@ -52,27 +54,45 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 		pairs[c.pair] = true
 	}
 
+	var required []int // indices of the required visits, in start order
+	for i := range nodes {
+		if nodes[i].Required {
+			required = append(required, i)
+		}
+	}
+	pair := func(i, j int) {
+		a, b := &nodes[i], &nodes[j]
+		if b.Start.Sub(a.End) < cfg.Buffer || a.series == b.series {
+			return
+		}
+		if a.category >= 0 && a.category == b.category && !(a.Required && b.Required) {
+			return
+		}
+		if !a.Required && !b.Required && travel.HaversineKm(a.Loc, b.Loc) > w.MaxLegKm {
+			return
+		}
+		if a.End.Add(travel.LowerBound(a.Loc, b.Loc, w.Mode) + cfg.Buffer).After(b.Start) {
+			return
+		}
+		add(edgeCandidate{from: i, to: j, pair: travel.Pair{From: a.Loc, To: b.Loc}})
+	}
 	for i := 0; i < n; i++ {
-		a := &nodes[i]
-		for j := i + 1; j < n; j++ {
-			b := &nodes[j]
-			gap := b.Start.Sub(a.End)
-			if gap > cutoff {
-				break // later nodes start even later
+		j := i + 1
+		for ; j < n && nodes[j].Start.Sub(nodes[i].End) <= cutoff; j++ {
+			pair(i, j) // later nodes start even later
+		}
+		// Past the cutoff only a leg longer than the range, or a wait
+		// between two required visits, can still connect: both involve one.
+		if nodes[i].Required {
+			for ; j < n; j++ {
+				pair(i, j)
 			}
-			if gap < cfg.Buffer || a.series == b.series {
-				continue
+			continue
+		}
+		for _, k := range required {
+			if k >= j {
+				pair(i, k)
 			}
-			if a.category >= 0 && a.category == b.category {
-				continue
-			}
-			if travel.HaversineKm(a.Loc, b.Loc) > w.MaxLegKm {
-				continue
-			}
-			if a.End.Add(travel.LowerBound(a.Loc, b.Loc, w.Mode) + cfg.Buffer).After(b.Start) {
-				continue
-			}
-			add(edgeCandidate{from: i, to: j, pair: travel.Pair{From: a.Loc, To: b.Loc}})
 		}
 	}
 
@@ -82,7 +102,7 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 			g.In[j] = append(g.In[j], Edge{From: Source, Wait: b.Start.Sub(w.From), Penalty: firstWaitPenalty(b.Start.Sub(w.From), pace, cfg)})
 			continue
 		}
-		if travel.HaversineKm(*w.Start, b.Loc) > w.MaxLegKm {
+		if !b.Required && travel.HaversineKm(*w.Start, b.Loc) > w.MaxLegKm {
 			continue
 		}
 		if w.From.Add(travel.LowerBound(*w.Start, b.Loc, w.Mode)).After(b.Start) {
@@ -97,7 +117,7 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 			g.In[n] = append(g.In[n], Edge{From: i})
 			continue
 		}
-		if travel.HaversineKm(a.Loc, *w.End) > w.MaxLegKm {
+		if !a.Required && travel.HaversineKm(a.Loc, *w.End) > w.MaxLegKm {
 			continue
 		}
 		if a.End.Add(travel.LowerBound(a.Loc, *w.End, w.Mode)).After(w.BackBy) {
@@ -130,7 +150,7 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 		default:
 			a, b := &nodes[c.from], &nodes[c.to]
 			wait := b.Start.Sub(a.End.Add(leg.Duration))
-			if wait < cfg.Buffer || wait > pace.MaxWait {
+			if wait < cfg.Buffer || (wait > pace.MaxWait && !(a.Required && b.Required)) {
 				continue
 			}
 			idle := (wait - cfg.Buffer).Minutes()

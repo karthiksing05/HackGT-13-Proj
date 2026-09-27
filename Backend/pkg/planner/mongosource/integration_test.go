@@ -629,3 +629,71 @@ func TestEnsureIndexes(t *testing.T) {
 		t.Error("a conflicting TTL index must be reported")
 	}
 }
+
+// TestMustIncludeThroughTheStore: must-see picks are read by id from the
+// catalog (GetActivities), kept out of phase A's queries, and in every
+// option of every page, here a museum outside the search radius.
+func TestMustIncludeThroughTheStore(t *testing.T) {
+	db := setup(t)
+	ctx := context.Background()
+	clock := planner.NewFakeClock(time.Date(2026, 9, 26, 11, 0, 0, 0, ny))
+	user := sandy(t)
+	store := mongosource.New(db, clock)
+	var lab models.Activity
+	for _, a := range catalogs["demo_activities"] {
+		if a.Name == "The Lighthouse Laboratory" {
+			lab = a
+		}
+	}
+	if lab.Name == "" {
+		t.Fatal("the demo catalog has no Lighthouse Laboratory")
+	}
+	body, _ := json.Marshal(map[string]any{
+		"start":      map[string]any{"name": "Seaside Market Square", "coordinate": map[string]float64{"lat": seasideMkt.Lat, "lng": seasideMkt.Lng}},
+		"end":        map[string]any{"name": "Seaside Market Square", "coordinate": map[string]float64{"lat": seasideMkt.Lat, "lng": seasideMkt.Lng}},
+		"start_time": "2026-09-26T16:00:00Z", "back_by": "2026-09-26T21:00:00Z", "date": "2026-09-26T16:00:00Z",
+		"range": "walkable", "ride": "none", "budget": 2, "who": "just_me", "pace": "balanced", "modes": []string{"walk"},
+		"tags": []string{"Outdoors"}, "mood_text": "", "must_include": []string{lab.ID.Hex()},
+	})
+	p := newPlanner(store, clock, user)
+	spec, err := planner.ParsePlanRequest(body, "America/New_York", clock.Now(), user, p.Cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch, err := p.Generate(ctx, user, spec)
+	if err != nil || len(batch.Options) == 0 {
+		t.Fatalf("generate: %v, %q", err, batch.Reason)
+	}
+	all := append([]planner.Option(nil), batch.Options...)
+	for cursor := batch.Cursor; cursor != ""; {
+		page, err := p.More(ctx, user, cursor)
+		if err != nil {
+			t.Fatal(err)
+		}
+		all = append(all, page.Options...)
+		cursor = page.Cursor
+	}
+	pool, err := store.GetPool(ctx, batch.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := travel.HaversineKm(seasideMkt, travel.Point{Lat: lab.Location.Coordinates[1], Lng: lab.Location.Coordinates[0]}); d <= pool.Spec.RadiusKm {
+		t.Fatalf("premise: the laboratory is %.1f km out, inside the %.1f km search", d, pool.Spec.RadiusKm)
+	}
+	eff := spec
+	eff.MaxLegKm, eff.Budget = pool.Window.MaxLegKm, pool.Spec.Budget
+	byID := map[string]models.Activity{}
+	for _, a := range catalogs["demo_activities"] {
+		byID[a.ID.Hex()] = a
+	}
+	lookup := func(id string) (*models.Activity, bool) {
+		a, ok := byID[id]
+		return &a, ok
+	}
+	for _, opt := range all {
+		for _, v := range planner.CheckOption(&eff, &opt, lookup) {
+			t.Errorf("%s: %s", opt.ID, v)
+		}
+	}
+	t.Logf("%d options, each with %s", len(all), lab.Name)
+}

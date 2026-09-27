@@ -1,6 +1,7 @@
 {
   "generated_by": "frontend ContractTests dump (TEST_RUNNER_SQ_DUMP_CONTRACT) via scripts/gen_contract_examples.py",
   "examples": [
+    "ActivityHits",
     "AuthResponse",
     "CalendarDays",
     "ChatThread",
@@ -33,6 +34,7 @@
     "PlanBatch.dag",
     "PlanBatch.empty",
     "PlanRequest",
+    "PlanRequest.mustInclude",
     "Preferences",
     "Rating",
     "RouteRequest",

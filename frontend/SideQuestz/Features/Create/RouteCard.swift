@@ -17,12 +17,15 @@ struct CreateRouteRow: Identifiable, Equatable {
     var isLate = false
     /// Waiting on the server's timing: legs read "Updating transit…", stop times "…".
     var isPending = false
+    /// One of the must-see picks the options were made with ("Your pick").
+    var isPick = false
 
     /// Builds the rows for an option in its current order. While the timing is stale (first load,
     /// mid-drag, or waiting for `POST /plans/route`) legs read "Updating transit…", stop times "…"
-    /// and B "Back by 6:30 PM". The stop at the result's `brokenAt` is marked late.
+    /// and B "Back by 6:30 PM". The stop at the result's `brokenAt` is marked late; stops whose
+    /// activity is in `picks` are the user's must-see picks.
     static func rows(stops: [PlanStop], state: CreateRouteState, startName: String, endName: String,
-                     startTime: Date, backBy: Date, format: TimeFormat) -> [CreateRouteRow] {
+                     startTime: Date, backBy: Date, format: TimeFormat, picks: Set<String> = []) -> [CreateRouteRow] {
         let result = state.isStale ? nil : state.result
         let brokenAt = result?.brokenAt ?? -1
         func leg(_ index: Int) -> CreateRouteRow {
@@ -46,7 +49,8 @@ struct CreateRouteRow: Identifiable, Equatable {
             let late = index == brokenAt
             let subtitle = (late ? "Late for a fixed start · " : "") + "\(time ?? "…") · \(stop.subtitle)"
             rows.append(CreateRouteRow(id: "stop-\(stop.id)", kind: .stop(number: index + 1), stopId: stop.id,
-                                       title: stop.title, subtitle: subtitle, isLate: late, isPending: time == nil))
+                                       title: stop.title, subtitle: subtitle, isLate: late, isPending: time == nil,
+                                       isPick: stop.activityId.map(picks.contains) ?? false))
         }
         rows.append(leg(stops.count))
 
@@ -92,7 +96,7 @@ struct CreateRouteCard: View {
         let stops = model.orderedStops(option)
         let rows = CreateRouteRow.rows(
             stops: stops, state: state, startName: model.start?.name ?? "Start", endName: model.endPlace?.name ?? "End",
-            startTime: model.startTime, backBy: model.backBy, format: env.format
+            startTime: model.startTime, backBy: model.backBy, format: env.format, picks: model.planPicks
         )
         VStack(alignment: .leading, spacing: 8) {
             VStack(spacing: 0) {
@@ -186,17 +190,24 @@ struct CreateRouteCard: View {
         }
     }
 
-    /// The row's title and subtitle. On a stop, press and hold for Swap / Remove (the ☰ handle
-    /// stays free for dragging).
+    /// The row's title and subtitle, and "Your pick" on a must-see pick. On a stop, press and hold
+    /// for Swap / Remove (the ☰ handle stays free for dragging).
     @ViewBuilder
     private func rowText(_ row: CreateRouteRow) -> some View {
         let text = VStack(alignment: .leading, spacing: 0) {
-            Text(row.title)
-                .sqFont(row.kind == .leg ? 13 : 16, row.kind == .leg ? .medium : .semibold)
-                .foregroundStyle(row.kind == .leg ? (row.isPending ? Theme.text3 : Theme.transitText) : Theme.ink)
-                .createLine(row.kind == .leg ? 13 : 16)
-                .sqNumeric()
-                .createPendingShimmer(row.kind == .leg && row.isPending)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(row.title)
+                    .sqFont(row.kind == .leg ? 13 : 16, row.kind == .leg ? .medium : .semibold)
+                    .foregroundStyle(row.kind == .leg ? (row.isPending ? Theme.text3 : Theme.transitText) : Theme.ink)
+                    .createLine(row.kind == .leg ? 13 : 16)
+                    .sqNumeric()
+                    .createPendingShimmer(row.kind == .leg && row.isPending)
+                if row.isPick {
+                    TagLabel(text: "Your pick", fill: Theme.sageTint, foreground: Theme.sageInk,
+                             fontSize: 11, horizontalPadding: 6, verticalPadding: 2, radius: 6)
+                        .fixedSize()
+                }
+            }
             if let subtitle = row.subtitle {
                 Text(subtitle)
                     .sqFont(12, relativeTo: .caption)

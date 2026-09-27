@@ -18,8 +18,9 @@ import (
 
 // Sentences for the planning routes' user-facing errors.
 const (
-	MsgPlanExpired = "This plan expired. Generate again."
-	MsgPlanChanged = "That plan changed. Go back and try again."
+	MsgPlanExpired  = "This plan expired. Generate again."
+	MsgPlanChanged  = "That plan changed. Go back and try again."
+	MsgTooManyPicks = "Pick up to 10 must-see spots."
 )
 
 // Service is the api.Planner seam over the planner: contract shapes and
@@ -37,9 +38,11 @@ func NewService(p *Planner) *Service { return &Service{P: p} }
 
 // Generate is POST /plans/generate. A request the planner cannot serve
 // (the window already ended, times missing) is an empty batch whose reason
-// starts with "invalid_request: ", which the app has its own sentence for.
-// The window is judged at the account's business time (a demo account's
-// demo date, pkg/democlock); pools and runs expire by the real clock.
+// starts with "invalid_request: ", which the app has its own sentence for;
+// so are must-see picks that are unavailable or don't fit (picks.go). More
+// than 10 picks is a 400. The window is judged at the account's business
+// time (a demo account's demo date, pkg/democlock); pools and runs expire
+// by the real clock.
 func (s *Service) Generate(ctx context.Context, user *models.User, req contract.PlanRequest, tz *time.Location) (contract.PlanBatch, error) {
 	now := s.now(ctx)
 	uc := UserFromModel(user, now)
@@ -49,10 +52,12 @@ func (s *Service) Generate(ctx context.Context, user *models.User, req contract.
 	}
 	spec, err := BuildSpec(RequestFromContract(req), tzName, now, uc, s.P.Cfg)
 	var invalid *RequestError
-	if errors.As(err, &invalid) {
+	switch {
+	case errors.As(err, &invalid):
 		return emptyBatch(invalid.Error()), nil
-	}
-	if err != nil {
+	case errors.Is(err, ErrTooManyPicks):
+		return contract.PlanBatch{}, httpx.BadRequest(MsgTooManyPicks)
+	case err != nil:
 		return contract.PlanBatch{}, err
 	}
 	batch, err := s.P.Generate(ctx, uc, spec)
@@ -204,6 +209,7 @@ func RequestFromContract(req contract.PlanRequest) Request {
 		Date: req.Date.UTC(), StartTime: req.StartTime.UTC(), BackBy: req.BackBy.UTC(),
 		Range: string(req.Range), Ride: string(req.Ride), OpenSeats: req.OpenSeats,
 		MoodText: req.MoodText, Tags: req.Tags, Budget: req.Budget, Who: string(req.Who), Pace: string(req.Pace),
+		MustInclude: req.MustInclude,
 	}
 	for _, m := range req.Modes {
 		r.Modes = append(r.Modes, string(m))

@@ -1,0 +1,50 @@
+[
+  {
+    "category": "trivia",
+    "distance_mi": 1.5,
+    "end": "2026-09-25T20:00:00Z",
+    "id": "act-rooftop-trivia",
+    "kind": "event",
+    "place": {
+      "coordinate": {
+        "lat": 33.7727,
+        "lng": -84.3653
+      },
+      "name": "Skyline Park rooftop"
+    },
+    "price_cents": 500,
+    "start": "2026-09-25T19:00:00Z",
+    "subtitle": "Trivia · 3:00 PM · 1.5 mi",
+    "title": "Rooftop trivia"
+  },
+  {
+    "category": "views",
+    "distance_mi": 1.5,
+    "id": "act-jackson-street-bridge",
+    "kind": "place",
+    "place": {
+      "coordinate": {
+        "lat": 33.7596,
+        "lng": -84.3721
+      },
+      "name": "Jackson Street Bridge"
+    },
+    "price_cents": 0,
+    "subtitle": "Skyline views · Free · 1.5 mi",
+    "title": "Jackson Street Bridge"
+  },
+  {
+    "category": "food",
+    "id": "act-politan-row",
+    "kind": "place",
+    "place": {
+      "coordinate": {
+        "lat": 33.787,
+        "lng": -84.3839
+      },
+      "name": "Politan Row"
+    },
+    "subtitle": "Food hall · $",
+    "title": "Politan Row"
+  }
+]

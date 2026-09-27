@@ -19,6 +19,28 @@ type PlanRequest struct {
 	Who       Visibility  `json:"who"`
 	Pace      Pace        `json:"pace"`
 	Modes     TravelModes `json:"modes"`
+	// MustInclude (additive) are the must-see picks: catalog activity ids
+	// (ActivityHit.id) every option contains; at most 10, left out when
+	// empty.
+	MustInclude []string `json:"must_include,omitempty"`
+}
+
+// ActivityHit is one result of GET /activities/search: an event or place
+// of the user's catalog that Create's must-see search offers as a pick.
+type ActivityHit struct {
+	ID       string       `json:"id"` // the catalog _id, the planner's activity_id
+	Title    string       `json:"title"`
+	Kind     PlanStopKind `json:"kind"`
+	Category string       `json:"category"`
+	// Subtitle is one display line: "Live music · 6:30 PM · 0.7 mi".
+	Subtitle string `json:"subtitle"`
+	Place    Place  `json:"place"`
+	Start    *Time  `json:"start,omitempty"` // events only
+	End      *Time  `json:"end,omitempty"`   // events only, when known
+	// PriceCents is left out when the price is unknown.
+	PriceCents *int `json:"price_cents,omitempty"`
+	// DistanceMi is from the request's near point, left out without one.
+	DistanceMi *float64 `json:"distance_mi,omitempty"`
 }
 
 type PlanStop struct {
@@ -51,7 +73,8 @@ type PlanBatch struct {
 	Cursor  *string      `json:"cursor,omitempty"`
 	Done    bool         `json:"done"`
 	// Reason is set only with empty options: no_candidates_fit_window,
-	// no_feasible_itinerary or "invalid_request: …".
+	// no_feasible_itinerary, "invalid_request: …", and for must-see picks
+	// "must_include_unavailable: <title>" or must_include_no_fit.
 	Reason *string `json:"reason,omitempty"`
 }
 

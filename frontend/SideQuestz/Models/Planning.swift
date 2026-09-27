@@ -97,9 +97,12 @@ struct PlanRequest: Codable, Hashable {
     var who: Visibility
     var pace: Pace
     var modes: Set<TravelMode>
+    /// Create › Vibe › Must-see: catalog activity ids (`ActivityHit.id`) every option must include,
+    /// in the order they were picked. Sent as `must_include`, and left out when there are none.
+    var mustInclude: [String] = []
 
     enum CodingKeys: String, CodingKey {
-        case start, end, date, startTime, backBy, range, ride, openSeats, moodText, tags, budget, who, pace, modes
+        case start, end, date, startTime, backBy, range, ride, openSeats, moodText, tags, budget, who, pace, modes, mustInclude
     }
 
     /// A set has no order: `modes` goes out sorted, so the same request always reads the same.
@@ -119,13 +122,35 @@ struct PlanRequest: Codable, Hashable {
         try c.encode(who, forKey: .who)
         try c.encode(pace, forKey: .pace)
         try c.encode(modes.sorted { $0.rawValue < $1.rawValue }, forKey: .modes)
+        if !mustInclude.isEmpty { try c.encode(mustInclude, forKey: .mustInclude) }
     }
 }
 
-/// What a stop is: an `event` has a fixed start (a show, a market opening), a `place` can be visited
-/// whenever the route gets there.
+/// What a stop (or a catalog activity) is: an `event` has a fixed start (a show, a market opening),
+/// a `place` can be visited whenever the route gets there.
 enum PlanStopKind: String, Codable {
     case event, place
+}
+
+/// Something in the user's catalog that Create › Vibe › Must-see can pick (`GET /activities/search`).
+/// Its `id` is the planner's activity id: picks go out in `PlanRequest.mustInclude` and come back
+/// as stops' `activityId`.
+struct ActivityHit: Codable, Identifiable, Hashable {
+    let id: String
+    var title: String
+    var kind: PlanStopKind
+    /// The catalog's category ("live_music"); the app shows `subtitle` instead.
+    var category: String? = nil
+    /// One short display line, made by the server: "Live music · 6:30 PM · 0.7 mi".
+    var subtitle: String = ""
+    var place: Place? = nil
+    /// Events only: when it starts, and ends when known.
+    var start: Date? = nil
+    var end: Date? = nil
+    /// nil when the price isn't known.
+    var priceCents: Int? = nil
+    /// From the plan's start; nil when the search had no `near`.
+    var distanceMi: Double? = nil
 }
 
 struct PlanStop: Codable, Identifiable, Hashable {
@@ -177,15 +202,26 @@ struct PlanAlternative: Codable, Identifiable, Hashable {
 
 /// Why a batch came back with no options (`PlanBatch.reason`, only with empty `options`). On the wire
 /// it's one string: `no_candidates_fit_window`, `no_feasible_itinerary`, `invalid_request: <detail>`,
-/// or anything else the server wants to log (`other`).
+/// `must_include_unavailable: <title>`, `must_include_no_fit`, or anything else the server wants to
+/// log (`other`).
 enum PlanEmptyReason: Hashable {
     case noCandidatesFitWindow
     case noFeasibleItinerary
     case invalidRequest(String)
+    /// A must-see pick can't be in any option: it isn't in the catalog, isn't on this date, is over,
+    /// or isn't for this account's age. The server names the first such pick ("a pick" for an id it
+    /// doesn't know).
+    case mustIncludeUnavailable(String)
+    /// The picks exist but can't all fit in this window with travel.
+    case mustIncludeNoFit
     case other(String)
 
     /// The copy when the server gave no reason.
     static let defaultMessage = "No options fit this window. Try changing filters in More options."
+
+    private static let unavailablePrefix = "must_include_unavailable"
+    /// What the server calls a pick it can't name.
+    private static let unnamedPick = "a pick"
 
     /// What Review says instead of options.
     var message: String {
@@ -193,6 +229,10 @@ enum PlanEmptyReason: Hashable {
         case .noCandidatesFitWindow: "Nothing nearby fits this window yet. Try a longer window, a wider range, or another day."
         case .noFeasibleItinerary: "We couldn't fit stops into this window. Try a wider range or a later back-by time."
         case .invalidRequest: "Check your start, end and times, then try again."
+        case .mustIncludeUnavailable(let title):
+            // "a pick" starts the sentence, so it gets a capital.
+            "\(title.isEmpty || title == Self.unnamedPick ? "A pick" : title) isn't available in this window. Remove it or pick another time."
+        case .mustIncludeNoFit: "Your must-see picks don't all fit in this window. Try a longer window or fewer picks."
         case .other: Self.defaultMessage
         }
     }
@@ -202,10 +242,14 @@ enum PlanEmptyReason: Hashable {
         switch trimmed {
         case "no_candidates_fit_window": self = .noCandidatesFitWindow
         case "no_feasible_itinerary": self = .noFeasibleItinerary
+        case "must_include_no_fit": self = .mustIncludeNoFit
         default:
             if trimmed.hasPrefix("invalid_request") {
                 let detail = trimmed.dropFirst("invalid_request".count).trimmingCharacters(in: CharacterSet(charactersIn: ": "))
                 self = .invalidRequest(detail)
+            } else if trimmed == Self.unavailablePrefix || trimmed.hasPrefix(Self.unavailablePrefix + ":") {
+                // Only the colon after the code goes: a title keeps its own punctuation.
+                self = .mustIncludeUnavailable(trimmed.dropFirst(Self.unavailablePrefix.count + 1).trimmingCharacters(in: .whitespaces))
             } else {
                 self = .other(trimmed)
             }
@@ -217,6 +261,8 @@ enum PlanEmptyReason: Hashable {
         case .noCandidatesFitWindow: "no_candidates_fit_window"
         case .noFeasibleItinerary: "no_feasible_itinerary"
         case .invalidRequest(let detail): detail.isEmpty ? "invalid_request" : "invalid_request: \(detail)"
+        case .mustIncludeUnavailable(let title): title.isEmpty ? Self.unavailablePrefix : "\(Self.unavailablePrefix): \(title)"
+        case .mustIncludeNoFit: "must_include_no_fit"
         case .other(let raw): raw
         }
     }

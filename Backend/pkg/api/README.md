@@ -125,7 +125,11 @@ vectors through the ML client, knobs from `PLANNER_*`. If it cannot start, `main
 and `pkg/api/planning` answers 503 "Planning is warming up." Only `pkg/contract` fields go out: options
 carry `late_flag` and `total_cost_cents` (sum of the known prices), stops `arrive_time`, `depart_time`,
 `kind`, `flexible`, `activity_id`. An empty batch is a 200 with `reason` (`no_candidates_fit_window`,
-`no_feasible_itinerary`, `invalid_request: …`). `broken_at` is the first stop that no longer works (a fixed
+`no_feasible_itinerary`, `invalid_request: …`, and for the must-see picks of `must_include`
+`must_include_unavailable: <title>` or `must_include_no_fit`; more than 10 picks is a 400).
+`GET /activities/search` (`pkg/api/itineraries`, the must-see search) reads the caller's catalog with
+`Store.Catalog().SearchActivities` and leaves what can be a pick, and the order, to `planner.ActivityHits`
+(docs/PLANNER.md, Must-see picks). `broken_at` is the first stop that no longer works (a fixed
 start reached late, or a place outside its hours) and `minutes_late` counts both. Expired or other users'
 plans are 404 "This plan expired. Generate again."; stop ids the plan does not know are 400 "That plan
 changed. Go back and try again." Ids: option `<runId>-<n>`, stop `stop_<activityId>_<i>` or

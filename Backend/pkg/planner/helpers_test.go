@@ -205,6 +205,7 @@ type reqOpts struct {
 	tags         []string
 	pace, who    string
 	modes        []string
+	picks        []string // must_include
 }
 
 // defaultReq is the Saltlight Saturday evening, walking, $$.
@@ -237,6 +238,9 @@ func appRequestJSON(o reqOpts) []byte {
 	}
 	if o.modes == nil {
 		body["modes"] = []string{}
+	}
+	if len(o.picks) > 0 {
+		body["must_include"] = o.picks
 	}
 	b, _ := json.Marshal(body)
 	return b

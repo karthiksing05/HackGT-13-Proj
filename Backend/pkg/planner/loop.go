@@ -44,6 +44,14 @@ type Run struct {
 	// out of the pool for the whole run, expansions included.
 	Dropped map[string]bool
 
+	// Picks are the must-see picks (picks.go), in request order: in the
+	// pool whatever retrieval, the shortlist or the classifier say, and
+	// required visits of every solve.
+	Picks    []*Candidate
+	picks    map[string]bool
+	pickCost int64                 // what the solver counts them as costing
+	pickOnly []itinerary.Itinerary // plans of the picks alone (picksFit)
+
 	ladder        int  // few_plans relax steps taken
 	facetsDropped bool // soft mood facets removed
 	rejected      int  // rendered options that failed CheckOption
@@ -101,7 +109,8 @@ func minFloat(a, b float64) float64 {
 }
 
 // utilityFn is the solver's utility hook: the candidate's raw score plus
-// facet boosts (capped), read from the pool without touching activities.
+// facet boosts (capped), read from the pool without touching activities;
+// a pick counts at least as an unscored stop (pickScore).
 func (r *Run) utilityFn() func(a *models.Activity) float64 {
 	pool, boosts, facets, def := r.Pool, r.Boosts, r.Spec.Facets, r.Cfg.Itinerary.DefaultUtility
 	return func(a *models.Activity) float64 {
@@ -119,6 +128,9 @@ func (r *Run) utilityFn() func(a *models.Activity) float64 {
 			}
 			u += minFloat(boost, 0.15)
 		}
+		if r.isPick(c.ID) {
+			u = r.pickScore(u)
+		}
 		return u
 	}
 }
@@ -126,7 +138,8 @@ func (r *Run) utilityFn() func(a *models.Activity) float64 {
 // solveRound builds nodes from the pool (capped per kind) and solves, first
 // with the stops above the bar only; weak stops (at or below it) join a
 // second solve only when the first finds less than a page of plans, so a
-// plan never takes a weak stop just because it is nearby.
+// plan never takes a weak stop just because it is nearby. The picks are
+// required visits of both solves.
 func (p *Planner) solveRound(ctx context.Context, run *Run, round int) ([]ScoredPlan, RoundLog) {
 	rl := RoundLog{Round: round, K: run.K, Mu: run.Mu, ScoreMu: run.ScoreMu, StopBonus: run.StopBonus, Boosts: copyBoosts(run.Boosts), PoolSize: run.Pool.Len(),
 		Top3: []TopLog{}, Issues: []IssueLog{}, Expansions: []ExpansionLog{}, Adapted: []string{}}
@@ -136,13 +149,14 @@ func (p *Planner) solveRound(ctx context.Context, run *Run, round int) ([]Scored
 	itCfg.Mu = run.Mu
 	itCfg.ExtraStopBonus = run.StopBonus
 	itCfg.Utility = run.utilityFn()
+	itCfg.Required = run.pickIDs()
 
 	t := p.Clock.Now()
 	acts, capped := run.solverActivities(itCfg.Utility)
 	nodes, drops := itinerary.BuildNodes(run.Window, acts, itCfg)
 	strong := make([]itinerary.Node, 0, len(nodes))
 	for _, n := range nodes {
-		if n.Utility > 0 {
+		if n.Utility > 0 || n.Required {
 			strong = append(strong, n)
 		}
 	}
@@ -181,8 +195,8 @@ func (p *Planner) solveRound(ctx context.Context, run *Run, round int) ([]Scored
 
 // solverActivities is the pool as one solve sees it: the best SolverEvents
 // event series and SolverPlaces place series by utility (ties by series
-// key), with every activity of a kept series, in pool order. It returns
-// how many activities it left out.
+// key), plus the picks' series, with every activity of a kept series, in
+// pool order. It returns how many activities it left out.
 func (r *Run) solverActivities(util func(a *models.Activity) float64) ([]models.Activity, int) {
 	acts := r.Pool.Activities()
 	type series struct {
@@ -192,9 +206,16 @@ func (r *Run) solverActivities(util func(a *models.Activity) float64) ([]models.
 	}
 	byKey := map[string]*series{}
 	keys := make([]string, len(acts))
+	keep := map[string]bool{} // the picks' series, whatever their utility
+	for _, c := range r.Picks {
+		keep[itinerary.SeriesKey(&c.Act)] = true
+	}
 	for i := range acts {
 		k := itinerary.SeriesKey(&acts[i])
 		keys[i] = k
+		if keep[k] {
+			continue
+		}
 		u := util(&acts[i])
 		if s, ok := byKey[k]; !ok {
 			byKey[k] = &series{key: k, place: acts[i].Kind == "place", best: u}
@@ -210,7 +231,6 @@ func (r *Run) solverActivities(util func(a *models.Activity) float64) ([]models.
 			events = append(events, s)
 		}
 	}
-	keep := map[string]bool{}
 	for _, part := range []struct {
 		list  []*series
 		limit int
@@ -382,7 +402,7 @@ func diagnose(run *Run) []Issue {
 	}
 	for _, s := range best.Stops {
 		c := run.Pool.Get(s.Node.Act.ID.Hex())
-		if c != nil && c.Raw() < 0.45 {
+		if c != nil && c.Raw() < 0.45 && !s.Node.Required { // a pick stays, however it scores
 			loc := s.Node.Loc
 			add(Issue{Kind: "weak_stop", StopRef: c.ID, Category: s.Node.Act.Category,
 				Slot: &TimeSlot{From: s.Node.Start.Add(-30 * time.Minute), To: s.Node.End.Add(30 * time.Minute)}, Anchor: &loc})
@@ -423,10 +443,14 @@ func diagnose(run *Run) []Issue {
 	return issues
 }
 
+// seriesSet is the plan's series other than the picks, which every plan
+// shares by design.
 func seriesSet(it itinerary.Itinerary) map[string]bool {
 	out := map[string]bool{}
 	for _, s := range it.Stops {
-		out[s.Node.SeriesKey] = true
+		if !s.Node.Required {
+			out[s.Node.SeriesKey] = true
+		}
 	}
 	return out
 }
@@ -492,7 +516,7 @@ func (r *Run) relaxLadder() string {
 			// free, whatever the user's flexibility.
 			if r.Spec.Flexible && !r.Spec.Budget.FreeOnly && r.Spec.Budget.Tier < 3 {
 				r.Spec.Budget = BudgetForLevel(r.Spec.Budget.Tier + 1)
-				r.Window.BudgetCents = r.Spec.Budget.TotalCents
+				r.Window.BudgetCents = r.windowBudget()
 				r.Relaxed = appendUnique(r.Relaxed, "budget")
 				return "budget"
 			}

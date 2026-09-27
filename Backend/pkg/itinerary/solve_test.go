@@ -8,6 +8,8 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 // checkFeasible asserts the basic promises every itinerary must keep.
@@ -212,6 +214,9 @@ func TestEvaluateFlagsLateReorder(t *testing.T) {
 
 // bruteForce enumerates every time-ordered subset of nodes, checks it with
 // the same graph edges and path rules as Solve, and returns the best utility.
+// With required visits a subset must visit every required activity, no
+// other stop may share a required visit's category, and the stop cap is at
+// least their number.
 func bruteForce(g *Graph, w Window, cfg Config) float64 {
 	n := len(g.Nodes)
 	edge := map[[2]int]*Edge{}
@@ -222,6 +227,17 @@ func bruteForce(g *Graph, w Window, cfg Config) float64 {
 		}
 	}
 	pace := cfg.Pace(w.Pace)
+	required := map[string]bool{}
+	for _, id := range cfg.Required {
+		required[id] = true
+	}
+	var requiredCats uint64
+	for _, node := range g.Nodes {
+		if required[node.Act.ID.Hex()] && node.category >= 0 {
+			requiredCats |= uint64(1) << uint(node.category)
+		}
+	}
+	maxStops := max(pace.MaxStops, len(required))
 	best := math.Inf(-1)
 	for mask := 1; mask < 1<<n; mask++ {
 		var seq []int
@@ -230,12 +246,14 @@ func bruteForce(g *Graph, w Window, cfg Config) float64 {
 				seq = append(seq, i)
 			}
 		}
-		if len(seq) > pace.MaxStops {
+		if len(seq) > maxStops {
 			continue
 		}
 		u, prev, ok := 0.0, Source, true
-		var series, cats uint64
+		var series uint64
+		cats := requiredCats
 		var cost int64
+		visited := map[string]bool{}
 		for _, j := range seq {
 			e := edge[[2]int{prev, j}]
 			node := g.Nodes[j]
@@ -245,7 +263,7 @@ func bruteForce(g *Graph, w Window, cfg Config) float64 {
 				break
 			}
 			series |= sBit
-			if node.category >= 0 {
+			if node.category >= 0 && !required[node.Act.ID.Hex()] {
 				cBit := uint64(1) << uint(node.category)
 				if cats&cBit != 0 {
 					ok = false
@@ -253,9 +271,13 @@ func bruteForce(g *Graph, w Window, cfg Config) float64 {
 				}
 				cats |= cBit
 			}
+			visited[node.Act.ID.Hex()] = true
 			cost += node.CostCents
 			u += node.Utility - e.Penalty
 			prev = j
+		}
+		for id := range required {
+			ok = ok && visited[id]
 		}
 		if !ok || (w.BudgetCents > 0 && cost > w.BudgetCents) {
 			continue
@@ -297,47 +319,92 @@ func randomInstance(r *rand.Rand, n int, constrained bool) (Window, []models.Act
 	return w, acts
 }
 
+// TestSolveMatchesBruteForce compares the DP with exhaustive search on
+// random instances, first without required visits, then with a flexible
+// place and up to two events required (Config.Required): the DP stays
+// exact without the per-path rules (even keeping one path per node and
+// set of required visits made), finds a plan exactly when one exists, and
+// every plan it returns makes every required visit.
 func TestSolveMatchesBruteForce(t *testing.T) {
-	r := rand.New(rand.NewSource(7))
-	compared, multiStop := 0, 0
-	for trial := 0; trial < 200; trial++ {
-		constrained := trial%2 == 1
-		cfg := DefaultConfig()
-		if !constrained {
-			cfg.Paces["balanced"] = PaceProfile{MaxStops: 20, MaxWait: 2 * time.Hour, LambdaWait: 0.004}
-		}
-		w, acts := randomInstance(r, 3+r.Intn(8), constrained)
-		nodes, _ := BuildNodes(w, acts, cfg)
-		g := BuildGraph(context.Background(), w, nodes, travel.Heuristic{}, cfg)
-		its := Solve(g, w, cfg)
-		want := bruteForce(g, w, cfg)
-		if math.IsInf(want, -1) {
-			if len(its) != 0 {
-				t.Fatalf("trial %d: brute force found nothing, DP found %s", trial, names(its[0]))
+	for _, tc := range []struct {
+		name     string
+		seed     int64
+		required bool
+	}{{"free", 7, false}, {"required", 11, true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := rand.New(rand.NewSource(tc.seed))
+			compared, multiStop, infeasible := 0, 0, 0
+			for trial := 0; trial < 200; trial++ {
+				constrained := trial%2 == 1
+				cfg := DefaultConfig()
+				if !constrained {
+					cfg.Paces["balanced"] = PaceProfile{MaxStops: 20, MaxWait: 2 * time.Hour, LambdaWait: 0.004}
+				}
+				if tc.required && trial%4 == 0 {
+					// One path per node and set of required visits made is
+					// still exact without the per-path rules.
+					cfg.K = 1
+				}
+				w, acts := randomInstance(r, 3+r.Intn(8), constrained)
+				required := map[bson.ObjectID]bool{}
+				if tc.required {
+					// A park open all day, visited early or late (up to three
+					// starts, each in a long and a short form), is always
+					// required, and so are up to two of the events.
+					cfg.MaxSlots = 3
+					park := place("Park", "park", offset(r.Float64()*3-1.5, r.Float64()*3-1.5), daily(0, 24), 0.9)
+					acts = append(acts, park)
+					for _, i := range append([]int{len(acts) - 1}, r.Perm(len(acts) - 1)[:r.Intn(3)]...) {
+						required[acts[i].ID] = true
+						cfg.Required = append(cfg.Required, acts[i].ID.Hex())
+					}
+				}
+				nodes, _ := BuildNodes(w, acts, cfg)
+				g := BuildGraph(context.Background(), w, nodes, travel.Heuristic{}, cfg)
+				its := Solve(g, w, cfg)
+				want := bruteForce(g, w, cfg)
+				if math.IsInf(want, -1) {
+					infeasible++
+					if len(its) != 0 {
+						t.Fatalf("trial %d: brute force found nothing, DP found %s", trial, names(its[0]))
+					}
+					continue
+				}
+				if len(its) == 0 {
+					t.Fatalf("trial %d: DP found nothing, brute force %.4f", trial, want)
+				}
+				got := its[0].Utility
+				compared++
+				if len(its[0].Stops) > 1 {
+					multiStop++
+				}
+				for _, it := range its {
+					checkFeasible(t, w, it, cfg)
+					visited := map[bson.ObjectID]bool{}
+					for _, s := range it.Stops {
+						visited[s.Node.Act.ID] = true
+					}
+					for id := range required {
+						if !visited[id] {
+							t.Fatalf("trial %d: %s skips a required visit", trial, names(it))
+						}
+					}
+				}
+				if !constrained && math.Abs(got-want) > 1e-9 {
+					t.Fatalf("trial %d (unconstrained): DP %.6f, brute force %.6f", trial, got, want)
+				}
+				if constrained && want > 0 && got < 0.98*want {
+					t.Fatalf("trial %d (constrained): DP %.6f < 98%% of %.6f", trial, got, want)
+				}
 			}
-			continue
-		}
-		if len(its) == 0 {
-			t.Fatalf("trial %d: DP found nothing, brute force %.4f", trial, want)
-		}
-		got := its[0].Utility
-		compared++
-		if len(its[0].Stops) > 1 {
-			multiStop++
-		}
-		for _, it := range its {
-			checkFeasible(t, w, it, cfg)
-		}
-		if !constrained && math.Abs(got-want) > 1e-9 {
-			t.Fatalf("trial %d (unconstrained): DP %.6f, brute force %.6f", trial, got, want)
-		}
-		if constrained && want > 0 && got < 0.98*want {
-			t.Fatalf("trial %d (constrained): DP %.6f < 98%% of %.6f", trial, got, want)
-		}
-	}
-	t.Logf("compared %d instances, %d with multi-stop optima", compared, multiStop)
-	if compared < 100 || multiStop < 50 {
-		t.Fatalf("oracle too weak: %d compared, %d multi-stop", compared, multiStop)
+			t.Logf("compared %d instances, %d with multi-stop optima, %d infeasible", compared, multiStop, infeasible)
+			if compared < 100 || multiStop < 50 {
+				t.Fatalf("oracle too weak: %d compared, %d multi-stop", compared, multiStop)
+			}
+			if tc.required && infeasible == 0 {
+				t.Fatal("no instance where the required visits could not all be made")
+			}
+		})
 	}
 }
 
