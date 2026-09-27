@@ -189,6 +189,8 @@ struct HomeDayPanel: View {
     @State private var gesture: HomeWindowGesture?
     /// Where a new window grows from: the press point, relative to the box's layout frame.
     @State private var growAnchor = UnitPoint.center
+    /// The blocks' Dynamic Type scale (their text is relative to `.body`).
+    @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
 
     /// UserDefaults key: the user has made a window by press and hold at least once.
     static let holdHintKey = "home.calendar.madeWindow"
@@ -202,6 +204,12 @@ struct HomeDayPanel: View {
 
     private static func y(minutes: Int) -> CGFloat {
         topInset + CGFloat(minutes - firstHour * 60) * hourHeight / 60
+    }
+
+    /// How many lines of "Title · time" a block this tall shows whole: 15pt lines under 4pt of
+    /// padding, inside the 1pt border. At least one (centered in the block); "…" past the last.
+    static func labelLines(height: CGFloat, textScale: CGFloat = 1) -> Int {
+        max(1, Int(((height - 5) / (15 * max(1, textScale))).rounded(.down)))
     }
 
     var body: some View {
@@ -321,31 +329,36 @@ struct HomeDayPanel: View {
         return hi > lo ? lo...hi : nil
     }
 
+    /// A calendar entry. Its "Title · time" takes the lines that fit whole (`labelLines`), ending in
+    /// "…"; a one-line block centers it. Faces show where their 20pt fit with 2pt to spare.
     private func block(_ item: CalendarItem, span: ClosedRange<Int>) -> some View {
         let palette = item.kind.palette
         let top = Self.y(minutes: span.lowerBound)
         let height = max(20, Self.y(minutes: span.upperBound) - top - 2)
         let time = env.format.range(item.start, item.end)
-        let faces = Array((item.people + item.interested).prefix(4))
+        let lines = Self.labelLines(height: height, textScale: textScale)
+        let faces = height >= 24 ? Array((item.people + item.interested).prefix(4)) : []
         let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
         return Button {
             openItem(item)
         } label: {
-            HStack(alignment: .top, spacing: 6) {
+            HStack(alignment: lines == 1 ? .center : .top, spacing: 6) {
                 Text("\(item.title) · \(time)")
                     .sqFont(12, .semibold)
                     .homeLine(12, 1.25)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .lineLimit(lines)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 if !faces.isEmpty {
                     HomeAvatarStack(people: faces, size: 20, fontSize: 8)
                 }
             }
             .foregroundStyle(palette.text)
-            // 1pt border + the prototype's 3 / 8 padding.
-            .padding(.vertical, 4)
+            // 1pt border + the prototype's 3 / 8 padding (a one-line block is centered instead).
+            .padding(.vertical, lines == 1 ? 0 : 4)
             .padding(.horizontal, 9)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .frame(height: height, alignment: .top)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: height, alignment: lines == 1 ? .center : .top)
             .background(palette.background, in: shape)
             .clipShape(shape)
             .overlay { shape.strokeBorder(palette.border, lineWidth: 1) }
