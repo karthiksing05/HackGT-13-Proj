@@ -562,7 +562,7 @@ func TestApproveRacesCancel(t *testing.T) {
 		_ = res.Body.Close()
 		return res.StatusCode
 	}
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		intent := create(t, srv, a, contract.CreateCheckoutIntent{ItemID: itemID, Quantity: 1})
 		tick(t, agent, 1)
 		var wg sync.WaitGroup

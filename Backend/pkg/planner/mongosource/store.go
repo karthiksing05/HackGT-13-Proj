@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -115,12 +116,7 @@ func wants(kinds []string, kind string) bool {
 	if len(kinds) == 0 {
 		return true
 	}
-	for _, k := range kinds {
-		if k == kind {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(kinds, kind)
 }
 
 func find(ctx context.Context, coll *mongo.Collection, filter, sort bson.D, limit int) ([]models.Activity, error) {
@@ -178,7 +174,7 @@ func placeFilter(q planner.CandidateQuery) bson.D {
 	if len(q.PlaceCategories) > 0 {
 		allowed := []string{}
 		for _, c := range q.PlaceCategories {
-			if !contains(excluded, c) {
+			if !slices.Contains(excluded, c) {
 				allowed = append(allowed, c)
 			}
 		}
@@ -513,13 +509,4 @@ func union(a, b []string) []string {
 		}
 	}
 	return out
-}
-
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }

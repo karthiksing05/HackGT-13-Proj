@@ -2,6 +2,7 @@ package planner
 
 import (
 	"Backend/pkg/models"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -77,7 +78,7 @@ func TestLoopExpandsForAnUncoveredFacet(t *testing.T) {
 	}
 	covered := false
 	for _, top := range run.Rounds[1].Top3 {
-		if containsString(top.Metrics.CoveredFacets, "Food") {
+		if slices.Contains(top.Metrics.CoveredFacets, "Food") {
 			covered = true
 		}
 	}
@@ -179,7 +180,7 @@ func TestLoopStopRules(t *testing.T) {
 			t.Fatalf("rounds %d, stops %q / %q, issues %+v / %+v", len(run.Rounds), run.Rounds[0].Stop, run.Rounds[len(run.Rounds)-1].Stop,
 				run.Rounds[0].Issues, run.Rounds[len(run.Rounds)-1].Issues)
 		}
-		if !containsString(run.Rounds[0].Adapted, "boost:Art") || len(run.Rounds[1].Adapted) != 0 {
+		if !slices.Contains(run.Rounds[0].Adapted, "boost:Art") || len(run.Rounds[1].Adapted) != 0 {
 			t.Errorf("adapted %v / %v", run.Rounds[0].Adapted, run.Rounds[1].Adapted)
 		}
 		if len(batch.Options) == 0 {
@@ -212,7 +213,7 @@ func TestRelaxLadderWhenNoItineraryFits(t *testing.T) {
 	if !hasIssue(run.Rounds[0].Issues, "no_plans", "") {
 		t.Errorf("issues %+v", run.Rounds[0].Issues)
 	}
-	if !containsString(run.Rounds[0].Adapted, "k:32,slots:18") || !containsString(run.Rounds[1].Adapted, "range") {
+	if !slices.Contains(run.Rounds[0].Adapted, "k:32,slots:18") || !slices.Contains(run.Rounds[1].Adapted, "range") {
 		t.Errorf("ladder: %v then %v", run.Rounds[0].Adapted, run.Rounds[1].Adapted)
 	}
 	if run.Rounds[1].K != 32 || run.Final.Reason != "no_feasible_itinerary" {
@@ -266,7 +267,7 @@ func TestSnappedStartIsReported(t *testing.T) {
 	o := defaultReq()
 	o.start, o.end = techSquare, techSquare // Sandy's phone is in Atlanta
 	batch, spec := tp.generate(t, sandy(), o)
-	if !spec.SnappedStart || !containsString(batch.Relaxed, "snapped_start") || len(batch.Options) == 0 {
+	if !spec.SnappedStart || !slices.Contains(batch.Relaxed, "snapped_start") || len(batch.Options) == 0 {
 		t.Errorf("snapped=%v relaxed=%v options=%d", spec.SnappedStart, batch.Relaxed, len(batch.Options))
 	}
 }

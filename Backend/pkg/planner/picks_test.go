@@ -232,7 +232,7 @@ func TestMustIncludeLimitAndDuplicates(t *testing.T) {
 	tp := newTestPlanner(saltlight(t), testConfig())
 	svc := NewService(tp.Planner)
 	req := appPlanRequest(t, defaultReq())
-	for i := 0; i < 11; i++ {
+	for i := range 11 {
 		req.MustInclude = append(req.MustInclude, fmt.Sprintf("%024x", i+1))
 	}
 	_, err := svc.Generate(t.Context(), sandyModel(), req, ny)

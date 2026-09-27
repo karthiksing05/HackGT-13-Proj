@@ -2,6 +2,7 @@ package planner
 
 import (
 	"Backend/pkg/models"
+	"slices"
 	"testing"
 	"time"
 )
@@ -164,7 +165,7 @@ func TestUnderPaceRaisesTheStopBonus(t *testing.T) {
 	if len(run.Rounds) < 2 || !hasIssue(run.Rounds[0].Issues, "under_pace", "") {
 		t.Fatalf("rounds %d, issues %+v", len(run.Rounds), run.Rounds[0].Issues)
 	}
-	if !containsString(run.Rounds[0].Adapted, "stop_bonus:0.05") || run.Rounds[1].StopBonus != cfg.UnderPaceBonus {
+	if !slices.Contains(run.Rounds[0].Adapted, "stop_bonus:0.05") || run.Rounds[1].StopBonus != cfg.UnderPaceBonus {
 		t.Errorf("adapted %v, round 1 bonus %v", run.Rounds[0].Adapted, run.Rounds[1].StopBonus)
 	}
 }

@@ -3,6 +3,7 @@ package store
 import (
 	"Backend/pkg/models"
 	"context"
+	"maps"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -91,9 +92,7 @@ func (st ItemStates) SetTransitMode(ctx context.Context, userID, itemID, itinera
 
 func (st ItemStates) upsert(ctx context.Context, userID, itemID, itineraryID string, set, unset bson.M) error {
 	fields := bson.M{"itineraryId": itineraryID, "updatedAt": st.s.Now()}
-	for k, v := range set {
-		fields[k] = v
-	}
+	maps.Copy(fields, set)
 	update := bson.M{
 		"$set":         fields,
 		"$setOnInsert": bson.M{"_id": models.PairID(userID, itemID)},

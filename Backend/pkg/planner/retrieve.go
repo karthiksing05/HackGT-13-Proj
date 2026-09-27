@@ -6,6 +6,7 @@ import (
 	"Backend/pkg/travel"
 	"context"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -55,7 +56,7 @@ func baseQuery(spec *PlanSpec, cfg Config, radiusKm float64) CandidateQuery {
 func placeCategoriesMinus(excluded []string) []string {
 	var out []string
 	for _, c := range itinerary.PlaceCategories() {
-		if !containsString(excluded, c) {
+		if !slices.Contains(excluded, c) {
 			out = append(out, c)
 		}
 	}
@@ -99,7 +100,7 @@ func Feasible(spec *PlanSpec, q *CandidateQuery, itCfg itinerary.Config, acts []
 			drop("age_gate")
 			continue
 		}
-		if spec.Hard.excludesCategory(a.Category) || containsString(q.ExcludeCategories, a.Category) {
+		if spec.Hard.excludesCategory(a.Category) || slices.Contains(q.ExcludeCategories, a.Category) {
 			drop("excluded_category")
 			continue
 		}
@@ -136,7 +137,7 @@ func Feasible(spec *PlanSpec, q *CandidateQuery, itCfg itinerary.Config, acts []
 
 func tagsIntersect(tags, list []string) bool {
 	for _, t := range tags {
-		if containsString(list, t) {
+		if slices.Contains(list, t) {
 			return true
 		}
 	}

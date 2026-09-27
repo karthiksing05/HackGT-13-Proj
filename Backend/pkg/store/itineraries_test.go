@@ -30,7 +30,7 @@ func TestItinerariesMembership(t *testing.T) {
 	if doc.ID == "" || doc.Status != models.ItineraryActive || len(doc.MemberIDs) != 1 || doc.MemberIDs[0] != "host" || !doc.CreatedAt.Equal(testNow) {
 		t.Fatalf("Insert: %+v", doc)
 	}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		got, err := its.AddMember(ctx, doc.ID, "guest")
 		if err != nil || len(got.MemberIDs) != 2 || got.MemberIDs[1] != "guest" {
 			t.Fatalf("AddMember #%d: %v %v", i+1, err, got)

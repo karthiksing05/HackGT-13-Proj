@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 )
@@ -80,7 +81,7 @@ func (c *Client) Embed(ctx context.Context, texts []string, kind EmbedKind) (*Em
 		out.Vectors = append(out.Vectors, resp.Embeddings...)
 		out.Model, out.Dim = resp.Model, resp.Dim
 		out.Cached += resp.Cached
-		if !containsString(providers, resp.Provider) {
+		if !slices.Contains(providers, resp.Provider) {
 			providers = append(providers, resp.Provider)
 		}
 	}
@@ -139,13 +140,4 @@ func clipText(s string, maxChars int) string {
 		return s
 	}
 	return string(runes[:maxChars])
-}
-
-func containsString(list []string, s string) bool {
-	for _, x := range list {
-		if x == s {
-			return true
-		}
-	}
-	return false
 }

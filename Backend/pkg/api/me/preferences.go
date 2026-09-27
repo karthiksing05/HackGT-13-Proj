@@ -6,6 +6,7 @@ import (
 	"Backend/pkg/httpx"
 	"Backend/pkg/models"
 	"context"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -99,12 +100,8 @@ func preferencesView(p models.UserPrefs) contract.Preferences {
 		InstantCheckout:           p.InstantCheckout,
 		InstantCheckoutLimitCents: p.InstantCheckoutLimitCents,
 	}
-	for k, v := range p.Ratings {
-		out.Ratings[k] = v
-	}
-	for k, v := range p.Answers {
-		out.Answers[k] = v
-	}
+	maps.Copy(out.Ratings, p.Ratings)
+	maps.Copy(out.Answers, p.Answers)
 	return out
 }
 
@@ -135,9 +132,7 @@ func cleanAnswers(in contract.Answers) (map[string]string, string) {
 // prefsDoc is the stored shape of validated preferences.
 func prefsDoc(p contract.Preferences, answers map[string]string) models.UserPrefs {
 	ratings := make(map[string]int, len(p.Ratings))
-	for k, v := range p.Ratings {
-		ratings[k] = v
-	}
+	maps.Copy(ratings, p.Ratings)
 	return models.UserPrefs{
 		Ratings:                   ratings,
 		Company:                   string(p.Company),

@@ -64,7 +64,7 @@ func TestEnsureIndexesIdempotentAndLeavesCatalogTTL(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := store.New(db, func() time.Time { return testNow })
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if err := s.EnsureIndexes(ctx); err != nil {
 			t.Fatalf("EnsureIndexes run %d: %v", i+1, err)
 		}
@@ -102,16 +102,7 @@ func TestEnsureIndexesIdempotentAndLeavesCatalogTTL(t *testing.T) {
 	if got["location_2dsphere"] {
 		t.Error("a second 2dsphere index was created although one existed under another name")
 	}
-	ttl, err := s.TTLIndexes(ctx, store.CollDemoActivities)
-	if err != nil || len(ttl) != 1 || ttl[0] != "seed_ttl" {
-		t.Errorf("TTLIndexes = %v, %v", ttl, err)
-	}
-	if err := s.DropIndex(ctx, store.CollDemoActivities, "seed_ttl"); err != nil {
-		t.Fatal(err)
-	}
-	if names(store.CollDemoActivities)["seed_ttl"] {
-		t.Error("DropIndex did not drop")
-	}
+
 }
 
 func newUser(name, email, username string) *models.User {

@@ -59,7 +59,7 @@ func TestHealthRemembersFailuresBriefly(t *testing.T) {
 	f.reply("/healthz", http.StatusInternalServerError, map[string]any{"detail": "boom"})
 	clk := newClock()
 	c := f.client(func(o *ml.Options) { o.Now = clk.Now })
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		if _, err := c.Health(context.Background()); err == nil {
 			t.Fatal("expected an error")
 		}

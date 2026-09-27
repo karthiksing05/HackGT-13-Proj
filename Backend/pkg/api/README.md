@@ -102,8 +102,7 @@ with a `*Store` inside). Add yours in your own file: `type Itineraries struct{ s
 (`users_prefs.go`: `func (u Users) SavePrefs(…)`). Use `s.BusinessNow(ctx)` or `s.Now()` for timestamps ([two
 clocks](#two-clocks)), `store.NewID()` for
 `_id`s, return the sentinels (wrap with `%w`), never `_ =` a write (a test greps for it). Indexes: add
-rows to `appIndexes` only through the foundation agent; `EnsureIndexes` runs at startup and in
-`sidequestz-admin ensure-indexes`. Users: `ByID`, `ByIDs` (map), `ByEmail`, `ByUsername`,
+rows to `appIndexes` only through the foundation agent; `EnsureIndexes` runs at startup. Users: `ByID`, `ByIDs` (map), `ByEmail`, `ByUsername`,
 `Search(q, excludeID, limit)`, `Update(id, bson.M)`, `Unset`, `SetPassword`, `SetPhoto`, `Touch`.
 WebSessions: `Create(userID, purpose, provider, ttl)` / `Insert(sess, ttl)` (extra fields), `Peek`,
 `Consume(token, purpose)` (single use). Photos: `Put`, `Get`, `Delete`, `ListForGroup` (no bytes),
@@ -158,11 +157,7 @@ failing ML service does not fail the request.
 
 ## Indexes and collections for new files
 
-`appIndexes` and `AppCollections` in `store.go` are package-level slices: a new collection's store file
-registers its own indexes (and adds itself to what `reset-app-data` drops) from an `init()` in that file,
-e.g. `func init() { appIndexes = append(appIndexes, indexSpec{coll: collPlanTogether, keys: bson.D{{Key:
-"postId", Value: 1}, {Key: "userId", Value: 1}}, name: "postId_userId_unique", unique: true});
-AppCollections = append(AppCollections, collPlanTogether) }`. Never edit `store.go` itself.
+Register a new collection's indexes in `appIndexes` in `store.go`. The server creates them at startup.
 
 ## Tests
 
@@ -170,7 +165,7 @@ AppCollections = append(AppCollections, collPlanTogether) }`. Never edit `store.
 srv := testutil.New(t)                                   // fresh DB, router, Recorder, frozen clock
 a := srv.Signup(t, "Alice")                              // *Session: UserID, Access, Refresh, Email, Password, User
 res := srv.Do(t, "POST", "/itineraries", body, a).Expect(t, 201); res.JSON(t, &out)  // X-Time-Zone always set
-srv.WaitEvent(t, a.UserID, realtime.EventItineraryUpdated, time.Second); srv.Events.For(a.UserID)
+events := srv.Events.For(a.UserID)                        // recorded events addressed to Alice (including broadcasts)
 srv.Clock.Set(testutil.Fixed) / Advance(d)               // keep pinned times near the present: TTL indexes use the wall clock
 conn, _, _ := srv.Dial(t, a.Access, false); testutil.ExpectEvent(t, conn, "connected", time.Second)
 ```
@@ -183,7 +178,7 @@ cross-user cases to `scopes` in `pkg/api/scoping_test.go`.
 
 `d.Cfg` (`pkg/config`): `PublicBaseURL`, `JWTSecret`, token TTLs, `MLServiceURL` + `ML*` timeouts,
 `Planner`, `FB*`, `Demo*` (`DemoDate`: `DEMO_DATE`, `Cfg.DemoClock()`), `DevResetCodes`, `CheckoutStepDelay` (0 in tests), `TrustProxy`,
-`MaxPhotoBytes`, `MaxJSONBytes`, `DisableRateLimits`. `sidequestz-admin --env-file` reads the same names.
+`MaxPhotoBytes`, `MaxJSONBytes`, `DisableRateLimits`.
 
 ## Activity collections
 
@@ -195,6 +190,4 @@ back to it, change `DefaultCatalog`. Emails and legacy `users.catalog` values do
 collection. Search, planning, ratings, profiles, and itinerary enrichment all go through `CatalogFor`,
 and each catalog is one city (`pitch_activities` and `activities`: Atlanta).
 
-`seed-demo` uses `demo@sidequestz.tech` (the app's "Use the demo account") and the bots
-`marin@bots.sidequestz.tech` and `theo@bots.sidequestz.tech`.
 The e2e demo login defaults to `demo@sidequestz.tech` (`E2E_DEMO_EMAIL` can override it).

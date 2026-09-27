@@ -69,13 +69,15 @@ func DayLabel(t, now time.Time) string {
 
 // Dollars is "$9", "$9.50" or "-$4" for negative amounts.
 func Dollars(cents int) string {
+	return strings.TrimSuffix(DollarsFixed(cents), ".00")
+}
+
+// DollarsFixed always shows cents: "$9.00", "$9.50" or "-$4.00".
+func DollarsFixed(cents int) string {
 	sign := ""
 	if cents < 0 {
 		sign = "-"
 		cents = -cents
-	}
-	if cents%100 == 0 {
-		return fmt.Sprintf("%s$%d", sign, cents/100)
 	}
 	return fmt.Sprintf("%s$%d.%02d", sign, cents/100, cents%100)
 }

@@ -75,4 +75,4 @@ echo "==> copying freetime.demo_activities from ${SERVER_USER}@${DEPLOY_HOST} to
 ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "${SERVER_USER}@${DEPLOY_HOST}" \
   "mongodump --quiet --db freetime --collection demo_activities --archive --gzip" < /dev/null | restore
 echo "==> ${DB}.demo_activities: $(count)"
-echo "    indexes: run 'sidequestz-admin ensure-indexes' (or start the API) against that database to add the catalog indexes"
+echo "    indexes: start the API against that database to add the catalog indexes"

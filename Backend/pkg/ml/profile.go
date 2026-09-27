@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -358,7 +359,7 @@ func snakeCase(s string) string {
 // oneOf returns the normalized value when it is allowed, else "" (omitted on the wire).
 func oneOf(value string, allowed []string) string {
 	v := strings.ToLower(strings.TrimSpace(value))
-	if containsString(allowed, v) {
+	if slices.Contains(allowed, v) {
 		return v
 	}
 	return ""

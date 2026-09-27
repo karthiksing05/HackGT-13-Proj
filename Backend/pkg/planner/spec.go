@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 	_ "time/tzdata" // the VPS may not ship zoneinfo
@@ -335,8 +336,8 @@ func BuildSpec(req Request, tzHeader string, now time.Time, user *UserContext, c
 	spec.AvoidTags = uniqueStrings(lowerAll(trimAll(user.Prefs.AvoidTags)))
 	spec.Hard.ExcludeTags = uniqueStrings(append(spec.Hard.ExcludeTags, spec.AvoidTags...))
 	spec.Hard.ExcludeCategories = uniqueStrings(append(spec.Hard.ExcludeCategories, spec.AvoidTags...))
-	sortStrings(spec.Hard.ExcludeTags)
-	sortStrings(spec.Hard.ExcludeCategories)
+	slices.Sort(spec.Hard.ExcludeTags)
+	slices.Sort(spec.Hard.ExcludeCategories)
 	spec.AgeBracket = NormalizeAgeBracket(user.AgeBracket)
 	spec.Flexible = user.Prefs.Flexible
 	return spec, nil

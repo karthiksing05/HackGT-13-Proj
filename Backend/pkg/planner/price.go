@@ -5,6 +5,7 @@ import (
 	"Backend/pkg/models"
 	"math"
 	"regexp"
+	"slices"
 )
 
 // A missing price is unknown, never free. The ingested documents carry
@@ -108,7 +109,7 @@ func FreeIfUnknownCategories() []string {
 	for c := range freeIfUnknownCategories {
 		out = append(out, c)
 	}
-	sortStrings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -169,11 +170,11 @@ func AgeRulesFor(bracket string) AgeRules {
 
 // Blocks reports whether the bracket may not see the activity.
 func (r AgeRules) Blocks(a *models.Activity) bool {
-	if containsString(r.ExcludeCategories, a.Category) {
+	if slices.Contains(r.ExcludeCategories, a.Category) {
 		return true
 	}
 	for _, t := range a.Tags {
-		if containsString(r.ExcludeTags, t) {
+		if slices.Contains(r.ExcludeTags, t) {
 			return true
 		}
 	}

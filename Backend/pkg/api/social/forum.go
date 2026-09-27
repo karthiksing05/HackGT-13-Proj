@@ -12,6 +12,7 @@ import (
 	"errors"
 	"math"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -69,10 +70,8 @@ func parseForumQuery(r *http.Request, viewer *models.User) (forumQuery, error) {
 		if val == "" {
 			return "", true
 		}
-		for _, a := range allowed {
-			if val == a {
-				return val, true
-			}
+		if slices.Contains(allowed, val) {
+			return val, true
 		}
 		return "", false
 	}
@@ -161,7 +160,7 @@ func parseForumQuery(r *http.Request, viewer *models.User) (forumQuery, error) {
 
 func splitList(s string) []string {
 	var out []string
-	for _, part := range strings.Split(s, ",") {
+	for part := range strings.SplitSeq(s, ",") {
 		if part = strings.TrimSpace(part); part != "" {
 			out = append(out, part)
 		}

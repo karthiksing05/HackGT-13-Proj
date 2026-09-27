@@ -37,7 +37,7 @@ func (i Invites) Live(ctx context.Context, userID string, now time.Time) (*model
 // Create issues a new code for the user valid for ttl.
 func (i Invites) Create(ctx context.Context, userID string, ttl time.Duration) (*models.Invite, error) {
 	now := i.s.Now()
-	for attempt := 0; attempt < 5; attempt++ {
+	for range 5 {
 		inv := &models.Invite{Code: NewInviteCode(), UserID: userID, ExpiresAt: now.Add(ttl), CreatedAt: now}
 		_, err := i.coll().InsertOne(ctx, inv)
 		if err == nil {

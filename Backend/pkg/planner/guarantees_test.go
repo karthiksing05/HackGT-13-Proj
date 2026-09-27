@@ -5,6 +5,7 @@ import (
 	"Backend/pkg/travel"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"strings"
 	"testing"
 	"time"
@@ -166,9 +167,7 @@ func TestGuaranteeChecklistCatchesViolations(t *testing.T) {
 	}
 	cloneCatalog := func() map[string]models.Activity {
 		out := map[string]models.Activity{}
-		for k, v := range catalog {
-			out[k] = v
-		}
+		maps.Copy(out, catalog)
 		return out
 	}
 	s0, s1 := base.Stops[0], base.Stops[1]

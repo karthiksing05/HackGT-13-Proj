@@ -2,6 +2,7 @@ package agent
 
 import (
 	"Backend/pkg/contract"
+	"Backend/pkg/httpx"
 	"Backend/pkg/models"
 	"Backend/pkg/payments"
 	"Backend/pkg/realtime"
@@ -145,7 +146,7 @@ func (st *runState) getOffer(ctx context.Context, itemID string) map[string]any 
 		return map[string]any{"error": "merchant_unavailable"}
 	}
 	st.quotes[itemID] = q
-	st.setQuote(ctx, intent, q, fmt.Sprintf("Found %d %s · %s with fees", q.Quantity, plural(q.Quantity, "ticket"), money(q.TotalCents)))
+	st.setQuote(ctx, intent, q, fmt.Sprintf("Found %d %s · %s with fees", q.Quantity, plural(q.Quantity, "ticket"), httpx.DollarsFixed(q.TotalCents)))
 	return map[string]any{
 		"quote_id": q.QuoteID, "quantity": q.Quantity, "currency": q.Currency, "unit_cents": q.UnitCents,
 		"fees_cents": q.FeesCents, "total_cents": q.TotalCents, "available": q.Available,
@@ -174,7 +175,7 @@ func (st *runState) buyTickets(ctx context.Context, itemID, quoteID string) map[
 	}
 	if !reserved {
 		left := st.remaining(ctx)
-		st.fail(ctx, intent, models.FailureOverBudget, fmt.Sprintf("%s is more than the %s left in your budget.", money(q.TotalCents), money(max(left, 0))))
+		st.fail(ctx, intent, models.FailureOverBudget, fmt.Sprintf("%s is more than the %s left in your budget.", httpx.DollarsFixed(q.TotalCents), httpx.DollarsFixed(max(left, 0))))
 		return map[string]any{"error": "over_budget", "remaining_budget_cents": left}
 	}
 	release := func() { _ = runs.Release(context.WithoutCancel(ctx), st.run.ID, q.TotalCents) }
@@ -193,7 +194,7 @@ func (st *runState) buyTickets(ctx context.Context, itemID, quoteID string) map[
 		return map[string]any{"error": "payment_unavailable"}
 	}
 	limit := q.TotalCents
-	st.update(ctx, intent, bson.M{"maxAuthorizedCents": limit}, fmt.Sprintf("Paying with a Stripe token limited to %s", money(limit)), true)
+	st.update(ctx, intent, bson.M{"maxAuthorizedCents": limit}, fmt.Sprintf("Paying with a Stripe token limited to %s", httpx.DollarsFixed(limit)), true)
 
 	var order OrderRequest
 	order.QuoteID, order.Quantity, order.ExpectedTotalCents = q.QuoteID, intent.Quantity, q.TotalCents
@@ -228,7 +229,7 @@ func (st *runState) orderFailed(ctx context.Context, intent *models.CheckoutInte
 		q.QuoteID, q.TotalCents = merr.QuoteID, merr.TotalCents
 		q.FeesCents = q.TotalCents - q.SubtotalCents
 		st.quotes[intent.ItemID] = &q
-		st.setQuote(ctx, intent, &q, "The price changed to "+money(q.TotalCents))
+		st.setQuote(ctx, intent, &q, "The price changed to "+httpx.DollarsFixed(q.TotalCents))
 		return map[string]any{"error": "price_changed", "quote_id": q.QuoteID, "total_cents": q.TotalCents, "remaining_budget_cents": st.remaining(ctx)}
 	case "sold_out":
 		st.fail(ctx, intent, models.FailureSoldOut, "Sold out on "+intent.Merchant+".")
@@ -399,7 +400,7 @@ func Summary(budgetCents int, intents []*models.CheckoutIntent) string {
 				total = *in.FinalCents
 			}
 			spent += total
-			booked = append(booked, fmt.Sprintf("%s (%d %s, %s, %s)", in.ItemTitle, in.Quantity, plural(in.Quantity, "ticket"), money(total), in.Confirmation))
+			booked = append(booked, fmt.Sprintf("%s (%d %s, %s, %s)", in.ItemTitle, in.Quantity, plural(in.Quantity, "ticket"), httpx.DollarsFixed(total), in.Confirmation))
 		default:
 			why := "not bought"
 			switch in.FailureCode {
@@ -427,7 +428,7 @@ func Summary(budgetCents int, intents []*models.CheckoutIntent) string {
 	if len(missed) > 0 {
 		parts = append(parts, strings.Join(missed, "; ")+".")
 	}
-	parts = append(parts, fmt.Sprintf("Spent %s of your %s budget (sandbox: nothing was charged).", money(spent), money(budgetCents)))
+	parts = append(parts, fmt.Sprintf("Spent %s of your %s budget (sandbox: nothing was charged).", httpx.DollarsFixed(spent), httpx.DollarsFixed(budgetCents)))
 	return strings.Join(parts, " ")
 }
 

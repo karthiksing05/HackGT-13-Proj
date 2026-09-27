@@ -29,7 +29,7 @@ func TestEnsureDMIsOnePerPairUnderRace(t *testing.T) {
 	var mu sync.Mutex
 	ids := map[string]bool{}
 	created := 0
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -67,7 +67,7 @@ func TestOneFreePostPerAuthor(t *testing.T) {
 	s, now := liveStore(t)
 	ctx := context.Background()
 	var wg sync.WaitGroup
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -135,7 +135,7 @@ func TestAddMemberGuards(t *testing.T) {
 func TestInviteCodes(t *testing.T) {
 	code := regexp.MustCompile(`^[0-9ABCDEFGHJKMNPQRSTVWXYZ]{8}$`)
 	seen := map[string]bool{}
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		c := store.NewInviteCode()
 		if !code.MatchString(c) {
 			t.Fatalf("code %q", c)

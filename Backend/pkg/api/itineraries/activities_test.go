@@ -45,7 +45,7 @@ func seedHits(t *testing.T, srv *testutil.Server, coll, city string, docs []hitD
 			start, end := d.start.UTC(), d.end.UTC()
 			doc.Start, doc.End, doc.Attendance = &start, &end, str("fixed_start")
 		} else {
-			for day := 0; day < 7; day++ {
+			for day := range 7 {
 				doc.WeeklyHours = append(doc.WeeklyHours, models.WeeklyHourRange{Open: day*1440 + d.open*60, Close: day*1440 + d.close*60})
 			}
 		}

@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -72,9 +73,7 @@ func (m *fakeMerchant) CheckAndRecordNonce(nonce string, _ time.Time) error {
 
 func (m *fakeMerchant) fail(w http.ResponseWriter, status int, code string, extra map[string]any) {
 	body := map[string]any{"code": code, "message": code}
-	for k, v := range extra {
-		body[k] = v
-	}
+	maps.Copy(body, extra)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)

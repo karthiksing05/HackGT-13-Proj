@@ -5,6 +5,7 @@ import (
 	"Backend/pkg/travel"
 	"errors"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -22,7 +23,7 @@ func TestFeasibleDropsEachViolatorWithItsReason(t *testing.T) {
 	o := defaultReq()
 	o.mood = "no museums, no sports"
 	spec := tp.spec(t, sandy(), o)
-	if !containsString(spec.Hard.ExcludeCategories, "gallery") || !containsString(spec.Hard.ExcludeTags, "art") {
+	if !slices.Contains(spec.Hard.ExcludeCategories, "gallery") || !slices.Contains(spec.Hard.ExcludeTags, "art") {
 		t.Fatalf("mood did not exclude art: %+v", spec.Hard)
 	}
 	near := offsetKm(seasideMkt, 0.5, 0)
@@ -177,7 +178,7 @@ func TestShortlistQuotasAndCaps(t *testing.T) {
 	q := vectorOf("outdoor", "cat:park")
 	var cands []*Candidate
 	add := func(n int, kind, cat string, vec []float64, tags []string) {
-		for i := 0; i < n; i++ {
+		for range n {
 			a := synthPlace("x", cat, seasideMkt, nil, tags, nil)
 			a.Kind = kind
 			a.Embedding = vec
@@ -402,7 +403,7 @@ func TestDroppedIDsAreNotReappended(t *testing.T) {
 	}
 	for _, q := range tp.source.Calls[1:] {
 		if len(q.IncludeCategories)+len(q.AnyTags) > 0 || q.From != tp.source.Calls[0].From {
-			if !containsString(q.ExcludeIDs, victim) {
+			if !slices.Contains(q.ExcludeIDs, victim) {
 				t.Error("an expansion query could bring the dropped id back")
 			}
 		}

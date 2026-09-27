@@ -54,6 +54,14 @@ func NewStore(ctx context.Context, cfg *config.Config) (Store, error) {
 				if err := mStore.EnsureIndexesAndSeed(ctx); err != nil {
 					log.Warn().Err(err).Msg("failed to seed mongo; falling back to memory store")
 				} else {
+					if cfg.CatalogCollection != "" {
+						src := CatalogSource{DB: cfg.CatalogDB, Collection: cfg.CatalogCollection}
+						if n, err := mStore.SeedFromCatalog(ctx, src); err != nil {
+							log.Warn().Err(err).Msg("seeding listings from the catalog failed")
+						} else {
+							log.Info().Int("listings", n).Str("catalog", src.DB+"."+src.Collection).Msg("Seeded catalog listings")
+						}
+					}
 					return mStore, nil
 				}
 			} else {

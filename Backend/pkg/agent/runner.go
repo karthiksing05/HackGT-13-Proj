@@ -24,7 +24,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -198,13 +197,4 @@ func errorText(err error) string {
 		s = s[:200]
 	}
 	return s
-}
-
-// money is "$26.92".
-func money(cents int) string {
-	sign := ""
-	if cents < 0 {
-		sign, cents = "-", -cents
-	}
-	return fmt.Sprintf("%s$%d.%02d", sign, cents/100, cents%100)
 }

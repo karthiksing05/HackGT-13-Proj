@@ -50,7 +50,7 @@ func OpenIntervals(hours []models.WeeklyHourRange, category string, loc *time.Lo
 		if !ok {
 			return nil, false
 		}
-		for day := 0; day < 7; day++ {
+		for day := range 7 {
 			hours = append(hours, models.WeeklyHourRange{
 				Open:  day*24*60 + daily[0],
 				Close: day*24*60 + daily[1],

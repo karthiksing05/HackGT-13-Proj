@@ -84,7 +84,7 @@ func TestTimedEntrySlotsShareASeries(t *testing.T) {
 	cfg := DefaultConfig()
 	w := window(at(12, 0), at(22, 0))
 	var acts []models.Activity
-	for m := 0; m < 4; m++ {
+	for m := range 4 {
 		a := withEnd(event("Balloon Museum", techSquare, at(13, m*15), 15, 0.9), at(13, m*15+15))
 		a.VenueName = str("Balloon Museum NYC")
 		acts = append(acts, a)

@@ -7,7 +7,9 @@
 
 Links with a scheme (http, https, mailto, ...) are skipped. `path#anchor` links into a
 Markdown file also check that the heading exists (GitHub's slug rules). Fenced code blocks
-and inline code are ignored. Exit status is 1 when anything is broken. Standard library only.
+and inline code are ignored. Submodules and other nested repositories (e.g. HEARSAY/) are
+skipped unless named: their docs belong to their own repository. Exit status is 1 when anything is
+broken. Standard library only.
 """
 
 from __future__ import annotations
@@ -42,7 +44,8 @@ def markdown_files(paths: list[Path]) -> list[Path]:
                 files.append(p)
             continue
         for root, dirs, names in os.walk(p):
-            dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+            # a .git file or directory marks a submodule or a nested repository
+            dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not (Path(root) / d / ".git").exists())
             files.extend(Path(root) / n for n in sorted(names) if n.lower().endswith(".md"))
     return sorted(set(files))
 

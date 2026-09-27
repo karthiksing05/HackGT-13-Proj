@@ -86,7 +86,6 @@ deployed. Undeploy it when it is not in use:
 | `POST /plans/generate` | `POST /v1/search-profile` for that request (5 s; skipped when mood text and quick picks are both empty) | nothing on the user; the query vector goes into `plan_pools` |
 | `PUT /ratings/{itemId}` | in the background (10 s): 4–5 stars fold the rated activity's vector into the positive embedding, 1–2 into the negative one, 3 changes nothing (`POST /v1/compatibility/user-embedding/update`, `new = normalize(0.8·old + 0.2·activity)`). An activity with a text but no vector is embedded first (`POST /v1/embed`, kind `activity`) and stored | the user vector; the activity vector (guarded on `embeddingTextHash`, `embeddingMeta.source: go_on_demand`) |
 | Activities without vectors | `tools/embed_missing.py` on a systemd timer, every 15 minutes | activity vectors on both catalogs |
-| `sidequestz-admin seed-demo` | rebuilds Sandy Byte's profile through the same code (20 s); reports "not refreshed" (and still succeeds) when the ML service is down | Sandy's profile fields |
 
 At most eight background profile jobs run at once; beyond that a job is skipped with a warning, and
 the next rebuild catches up. `POST /v1/embed` takes `{texts: […], kind: user|search|activity}` (up to 64

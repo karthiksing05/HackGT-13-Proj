@@ -9,6 +9,7 @@ import (
 	"Backend/pkg/store"
 	"context"
 	"errors"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -505,9 +506,7 @@ func (h *H) importView(ctx context.Context, viewerID string, imp *models.Faceboo
 		return contract.FacebookImport{}, err
 	}
 	ratings := contract.Ratings{}
-	for k, v := range imp.SuggestedRatings {
-		ratings[k] = v
-	}
+	maps.Copy(ratings, imp.SuggestedRatings)
 	interests := imp.Interests
 	if interests == nil {
 		interests = []string{}

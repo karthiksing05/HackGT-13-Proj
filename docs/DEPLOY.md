@@ -31,30 +31,20 @@ uploads, HTTP/1.1 upgrade on `/ws`, long proxy timeouts on the socket). There is
 
 | Path | Contents |
 |---|---|
-| `/opt/backend/sidequestz-server`, `/opt/backend/sidequestz-admin` | the API and optional maintenance CLI (static linux/amd64); uploaded binaries keep a `*.prev` backup |
+| `/opt/backend/sidequestz-server` | the API (static linux/amd64) |
 | `/opt/backend/.env` | the API's environment, mode 0600, owned by `sidequestz` (see below) |
-| `/opt/ml/` | the `ml/` tree without secrets, caches, venvs or the training and data-generation code; `/opt/ml/.venv`; `/opt/ml/.cache` (model weights, the embedding cache); `/opt/ml.prev` is the previous tree |
+| `/opt/ml/` | the `ml/` tree without secrets, caches, venvs or the training and data-generation code; `/opt/ml/.venv`; `/opt/ml/.cache` (model weights, the embedding cache) |
 | `/opt/ml/.env`, `/opt/ml/gcp-sa.json` | the ML service's secrets, mode 0600 |
 | `/etc/systemd/system/sidequestz.service`, `ml.service`, `ml-embed-missing.service`, `ml-embed-missing.timer` | the units, installed by the deploy scripts (the old `backend.service` unit is retired) |
 | `/etc/nginx/sites-available/sidequestz.tech` | the site, TLS managed by Certbot |
 
-The optional admin tool handles database maintenance, demo seeding and signing-key generation.
-The API does not need it to run and creates its indexes at startup. Build it with `./build.sh --admin`
-or upload it with `./deploy.sh --admin` when maintenance is needed. It reads the server environment,
-or a file given with `--env-file`, without overriding variables already set:
-
-```sh
-/opt/backend/sidequestz-admin --env-file /opt/backend/.env ensure-indexes                   # every index the server expects
-/opt/backend/sidequestz-admin --env-file /opt/backend/.env drop-ttl <collection> [--force]    # "activities" needs --force
-/opt/backend/sidequestz-admin --env-file /opt/backend/.env reset-app-data --yes [--users]     # drop the app collections, never the catalogs
-/opt/backend/sidequestz-admin --env-file /opt/backend/.env seed-demo                         # the demo account and its world (idempotent)
-```
+The API creates its required indexes at startup. Accounts are created through signup.
 
 ## Services and environment
 
 | Unit | Runs | Notes |
 |---|---|---|
-| `sidequestz.service` (the repo's `Backend/backend.service`, installed under the `DEPLOY_SERVICE` name) | `/opt/backend/sidequestz-server` as user `sidequestz`, `EnvironmentFile=/opt/backend/.env`, `Restart=always`, `RestartSec=3`, `LimitNOFILE=65536`, `NoNewPrivileges`, `ProtectSystem=full`, `ProtectHome`, `PrivateTmp` | no inline `Environment=` lines. Startup validates the configuration, pings Mongo and exits on failure, ensures every index (an index that exists with other options is fatal), then listens on `127.0.0.1:8080` |
+| `sidequestz.service` (the repo's `Backend/backend.service`, installed as `sidequestz.service`) | `/opt/backend/sidequestz-server` as user `sidequestz`, `EnvironmentFile=/opt/backend/.env`, `Restart=always`, `RestartSec=3`, `LimitNOFILE=65536`, `NoNewPrivileges`, `ProtectSystem=full`, `ProtectHome`, `PrivateTmp` | no inline `Environment=` lines. Startup validates the configuration, pings Mongo and exits on failure, ensures every index (an index that exists with other options is fatal), then listens on `127.0.0.1:8080` |
 | `ml.service` | `/opt/ml/.venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8000 --workers 2` as root with `PYTHONPATH=/opt/ml RANKING_MODEL=classifier RANKING_DEVICE=cpu USER_EMBEDDING_ALPHA=0.8 SEARCH_WEIGHT=0.6 RERANK_TOP_K=12 RERANK_TIMEOUT_SECONDS=15 EMBED_PROVIDER=auto EMBED_CACHE_PATH=/opt/ml/.cache/embeddings.sqlite EMBED_LOCAL_THREADS=8 OMP_NUM_THREADS=8 HF_HOME=/opt/ml/.cache HF_HUB_DISABLE_TELEMETRY=1`, `EnvironmentFile=-/opt/ml/.env`, `TimeoutStartSec=300`, `ProtectHome=true`, `ReadWritePaths=/opt/ml/.cache` | startup never waits for the model: a background warmup loads it (20–60 s on the VPS) |
 | `ml-embed-missing.timer` → `ml-embed-missing.service` | `python -m tools.embed_missing` on both catalogs, 2 min after boot and every 15 min (oneshot, 15 min timeout) | embeds activities that have text but no current vector |
 
@@ -73,7 +63,6 @@ TRUST_PROXY=1
 FB_APP_ID=<Meta app id>
 FB_APP_SECRET=<Meta app secret>
 FB_TOKEN_KEY=<openssl rand -hex 32>
-DEMO_PASSWORD=<the demo account's password>
 ```
 
 `FB_TOKEN_KEY` (64 hex characters) seals the stored Facebook tokens. Set it in production: without it
@@ -92,7 +81,7 @@ STRIPE_SECRET_KEY=sk_test_…              # the agent's Stripe test account
 STRIPE_SELLER_PROFILE=profile_test_…     # the Events merchant sandbox TEST profile (stripe-spt-smoke.sh prints it)
 MERCHANT_HOST=events.sidequestz.tech     # the authority the TAP signature covers
 MERCHANT_BASE_URL=https://events.sidequestz.tech
-TAP_AGENT_KEY=<from sidequestz-admin tap-keygen>   # secret; its public half goes on Events
+TAP_AGENT_KEY=<base64 32-byte Ed25519 seed>       # secret; its public half goes on Events
 MUSE_API_KEY=<Meta Model API key>        # optional: without it the server buys in itinerary order itself
 ```
 
@@ -114,7 +103,7 @@ MERCHANT_HOST=events.sidequestz.tech
 MERCHANT_BASE_URL=https://events.sidequestz.tech
 PAYMENTS_MODE=sandbox
 DEMO_KEY=<openssl rand -hex 16>          # X-Demo-Key for POST /_demo/scenario; the default is refused outside dev
-TAP_AGENT_PUBLIC_KEY=<from sidequestz-admin tap-keygen>   # required outside dev
+TAP_AGENT_PUBLIC_KEY=<base64 32-byte Ed25519 public key> # required outside dev
 STRIPE_SECRET_KEY=sk_test_…              # the merchant sandbox: a DIFFERENT Stripe account from the Backend
 MONGO_URI=mongodb://127.0.0.1:27017
 MONGO_DB=sidequestz_events
@@ -130,17 +119,24 @@ runs: it embeds locally and ranks without Jev.
 
 ## Deploy scripts
 
-Both scripts take the connection settings from the environment or a `.env` file and read nothing else
-from it: `Backend/deploy.sh` reads `DEPLOY_*` from the repo-root `.env` and then `Backend/.env` (the
-first to set a variable wins); `ml/deploy.sh` reads `DEPLOY_*` and `ML_DEPLOY_*` from the first of
-`ml/.env`, `Backend/.env` and the root `.env`. They authenticate non-interactively (`sshpass` or
-`SSH_ASKPASS`, else your SSH keys) and never print the values. The Backend service defaults to `sidequestz`; `DEPLOY_SERVICE` can override the unit name.
+From the repository root, run `bash deploy.sh` to deploy ML, Events, then Backend.
+Each service's `deploy.sh` also works on its own. The scripts stop on command failures.
+They build/upload/restart only: no test flags, backups or health-check loops.
+
+Set `DEPLOY_HOST`, `DEPLOY_USER` (default `root`) and optionally `DEPLOY_PASSWORD` in the root
+`.env`. Shell environment values take precedence; service `.env` files and `Backend/.env`
+provide fallbacks. Only these three connection settings are read. Optional `[host] [user]`
+arguments override the destination. SSH handles authentication unless a saved password is set.
+Deployments use the fixed paths and unit names below; the SSH account needs root privileges.
 
 | Script | What it does |
 |---|---|
-| `Backend/build.sh [--native] [--admin]` | Builds the static, stripped server for Linux/amd64. Set `GOOS`/`GOARCH` for another target, or use `--native` for this machine. `--admin` also builds the maintenance CLI. Tests run separately with `make test`. |
-| `Backend/deploy.sh [host] [user] [--admin]` | Checks the remote `.env`, builds Linux/amd64, uploads the server and service unit, keeps the previous binary, restarts and retries `/healthz`. `--admin` also uploads the CLI. Supports SSH keys or `DEPLOY_PASSWORD`. Never uploads or rewrites `.env`; sets its ownership and permissions. No database seeding or tests run during deployment. |
-| `ml/deploy.sh [--skip-tests] [host] [user] [password]` | 1. runs the unit tests locally; 2. snapshots `/opt/ml` to `/opt/ml.prev` (hard links, `cp -al`); 3. rsyncs `ml/` with `--delete`, excluding `.env*`, `*.env`, `gcp-sa.json`, `*.pem`, `*.key`, `.cache`, venvs, `datagen/`, `data/`, `*.sbatch`, `wandb/` and `runs/` (excluded paths on the server are kept); 4. directories 755, files 644, secrets 600; creates the venv and installs `requirements-serve.txt` with CPU torch wheels; prefetches the Qwen weights into `/opt/ml/.cache`; installs and enables `ml.service` and the timer; restarts; 5. waits about 5 minutes at most for `/healthz`, then embeds one text through `/healthz?probe=1` and fails loudly (with the last 50 log lines) if either does not come up; only then starts the timer |
+| `deploy.sh` | Runs all three service deployments in order. |
+| `Backend/build.sh` | Builds the server for Linux/amd64 into `Backend/bin/`. |
+| `Events/build.sh` | Builds the merchant for Linux/amd64 into `Events/bin/`. |
+| `Backend/deploy.sh` | Builds/uploads the API and its unit, then restarts `sidequestz` in `/opt/backend`. Keeps the server's `.env`. |
+| `Events/deploy.sh` | Builds/uploads the merchant, its unit and `Events/.env`, then restarts `events` in `/opt/events`. |
+| `ml/deploy.sh` | Uploads serving code to `/opt/ml`, installs dependencies and model weights, then restarts `ml` and its embedding timer. Keeps server secrets, caches and the venv. |
 
 ## Runbook
 
@@ -164,28 +160,15 @@ ssh <host> 'systemctl is-active ml; curl -s 127.0.0.1:8000/healthz | jq "{status
 **3. Backend.**
 
 ```sh
-cd Backend && make test && ./deploy.sh --admin  # --admin is needed for the maintenance commands below
+cd Backend && bash deploy.sh
 ssh <host> 'systemctl is-active sidequestz; ss -ltnp | grep 8080; journalctl -u sidequestz -n 30 --no-pager'
 ```
 
 The log shows "MongoDB connected, indexes ensured", "planner ready" and the listener on `127.0.0.1:8080`
 only (`ss` lists no other address).
 
-**4. Data and the demo account** (on the server):
-
-```sh
-A="/opt/backend/sidequestz-admin --env-file /opt/backend/.env"
-$A reset-app-data --yes          # drop the app collections; keeps the catalogs and the users (--users drops those too)
-$A ensure-indexes
-$A drop-ttl demo_activities      # the demo events must not expire (a no-op when there is no TTL index)
-$A seed-demo                     # Sandy Byte, Marin, Theo and their world; prints what it wrote
-mongosh freetime --eval 'db.users.findOne({email:"demo@sidequestz.tech"},{name:1,homeBase:1,city:1,setupComplete:1,embeddingModel:1})'
-```
-
-`seed-demo` refuses to write anything when `DEMO_PASSWORD` is missing or `demo_activities` has fewer than
-three Saltlight places. Its last lines report Marin's open plan and whether Sandy's taste vectors were
-refreshed through the ML service. A full reset, judges' accounts included, is `reset-app-data --yes
---users` followed by `ensure-indexes` and `seed-demo`.
+**4. Data and accounts.** The API uses the existing database. Create new accounts through signup;
+existing demo accounts and fixture records remain available. There is no automatic seed/reset command.
 
 **5. Smoke tests.** From the Mac, against the public URL:
 
@@ -217,14 +200,10 @@ xcodebuild -project frontend/SideQuestz.xcodeproj -scheme SideQuestz -configurat
 xcrun devicectl device install app --device <device id> /tmp/DD-device/Build/Products/Debug-iphoneos/SideQuestz.app
 ```
 
-## Rollback
+## Redeploy an earlier version
 
-| Part | Command |
-|---|---|
-| Backend | `cd /opt/backend && mv -f sidequestz-server.prev sidequestz-server && systemctl restart sidequestz` (restore `sidequestz-admin.prev` too if you deployed the CLI) |
-| ML | `rm -rf /opt/ml && mv /opt/ml.prev /opt/ml && systemctl restart ml` |
-| Data | the seed is idempotent; rerun step 4 |
-| App | reinstall the previous `.app`, or relaunch with `-SQAPIMode mock` to demo offline |
+The scripts do not create backups. To restore earlier code, check out that revision and run
+`bash deploy.sh` again. Database maintenance is separate from deployment.
 
 ## Logs and health checks
 
@@ -253,7 +232,7 @@ ssh -N -L 27017:127.0.0.1:27017 <user>@<host>
 - `JWT_SECRET` is generated once with `openssl rand -base64 48`; rotating it signs everyone out.
   `FB_TOKEN_KEY` is generated once with `openssl rand -hex 32`; rotating it makes the stored Facebook
   tokens unreadable, and those users are asked to sign in to Facebook again.
-- Units carry no secrets; the scripts never upload `.env` files; nothing prints a value. Reset codes
+- Units carry no secrets. Backend and ML keep their server-side secrets; Events uploads its local `.env`. Reset codes
   appear in the API log (password-reset delivery is simulated) and in responses only with
   `DEV_RESET_CODES=1`, which the VPS does not set.
 - The Meta app secret, the HF token and the TypeSafe key are revoked and reissued from their dashboards;
@@ -292,15 +271,14 @@ docker start sq-mongo                    # freetime holds the Atlanta sample and
 cd ml && .venv/bin/uvicorn api.main:app --port 8000
 cd Backend && APP_ENV=dev HTTP_ADDR=127.0.0.1:8080 MONGO_URI=mongodb://127.0.0.1:27017 MONGO_DB=freetime \
   ML_SERVICE_URL=http://127.0.0.1:8000 JWT_SECRET=dev-secret-dev-secret-dev-secret-dev PLANNER=dag \
-  PUBLIC_BASE_URL=http://127.0.0.1:8080 DEMO_PASSWORD=demo \
-  sh -c 'go run ./cmd/sidequestz-admin seed-demo && go run .'
+  PUBLIC_BASE_URL=http://127.0.0.1:8080 go run .
 # Simulator launch arguments: -SQAPIBaseURL http://127.0.0.1:8080 -SQWebSocketURL ws://127.0.0.1:8080/ws -SQDemoPassword demo
 ```
 
 `APP_ENV=dev` relaxes the JWT-secret check (a missing secret becomes a random one), defaults
 `PUBLIC_BASE_URL` to the listen address, reads Facebook's app id and secret from the gitignored
 repo-root `meta_app_id` / `meta_app_secret` files when the variables are unset, and allows
-`DEV_RESET_CODES=1`. `make build-native` builds the server for the Mac; `make build-admin` also builds the CLI. The Go tests use
+`DEV_RESET_CODES=1`. `make build-native` builds the server for the Mac. The Go tests use
 `MONGO_TEST_URI` (default the same local server) and create and drop `sq_test_*` databases; `make
 test-db` runs them all with the race detector and fails instead of skipping when Mongo is down.
 
@@ -315,13 +293,11 @@ test-db` runs them all with the race detector and fails instead of skipping when
 | `/plans/*` answer 503 "Planning is warming up. Try again in a moment." | the planner did not start; the log says "planner not started" with the reason |
 | Facebook routes answer 503 "Facebook isn't set up on this server yet." | `FB_APP_ID` / `FB_APP_SECRET` are not set (the log says "Facebook connector off"), or `FB_TOKEN_KEY` is not 64 hex characters ("Facebook tokens cannot be stored") |
 | Facebook connect ends in `status=error` | the redirect URI is not in the dashboard, or the person is not a tester while the app is in Development mode |
-| `seed-demo`: "demo_activities has N saltlight places" | import the snapshot first ([DATA.md](DATA.md#the-demo-snapshot)) |
-| `seed-demo`: "@sandybyte belongs to another account" | someone registered the handle; rename or delete that account, then seed again |
-| `ml` takes minutes to become active, or `providers.local` says `loading` | the first model load; wait for `loaded`; the deploy's health loop waits too |
+| `ml` takes minutes to become active, or `providers.local` says `loading` | the first model load; wait for `loaded`; check `/healthz` after it loads |
 | `/healthz` says `degraded` | no embedding provider can serve; the local model failed to load (see `journalctl -u ml`) |
 | `embedding.provider` is `local` | expected today: the Vertex and HF credentials are refused, so the local model serves ([EMBEDDINGS.md](EMBEDDINGS.md)) |
 | `plan_runs.ml.mode` is `fallback:…` | the classifier call failed or timed out; check the `ml` log and `PLANNER_ML_TIMEOUT_MS` |
 | Cloudflare `524` on `/plans/generate` | the request exceeded 100 s; look for a stuck Mongo or ML call in the API log, not at the planner budget |
 | the app on a phone cannot reach a local server | `127.0.0.1` only works in the Simulator; use the Mac's LAN address in `-SQAPIBaseURL` (plain `http://` is allowed for local networks only) |
 | no "Use the demo account" link | the build had no `SQ_DEMO_PASSWORD` and no `-SQDemoPassword` argument, or the app is in mock mode |
-| demo events vanished | a TTL index on `demo_activities`; `drop-ttl demo_activities`, then reimport the snapshot ([DATA.md](DATA.md)) |
+| demo events vanished | a TTL index on `demo_activities`; remove the unwanted catalog TTL index in MongoDB, then reimport the snapshot ([DATA.md](DATA.md)) |
