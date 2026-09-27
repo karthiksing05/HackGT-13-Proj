@@ -221,7 +221,7 @@ enum MockPicks {
         var toPlace: [PlanStop] = []
         for activity in picks {
             let pick = stop(for: activity, in: base.id)
-            if let index = stops.firstIndex(where: { $0.title == activity.title && $0.activityId == nil }) {
+            if let index = stops.firstIndex(where: { $0.activityId == activity.id }) {
                 stops[index] = pick
             } else {
                 toPlace.append(pick)

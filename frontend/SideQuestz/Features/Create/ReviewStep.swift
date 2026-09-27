@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Create › Review ("Pick a sidequest"): option cards + "Load more options", the timed route for
-/// the selected option (drag ☰ to reorder; hold a stop to swap or remove it; the server re-times
-/// it), and "More options".
+/// the selected option (drag ☰ to reorder; tap a stop for its details, hold it to swap or remove
+/// it; the server re-times it), and "More options".
 ///
 /// Loading and motion: while the planner works (as long as `POST /plans/generate` takes), ghost
 /// option cards sit where the real ones will land, over the drawing logo and status lines; then
@@ -17,6 +17,9 @@ struct CreateReviewStep: View {
     /// The route status on screen: "Transit times updated" fades out a few seconds after it shows
     /// ("Some stops would be late" stays a little longer; the route card keeps marking the stop).
     @State private var shownStatus: CreateTransitStatus = .idle
+    /// The hint says only "to reorder" while a status shows, and gets its tap hint back once the
+    /// status has faded out, so the two never overlap.
+    @State private var shortHint = false
 
     private static let updatedLingerSeconds = 3.0
     private static let lateLingerSeconds = 5.0
@@ -56,7 +59,7 @@ struct CreateReviewStep: View {
             case .updatedLate: AccessibilityNotification.Announcement("Some stops would be late").post()
             case .idle, .recalculating: break
             }
-            shownStatus = status
+            show(status)
         }
         .task(id: shownStatus) {
             let linger: Double
@@ -67,7 +70,23 @@ struct CreateReviewStep: View {
             }
             try? await Task.sleep(for: .seconds(linger))
             guard !Task.isCancelled else { return }
+            show(.idle)
+        }
+    }
+
+    /// A status appears with the short hint; going back to none, the full hint returns only once
+    /// the status has faded out.
+    private func show(_ status: CreateTransitStatus) {
+        guard status == .idle else {
+            shortHint = true
+            shownStatus = status
+            return
+        }
+        withAnimation(Motion.standard) {
             shownStatus = .idle
+        } completion: {
+            guard shownStatus == .idle else { return }
+            withAnimation(Motion.quick) { shortHint = false }
         }
     }
 
@@ -136,8 +155,8 @@ struct CreateReviewStep: View {
                 Text("Drag")
                 DragHandleGlyph(width: 8.2, gap: 3.5, lineWidth: 1.4)
                     .frame(width: 14, height: 14)
-                // The hold hint steps aside while a transit status needs the room.
-                Text(shownStatus == .idle ? "to reorder · hold a stop to swap" : "to reorder")
+                // The tap hint steps aside while a transit status needs the room.
+                Text(shortHint ? "to reorder" : "to reorder · tap a stop for more")
                     .contentTransition(.opacity)
             }
             .sqFont(13)
@@ -146,7 +165,7 @@ struct CreateReviewStep: View {
             .minimumScaleFactor(0.85)
             .createLine(13)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Drag to reorder stops. Press and hold a stop to swap or remove it.")
+            .accessibilityLabel("Drag to reorder stops. Tap a stop for its details, or press and hold it to swap or remove it.")
             Spacer(minLength: 0)
             ZStack(alignment: .trailing) {
                 switch shownStatus {

@@ -116,7 +116,8 @@ enum MockAlternatives {
             .map { spot, miles in
                 PlanAlternative(
                     stop: PlanStop(id: id(for: spot.title), title: spot.title, subtitle: spot.subtitle,
-                                   place: Place(name: spot.title, coordinate: spot.coordinate), durationMinutes: spot.minutes),
+                                   place: Place(name: spot.title, coordinate: spot.coordinate), durationMinutes: spot.minutes,
+                                   activityId: MockActivities.id(for: spot.title)),
                     reason: "Also \(spot.kind.shared) · \(String(format: "%.1f", max(miles, 0.1))) mi away"
                 )
             }

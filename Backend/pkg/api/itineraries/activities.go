@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 // The must-see search: 20 results unless asked, never more than 50; the
@@ -80,4 +82,34 @@ func (h *H) SearchActivities(w http.ResponseWriter, r *http.Request) {
 		Query: q, Near: near, From: from, To: to, Now: now, TZ: tz,
 		AgeBracket: string(view.AgeBracket(user.BirthDate, now)), Limit: limit,
 	}))
+}
+
+// Activity is GET /activities/{id}?date=YYYY-MM-DD → ActivityDetail: one
+// event or place of the viewer's catalog, for Create › Review's stop pane.
+// Like the must-see search it reads only the viewer's catalog, so an id
+// that is malformed, unknown or in the other catalog is a 404. date is the
+// plan's day in X-Time-Zone (today, in the account's business time, without
+// one); only the opening-hours line reads it.
+func (h *H) Activity(w http.ResponseWriter, r *http.Request) {
+	tz := httpx.TZ(r)
+	day := httpx.LocalMidnight(h.d.BusinessNow(r.Context()), tz)
+	if s := r.URL.Query().Get("date"); s != "" {
+		d, err := httpx.ParseDay(s, tz)
+		if err != nil {
+			httpx.Error(w, http.StatusBadRequest, msgBadDate)
+			return
+		}
+		day = d
+	}
+	user, err := h.d.CurrentUser(r)
+	if err != nil {
+		api.Fail(w, r, err)
+		return
+	}
+	act, err := h.d.Store.Catalog().Activity(r.Context(), user.Catalog, mux.Vars(r)["id"])
+	if err != nil {
+		api.Fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, planner.ActivityDetail(act, day))
 }

@@ -349,6 +349,11 @@ final class LiveAPIClient: APIClient {
         struct Body: Encodable { var optionId: String; var stopId: String; var stopOrder: [String] }
         return try await call("POST", "plans/alternatives", body: Body(optionId: optionId, stopId: stopId, stopOrder: stopOrder))
     }
+
+    func activity(id: String, date: Date?) async throws -> ActivityDetail {
+        try await call("GET", "activities/\(id)", query: date.map { [URLQueryItem(name: "date", value: dayString($0))] } ?? [])
+    }
+
     func createItinerary(_ request: CreateItineraryRequest) async throws -> Itinerary { try await call("POST", "itineraries", body: request) }
 
     // MARK: - Itineraries
