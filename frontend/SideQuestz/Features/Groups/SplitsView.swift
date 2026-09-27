@@ -134,8 +134,8 @@ struct GroupSplitsView: View {
             Button("+ Add an expense") { openAddExpense(prefill: nil) }
                 .buttonStyle(.sq(fill: Theme.sage, foreground: Theme.ink, height: 50, fontSize: 16))
                 .accessibilityLabel("Add an expense")
-            if ledger.netCents < 0 {
-                settleButton(amount: -ledger.netCents)
+            if ledger.owedCents > 0 {
+                settleButton(amount: ledger.owedCents)
                     .transition(.opacity)
             }
             if let settleError {
@@ -376,7 +376,7 @@ struct GroupSplitsView: View {
     }
 
     private func settle() {
-        guard !settling, let owed = ledger.value.map({ -$0.netCents }), owed > 0 else { return }
+        guard !settling, let owed = ledger.value.map(\.owedCents), owed > 0 else { return }
         settling = true
         if settleError != nil { withMotion(Motion.quick) { settleError = nil } }
         let method = card

@@ -296,6 +296,10 @@ struct GroupLedger: Codable, Hashable {
     var balances: [Balance]
     /// Sum of balances: > 0 you're owed, < 0 you owe.
     var netCents: Int { balances.reduce(0) { $0 + $1.netCents } }
+    /// What Settle up pays: the sum of your debts to the members you owe. It differs from
+    /// `-netCents` when someone also owes you (they settle their own), and it is the amount
+    /// `POST /groups/{id}/settle` expects.
+    var owedCents: Int { balances.reduce(0) { $0 + max(0, -$1.netCents) } }
 }
 
 // MARK: - Realtime

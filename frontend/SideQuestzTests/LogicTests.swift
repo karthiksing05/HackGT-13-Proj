@@ -36,6 +36,23 @@ struct SplitMathTests {
         #expect(balances.reduce(0) { $0 + $1.netCents } == -900)          // You owe $9.00
     }
 
+    /// Settle up pays your debts, not the net: in the Krog crew you owe Dev $11.50 while Maya owes
+    /// you $2.50 ("You owe $9.00"), so the button pays $11.50. The server (and the mock) refuse any
+    /// other amount as stale, which is what the net used to get.
+    @Test func settleUpPaysYourDebtsNotTheNet() async throws {
+        let api = MockAPIClient(latencyScale: 0)
+        let ledger = try await api.ledger(groupId: "g1")
+        #expect(ledger.netCents == -900)
+        #expect(ledger.owedCents == 1150)
+        await #expect(throws: APIError.self) {
+            try await api.settleUp(groupId: "g1", amountCents: -ledger.netCents, paymentMethodId: nil)
+        }
+        try await api.settleUp(groupId: "g1", amountCents: ledger.owedCents, paymentMethodId: nil)
+        let after = try await api.ledger(groupId: "g1")
+        #expect(after.owedCents == 0)
+        #expect(after.netCents == 250)   // Maya still owes you $2.50
+    }
+
     @Test func moneyFormatting() {
         #expect(Money.format(900) == "$9.00")
         #expect(Money.compact(900) == "$9")
