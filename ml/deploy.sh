@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")"
-source ../deploy-env.sh
+source ../deploy-common.sh
 
 ssh "$server" 'mkdir -p /opt/ml/.cache'
 # Upload serving code only; leave server secrets, caches and the venv alone.
@@ -12,9 +12,6 @@ tar --exclude=__pycache__ --exclude='*.pyc' --exclude='.env*' --exclude='*.env' 
 
 ssh "$server" 'bash -se' <<'REMOTE'
 cd /opt/ml
-for secret in .env gcp-sa.json; do
-  [[ ! -f "$secret" ]] || chmod 600 "$secret"
-done
 [[ -d .venv ]] || python3 -m venv .venv
 .venv/bin/pip install -r requirements-serve.txt --extra-index-url https://download.pytorch.org/whl/cpu
 HF_HOME=/opt/ml/.cache .venv/bin/python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('Qwen/Qwen3-Embedding-0.6B')"

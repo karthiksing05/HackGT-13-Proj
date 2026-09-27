@@ -48,7 +48,7 @@ The API creates its required indexes at startup. Accounts are created through si
 | `ml.service` | `/opt/ml/.venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8000 --workers 2` as root with `PYTHONPATH=/opt/ml RANKING_MODEL=classifier RANKING_DEVICE=cpu USER_EMBEDDING_ALPHA=0.8 SEARCH_WEIGHT=0.6 RERANK_TOP_K=12 RERANK_TIMEOUT_SECONDS=15 EMBED_PROVIDER=auto EMBED_CACHE_PATH=/opt/ml/.cache/embeddings.sqlite EMBED_LOCAL_THREADS=8 OMP_NUM_THREADS=8 HF_HOME=/opt/ml/.cache HF_HUB_DISABLE_TELEMETRY=1`, `EnvironmentFile=-/opt/ml/.env`, `TimeoutStartSec=300`, `ProtectHome=true`, `ReadWritePaths=/opt/ml/.cache` | startup never waits for the model: a background warmup loads it (20–60 s on the VPS) |
 | `ml-embed-missing.timer` → `ml-embed-missing.service` | `python -m tools.embed_missing` on both catalogs, 2 min after boot and every 15 min (oneshot, 15 min timeout) | embeds activities that have text but no current vector |
 
-`/opt/backend/.env` (created once by hand, never uploaded; template `Backend/.env.example`):
+`/opt/backend/.env` (uploaded from `Backend/.env` by `Backend/deploy_env.sh`; template `Backend/.env.example`):
 
 ```
 APP_ENV=prod
@@ -92,9 +92,8 @@ Optional: `MUSE_MODEL` (`muse-spark-1.3`), `MUSE_BASE_URL` (`https://api.meta.ai
 
 A separate Go service in `Events/` on `127.0.0.1:8085`, behind nginx and Cloudflare like the API (DNS,
 nginx site and certificate are set up alongside `api.sidequestz.tech`). Its env lives in `Events/.env` on
-the deploying Mac (gitignored; template `Events/.env.example`): `Events/deploy.sh` builds, uploads it to
-`/opt/events/.env` on every deploy (mode 600) and sets `MERCHANT_BASE_URL=https://events.sidequestz.tech`
-there. Production values:
+the deploying machine (gitignored; template `Events/.env.example`): `Events/deploy_env.sh` uploads it
+to `/opt/events/.env` (mode 600). Set `MERCHANT_BASE_URL` in the local file. Production values:
 
 ```
 APP_ENV=prod
@@ -121,7 +120,12 @@ runs: it embeds locally and ranks without Jev.
 
 From the repository root, run `bash deploy.sh` to deploy ML, Events, then Backend.
 Each service's `deploy.sh` also works on its own. The scripts stop on command failures.
-They build/upload/restart only: no test flags, backups or health-check loops.
+Code deployment never uploads or changes `.env` files. Run `bash deploy_env.sh` separately to
+upload `Events/.env` and `Backend/.env` to the matching `/opt/<service>/.env`.
+Backend and Events each have their own `deploy_env.sh` too. ML secrets remain provisioned separately. Environment uploads set ownership and mode 600,
+but do not build or restart services; the values take effect on the next restart.
+For an initial setup, run `bash deploy_env.sh` before `bash deploy.sh`.
+Tests run separately; there are no test flags, backups or health-check loops.
 
 Set `DEPLOY_HOST`, `DEPLOY_USER` (default `root`) and optionally `DEPLOY_PASSWORD` in the root
 `.env`. Shell environment values take precedence; service `.env` files and `Backend/.env`
@@ -131,11 +135,13 @@ Deployments use the fixed paths and unit names below; the SSH account needs root
 
 | Script | What it does |
 |---|---|
-| `deploy.sh` | Runs all three service deployments in order. |
+| `deploy.sh` | Runs all three code deployments in order. |
+| `deploy_env.sh` | Uploads Events and Backend environments in order. |
+| `Backend/deploy_env.sh`, `Events/deploy_env.sh` | Uploads that service's local `.env`, without deploying code or restarting. |
 | `Backend/build.sh` | Builds the server for Linux/amd64 into `Backend/bin/`. |
 | `Events/build.sh` | Builds the merchant for Linux/amd64 into `Events/bin/`. |
 | `Backend/deploy.sh` | Builds/uploads the API and its unit, then restarts `sidequestz` in `/opt/backend`. Keeps the server's `.env`. |
-| `Events/deploy.sh` | Builds/uploads the merchant, its unit and `Events/.env`, then restarts `events` in `/opt/events`. |
+| `Events/deploy.sh` | Builds/uploads the merchant and its unit, then restarts `events` in `/opt/events`. |
 | `ml/deploy.sh` | Uploads serving code to `/opt/ml`, installs dependencies and model weights, then restarts `ml` and its embedding timer. Keeps server secrets, caches and the venv. |
 
 ## Runbook
@@ -143,8 +149,8 @@ Deployments use the fixed paths and unit names below; the SSH account needs root
 **0. On the Mac.** Go toolchain, Docker with `sq-mongo` running (for the tests), the root `.env`,
 `DEVELOPER_DIR=/Applications/Xcode-26.6.app/Contents/Developer`.
 
-**1. Server prep (once).** Create `/opt/backend` and `/opt/ml/.cache`, write `/opt/backend/.env` and
-`/opt/ml/.env` with `umask 077` (values from the root `.env` or newly generated, never echoed), copy
+**1. Server prep (once).** Prepare `Backend/.env` and `Events/.env`, then run
+`bash deploy_env.sh` from the root to upload them. Provision `/opt/ml/.env` separately with mode 600. Copy
 `gcp-sa.json` to `/opt/ml/` with mode 600, and confirm `ufw status` still blocks 8080, 8000 and 27017.
 Both `.env` files must show `-rw-------`. The catalogs must be in `freetime`: `activities` from the
 ingestion snapshot, `demo_activities` is the embedded Saltlight catalog of record (texts and vectors), which
@@ -227,12 +233,12 @@ ssh -N -L 27017:127.0.0.1:27017 <user>@<host>
 
 ## Secrets
 
-- The only copies are the root `.env` on a developer's Mac (gitignored, never in a worktree),
-  `/opt/backend/.env`, `/opt/ml/.env` and `/opt/ml/gcp-sa.json` on the server, all mode 0600.
+- Local environment files (`.env`, `Backend/.env`, `Events/.env`) hold deployment settings and service secrets.
+  Server copies live at `/opt/backend/.env`, `/opt/events/.env`, `/opt/ml/.env` and `/opt/ml/gcp-sa.json`, mode 0600.
 - `JWT_SECRET` is generated once with `openssl rand -base64 48`; rotating it signs everyone out.
   `FB_TOKEN_KEY` is generated once with `openssl rand -hex 32`; rotating it makes the stored Facebook
   tokens unreadable, and those users are asked to sign in to Facebook again.
-- Units carry no secrets. Backend and ML keep their server-side secrets; Events uploads its local `.env`. Reset codes
+- Units carry no secrets. Only `deploy_env.sh` uploads `.env` files; code deployment leaves them alone. Reset codes
   appear in the API log (password-reset delivery is simulated) and in responses only with
   `DEV_RESET_CODES=1`, which the VPS does not set.
 - The Meta app secret, the HF token and the TypeSafe key are revoked and reissued from their dashboards;
