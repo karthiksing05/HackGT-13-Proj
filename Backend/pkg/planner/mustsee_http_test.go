@@ -47,7 +47,7 @@ func TestMustSeeOverHTTP(t *testing.T) {
 
 	sandy := srv.Signup(t, "Sandy Byte")
 	if _, err := srv.Store.Users().Update(ctx, sandy.UserID, bson.M{
-		"email": testutil.UniqueEmail("demo"), "city": "saltlight",
+		"email": testutil.UniqueEmail("demo"), "city": "saltlight", "roles": []string{"demo"},
 		"homeBase":          models.HomeBase{Name: seaside.Name, Lat: seaside.Coordinate.Lat, Lng: seaside.Coordinate.Lng},
 		"positiveEmbedding": profile, "positiveText": "Interests:\n- outdoor recreation\n- live music",
 	}); err != nil {

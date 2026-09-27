@@ -107,7 +107,8 @@ func seedDemoCatalog(t *testing.T, db *mongo.Database) []models.Activity {
 			t.Fatal(err)
 		}
 	}
-	if _, err := db.Collection(store.DefaultCatalog).InsertMany(ctx, docs); err != nil {
+	// The demo's cast (role demo/bot) plans in Saltlight: store.CatalogFor.
+	if _, err := db.Collection(store.CollDemoActivities).InsertMany(ctx, docs); err != nil {
 		t.Fatal(err)
 	}
 	return acts
@@ -192,7 +193,7 @@ func TestPlanningOverHTTP(t *testing.T) {
 	// them (the app cannot change them yet).
 	sandy := srv.Signup(t, "Sandy Byte")
 	if _, err := srv.Store.Users().Update(ctx, sandy.UserID, bson.M{
-		"email": testutil.UniqueEmail("demo"), "city": "saltlight",
+		"email": testutil.UniqueEmail("demo"), "city": "saltlight", "roles": []string{"demo"},
 		"homeBase":          models.HomeBase{Name: seaside.Name, Lat: seaside.Coordinate.Lat, Lng: seaside.Coordinate.Lng},
 		"positiveEmbedding": profile, "positiveText": "Interests:\n- outdoor recreation\n- live music",
 	}); err != nil {
