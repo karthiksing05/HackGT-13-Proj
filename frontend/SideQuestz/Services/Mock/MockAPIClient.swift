@@ -42,6 +42,11 @@ final class MockAPIClient: APIClient {
     private var friendList = MockData.friends()
     private var requests = MockData.friendRequests()
     private var batchesServed = 0
+    /// The last `generatePlans` request and its must-see picks ("Load more options" keeps them).
+    private var planRequest: PlanRequest?
+    private var planPicks: [MockActivity] = []
+    /// Stop titles of the options served with picks since then, so none comes out twice.
+    private var servedStops: Set<[String]> = []
     private var options: [String: PlanOption] = [:]
     /// Stops suggested as alternatives (Review › Swap), so routes and new sidequests can use them.
     private var suggestedStops: [String: PlanStop] = [:]
@@ -410,23 +415,55 @@ final class MockAPIClient: APIClient {
 
     // MARK: - Planning
 
+    /// Create › Vibe › Must-see (see `MockActivities`).
+    func searchActivities(q: String, near: Coordinate?, date: Date?, limit: Int) async throws -> [ActivityHit] {
+        try await simulate("activities", 250)
+        return MockActivities.search(q, near: near, date: date, limit: limit, clock: clock)
+    }
+
+    /// The demo's options, with every must-see pick in each (see `MockPicks`), or none with the reason.
     func generatePlans(_ request: PlanRequest) async throws -> PlanBatch {
         try await simulate("plans", 700)
         batchesServed = 0
-        for option in MockData.firstOptions { options[option.id] = option }
-        return PlanBatch(options: MockData.firstOptions, cursor: "batch-0", done: false)
+        planRequest = request
+        planPicks = []
+        servedStops = []
+        switch try MockPicks.resolve(request, clock: clock) {
+        case .unavailable(let title):
+            return PlanBatch(options: [], cursor: nil, done: true, reason: .mustIncludeUnavailable(title))
+        case .picks(let picks):
+            planPicks = picks
+        }
+        let batch = serve(MockData.firstOptions)
+        guard !batch.isEmpty else { return PlanBatch(options: [], cursor: nil, done: true, reason: .mustIncludeNoFit) }
+        return PlanBatch(options: batch, cursor: "batch-0", done: false)
     }
 
     func moreOptions(cursor: String) async throws -> PlanBatch {
         try await simulate("plans", 900)
-        guard batchesServed < MockData.moreOptionBatches.count else {
-            return PlanBatch(options: [], cursor: nil, done: true)
+        // A batch whose options all came out like ones already shown (the picks left no room for
+        // their own stops) is skipped.
+        while batchesServed < MockData.moreOptionBatches.count {
+            let batch = serve(MockData.moreOptionBatches[batchesServed])
+            batchesServed += 1
+            let done = batchesServed >= MockData.moreOptionBatches.count
+            if !batch.isEmpty || done {
+                return PlanBatch(options: batch, cursor: done ? nil : "batch-\(batchesServed)", done: done)
+            }
         }
-        let batch = MockData.moreOptionBatches[batchesServed]
-        batchesServed += 1
-        for option in batch { options[option.id] = option }
-        let done = batchesServed >= MockData.moreOptionBatches.count
-        return PlanBatch(options: batch, cursor: done ? nil : "batch-\(batchesServed)", done: done)
+        return PlanBatch(options: [], cursor: nil, done: true)
+    }
+
+    /// The options of a batch as served for the last request: with its picks in them, leaving out
+    /// any the picks don't fit in or that repeat an option already served.
+    private func serve(_ batch: [PlanOption]) -> [PlanOption] {
+        var served = batch
+        if !planPicks.isEmpty, let request = planRequest {
+            served = batch.compactMap { MockPicks.fit($0, picks: planPicks, request: request) }
+                .filter { servedStops.insert($0.stops.map(\.title)).inserted }
+        }
+        for option in served { options[option.id] = option }
+        return served
     }
 
     func route(_ request: RouteRequest) async throws -> RouteResult {

@@ -23,7 +23,7 @@ struct CreateFlowView: View {
 
 /// Text inputs in the flow (Return / keyboard handling).
 enum CreateField: Hashable {
-    case search, mood
+    case search, mood, mustSee
 }
 
 /// Header · stepper · the current step (scrolling) · footer, plus the More options sheet.

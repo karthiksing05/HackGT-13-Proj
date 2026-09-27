@@ -64,6 +64,14 @@ struct CreateStopRemoval: Equatable {
     let slot: Int
 }
 
+/// What a Must-see search asks for: the text, the plan's day and where it starts. The same search
+/// isn't run twice in a row.
+struct CreateMustSeeSearch: Hashable {
+    var query: String
+    var day: String
+    var near: Coordinate?
+}
+
 /// "Recalculating transit…" / "Transit times updated" / "Some stops would be late" above the route card.
 enum CreateTransitStatus: Equatable {
     case idle, recalculating, updated
@@ -171,6 +179,23 @@ final class CreateFlowModel {
     @ObservationIgnored private var budgetTouched = false
     @ObservationIgnored private var whoTouched = false
 
+    // MARK: Must-see
+
+    /// Results per Must-see search (the server caps a search at 50).
+    static let mustSeeLimit = 8
+    /// The Must-see search field.
+    var mustSeeQuery = ""
+    /// Picks in the order they were chosen, as many as the user likes. Every option must include
+    /// them (`PlanRequest.mustInclude`); the server turns down more than 10 with a sentence.
+    private(set) var mustSee: [ActivityHit] = []
+    /// The results on screen (loading until the first search answers).
+    private(set) var mustSeeResults: Loadable<[ActivityHit]> = .loading
+    /// The search `mustSeeResults` answers.
+    private(set) var mustSeeResultsSearch: CreateMustSeeSearch?
+    /// A newer search is loading while the last results stay on screen (dots in the field).
+    private(set) var searchingMustSee = false
+    @ObservationIgnored private var mustSeeGeneration = 0
+
     // MARK: More options
 
     /// Getting around: from the ride answer until the user changes it (`toggleMode`).
@@ -190,6 +215,8 @@ final class CreateFlowModel {
     private(set) var options: Loadable<[PlanOption]> = .loading
     /// Why the last batch had no options, when the server said (Review shows its message).
     private(set) var emptyReason: PlanEmptyReason?
+    /// The must-see picks (activity ids) the options on screen were made with.
+    private(set) var planPicks: Set<String> = []
     private(set) var selectedOptionId: String?
     private(set) var cursor: String?
     private(set) var noMoreOptions = false
@@ -512,6 +539,47 @@ final class CreateFlowModel {
         moodText = current.isEmpty ? text : current + " " + text
     }
 
+    // MARK: - Vibe: must-see
+
+    /// The search the Must-see field asks for now: its text, near the start, on the plan's day.
+    var mustSeeSearch: CreateMustSeeSearch {
+        CreateMustSeeSearch(query: mustSeeQuery.trimmingCharacters(in: .whitespacesAndNewlines),
+                            day: env.clock.dayKey(date), near: start?.coordinate)
+    }
+
+    /// `GET /activities/search` for `mustSeeSearch` (an empty query brings suggestions). The first
+    /// search shows a skeleton; later ones keep the results on screen until theirs arrive. A search
+    /// that a newer one replaced (the next keystroke cancels it) never lands.
+    func searchMustSee() async {
+        let search = mustSeeSearch
+        if search == mustSeeResultsSearch, mustSeeResults.value != nil { return }
+        mustSeeGeneration += 1
+        let generation = mustSeeGeneration
+        if mustSeeResults.value != nil { searchingMustSee = true } else { mustSeeResults = .loading }
+        defer { if generation == mustSeeGeneration { searchingMustSee = false } }
+        let day = date
+        let result: Loadable<[ActivityHit]> = await .run {
+            let hits = try await env.api.searchActivities(q: search.query, near: search.near, date: day, limit: Self.mustSeeLimit)
+            var seen = Set<String>()
+            return hits.filter { seen.insert($0.id).inserted }
+        }
+        guard generation == mustSeeGeneration, !Task.isCancelled else { return }
+        mustSeeResults = result
+        mustSeeResultsSearch = result.value == nil ? nil : search
+    }
+
+    func isMustSee(_ id: String) -> Bool { mustSee.contains { $0.id == id } }
+
+    /// A result's checkmark: adds it to the picks, or takes it out.
+    func toggleMustSee(_ hit: ActivityHit) {
+        if isMustSee(hit.id) { removeMustSee(hit.id) } else { mustSee.append(hit) }
+    }
+
+    /// A pick's chip ×.
+    func removeMustSee(_ id: String) {
+        mustSee.removeAll { $0.id == id }
+    }
+
     // MARK: - Review: options
 
     var planRequest: PlanRequest? {
@@ -519,7 +587,7 @@ final class CreateFlowModel {
         return PlanRequest(start: start, end: end, date: date, startTime: startTime, backBy: backBy,
                            range: range, ride: ride, openSeats: ride == .drive ? openSeats : nil,
                            moodText: moodText.trimmingCharacters(in: .whitespacesAndNewlines), tags: selectedTags,
-                           budget: budget, who: who, pace: pace, modes: modes)
+                           budget: budget, who: who, pace: pace, modes: modes, mustInclude: mustSee.map(\.id))
     }
 
     /// The options as they stand on Review, with the stops you swapped or removed.
@@ -556,6 +624,7 @@ final class CreateFlowModel {
         lastRequest = request
         options = .loading
         emptyReason = nil
+        planPicks = Set(request.mustInclude)
         selectedOptionId = nil
         routes = [:]
         editedOptions = [:]

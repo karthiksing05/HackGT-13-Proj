@@ -44,16 +44,26 @@ enum MockRouteEngine {
         }
     }
 
-    /// Times every stop in order from `startTime` and flags lateness against `backBy`.
+    /// Times every stop in order from `startTime` and flags lateness against `backBy`. The demo's own
+    /// stops can be visited any time; an event (a must-see pick) starts at its `arriveTime`: the route
+    /// waits for it, and the first one this order reaches too late is `brokenAt`.
     static func route(stops: [PlanStop], start: Place, end: Place, startTime: Date, backBy: Date, ride: RideChoice) -> RouteResult {
         var legs: [Leg] = []
         var times: [DateInterval] = []
+        var brokenAt = -1
         var t = startTime
         var previous = start
-        for stop in stops {
+        for (index, stop) in stops.enumerated() {
             let leg = leg(from: previous, to: stop.place, ride: ride)
             legs.append(leg)
             t = t.addingTimeInterval(TimeInterval(leg.minutes * 60))
+            if stop.kind == .event, let fixed = stop.arriveTime {
+                if t <= fixed {
+                    t = fixed
+                } else if brokenAt < 0 {
+                    brokenAt = index
+                }
+            }
             let stopEnd = t.addingTimeInterval(TimeInterval(stop.durationMinutes * 60))
             times.append(DateInterval(start: t, end: stopEnd))
             t = stopEnd
@@ -63,7 +73,6 @@ enum MockRouteEngine {
         legs.append(last)
         t = t.addingTimeInterval(TimeInterval(last.minutes * 60))
         let late = Int((t.timeIntervalSince(backBy) / 60).rounded())
-        // The demo's stops have no fixed starts, so no order ever breaks one (`brokenAt` stays -1).
-        return RouteResult(legs: legs, stopTimes: times, arrival: t, minutesLate: max(0, late), brokenAt: -1)
+        return RouteResult(legs: legs, stopTimes: times, arrival: t, minutesLate: max(0, late), brokenAt: brokenAt)
     }
 }

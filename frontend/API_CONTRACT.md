@@ -136,7 +136,8 @@ The steps for your side are under "Backend work: Facebook connector" below.
 ### Planning: the AI / recommendation stack plugs in here
 | Method | HTTP | Body | Response |
 |---|---|---|---|
-| `generatePlans` | `POST /plans/generate` | `PlanRequest` (where, when, mood text, quick picks, budget, who, ride, pace, modes; `modes` is sent sorted) | `PlanBatch`: the first 3 ranked options + `cursor`. With no options, `reason` says why: `no_candidates_fit_window`, `no_feasible_itinerary` or `invalid_request: <detail>` (each has its own sentence in Review; anything else gets the generic one) |
+| `searchActivities` | `GET /activities/search` | `q` (may be empty), `near=lat,lng` (the plan's start, when set), `date=YYYY-MM-DD` (the plan's day in `X-Time-Zone`), `limit` (the app asks for 8; default 20, max 50) | `[ActivityHit]`, a bare array: Create › Vibe › **Must-see**, searched as you type. `{id, title, kind: event\|place, category?, subtitle, place?, start?, end?, price_cents?, distance_mi?}`; `id` is the catalog activity id (the planner's `activity_id`) and `subtitle` the one line the row shows ("Live music · 6:30 PM · 0.7 mi"). Searches the user's catalog: `q` matches name, venue, category and tags (name-prefix matches first, then events by start, then distance); events only on `date` and not over, places open that day. An empty `q` suggests that day's events, then the best places near `near`. Bad `near`/`date`/`limit` → 400 with a sentence |
+| `generatePlans` | `POST /plans/generate` | `PlanRequest` (where, when, mood text, quick picks, budget, who, ride, pace, modes; `modes` is sent sorted; `must_include`: the must-see picks' activity ids, left out when there are none) | `PlanBatch`: the first 3 ranked options + `cursor`. **Every option (here and in `/plans/generate/more`) contains every `must_include` activity as a stop**, with its `activity_id`; Review tags those stops "Your pick". More than 10 ids → 400 "Pick up to 10 must-see spots." (shown as is; duplicates don't count). With no options, `reason` says why: `no_candidates_fit_window`, `no_feasible_itinerary`, `invalid_request: <detail>`, `must_include_unavailable: <title>` (a pick isn't in the catalog, isn't on this date, is over or isn't for this age; the first such pick's title, "a pick" for an unknown id) or `must_include_no_fit` (the picks can't all fit in the window with travel). Each has its own sentence in Review; anything else gets the generic one |
 | `moreOptions` | `POST /plans/generate/more` | `{cursor}` | `PlanBatch`: more options; `done: true` when out ("No more right now") |
 | `route` | `POST /plans/route` | `RouteRequest` (option id, stop order, start, end, start time, back-by, ride, modes; keep generated options by id). `stop_order` holds the option's own stop ids **or alternatives you returned for it** (a swap puts the new id in the old one's place), and a stop that's **left out was removed** | `RouteResult`: one leg per hop (start → stop 1 … last stop → end), each stop's `{start, end}`, `arrival`, `minutes_late`, and `broken_at`: the index in `stop_order` of the first fixed-start stop this order reaches too late, or `-1` (the route card marks that stop "Late for a fixed start" and the header says "Some stops would be late") |
 | `stopAlternatives` | `POST /plans/alternatives` | `{option_id, stop_id, stop_order}`: the stop to replace, and the option's current order (so suggestions fit between the neighbors and never repeat a stop that's already in it) | `[PlanAlternative {stop: PlanStop, reason}]`, about 3–5, best first. `reason` is a few words on why it's similar ("Also rooftop views · 0.2 mi away"). Remember the stops you return: their ids come back in `stop_order` and `CreateItineraryRequest` |
@@ -271,12 +272,13 @@ The app is built against this file. Where `Backend/API_ENDPOINTS.md` says someth
   `PATCH /events/{id}` and `GET`/`PUT /events/{id}/transit` (calendar-only blocks), `PUT …/items/{itemId}/transit`,
   `POST /itineraries/{id}/leave`, `PATCH /checkout/intents/{id}`, `POST /me/payment-methods/setup`,
   `DELETE /friends/requests/{id}`, `POST /invites/{code}/accept`, `DELETE /me/devices/{push_token}`, and the
-  realtime events above beyond `message.new`, `POST /plans/alternatives` (Review's swap), and the Facebook endpoints (`GET`/`DELETE /integrations/facebook`,
+  realtime events above beyond `message.new`, `POST /plans/alternatives` (Review's swap), `GET /activities/search` (Vibe's
+  must-see search), and the Facebook endpoints (`GET`/`DELETE /integrations/facebook`,
   `POST /integrations/facebook/connect`, `POST /integrations/facebook/import`, plus the callbacks below).
 - **Different shapes:** `POST /auth/refresh` returns `{access_token, refresh_token?, expires_at?}`; sign-up also
   takes `username` and `date_of_birth`; `GET /me` also returns `id`, `avatar_color`, `school`, `setup_complete`,
   `home_base`, `city`; plan options, stops, batches and routes carry the planner extras above;
-  free posts take `until` and a location; `POST /plans/route` also takes start, end, start time and back-by;
+  plan requests take `must_include`; free posts take `until` and a location; `POST /plans/route` also takes start, end, start time and back-by;
   notes have a scope; settle-up takes the amount; lists paginate with `next_cursor`; statuses are `open` / `friends_only` / `busy`; checkout intents take `instant` (preferences hold the on/off and the limit).
 - **Only there (not used by the app yet):** the `GET /events` catalog, the host's join-request approval
   endpoints (joins auto-accept for now), and `lock_at` / `max_group_size` in `PATCH /itineraries/{id}`.
@@ -995,6 +997,62 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
 
 ### Planning
 
+<details><summary><code>ActivityHits</code> (GET /activities/search: an event, a free place, a place with no known price or distance (no near))</summary>
+
+```json
+[
+  {
+    "category": "trivia",
+    "distance_mi": 1.5,
+    "end": "2026-09-25T20:00:00Z",
+    "id": "act-rooftop-trivia",
+    "kind": "event",
+    "place": {
+      "coordinate": {
+        "lat": 33.7727,
+        "lng": -84.3653
+      },
+      "name": "Skyline Park rooftop"
+    },
+    "price_cents": 500,
+    "start": "2026-09-25T19:00:00Z",
+    "subtitle": "Trivia · 3:00 PM · 1.5 mi",
+    "title": "Rooftop trivia"
+  },
+  {
+    "category": "views",
+    "distance_mi": 1.5,
+    "id": "act-jackson-street-bridge",
+    "kind": "place",
+    "place": {
+      "coordinate": {
+        "lat": 33.7596,
+        "lng": -84.3721
+      },
+      "name": "Jackson Street Bridge"
+    },
+    "price_cents": 0,
+    "subtitle": "Skyline views · Free · 1.5 mi",
+    "title": "Jackson Street Bridge"
+  },
+  {
+    "category": "food",
+    "id": "act-politan-row",
+    "kind": "place",
+    "place": {
+      "coordinate": {
+        "lat": 33.787,
+        "lng": -84.3839
+      },
+      "name": "Politan Row"
+    },
+    "subtitle": "Food hall · $",
+    "title": "Politan Row"
+  }
+]
+```
+</details>
+
 <details><summary><code>PlanRequest</code></summary>
 
 ```json
@@ -1014,6 +1072,50 @@ Generated by `ContractTests` from the demo data (`TEST_RUNNER_SQ_DUMP_CONTRACT=<
     "walk"
   ],
   "mood_text": "Something chill and outside, then cheap food after.",
+  "pace": "balanced",
+  "range": "transit",
+  "ride": "none",
+  "start": {
+    "coordinate": {
+      "lat": 33.7766,
+      "lng": -84.389
+    },
+    "name": "Tech Square (current location)"
+  },
+  "start_time": "2026-09-25T18:10:00Z",
+  "tags": [
+    "Outdoors",
+    "Food",
+    "Meet people"
+  ],
+  "who": "friends"
+}
+```
+</details>
+
+<details><summary><code>PlanRequest.mustInclude</code> (with two must-see picks: every option includes them)</summary>
+
+```json
+{
+  "back_by": "2026-09-25T22:30:00Z",
+  "budget": 1,
+  "date": "2026-09-25T18:10:00Z",
+  "end": {
+    "coordinate": {
+      "lat": 33.771,
+      "lng": -84.3918
+    },
+    "name": "Home · North Ave Apts"
+  },
+  "modes": [
+    "marta",
+    "walk"
+  ],
+  "mood_text": "Something chill and outside, then cheap food after.",
+  "must_include": [
+    "act-rooftop-trivia",
+    "act-jackson-street-bridge"
+  ],
   "pace": "balanced",
   "range": "transit",
   "ride": "none",

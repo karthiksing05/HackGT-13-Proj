@@ -82,9 +82,10 @@ struct CreateMoreOptionsSheet: View {
 
     // MARK: Answers
 
+    /// The prototype's rows, plus the must-see picks when there are some.
     private var rows: [Row] {
         let format = env.format
-        return [
+        var rows = [
             Row(label: "Start", value: model.start?.name ?? "—", step: 1),
             Row(label: "End", value: model.endPlace?.name ?? "—", step: 1),
             Row(label: "Date", value: format.shortDate(model.date), step: 2),
@@ -94,6 +95,10 @@ struct CreateMoreOptionsSheet: View {
             Row(label: "Who's coming", value: model.who.label, step: 3),
             Row(label: "Ride", value: model.ride.summary(openSeats: model.openSeats), step: 1),
         ]
+        if !model.mustSee.isEmpty {
+            rows.insert(Row(label: "Must-see", value: model.mustSee.map(\.title).joined(separator: ", "), step: 3), at: rows.count - 1)
+        }
+        return rows
     }
 
     /// Like the prototype, the card is what gets shorter when the sheet hits 740pt; it scrolls inside

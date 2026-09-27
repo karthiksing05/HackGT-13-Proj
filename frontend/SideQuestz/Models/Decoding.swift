@@ -281,6 +281,51 @@ extension PlanBatch {
     }
 }
 
+extension PlanRequest {
+    /// The app sends this; it decodes only in the contract tests. `must_include` may be missing
+    /// (it's left out when there are no picks).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        start = try c.decode(Place.self, forKey: .start)
+        end = try c.decode(Place.self, forKey: .end)
+        date = try c.decode(Date.self, forKey: .date)
+        startTime = try c.decode(Date.self, forKey: .startTime)
+        backBy = try c.decode(Date.self, forKey: .backBy)
+        range = try c.decode(TravelRange.self, forKey: .range)
+        ride = try c.decode(RideChoice.self, forKey: .ride)
+        openSeats = try c.decodeIfPresent(Int.self, forKey: .openSeats)
+        moodText = try c.decodeIfPresent(String.self, forKey: .moodText) ?? ""
+        tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
+        budget = try c.decode(Int.self, forKey: .budget)
+        who = try c.decode(Visibility.self, forKey: .who)
+        pace = try c.decode(Pace.self, forKey: .pace)
+        modes = try c.decodeIfPresent(Set<TravelMode>.self, forKey: .modes) ?? []
+        mustInclude = try c.decodeIfPresent([String].self, forKey: .mustInclude) ?? []
+    }
+}
+
+extension ActivityHit {
+    enum CodingKeys: String, CodingKey {
+        case id, title, kind, category, subtitle, place, start, end, priceCents, distanceMi
+    }
+
+    /// Only `id` and `title` are required. A missing or unknown `kind` reads as an event when the
+    /// hit has a start, else as a place.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        category = try c.decodeIfPresent(String.self, forKey: .category)
+        subtitle = try c.decodeIfPresent(String.self, forKey: .subtitle) ?? ""
+        place = try c.decodeIfPresent(Place.self, forKey: .place)
+        start = try c.decodeIfPresent(Date.self, forKey: .start)
+        end = try c.decodeIfPresent(Date.self, forKey: .end)
+        priceCents = try c.decodeIfPresent(Int.self, forKey: .priceCents)
+        distanceMi = try c.decodeIfPresent(Double.self, forKey: .distanceMi)
+        kind = try c.decodeIfPresent(String.self, forKey: .kind).flatMap(PlanStopKind.init(rawValue:)) ?? (start == nil ? .place : .event)
+    }
+}
+
 extension PlanAlternative {
     enum CodingKeys: String, CodingKey { case stop, reason }
 
