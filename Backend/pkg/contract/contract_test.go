@@ -55,6 +55,7 @@ var examples = map[string]func() any{
 	"PlanBatch":              func() any { return &PlanBatch{} },
 	"PlanRequest":            func() any { return &PlanRequest{} },
 	"Preferences":            func() any { return &Preferences{} },
+	"PublicProfile":          func() any { return &PublicProfile{} },
 	"Rating":                 func() any { return &Rating{} },
 	"RouteRequest":           func() any { return &RouteRequest{} },
 	"RouteResult":            func() any { return &RouteResult{} },
