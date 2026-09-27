@@ -19,6 +19,11 @@ type Config struct {
 	MongoURI        string
 	MongoDB         string
 
+	// CatalogDB and CatalogCollection name the SideQuestz catalog whose paid
+	// items are sold here, on the same MongoDB (freetime.pitch_activities).
+	CatalogDB         string
+	CatalogCollection string
+
 	// TapAgentPublicKey is the SideQuestz agent's Ed25519 public key (base64).
 	// Empty only in dev, where the demo key from the repo is accepted.
 	TapAgentPublicKey string
@@ -46,6 +51,8 @@ func FromEnv() (*Config, error) {
 		DemoKey:           env("DEMO_KEY", "sqz-booth-demo"),
 		MongoURI:          env("MONGO_URI", env("MONGODB_URI", "mongodb://127.0.0.1:27017")),
 		MongoDB:           env("MONGO_DB", env("MONGODB_DATABASE", "sidequestz_events")),
+		CatalogDB:         env("CATALOG_DB", "freetime"),
+		CatalogCollection: env("CATALOG_COLLECTION", "pitch_activities"),
 		TapAgentPublicKey: env("TAP_AGENT_PUBLIC_KEY", ""),
 		StripeSecretKey:   env("STRIPE_MERCHANT_SECRET_KEY", env("STRIPE_SECRET_KEY", "")),
 		StripeAPIBase:     env("STRIPE_API_BASE", "https://api.stripe.com"),
