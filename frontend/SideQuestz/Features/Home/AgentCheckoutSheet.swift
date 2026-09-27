@@ -153,7 +153,8 @@ final class AgentCheckoutSession {
         guard run?.isRunning == true else { return }
         followTask = Task { [weak self, env] in
             await withTaskGroup(of: Void.self) { group in
-                group.addTask {
+                // The hub lives on the main actor (like every other realtime listener).
+                group.addTask { @MainActor in
                     for await event in env.realtime.subscribe() {
                         guard !Task.isCancelled else { return }
                         switch event {

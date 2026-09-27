@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds and deploys the events merchant server to the VPS:
-#   1. ./build.sh --amd64 (events-server, tests included)
+#   1. ./build.sh (the linux/amd64 events-server; run `go test ./...` first)
 #   2. uploads binary to /opt/events as events-server.new and swaps it in,
 #      keeping events-server.prev for rollback
 #   3. syncs events.service, restarts the unit, checks it is active (healthz)

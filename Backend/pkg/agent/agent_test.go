@@ -1,16 +1,19 @@
 package agent_test
 
 import (
+	"Backend/pkg/config"
 	"Backend/pkg/contract"
 	"Backend/pkg/models"
 	"Backend/pkg/muse"
 	"Backend/pkg/realtime"
 	"Backend/pkg/store"
+	"Backend/pkg/testutil"
 	"context"
 	"errors"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -204,6 +207,34 @@ func TestResumeFinishesARunLeftRunning(t *testing.T) {
 	in, _ := h.srv.Store.CheckoutIntents().Get(context.Background(), h.sess.UserID, intent.ID)
 	if got.State != models.RunDone || in.State != models.CheckoutBooked {
 		t.Fatalf("run %s, intent %s", got.State, in.State)
+	}
+}
+
+// A demo account's run keeps the account's clock (pkg/democlock): created
+// and finished on DEMO_DATE like everything else it sees, never finished
+// before it began, while the token's expiry stays on the real clock.
+func TestADemoAccountsRunStaysOnTheDemoDate(t *testing.T) {
+	ny, _ := time.LoadLocation(testutil.TimeZone)
+	demoDate := time.Now().In(ny).AddDate(0, 0, -3).Format("2006-01-02")
+	h := newHarnessWith(t, func(c *config.Config) { c.DemoDate = demoDate }, nil, map[string]int{"sunset-jazz": 1200}, "sunset-jazz")
+	if _, err := h.srv.Store.Users().Update(context.Background(), h.sess.UserID, bson.M{"catalog": store.CollDemoActivities}); err != nil {
+		t.Fatal(err)
+	}
+	run := h.start(t, 5000, 1)
+	if run.State != contract.CheckoutRunDone || run.FinishedAt == nil || run.Intents[0].State != contract.CheckoutBooked {
+		t.Fatalf("run: %+v", run)
+	}
+	for name, at := range map[string]contract.Time{"created_at": run.CreatedAt, "finished_at": *run.FinishedAt} {
+		if day := at.In(ny).Format("2006-01-02"); day != demoDate {
+			t.Errorf("%s is on %s, want the demo date %s", name, day, demoDate)
+		}
+	}
+	if run.FinishedAt.Before(run.CreatedAt.Time) {
+		t.Errorf("finished %s before it was created %s", run.FinishedAt, run.CreatedAt)
+	}
+	now := h.srv.Clock.Now()
+	if iss, ok := h.issuer.Last(); !ok || !iss.ExpiresAt.After(now) || iss.ExpiresAt.After(now.Add(10*time.Minute)) {
+		t.Errorf("the token expires at %s, want within 10 minutes of the real time %s", iss.ExpiresAt, now)
 	}
 }
 

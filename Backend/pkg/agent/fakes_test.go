@@ -245,9 +245,18 @@ type harness struct {
 // user with a Visa 4242, and a plan with one stop per slug (prices in cents).
 func newHarness(t *testing.T, model agent.Model, slugs map[string]int, order ...string) *harness {
 	t.Helper()
+	return newHarnessWith(t, nil, model, slugs, order...)
+}
+
+// newHarnessWith is newHarness with more settings (DEMO_DATE).
+func newHarnessWith(t *testing.T, edit func(*config.Config), model agent.Model, slugs map[string]int, order ...string) *harness {
+	t.Helper()
 	srv := testutil.New(t, testutil.WithConfig(func(c *config.Config) {
 		c.PaymentsMode, c.StripeSecretKey, c.StripeSellerProfile = "sandbox", "sk_test_agent", "profile_test_seller"
 		c.MerchantHost, c.MerchantBaseURL = merchantHost, "https://"+merchantHost
+		if edit != nil {
+			edit(c)
+		}
 	}))
 	issuer := &payments.Fake{}
 	fm := newFakeMerchant(t, issuer)

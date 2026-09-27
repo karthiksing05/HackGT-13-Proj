@@ -20,9 +20,9 @@ encoder, so they are exactly what the app sends and what it expects to read:
   home base).
 - Every file is normalized the same way: keys sorted, 2-space indent, UTF-8 (no `\uXXXX` escapes), a
   trailing newline. A regeneration therefore only changes the shapes whose models changed.
-- Requests (`PlanRequest`, `RouteRequest`, `CreateItineraryRequest`, `SignupRequest`, `UserPatch`,
-  `ItineraryUpdate`, `NewExpense`, `NewFreePost`, `ForumQuery`) are what the app sends; the rest are
-  responses the app decodes.
+- Requests (`PlanRequest`, `RouteRequest`, `CreateItineraryRequest`, `CreateCheckoutRun`, `SignupRequest`,
+  `UserPatch`, `ItineraryUpdate`, `NewExpense`, `NewFreePost`, `ForumQuery`) are what the app sends; the
+  rest are responses the app decodes.
 
 ## How the backend uses them
 

@@ -100,8 +100,10 @@ Optional: `MUSE_MODEL` (`muse-spark-1.3`), `MUSE_BASE_URL` (`https://api.meta.ai
 ### Events merchant (`events.sidequestz.tech`)
 
 A separate Go service in `Events/` on `127.0.0.1:8085`, behind nginx and Cloudflare like the API (DNS,
-nginx site and certificate are set up alongside `api.sidequestz.tech`). Its env (template
-`Events/.env.example`):
+nginx site and certificate are set up alongside `api.sidequestz.tech`). Its env lives in `Events/.env` on
+the deploying Mac (gitignored; template `Events/.env.example`): `Events/deploy.sh` builds, uploads it to
+`/opt/events/.env` on every deploy (mode 600) and sets `MERCHANT_BASE_URL=https://events.sidequestz.tech`
+there. Production values:
 
 ```
 APP_ENV=prod

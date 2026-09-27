@@ -1,53 +1,20 @@
-#!/usr/bin/env bash
-# Builds the static events merchant binary into bin/ (Linux/amd64 by
-# default: what deploy.sh uploads). Runs the test suite first unless
-# --skip-tests.
-set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")"
+#!/bin/bash
 
-TARGET_OS="${GOOS:-linux}"
-TARGET_ARCH="${GOARCH:-amd64}"
-OUTPUT_DIR="bin"
-SKIP_TESTS=false
-CLEAN=false
+# Build script for Debian 12 (amd64)
+# Builds into Events/bin wherever it is run from (deploy.sh calls it by path).
+cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
+echo "Building Events for Debian 12 (amd64)..."
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --native) TARGET_OS="$(go env GOHOSTOS)"; TARGET_ARCH="$(go env GOHOSTARCH)"; shift ;;
-    --arm64) TARGET_ARCH="arm64"; shift ;;
-    --amd64) TARGET_ARCH="amd64"; shift ;;
-    --skip-tests) SKIP_TESTS=true; shift ;;
-    --clean) CLEAN=true; shift ;;
-    -h|--help)
-      cat <<EOF
-Usage: ./build.sh [--native|--arm64|--amd64] [--skip-tests] [--clean]
-Builds bin/events-server (main.go).
-EOF
-      exit 0 ;;
-    *) echo "Unknown option: $1" >&2; exit 1 ;;
-  esac
-done
+# Set target OS to Linux and architecture to amd64
+export GOOS=linux
+export GOARCH=amd64
 
-command -v go >/dev/null || { echo "Go is not installed or not in PATH." >&2; exit 1; }
-echo "==> target ${TARGET_OS}/${TARGET_ARCH} with $(go version)"
+# Build the binary
+go build -o bin/events-server main.go
 
-if [ "$CLEAN" = true ]; then rm -rf "$OUTPUT_DIR"; fi
-mkdir -p "$OUTPUT_DIR"
-
-go mod download
-if [ "$SKIP_TESTS" = false ]; then
-  echo "==> go test ./..."
-  go test ./...
+if [ $? -eq 0 ]; then
+    echo "Build successful! Binary is located at bin/events-server"
+else
+    echo "Build failed!"
+    exit 1
 fi
-
-build() {
-  local name="$1" pkg="$2"
-  local out="${OUTPUT_DIR}/${name}"
-  [ "$TARGET_OS" = "windows" ] && out="${out}.exe"
-  echo "==> building ${out}"
-  CGO_ENABLED=0 GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" go build -trimpath -ldflags="-s -w" -o "$out" "$pkg"
-  chmod +x "$out"
-  echo "    $(du -h "$out" | cut -f1) $out"
-}
-build events-server .
-echo "==> build successful"

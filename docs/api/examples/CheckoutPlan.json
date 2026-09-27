@@ -1,0 +1,33 @@
+{
+  "agentic_checkout": true,
+  "available": true,
+  "card_brand": "Visa",
+  "card_last4": "4242",
+  "default_budget_cents": 5000,
+  "estimate_cents": 2700,
+  "items": [
+    {
+      "booked": false,
+      "item_id": "stop-2",
+      "merchant": "events.sidequestz.tech",
+      "price_cents": 1200,
+      "quantity": 1,
+      "start": "2026-09-26T22:30:00Z",
+      "ticket_url": "https://events.sidequestz.tech/sunset-jazz-on-pier-nine/tickets",
+      "title": "Sunset Jazz on Pier Nine"
+    },
+    {
+      "booked": false,
+      "item_id": "stop-4",
+      "merchant": "events.sidequestz.tech",
+      "price_cents": 1500,
+      "quantity": 1,
+      "start": "2026-09-27T02:00:00Z",
+      "ticket_url": "https://events.sidequestz.tech/barnacle-bash-silent-disco/tickets",
+      "title": "Barnacle Bash Silent Disco"
+    }
+  ],
+  "itinerary_id": "665f1c2e9b1e8a0012345678",
+  "payment_method_id": "pm-4242",
+  "suggested_budget_cents": 5000
+}

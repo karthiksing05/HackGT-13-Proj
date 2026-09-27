@@ -58,6 +58,7 @@ data pipeline and the training jobs run offline and are not deployed.
 | `Backend/` | The Go API: auth, planner, itineraries, forum, threads, splits, checkout agent, Facebook, realtime hub; deploy scripts | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/PLANNER.md](docs/PLANNER.md) |
 | `ml/` | The FastAPI ML service (embeddings, profile texts, ranking, Jev rerank), the compatibility classifier, data generation and training on MPCDF Raven | [ml/README.md](ml/README.md), [ml/models.md](ml/models.md) |
 | `dataingestion/` | The Python pipeline that fills MongoDB with events, places and trails, and the Saltlight Harbor demo snapshot | [dataingestion/README.md](dataingestion/README.md), [docs/DATA.md](docs/DATA.md) |
+| `Events/` | The sandbox ticket merchant for Saltlight's ticketed events ("Saltlight Tickets", `events.sidequestz.tech`, its own Go module): the ticket website on Stripe Checkout, and the TAP-signed API agentic checkout buys through with Stripe test-mode payment tokens | [Events/README.md](Events/README.md), [docs/AGENTIC_CHECKOUT.md](docs/AGENTIC_CHECKOUT.md) |
 | `docs/` | This documentation set, the generated API examples (`docs/api/examples/`) and the design notes behind the integration (`docs/design/`) | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 
 ## Quick start
@@ -79,7 +80,7 @@ ws://127.0.0.1:8080/ws` targets a local server, `-SQDemoPassword …` enables th
 database `freetime`):
 
 ```sh
-docker run -d --name sq-mongo -p 27017:27017 mongo:7
+ssh -N -L 27017:localhost:27017 user@IP
 # the demo city: copy the embedded Saltlight catalog (100 activities with embedding texts and vectors)
 # from production's demo_activities into the local Mongo (seed-demo and the planner need it)
 Backend/scripts/pull-demo-catalog.sh
@@ -163,7 +164,8 @@ The API (`sidequestz.service`) and the ML service (`ml.service`) run on one VPS 
 `cd ml && ./deploy.sh`, then `cd Backend && ./deploy.sh`; the ordered runbook, rollback, logs and health
 checks are in [docs/DEPLOY.md](docs/DEPLOY.md). Credentials come from the root `.env` and are never
 printed or uploaded. There is no website: `sidequestz.tech` has no DNS record, and the API's root
-answers a JSON 404 by design.
+answers a JSON 404 by design. The sandbox ticket merchant (`Events/`, `events.sidequestz.tech`) is a
+separate service with its own `deploy.sh`; see [docs/DEPLOY.md](docs/DEPLOY.md) › Events merchant.
 
 ## The demo account
 
@@ -183,7 +185,8 @@ Names only; values live in gitignored files with mode 0600 and are never committ
 | Where | Names | Read by |
 |---|---|---|
 | Root `.env` (a developer's Mac, gitignored) | `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PASSWORD`, `DEPLOY_REMOTE_DIR`, `DEPLOY_SERVICE` (the API's systemd unit, `sidequestz`), `HF_TOKEN`, `TYPESAFE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS` (path to the gitignored `gcp-sa.json`), `DEMO_PASSWORD` | the deploy scripts (they read only `DEPLOY_*`), local ML tools, the seed |
-| `/opt/backend/.env` (VPS; template `Backend/.env.example`) | `APP_ENV`, `HTTP_ADDR`, `PUBLIC_BASE_URL`, `MONGO_URI`, `MONGO_DB`, `JWT_SECRET`, `ML_SERVICE_URL`, `PLANNER`, `TRUST_PROXY`, `FB_APP_ID`, `FB_APP_SECRET`, `FB_TOKEN_KEY` (set it in production), `DEMO_PASSWORD`; optional `ML_*`, `PLANNER_*`, `FB_GRAPH_VERSION`, `DEMO_DATE` (demo accounts' fixed date, `2026-09-27` in production), `DEMO_TZ`, `DEV_RESET_CODES`, `CHECKOUT_STEP_DELAY`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `MAX_PHOTO_BYTES`, `MAX_JSON_BYTES` | the Go API and `sidequestz-admin` |
+| `/opt/backend/.env` (VPS; template `Backend/.env.example`) | `APP_ENV`, `HTTP_ADDR`, `PUBLIC_BASE_URL`, `MONGO_URI`, `MONGO_DB`, `JWT_SECRET`, `ML_SERVICE_URL`, `PLANNER`, `TRUST_PROXY`, `FB_APP_ID`, `FB_APP_SECRET`, `FB_TOKEN_KEY` (set it in production), `DEMO_PASSWORD`; optional `ML_*`, `PLANNER_*`, `FB_GRAPH_VERSION`, `DEMO_DATE` (demo accounts' fixed date, `2026-09-27` in production), `DEMO_TZ`, `DEV_RESET_CODES`, `CHECKOUT_STEP_DELAY`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `MAX_PHOTO_BYTES`, `MAX_JSON_BYTES`; agentic checkout (off until set): `PAYMENTS_MODE`, `STRIPE_SECRET_KEY` (test keys only), `STRIPE_SELLER_PROFILE`, `MERCHANT_HOST`, `MERCHANT_BASE_URL`, `TAP_AGENT_KEY`, `MUSE_API_KEY`, `MUSE_MODEL`, `MUSE_BASE_URL`, `AGENT_MAX_TURNS`, `CHECKOUT_RUN_TIMEOUT` | the Go API and `sidequestz-admin` |
+| `/opt/events/.env` (VPS; uploaded from the gitignored `Events/.env` by `Events/deploy.sh`; template `Events/.env.example`) | `APP_ENV`, `HTTP_ADDR`, `MERCHANT_HOST`, `MERCHANT_BASE_URL`, `PAYMENTS_MODE`, `DEMO_KEY`, `TAP_AGENT_PUBLIC_KEY`, `STRIPE_MERCHANT_SECRET_KEY` (or `STRIPE_SECRET_KEY`: the merchant's own Stripe test account), `MONGO_URI`, `MONGO_DB` | the Events merchant |
 | `/opt/ml/.env` (VPS) | `HF_TOKEN`, `TYPESAFE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS`; optional `EMBED_*`, `HF_EMBED_*`, `HF_ROUTER_BASE`, `HF_AUTH_BACKOFF`, `VERTEX_*`, `RANKING_*`, `SEARCH_WEIGHT`, `USER_EMBEDDING_ALPHA`, `RERANK_TOP_K`, `RERANK_TIMEOUT_SECONDS`, `LOG_LEVEL` (`ml.service` sets several of these itself) | the ML service and its timer job |
 | Root `.env`, ingestion keys (see `dataingestion/.env.example`) | `MONGODB_URI`, `MONGODB_DB`, `TICKETMASTER_API_KEY`, `GOOGLE_MAPS_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `MUSE_API_KEY`, `SERPAPI_API_KEY`, `PREDICTHQ_TOKEN`, `NPS_API_KEY`, `HF_TOKEN`, `CONTACT_EMAIL` | `python -m ingest …` (offline) |
 | Xcode | build setting `SQ_DEMO_PASSWORD` → `Info.plist` `SQDemoPassword`; `Info.plist` `SQAPIMode`, `SQAPIBaseURL`, `SQWebSocketURL`; launch arguments `-SQAPIMode`, `-SQAPIBaseURL`, `-SQWebSocketURL`, `-SQDemoPassword`, `-SQSlowLoadingAfter`, `-SQSkipIntro`, `-SQResetSession`, `-SQMockLatency`, `-SQMockFail`, `-SQVoiceDemo`, `-SQRoute` (mock mode only); test-runner variables `TEST_RUNNER_SQ_DUMP_CONTRACT`, `TEST_RUNNER_SQ_LIVE_DEMO_PASSWORD`, `TEST_RUNNER_SQ_LIVE_API_URL` | the app and its tests |
@@ -201,6 +204,7 @@ Embedding-provider settings exist only on the ML service; the Go API never holds
 | [docs/DEPLOY.md](docs/DEPLOY.md) | The VPS, services, deploy scripts, runbook, rollback, logs, health checks, Cloudflare notes, local dev loop |
 | [docs/DEMO.md](docs/DEMO.md) | Sandy Byte, what is seeded, the three-minute walkthrough, known limits, how to reset |
 | [docs/DATA.md](docs/DATA.md) | The `activities` schema, categories, indexes, sources, commands, the demo snapshot, quotas, attribution |
+| [docs/AGENTIC_CHECKOUT.md](docs/AGENTIC_CHECKOUT.md) | Muse buying a plan's tickets: the Events merchant, Stripe test-mode payment tokens, TAP signing, the budget and safety rules; status in [AGENTIC_CHECKOUT_HANDOFF.md](docs/AGENTIC_CHECKOUT_HANDOFF.md) |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | What is simulated and what a real integration needs |
 | [docs/design/README.md](docs/design/README.md) | The detailed design notes the integration was built from |
 | [frontend/API_CONTRACT.md](frontend/API_CONTRACT.md), [docs/api/README.md](docs/api/README.md), [docs/api/examples/](docs/api/examples/) | Every endpoint, the JSON examples generated from the app's tests, and how to change the contract |

@@ -140,6 +140,10 @@ func (r *Runner) Run(ctx context.Context, runID string) error {
 	if err != nil || !ok {
 		return err // taken by another runner, or finished
 	}
+	// The run is its owner's: what it stamps follows the account's clock (a
+	// demo account's DEMO_DATE, pkg/democlock), as its creation did; the
+	// lease, tokens and signatures stay on the real clock.
+	ctx = r.d.ForUser(ctx, run.UserID)
 	stopLease := r.keepLease(ctx, runID)
 	defer stopLease()
 
