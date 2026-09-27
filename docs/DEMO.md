@@ -87,7 +87,8 @@ the S logo appears only if the request takes more than 2 s.
 6. **Groups** (2:35). The list shows "Saturday market crew" and, after the groups, the DM with Marin
    (one unread). Open the crew › **Splits**: the headline shows her net "You owe $2.00" (the Groups row's chip
    reads "You owe $2"), and the rows read "You owe Marin $5.00" and "Theo owes you $3.00", over two
-   expenses split equally. **+ Add an expense** ("Pizza", $40, split 3 ways) shows the cent-exact
+   expenses split equally, and the button reads **Settle up $5.00** (what she owes, paid with the demo Visa).
+   **+ Add an expense** ("Pizza", $40, split 3 ways) shows the cent-exact
    preview ($13.34 / $13.33 / $13.33) and, once saved, the banner "Everyone was notified".
 7. **Account** (2:50). Her taste profile bars, **Home base** (Seaside Market Square, Saltlight Harbor),
    the demo Visa, and **Friends** with Marin and Theo's pending request ("Met at the market") to accept.

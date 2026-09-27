@@ -66,7 +66,8 @@ every record it writes has a fixed id, so nothing is ever duplicated. It re-time
   refreshes her taste vectors (if the ML service is down, it still succeeds and says so);
 - **rewrites** the 3 plans, both chats (unread counts too), the 5 seeded messages, the 2 expenses, her 2 crew
   ratings, the Marin friendship, Theo's request (pending again), the free-now post and the Visa (default again);
-- **undoes** her greenway rating, an accepted friendship with Theo and anyone's place in Marin's plan;
+- **undoes** her greenway rating, an accepted friendship with Theo and anyone's place in Marin's plan and
+  its chat (the chat and its messages stay);
 - **leaves** everything else a demo made: new plans, sent messages, added expenses (still counted in
   Splits), photos, other cards and the chat created by joining Marin's plan.
 

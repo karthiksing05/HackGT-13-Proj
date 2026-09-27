@@ -128,6 +128,10 @@ xcodebuild test -project frontend/SideQuestz.xcodeproj -scheme SideQuestz \
 # opt-in: the demo account against a real server, screenshots attached to the result (it never starts a sidequest)
 TEST_RUNNER_SQ_LIVE_DEMO_PASSWORD='…' xcodebuild test -project frontend/SideQuestz.xcodeproj -scheme SideQuestz \
   -destination 'platform=iOS Simulator,name=iPhone 17e' -only-testing:SideQuestzUITests/LiveSmokeUITests
+# opt-in: nine interactive demo-account flows (rate, plan + start, note, join + chat, expense, settle up, free-now,
+# accept Theo, status). They change Sandy's data: run seed-demo before and after
+TEST_RUNNER_SQ_LIVE_DEMO_PASSWORD='…' xcodebuild test -project frontend/SideQuestz.xcodeproj -scheme SideQuestz \
+  -destination 'platform=iOS Simulator,name=iPhone 17e' -only-testing:SideQuestzUITests/LiveFlowUITests
 # regenerate docs/api/examples from the app's ContractTests (run from frontend/; see docs/api/README.md)
 cd frontend && TEST_RUNNER_SQ_DUMP_CONTRACT=/tmp/sq-contract xcodebuild test -project SideQuestz.xcodeproj \
   -scheme SideQuestz -destination 'platform=iOS Simulator,name=iPhone 17e' \
@@ -138,6 +142,10 @@ cd Backend && go test ./...
 cd Backend && make test-db       # the whole suite against sq-mongo with -race; a missing server fails instead of skipping
 cd Backend && go test -tags integration ./pkg/planner/mongosource/   # the planner against copies of the real catalogs
 cd Backend && BASE_URL=https://api.sidequestz.tech scripts/smoke.sh   # healthz, sign-up, me, refresh rotation, logout
+# every feature end to end through the real API, responses decoded strictly into pkg/contract (Backend/e2e/doc.go);
+# leaves three e2e.*@example.test accounts and changes Sandy's data: run seed-demo afterwards
+cd Backend && E2E_BASE_URL=https://api.sidequestz.tech E2E_DEMO_PASSWORD='…' E2E_DEMO_DATE=2026-09-27 \
+  go test -tags e2e -count=1 -timeout 20m ./e2e/
 
 # ML service (ML_TEST_LOCAL_EMBEDDER=1 and ML_TEST_HF=1 add the slow local-model and HF parity tests)
 cd ml && .venv/bin/python -m unittest discover
