@@ -23,9 +23,9 @@ func setupTestServer(t *testing.T) (http.Handler, *api.Deps) {
 	t.Helper()
 	cfg := &config.Config{
 		AppEnv:            "test",
-		HTTPAddr:          ":8081",
+		HTTPAddr:          ":8085",
 		MerchantHost:      "events.sidequestz.tech",
-		MerchantBaseURL:   "http://localhost:8081",
+		MerchantBaseURL:   "http://localhost:8085",
 		PaymentsMode:      "sandbox",
 		DemoKey:           "test-demo-key",
 		SandboxNetworkKey: "test-network-key",
@@ -377,7 +377,7 @@ func TestJSONLDValidity(t *testing.T) {
 		Buyer: models.BuyerInfo{Name: "Sandy Byte"},
 		Ticket: models.TicketSummary{
 			TicketID:  "tkt_valid_123",
-			TicketURL: "http://localhost:8081/t/tkt_valid_123",
+			TicketURL: "http://localhost:8085/t/tkt_valid_123",
 			Barcode:   "SLT-1234-5678",
 		},
 		Payment: models.PaymentSummary{Last4: "1881"},

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Event.Title}} · SideQuestz Events</title>
+<script type="application/ld+json">
+{{.JSONLD}}
+</script>
+<style>
+{{baseCSS}}
+.event-header {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  margin-bottom: 36px;
+  background: #141a24;
+  border: 1px solid var(--border-subtle);
+  min-height: 380px;
+  display: flex;
+  align-items: flex-end;
+}
+.header-bg {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0.45;
+}
+.header-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(180deg, rgba(10,14,20,0.2) 0%, rgba(10,14,20,0.95) 100%);
+}
+.header-content {
+  position: relative;
+  z-index: 2;
+  padding: 40px;
+  max-width: 800px;
+}
+.header-content h1 {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 12px 0 16px;
+}
+.header-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  color: var(--text-muted);
+  font-size: 16px;
+  font-weight: 500;
+}
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.event-body-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 36px;
+}
+.content-box {
+  background: var(--bg-card);
+  backdrop-filter: var(--glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 24px;
+}
+.content-box h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--accent-cyan);
+}
+.desc-text {
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--text-main);
+  margin-bottom: 20px;
+}
+
+.ticket-cta-card {
+  background: var(--bg-card);
+  backdrop-filter: var(--glass);
+  border: 1px solid var(--border-glow);
+  border-radius: 20px;
+  padding: 28px;
+  position: sticky;
+  top: 100px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+.cta-price {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.cta-avail {
+  margin-bottom: 24px;
+}
+@media (max-width: 860px) {
+  .event-body-layout { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="sandbox-banner">
+  <span>Sandbox Active</span>
+  Official Ticketmaster Partner Demo · Simulated Visa Agent Network
+</div>
+
+<header class="nav-header">
+  <div class="nav-container">
+    <a href="/" class="brand">
+      <div class="brand-logo">S</div>
+      <div class="brand-text">SideQuestz <span>Events</span></div>
+    </a>
+    <nav class="nav-links">
+      <a href="/">← Back to Events</a>
+      <a href="/dashboard">Booth Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="event-header">
+    <img src="{{.Event.ImageURL}}" alt="{{.Event.Title}}" class="header-bg">
+    <div class="header-overlay"></div>
+    <div class="header-content">
+      <span class="badge badge-cyan">{{categoryTitle .Event.Category}}</span>
+      <h1>{{.Event.Title}}</h1>
+      <div class="header-details">
+        <div class="detail-item">📅 {{formatDate .Event.Start}} at {{formatTime .Event.Start}}</div>
+        <div class="detail-item">📍 {{.Event.Venue}}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="event-body-layout">
+    <div class="main-content">
+      <div class="content-box">
+        <h2>About This Event</h2>
+        <p class="desc-text">{{.Event.Description}}</p>
+        <p style="color: var(--text-muted); font-size: 15px;">Venue Location: {{.Event.Address}}</p>
+      </div>
+
+      <div class="content-box">
+        <h2>Event Tags & Experience</h2>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          {{range .Event.Tags}}
+          <span class="badge badge-violet">#{{.}}</span>
+          {{end}}
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="ticket-cta-card">
+        <div class="cta-price">{{centsToDollars .Event.UnitCents}} <small style="font-size:14px; color:var(--text-muted); font-weight:normal;">/ person</small></div>
+        <div class="cta-avail">
+          <span class="badge badge-emerald">✓ {{.Event.Remaining}} Tickets Remaining</span>
+        </div>
+        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px;">
+          Secure your admission directly through our online box office or authorize SideQuestz Muse to auto-purchase.
+        </p>
+        <a href="/{{.Event.Slug}}/tickets" class="btn btn-primary" style="width: 100%; text-align: center;">Get Tickets →</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+</body>
+</html>

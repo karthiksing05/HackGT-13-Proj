@@ -28,9 +28,9 @@ type Config struct {
 func FromEnv() (*Config, error) {
 	c := &Config{
 		AppEnv:            env("APP_ENV", "dev"),
-		HTTPAddr:          env("HTTP_ADDR", env("PORT", ":8081")),
+		HTTPAddr:          env("HTTP_ADDR", env("PORT", ":8085")),
 		MerchantHost:      env("MERCHANT_HOST", "events.sidequestz.tech"),
-		MerchantBaseURL:   env("MERCHANT_BASE_URL", "http://localhost:8081"),
+		MerchantBaseURL:   env("MERCHANT_BASE_URL", "http://localhost:8085"),
 		PaymentsMode:      env("PAYMENTS_MODE", "sandbox"),
 		DemoKey:           env("DEMO_KEY", "sqz-booth-demo"),
 		SandboxNetworkKey: env("SANDBOX_NETWORK_KEY", "sqz-sbx-network-key-hackgt"),
@@ -49,6 +49,11 @@ func FromEnv() (*Config, error) {
 	// Ensure HTTPAddr has host:port or :port format
 	if !strings.Contains(c.HTTPAddr, ":") {
 		c.HTTPAddr = ":" + c.HTTPAddr
+	}
+
+	// Dynamically align MerchantBaseURL if using localhost default and port changed
+	if (c.MerchantBaseURL == "http://localhost:8085" || c.MerchantBaseURL == "") && c.HTTPAddr != ":8085" {
+		c.MerchantBaseURL = "http://localhost" + c.HTTPAddr
 	}
 
 	// If a custom Visa URL is provided, reject any host that isn't a sandbox host

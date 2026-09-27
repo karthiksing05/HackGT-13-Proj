@@ -37,17 +37,17 @@ cd Events
 go run main.go
 ```
 
-The server starts on port `8081` (leaving port `8080` open for the main Backend API).
+The server starts on port `8085` (leaving port `8080` open for the main Backend API).
 
 ### 2. Endpoints
 
 | URL | Type | Description |
 |---|---|---|
-| `http://localhost:8081/` | Web UI | Event discovery catalog & search |
-| `http://localhost:8081/{slug}` | Web UI | Event details & JSON-LD |
-| `http://localhost:8081/{slug}/tickets` | Web UI | Ticket tier selector & agent purchase demo |
-| `http://localhost:8081/t/{ticket_id}` | Web / JSON | Digital ticket pass |
-| `http://localhost:8081/dashboard` | Web UI | Live operator booth screen & scenario switcher |
+| `http://localhost:8085/` | Web UI | Event discovery catalog & search |
+| `http://localhost:8085/{slug}` | Web UI | Event details & JSON-LD |
+| `http://localhost:8085/{slug}/tickets` | Web UI | Ticket tier selector & agent purchase demo |
+| `http://localhost:8085/t/{ticket_id}` | Web / JSON | Digital ticket pass |
+| `http://localhost:8085/dashboard` | Web UI | Live operator booth screen & scenario switcher |
 | `GET /api/events/{slug}/offer` | API | Quote (requires TAP `agent-browser-auth`) |
 | `POST /api/orders` | API | Order placement (requires TAP `agent-payer-auth`) |
 | `GET /api/orders/{order_id}` | API | Order confirmation |
@@ -56,11 +56,27 @@ The server starts on port `8081` (leaving port `8080` open for the main Backend 
 | `POST /sandbox/visa/authorize` | API | Simulated Visa sandbox authorization |
 | `GET /healthz` | API | Health check |
 
----
-
 ## Running Tests
 
 ```bash
 cd Events
 go test -v ./...
+```
+
+---
+
+## Build & Deployment
+
+### Build Binary
+```bash
+./build.sh          # Defaults to linux/amd64 (matches deploy target)
+./build.sh --native # Builds for host operating system
+./build.sh --clean  # Cleans bin/ first
+```
+
+### Deploy to Production VPS
+Deploys `events-server` to `/opt/events` and updates the `events.service` systemd service unit:
+```bash
+./deploy.sh [host] [user]
+# Or configure DEPLOY_HOST, DEPLOY_USER, DEPLOY_PASSWORD in .env
 ```

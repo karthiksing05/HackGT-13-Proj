@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Booth Dashboard · SideQuestz Events</title>
+<style>
+{{baseCSS}}
+.dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.dash-title h1 {
+  font-size: 28px;
+  font-weight: 800;
+}
+.dash-title p {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Stat Cards */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 32px;
+}
+.stat-card {
+  background: var(--bg-card);
+  backdrop-filter: var(--glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 20px;
+}
+.stat-num {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--accent-cyan);
+  margin-bottom: 4px;
+}
+.stat-label {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+/* Scenario Controller */
+.scenario-box {
+  background: var(--bg-card);
+  backdrop-filter: var(--glass);
+  border: 1px solid var(--border-glow);
+  border-radius: 18px;
+  padding: 24px;
+  margin-bottom: 32px;
+}
+.scenario-box h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.scenario-box p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+.scenario-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.scen-btn {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.scen-btn.active {
+  background: var(--accent-cyan);
+  color: #000;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.35);
+}
+
+/* 2-Column Feeds */
+.dash-columns {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 28px;
+}
+@media (max-width: 900px) {
+  .dash-columns { grid-template-columns: 1fr; }
+}
+
+.panel-card {
+  background: var(--bg-card);
+  backdrop-filter: var(--glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  padding: 24px;
+}
+.panel-card h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Order item card */
+.order-card {
+  background: rgba(10, 14, 20, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  transition: all 0.2s;
+}
+.order-card:hover {
+  border-color: rgba(0, 240, 255, 0.3);
+}
+.order-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.order-event {
+  font-size: 16px;
+  font-weight: 700;
+}
+.order-total {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--accent-cyan);
+}
+.order-details {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+/* Rejected request item */
+.rejected-item {
+  background: rgba(255, 68, 68, 0.05);
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+}
+.rej-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.rej-code {
+  font-weight: 800;
+  color: #ff4444;
+  font-size: 13px;
+}
+.rej-path {
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--text-main);
+}
+.rej-reason {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Interactive Curl Snippet Box */
+.curl-box {
+  background: #06090e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 24px;
+}
+.curl-box code {
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  color: #38bdf8;
+  word-break: break-all;
+  display: block;
+}
+</style>
+</head>
+<body>
+
+<div class="sandbox-banner">
+  <span>Booth Live Screen</span>
+  Real-time Merchant Feeds · Agent TAP & Visa Network Verification
+</div>
+
+<header class="nav-header">
+  <div class="nav-container">
+    <a href="/" class="brand">
+      <div class="brand-logo">S</div>
+      <div class="brand-text">SideQuestz <span>Dashboard</span></div>
+    </a>
+    <nav class="nav-links">
+      <a href="/">Events Home</a>
+      <span class="badge badge-emerald">● Live Polling (2s)</span>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="dash-header">
+    <div class="dash-title">
+      <h1>Merchant Booth Screen</h1>
+      <p>Monitoring agent orders, TAP cryptographic signatures, and live authorization scenarios.</p>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-num" id="stat-orders">{{.TotalOrders}}</div>
+      <div class="stat-label">Total Orders Placed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="stat-gross">{{centsToDollars .TotalGrossCents}}</div>
+      <div class="stat-label">Gross Merchandise Value</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: #00e676;">100%</div>
+      <div class="stat-label">Sandbox Token Pass Rate</div>
+    </div>
+  </div>
+
+  <!-- Scenario Switcher -->
+  <div class="scenario-box">
+    <h2>Demo Scenario Controller</h2>
+    <p>Toggle merchant behavior to demonstrate resilience and fraud/budget rejection during live demos.</p>
+    <div class="scenario-btns">
+      <button class="scen-btn {{if eq .Scenario "normal"}}active{{end}}" onclick="setScenario('normal')">
+        ✓ Normal (Approved)
+      </button>
+      <button class="scen-btn {{if eq .Scenario "sold_out"}}active{{end}}" onclick="setScenario('sold_out')">
+        🚫 Sold Out (409)
+      </button>
+      <button class="scen-btn {{if eq .Scenario "price_bump"}}active{{end}}" onclick="setScenario('price_bump')">
+        📈 Price Bump +40% (409 / Over Budget)
+      </button>
+      <button class="scen-btn {{if eq .Scenario "slow"}}active{{end}}" onclick="setScenario('slow')">
+        ⏱ Slow Latency (3s delay)
+      </button>
+    </div>
+  </div>
+
+  <div class="dash-columns">
+    <!-- Column 1: Live Orders -->
+    <div class="panel-card">
+      <h2>
+        Live Order Stream
+        <span class="badge badge-cyan" id="order-count-badge">{{len .Orders}} Recorded</span>
+      </h2>
+      <div id="orders-container">
+        {{range .Orders}}
+        <div class="order-card">
+          <div class="order-header">
+            <span class="order-event">{{.Event.Title}}</span>
+            <span class="order-total">{{centsToDollars .TotalCents}}</span>
+          </div>
+          <div class="order-details">
+            <span style="color:#00e676;">✓ Signed Agent ({{.AgentKeyID}})</span>
+            <span>Visa •••• {{.Payment.Last4}}</span>
+            <span>Admit: {{.Quantity}}</span>
+            <a href="/t/{{.Ticket.TicketID}}" style="color:var(--accent-cyan); text-decoration:none;">View Ticket →</a>
+          </div>
+        </div>
+        {{else}}
+        <p style="color: var(--text-dim); font-size: 14px;" id="no-orders-msg">No orders recorded yet. Run agent checkout or click "Simulate Agent Purchase" on any ticket page!</p>
+        {{end}}
+      </div>
+    </div>
+
+    <!-- Column 2: Rejected Requests Log -->
+    <div class="panel-card">
+      <h2>
+        Rejected Requests (Last 10)
+        <span class="badge badge-amber" id="rej-count-badge">{{len .Rejected}}</span>
+      </h2>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+        Real-time audit log of invalid signatures, unauthenticated calls, and declines.
+      </p>
+
+      <div id="rejected-container">
+        {{range .Rejected}}
+        <div class="rejected-item">
+          <div class="rej-top">
+            <span class="rej-code">{{.StatusCode}} {{.Reason}}</span>
+            <span style="font-size: 11px; color: var(--text-dim);">{{formatTime .Timestamp}}</span>
+          </div>
+          <div class="rej-path">{{.Method}} {{.Path}}</div>
+        </div>
+        {{else}}
+        <p style="color: var(--text-dim); font-size: 14px;" id="no-rej-msg">No rejected requests yet. Run unsigned curl to trigger live verification alert!</p>
+        {{end}}
+      </div>
+
+      <div class="curl-box">
+        <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">
+          Try Unsigned Curl (Triggers 401 on this screen):
+        </div>
+        <code>curl -i -X POST http://localhost:8085/api/orders</code>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const demoKey = "{{.DemoKey}}";
+
+async function setScenario(s) {
+  try {
+    const res = await fetch("/_demo/scenario", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "X-Demo-Key": demoKey
+      },
+      body: JSON.stringify({ scenario: s })
+    });
+    if (res.ok) {
+      document.querySelectorAll('.scen-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+  } catch (err) {
+    console.error("setScenario error", err);
+  }
+}
+
+// 2-second live polling loop
+async function pollFeed() {
+  try {
+    const res = await fetch("/api/dashboard/feed?key=" + encodeURIComponent(demoKey));
+    if (!res.ok) return;
+    const data = await res.json();
+
+    // Update stats
+    if (data.total_orders !== undefined) {
+      document.getElementById('stat-orders').innerText = data.total_orders;
+    }
+    if (data.total_gross_cents !== undefined) {
+      const g = data.total_gross_cents;
+      document.getElementById('stat-gross').innerText = "$" + (g / 100).toFixed(2);
+    }
+
+    // Update orders
+    const ordersContainer = document.getElementById('orders-container');
+    if (data.orders && data.orders.length > 0) {
+      ordersContainer.innerHTML = data.orders.map(o => ` + "`" + `
+        <div class="order-card">
+          <div class="order-header">
+            <span class="order-event">${o.event_title}</span>
+            <span class="order-total">$${(o.total_cents / 100).toFixed(2)}</span>
+          </div>
+          <div class="order-details">
+            <span style="color:#00e676;">✓ Signed Agent (${o.agent_key_id})</span>
+            <span>Visa •••• ${o.card_last4}</span>
+            <span>Admit: ${o.quantity}</span>
+            <a href="${o.ticket_url}" style="color:var(--accent-cyan); text-decoration:none;">View Ticket →</a>
+          </div>
+        </div>
+      ` + "`" + `).join('');
+      document.getElementById('order-count-badge').innerText = data.orders.length + " Recorded";
+    }
+
+    // Update rejected requests
+    const rejContainer = document.getElementById('rejected-container');
+    if (data.rejected && data.rejected.length > 0) {
+      rejContainer.innerHTML = data.rejected.map(r => ` + "`" + `
+        <div class="rejected-item">
+          <div class="rej-top">
+            <span class="rej-code">${r.status_code} ${r.reason}</span>
+            <span style="font-size: 11px; color: var(--text-dim);">${new Date(r.timestamp).toLocaleTimeString()}</span>
+          </div>
+          <div class="rej-path">${r.method} ${r.path}</div>
+        </div>
+      ` + "`" + `).join('');
+      document.getElementById('rej-count-badge').innerText = data.rejected.length;
+    }
+  } catch (err) {
+    console.warn("Poll feed err", err);
+  }
+}
+
+setInterval(pollFeed, 2000);
+</script>
+
+</body>
+</html>

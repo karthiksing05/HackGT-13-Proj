@@ -1,0 +1,23 @@
+[Unit]
+Description=SideQuestz Events Merchant Server (Ticketmaster Demo)
+After=network.target mongod.service
+
+[Service]
+Type=simple
+User=sidequestz
+Group=sidequestz
+WorkingDirectory=/opt/events
+EnvironmentFile=/opt/events/.env
+ExecStart=/opt/events/events-server
+Restart=always
+RestartSec=3
+LimitNOFILE=65536
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
