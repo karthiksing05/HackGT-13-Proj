@@ -9,7 +9,8 @@ the thin HTTP layer. Design: [design/planner.md](design/planner.md).
 
 Every rendered option is checked against these rules before it is shown (an option that fails is left
 out and counted in `plan_runs.final.rejected`, which stays 0 unless there is a bug), and the tests assert
-them on every page:
+them on every page. Must-see picks add one, "contains every pick", and are exempt from the rules they
+bypass ([Must-see picks](#must-see-picks)):
 
 | Guarantee | Detail |
 |---|---|
@@ -47,6 +48,7 @@ and detected by whether `start` decodes as an object.
 | `tags` (quick picks) | facets scored for coverage: Outdoors, Food, Art, Music, Chill, Active, Meet people, Nerdy, Nightlife; each is a set of categories and tags a stop can cover. Other words for them work too ("Live music" is Music, "outside" Outdoors, "bars" Nightlife) |
 | `mood_text` | deterministic rules, no model: a negation with up to two words in between ("no loud bars", "nothing too outdoorsy") excludes that thing's categories and tags; `free`, `broke`, `no money` → free only; `kids`, `family` → no 21+, bars, breweries or nightclubs; `sober` → no drinks, bars, breweries or nightclubs. Positive words add soft facets ("by the water" → Outdoors); everything shapes the search embedding |
 | `who`, `open_seats` | go into the search text; the plan itself does not change |
+| `must_include` | the must-see picks, catalog ids every option visits ([Must-see picks](#must-see-picks)); repeats count once, more than 10 is `400` "Pick up to 10 must-see spots." |
 | user record | age bracket (adult → 21+, under 21 → 18–20, else 13–17), avoided tags, `flexible` (allows the budget relax step), catalog, city and home base |
 
 Requests the planner cannot serve are not errors: a window that already ended or missing times give
@@ -133,6 +135,47 @@ classes, screenings, plays, comedy and restaurants. Drop-in events (`attendance:
 longer than 6 hours are windows to drop into. The phase-A query reaches 15 minutes before the window so an
 event that started just before it can still be joined.
 
+## Must-see picks
+
+On Create's vibe step the user can search their catalog (`GET /activities/search`, below) and pick
+events and places; their ids come back as `PlanRequest.must_include`, and every option on every page
+(`/plans/generate` and `/more`) visits each of them. Code: `pkg/planner/picks.go`, the solver's
+`itinerary.Config.Required`.
+
+- **The hard rules hold.** A pick is in the user's catalog, on the plan's day (or days) and not over at
+  business time, a place of a category plans visit and open that day (hours as in retrieval), and allowed
+  for the user's age. The first pick, in request order, that fails ends the run before any retrieval with
+  `reason: "must_include_unavailable: <title>"` ("a pick" for a malformed id or one not in the catalog).
+  Then the picks alone must fit the window with real travel times (a picks-only solve), else
+  `must_include_no_fit`.
+- **The soft rules don't.** A pick skips phase A (so the retrieval radius), the Go-side filters, the
+  shortlist and its quotas, the classifier's drops, the quality bar, the per-stop price rules and the
+  exclusions of the mood text and the user's avoided tags. It is still embedded and scored with the
+  shortlist, and counts at least as an unscored stop (0.6), so it is never a weak stop and counts toward
+  the pace. Its own legs are held to the clock, not to the range; two picks may wait any time for each
+  other; the stop cap rises to the number of picks.
+- **The rest is planned around them as usual.** Each pick is a required visit: finished paths must hold
+  its series bit, a path that can no longer make one (too late, or no stop left under the cap) is dropped
+  at once, and every node keeps K paths per set of picks made, which keeps the DP exact without the
+  per-path rules (the brute-force oracle checks it, K = 1 included). Other activities of a pick's series
+  are left out; a pick's category is taken from the start, so no other stop shares it (picks may share
+  one). When the picks cost more than the budget's total, the total grows to their cost, so the rest adds
+  nothing priced; `total_cost_cents` counts the picks. The weak-stop and shared-stop issues, the metrics'
+  budget use and both diversity orderings leave the picks out, since every plan has them.
+- `/plans/alternatives` and `/plans/route` are unchanged: a pick can still be swapped or removed on Review.
+  `plan_runs.spec.mustInclude` records the picks, their shortlist entries say `source: must_include`.
+
+**`GET /activities/search`** `?q=&near=lat,lng&date=YYYY-MM-DD&limit=` → `[ActivityHit]` (store
+`Catalog.SearchActivities`, then `planner.ActivityHits`): the events of `date` (in `X-Time-Zone`; today in
+business time without it) that are not over and the places open that day, under the same pick rules,
+whose name, venue name, category or a tag contains `q` (a space also matches a category's or tag's
+underscore). Names starting with `q` come first, then names with a word starting with it, then the other
+matches; within each, events by start, then places by distance from `near` (by rating without it). An
+empty `q` suggests the day's events by start, then the best-rated places within 5 km of `near`, then the
+rest by distance. The subtitle is `"{Category} · {6:30 PM} · {0.7 mi}"` (the time for events, the
+distance with `near`); `price_cents` and `distance_mi` are left out when unknown. `limit` is 20 by default
+and at most 50; a malformed `near`, `date` or `limit` is `400` with a sentence.
+
 ## The loop
 
 Round 0 solves on the retrieved pool. Each following round looks at the best three plans, names what is
@@ -214,7 +257,7 @@ The HTTP layer emits only what `pkg/contract` defines; everything else the plann
 
 | Wire type | Keys |
 |---|---|
-| `PlanBatch` | `options`, `cursor` (while more remain), `done`, and `reason` only with empty `options`: `no_candidates_fit_window`, `no_feasible_itinerary` or `invalid_request: …` |
+| `PlanBatch` | `options`, `cursor` (while more remain), `done`, and `reason` only with empty `options`: `no_candidates_fit_window`, `no_feasible_itinerary`, `invalid_request: …`, `must_include_unavailable: <title>` or `must_include_no_fit` |
 | `PlanOption` | `id` (`<runId>-<n>`), `name`, `tag`, `meta`, `stops`, `late_flag` (always), `total_cost_cents` (the known prices' sum, left out when no price is known) |
 | `PlanStop` | `id`, `title`, `subtitle`, `place {name, coordinate}`, `duration_minutes`, plus `arrive_time`, `depart_time`, `kind` (`event` or `place`), `flexible`, `activity_id` |
 | `RouteResult` | `legs [{mode, minutes}]`, `stop_times [{start, end}]`, `arrival`, `minutes_late`, `broken_at` (always; −1 when every stop works) |

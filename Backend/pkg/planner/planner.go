@@ -122,6 +122,7 @@ func (p *Planner) newRun(user *UserContext, spec PlanSpec) *Run {
 			Mode: string(spec.Mode), DriveLabel: spec.DriveLabel, Range: spec.Range, MaxLegKm: spec.MaxLegKm,
 			Budget: spec.Budget, Pace: spec.Pace, Who: spec.Who, OpenSeats: spec.OpenSeats,
 			MoodText: spec.MoodText, QuickPicks: spec.QuickPicks, AgeBracket: spec.AgeBracket, Flexible: spec.Flexible,
+			MustInclude: spec.MustInclude,
 		},
 		TZ: spec.TZ.String(), SnappedStart: spec.SnappedStart,
 		Filters: FilterLog{
@@ -152,6 +153,23 @@ func (p *Planner) Generate(ctx context.Context, user *UserContext, spec PlanSpec
 	defer cancel()
 	run := p.newRun(user, spec)
 
+	// Must-see picks: one that can't be had, or picks that can't all fit
+	// even alone, end the run before anything is retrieved.
+	noPlan := "no_feasible_itinerary"
+	if len(spec.MustInclude) > 0 {
+		reason, err := p.resolvePicks(ctx, run)
+		if err != nil {
+			return Batch{}, err
+		}
+		if reason == "" && !p.picksFit(ctx, run) {
+			reason = ReasonPickNoFit
+		}
+		if reason != "" {
+			return p.finishEmpty(ctx, run, reason)
+		}
+		noPlan = ReasonPickNoFit
+	}
+
 	if err := p.retrieve(ctx, run); err != nil {
 		return Batch{}, fmt.Errorf("planner: retrieval: %w", err)
 	}
@@ -159,15 +177,16 @@ func (p *Planner) Generate(ctx context.Context, user *UserContext, spec PlanSpec
 		return p.finishEmpty(ctx, run, "no_candidates_fit_window")
 	}
 	p.runLoop(ctx, run)
+	run.fallbackToPicks()
 	run.Best, run.weakDropped = preferStrong(run.Best, run.Cfg.FirstPage)
 	run.Best, run.travelHeavy = withinTravelShare(run.Best, run.Cfg.MaxTravelShare)
 	if len(run.Best) == 0 {
-		return p.finishEmpty(ctx, run, "no_feasible_itinerary")
+		return p.finishEmpty(ctx, run, noPlan)
 	}
 
 	options := p.render(run)
 	if len(options) == 0 {
-		return p.finishEmpty(ctx, run, "no_feasible_itinerary")
+		return p.finishEmpty(ctx, run, noPlan)
 	}
 	pool := p.buildPool(run, options)
 	jevCands := p.prepareJev(run, options)
@@ -245,7 +264,7 @@ func (p *Planner) buildPool(run *Run, options []Option) *PlanPool {
 			From: spec.From, BackBy: spec.BackBy, TZ: spec.TZ.String(),
 			Start: PlaceAt(spec.StartName, *spec.Start), End: PlaceAt(spec.EndName, *spec.End),
 			Mode: string(spec.Mode), DriveLabel: spec.DriveLabel, MaxLegKm: spec.MaxLegKm,
-			BudgetCents: spec.Budget.TotalCents, Pace: spec.Pace,
+			BudgetCents: run.Window.BudgetCents, Pace: spec.Pace,
 		},
 		Spec: PoolSpec{
 			City: spec.City, Catalog: spec.Catalog, Range: spec.Range, RadiusKm: run.RadiusKm, Budget: spec.Budget,

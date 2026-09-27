@@ -396,6 +396,10 @@ func utility(a *models.Activity, cfg Config) float64 {
 	return math.Max(0, (base-cfg.Tau)/(1-cfg.Tau))
 }
 
+// CostCents is what an activity counts for against the window's budget:
+// its lowest price in cents, 0 when unknown.
+func CostCents(a *models.Activity) int64 { return costCents(a) }
+
 func costCents(a *models.Activity) int64 {
 	if a.Price == nil {
 		return 0

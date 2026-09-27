@@ -8,7 +8,8 @@ import (
 )
 
 // TestGenerateIsDeterministic: the same inputs give byte-identical options
-// (every page) and run logs, whatever order the catalog returns them in.
+// (every page) and run logs, whatever order the catalog returns them in,
+// must-see picks included.
 func TestGenerateIsDeterministic(t *testing.T) {
 	cases := []struct {
 		name string
@@ -19,6 +20,11 @@ func TestGenerateIsDeterministic(t *testing.T) {
 		{"saltlight walk", saltlight, sandy(), func() reqOpts {
 			o := defaultReq()
 			o.tags, o.mood = []string{"Outdoors", "Food"}, "something chill outside, no bars"
+			return o
+		}()},
+		{"saltlight with picks", saltlight, sandy(), func() reqOpts {
+			o := defaultReq()
+			o.tags, o.picks = []string{"Food"}, []string{phoID, jazzID}
 			return o
 		}()},
 		{"atlanta transit", atlanta, &UserContext{ID: "jordan", Catalog: "activities", City: "atlanta",

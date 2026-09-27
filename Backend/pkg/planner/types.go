@@ -87,6 +87,8 @@ type Request struct {
 	Who        string
 	Pace       string
 	Modes      []string
+	// MustInclude are the must-see picks: catalog ids every option visits.
+	MustInclude []string
 
 	// Legacy shape (Backend/ITINERARY_PLANNER.md).
 	Legacy       bool
@@ -154,6 +156,14 @@ type PlanSpec struct {
 	AgeBracket string
 	AvoidTags  []string
 	Flexible   bool
+
+	// MustInclude are the must-see picks (catalog ids, deduplicated, in
+	// request order): every option visits each of them, whatever the soft
+	// rules say (picks.go).
+	MustInclude []string
+	// Now is the business time the window was judged at; a pick already
+	// over by then is unavailable.
+	Now time.Time
 
 	Raw          json.RawMessage
 	SnappedStart bool

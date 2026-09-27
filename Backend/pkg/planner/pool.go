@@ -219,6 +219,8 @@ type SpecLog struct {
 	QuickPicks []string  `bson:"quickPicks" json:"quick_picks"`
 	AgeBracket string    `bson:"ageBracket" json:"age_bracket"`
 	Flexible   bool      `bson:"flexible" json:"flexible"`
+	// MustInclude are the must-see picks every option visits.
+	MustInclude []string `bson:"mustInclude,omitempty" json:"must_include,omitempty"`
 }
 
 type FilterLog struct {

@@ -66,6 +66,8 @@ type appRequest struct {
 	Who       string    `json:"who"`
 	Pace      string    `json:"pace"`
 	Modes     []string  `json:"modes"`
+	// MustInclude is additive (MUSTSEE §2).
+	MustInclude []string `json:"must_include"`
 }
 
 type legacyRequest struct {
@@ -109,7 +111,7 @@ func decodeAppRequest(raw []byte) (Request, error) {
 		Range: strings.ToLower(strings.TrimSpace(a.Range)), Ride: strings.ToLower(strings.TrimSpace(a.Ride)),
 		OpenSeats: a.OpenSeats, MoodText: a.MoodText, Tags: a.Tags,
 		Who: strings.ToLower(strings.TrimSpace(a.Who)), Pace: strings.ToLower(strings.TrimSpace(a.Pace)),
-		Modes: a.Modes, Raw: json.RawMessage(append([]byte(nil), raw...)),
+		Modes: a.Modes, MustInclude: a.MustInclude, Raw: json.RawMessage(append([]byte(nil), raw...)),
 	}
 	if a.Budget != nil {
 		req.Budget = *a.Budget
@@ -188,7 +190,10 @@ func BuildSpec(req Request, tzHeader string, now time.Time, user *UserContext, c
 	if user == nil {
 		user = &UserContext{}
 	}
-	spec := PlanSpec{UserID: user.ID, Raw: req.Raw}
+	spec := PlanSpec{UserID: user.ID, Raw: req.Raw, Now: now, MustInclude: normalizePicks(req.MustInclude)}
+	if len(spec.MustInclude) > MaxMustInclude {
+		return spec, ErrTooManyPicks
+	}
 
 	catalog, ok := NormalizeCatalog(user.Catalog)
 	if !ok {

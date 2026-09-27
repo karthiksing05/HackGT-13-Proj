@@ -27,7 +27,8 @@ func radiusFor(spec *PlanSpec, cfg Config, maxLegKm float64) float64 {
 	return math.Min(30, math.Max(3, r))
 }
 
-// baseQuery is the guaranteed pre-filter for the whole window.
+// baseQuery is the guaranteed pre-filter for the whole window. The
+// must-see picks are left out: they join the pool on their own terms.
 func baseQuery(spec *PlanSpec, cfg Config, radiusKm float64) CandidateQuery {
 	return CandidateQuery{
 		Catalog:           spec.Catalog,
@@ -45,6 +46,7 @@ func baseQuery(spec *PlanSpec, cfg Config, radiusKm float64) CandidateQuery {
 		ExcludeTags:       append([]string(nil), spec.Hard.ExcludeTags...),
 		PlaceCategories:   placeCategoriesMinus(spec.Hard.ExcludeCategories),
 		MinPlaceRating:    cfg.MinPlaceRating,
+		ExcludeIDs:        append([]string(nil), spec.MustInclude...),
 		LimitEvents:       cfg.PhaseAEvents,
 		LimitPlaces:       cfg.PhaseAPlaces,
 	}
@@ -268,7 +270,8 @@ func longestInterval(ivs []itinerary.Interval) time.Duration {
 // retrieve runs phase A (candidates and the search vector in parallel), the
 // Go-side check, the range relax step when nothing fits, phase B
 // (embeddings for survivors only), the cosine shortlist and one classifier
-// call, then fills the pool.
+// call, then fills the pool. The must-see picks skip phase A's filters and
+// the shortlist but are embedded and scored with the rest.
 func (p *Planner) retrieve(ctx context.Context, run *Run) error {
 	cfg := run.Cfg
 	spec := &run.Spec
@@ -337,7 +340,7 @@ func (p *Planner) retrieve(ctx context.Context, run *Run) error {
 	}
 	run.Log.Counts.Feasible = len(cands)
 	run.Log.Filters.RadiusKm = run.RadiusKm
-	if len(cands) == 0 {
+	if len(cands) == 0 && len(run.Picks) == 0 {
 		return nil
 	}
 
@@ -356,6 +359,19 @@ func (p *Planner) retrieve(ctx context.Context, run *Run) error {
 	run.QV = BuildQueryVector(run.User, run.SearchEmb, cfg)
 	short := Shortlist(reps, run.QV, spec, cfg)
 	run.Log.Counts.Shortlist = len(short)
+	if len(run.Picks) > 0 {
+		// The picks get their vectors and cosine scores outside the
+		// shortlist, on the expansions' scale, and ride the same
+		// classifier call.
+		if err := p.fetchEmbeddings(ctx, run, run.Picks); err != nil {
+			return err
+		}
+		for _, c := range run.Picks {
+			scoreForShortlist(c, run.QV, spec.Facets, cfg)
+			c.CosRank = expansionCosRank(c)
+		}
+		short = append(short, run.Picks...)
+	}
 
 	t = p.Clock.Now()
 	kept, mode := p.scoreCandidates(ctx, run, short, cfg.MLTimeout)
@@ -369,6 +385,9 @@ func (p *Planner) retrieve(ctx context.Context, run *Run) error {
 	}
 	for _, c := range kept {
 		c.Source, c.Round = "retrieval", 0
+		if run.isPick(c.ID) {
+			c.Source = pickSource
+		}
 		run.Pool.Add(c)
 		run.Log.Shortlist = append(run.Log.Shortlist, shortlistEntry(c))
 		for _, sib := range siblings[c.ID] {
@@ -486,8 +505,9 @@ func (p *Planner) fetchEmbeddings(ctx context.Context, run *Run, cands []*Candid
 
 // scoreCandidates is the classifier policy: send the candidates that have
 // a vector, with the user's positive vector (else the search vector; with
-// neither the call is skipped). Ids the service dropped stay dropped. On
-// error everyone keeps the cosine/prior blend and the mode says why.
+// neither the call is skipped). Ids the service dropped stay dropped, but
+// for the must-see picks, which stay unscored. On error everyone keeps the
+// cosine/prior blend and the mode says why.
 func (p *Planner) scoreCandidates(ctx context.Context, run *Run, cands []*Candidate, timeout time.Duration) ([]*Candidate, string) {
 	if len(run.Dropped) > 0 {
 		var fresh []*Candidate
@@ -533,6 +553,10 @@ func (p *Planner) scoreCandidates(ctx context.Context, run *Run, cands []*Candid
 			continue
 		}
 		s, ok := res.Scores[c.ID]
+		if !ok && run.isPick(c.ID) {
+			kept = append(kept, c)
+			continue
+		}
 		if !ok {
 			run.Log.Counts.MLDropped++
 			if run.Dropped == nil {
