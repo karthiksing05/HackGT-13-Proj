@@ -75,7 +75,7 @@ func New(ctx context.Context, d *api.Deps, opts Options) (*Runner, error) {
 		r.timeout = 3 * time.Minute
 	}
 	if r.issuer == nil {
-		r.issuer = payments.NewStripe(cfg.StripeSecretKey, cfg.StripeAPIBase, cfg.PublicBaseURL+"/checkout/stripe/return")
+		r.issuer = payments.NewStripe(cfg.StripeSecretKey, cfg.StripeAPIBase)
 	}
 	if r.merchant == nil {
 		key, err := signingKey(cfg.TapAgentKey, cfg.Dev())

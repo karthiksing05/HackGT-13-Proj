@@ -34,61 +34,71 @@ func randomHex(bytesLen int) string {
 	return hex.EncodeToString(b)
 }
 
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func (d *Deps) reject(w http.ResponseWriter, r *http.Request, status int, code, declineReason string) {
+	reason := code
+	if declineReason != "" {
+		reason = "declined: " + declineReason
+	}
+	d.recordRejection(r.Context(), r, status, reason)
+	writeJSONError(w, status, code, declineReason)
+}
+
+func (d *Deps) verifyTAP(w http.ResponseWriter, r *http.Request, tag string) (*tap.ParsedInput, bool) {
+	sig, err := tap.Verify(r, d.KeyDirectory, d.Store, tag, d.Cfg.MerchantHost, d.Now().UTC())
+	if err != nil {
+		d.reject(w, r, http.StatusUnauthorized, "bad_signature", "")
+		return nil, false
+	}
+	return sig, true
+}
+
 // ----------------------------------------------------------------- API Handlers
 
 // HandleGetOffer returns a quote for GET /api/events/{slug}/offer?quantity=N.
 // Route requires TAP signature tag: agent-browser-auth.
 func (d *Deps) HandleGetOffer(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	now := d.Now().UTC()
-
-	// 1. Verify TAP signature with tag: agent-browser-auth
-	_, err := tap.Verify(r, d.KeyDirectory, d.Store, "agent-browser-auth", d.Cfg.MerchantHost, now)
-	if err != nil {
-		d.recordRejection(ctx, r, http.StatusUnauthorized, "bad_signature")
-		writeJSONError(w, http.StatusUnauthorized, "bad_signature", "")
+	if _, ok := d.verifyTAP(w, r, "agent-browser-auth"); !ok {
 		return
 	}
 
-	slug := mux.Vars(r)["slug"]
-	event, err := d.Store.GetEvent(ctx, slug)
+	ctx := r.Context()
+	event, err := d.Store.GetEvent(ctx, mux.Vars(r)["slug"])
 	if err != nil {
 		writeJSONError(w, http.StatusNotFound, "not_found", "")
 		return
 	}
 
 	qty := 1
-	if qStr := r.URL.Query().Get("quantity"); qStr != "" {
-		if parsed, err := strconv.Atoi(qStr); err == nil && parsed > 0 && parsed <= 10 {
-			qty = parsed
-		}
+	if parsed, err := strconv.Atoi(r.URL.Query().Get("quantity")); err == nil && parsed > 0 && parsed <= 10 {
+		qty = parsed
 	}
 
-	// Check if active scenario is sold_out
 	if d.Store.GetScenario(ctx) == models.ScenarioSoldOut || event.Remaining < qty {
 		writeJSONError(w, http.StatusConflict, "sold_out", "")
 		return
 	}
 
-	// The quote is the list price; price_bump raises it at order time.
-	unitCents := event.UnitCents
-	feesCents := models.CalculateFees(unitCents, qty)
-	totalCents := (unitCents * qty) + feesCents
-
-	quoteID := "q_" + randomHex(8)
+	now := d.Now().UTC()
+	fees := models.CalculateFees(event.UnitCents, qty)
 	expiresAt := now.Add(10 * time.Minute)
 
 	quote := &models.Quote{
-		QuoteID:        quoteID,
+		QuoteID:        "q_" + randomHex(8),
 		Event:          event.SummaryView(),
 		QuoteExpiresAt: expiresAt.Format(time.RFC3339),
 		Quantity:       qty,
 		Available:      event.Remaining,
 		Currency:       "usd",
-		UnitCents:      unitCents,
-		SubtotalCents:  unitCents * qty,
-		FeesCents:      feesCents,
-		TotalCents:     totalCents,
+		UnitCents:      event.UnitCents,
+		SubtotalCents:  event.UnitCents * qty,
+		FeesCents:      fees,
+		TotalCents:     (event.UnitCents * qty) + fees,
 		MerchantID:     MerchantID,
 		Sandbox:        true,
 		CreatedAt:      now,
@@ -96,36 +106,24 @@ func (d *Deps) HandleGetOffer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := d.Store.SaveQuote(ctx, quote); err != nil {
-		http.Error(w, "failed to save quote", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal", "")
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(quote)
+	writeJSON(w, http.StatusOK, quote)
 }
 
 // HandleGetOrder retrieves an existing order for GET /api/orders/{order_id}.
 func (d *Deps) HandleGetOrder(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	now := d.Now().UTC()
-
-	// Verify TAP signature with tag: agent-browser-auth
-	_, err := tap.Verify(r, d.KeyDirectory, d.Store, "agent-browser-auth", d.Cfg.MerchantHost, now)
-	if err != nil {
-		d.recordRejection(ctx, r, http.StatusUnauthorized, "bad_signature")
-		writeJSONError(w, http.StatusUnauthorized, "bad_signature", "")
+	if _, ok := d.verifyTAP(w, r, "agent-browser-auth"); !ok {
 		return
 	}
 
-	orderID := mux.Vars(r)["order_id"]
-	order, err := d.Store.GetOrder(ctx, orderID)
+	order, err := d.Store.GetOrder(r.Context(), mux.Vars(r)["order_id"])
 	if err != nil {
 		writeJSONError(w, http.StatusNotFound, "not_found", "")
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(order)
+	writeJSON(w, http.StatusOK, order)
 }
 
 // HandleSetScenario toggles scenarios via POST /_demo/scenario.
@@ -140,19 +138,13 @@ func (d *Deps) HandleSetScenario(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req models.ScenarioState
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-
-	if !models.ValidScenario(req.Scenario) {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || !models.ValidScenario(req.Scenario) {
 		http.Error(w, "invalid scenario", http.StatusBadRequest)
 		return
 	}
 
 	d.Store.SetScenario(r.Context(), req.Scenario)
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]string{"scenario": req.Scenario})
+	writeJSON(w, http.StatusOK, map[string]string{"scenario": req.Scenario})
 }
 
 // HandleGetTapKey serves public key directory at GET /sandbox/tap/keys/{keyid}.
@@ -163,9 +155,7 @@ func (d *Deps) HandleGetTapKey(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "key not found", http.StatusNotFound)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"keyid":      keyID,
 		"alg":        "ed25519",
 		"public_key": hex.EncodeToString(pubKey),
@@ -174,8 +164,7 @@ func (d *Deps) HandleGetTapKey(w http.ResponseWriter, r *http.Request) {
 
 // HandleHealthz returns service health.
 func (d *Deps) HandleHealthz(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"status":  "ok",
 		"service": "sidequestz-events",
 		"sandbox": true,
@@ -200,16 +189,14 @@ func (d *Deps) recordRejection(ctx context.Context, r *http.Request, statusCode 
 }
 
 func writeJSONError(w http.ResponseWriter, status int, code, declineReason string) {
-	writeAPIError(w, status, models.APIError{Code: code, Message: errorMessages[code], DeclineReason: declineReason})
+	writeAPIError(w, status, models.APIError{Code: code, DeclineReason: declineReason})
 }
 
 func writeAPIError(w http.ResponseWriter, status int, e models.APIError) {
 	if e.Message == "" {
 		e.Message = errorMessages[e.Code]
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(e)
+	writeJSON(w, status, e)
 }
 
 // errorMessages are the sentences that go with each error code.

@@ -47,7 +47,7 @@ func FromEnv() (*Config, error) {
 		MongoURI:          env("MONGO_URI", env("MONGODB_URI", "mongodb://127.0.0.1:27017")),
 		MongoDB:           env("MONGO_DB", env("MONGODB_DATABASE", "sidequestz_events")),
 		TapAgentPublicKey: env("TAP_AGENT_PUBLIC_KEY", ""),
-		StripeSecretKey:   env("STRIPE_SECRET_KEY", ""),
+		StripeSecretKey:   env("STRIPE_MERCHANT_SECRET_KEY", env("STRIPE_SECRET_KEY", "")),
 		StripeAPIBase:     env("STRIPE_API_BASE", "https://api.stripe.com"),
 	}
 
@@ -65,10 +65,13 @@ func FromEnv() (*Config, error) {
 	if (c.MerchantBaseURL == "http://localhost:8085" || c.MerchantBaseURL == "") && c.HTTPAddr != ":8085" {
 		c.MerchantBaseURL = "http://localhost" + c.HTTPAddr
 	}
+	if !c.IsDev() && (strings.Contains(c.MerchantBaseURL, "localhost") || strings.Contains(c.MerchantBaseURL, "127.0.0.1") || c.MerchantBaseURL == "") {
+		c.MerchantBaseURL = "https://" + c.MerchantHost
+	}
 
 	// Stripe test keys only: a live key can never be configured.
 	if c.StripeSecretKey != "" && !strings.HasPrefix(c.StripeSecretKey, "sk_test_") && !strings.HasPrefix(c.StripeSecretKey, "rk_test_") {
-		return nil, errors.New("STRIPE_SECRET_KEY must be a test key (sk_test_… or rk_test_…)")
+		return nil, errors.New("STRIPE_MERCHANT_SECRET_KEY / STRIPE_SECRET_KEY must be a test key (sk_test_… or rk_test_…)")
 	}
 	if u, err := url.Parse(c.StripeAPIBase); err != nil || u.Scheme == "" || u.Host == "" {
 		return nil, fmt.Errorf("STRIPE_API_BASE %q is not a URL", c.StripeAPIBase)

@@ -77,12 +77,30 @@ component map and sequence are in [ARCHITECTURE.md](ARCHITECTURE.md); environmen
   over_limit`: the payment layer protects the user even from the merchant).
 - `POST /_demo/scenario` (`X-Demo-Key`) switches the scenario.
 
-Stripe errors map to `decline_reason` in `Events/pkg/payments/stripe.go`: `resource_missing` or 404 →
-`unknown_token`; "expired" → `expired`; amount above the token's limit → `over_limit`; a token already
-used or revoked → `used`; other `card_error`s or 402 → `card_declined`; `requires_action` →
-`requires_action`. The mapping matches on codes and messages because the preview's exact codes are
-not yet documented; **run `Backend/scripts/stripe-spt-smoke.sh` against the test accounts and pin the
-codes it prints here.**
+### Stripe in test mode (verified with `Backend/scripts/stripe-spt-smoke.sh`)
+
+- **Two Stripe accounts.** Stripe refuses a token issued to your own profile ("the network_id … is
+  the same as the counterparty network_id"), so the agent (Backend, `STRIPE_SECRET_KEY`) and the
+  merchant (Events, `STRIPE_MERCHANT_SECRET_KEY` or its own `STRIPE_SECRET_KEY`) are separate
+  sandboxes. Two sandboxes under one login work.
+- **The seller profile is the merchant's test-mode one** (`profile_test_…`); a live `profile_…` fails
+  with "The livemode of the API request and the network_id … do not match". The smoke script prints it
+  when `STRIPE_SELLER_PROFILE` is empty; the Backend refuses a live one at startup.
+- **No `return_url`** on issued tokens: Stripe answers `parameter_unknown`, although its docs example
+  has one.
+- `expires_at` must be in the future (up to 90 days). Brand and last four come from the
+  PaymentIntent (`expand[]=payment_method`); the granted token doesn't carry them.
+
+Stripe's errors here have **no `code`**, only a message, so `Events/pkg/payments/stripe.go` maps:
+
+| Case | Stripe's answer | `decline_reason` |
+|---|---|---|
+| Charge above the token's limit | `invalid_request_error`: "The requested amount is greater than the remaining amount capturable with this shared payment granted token." | `over_limit` |
+| Token already spent or revoked | "…cannot be used because it is already in a deactivated state." (granted token `deactivated_reason: consumed`) | `used` |
+| Token expired | the same message as spent; the granted token (read before charging) says `deactivated_reason: expired` | `expired` |
+| No such token | 404 / `resource_missing` | `unknown_token` |
+| Card declined | `card_error` or 402 | `card_declined` |
+| Needs 3-D Secure | PaymentIntent `requires_action` | `requires_action` |
 
 ## Test cards
 
@@ -114,10 +132,10 @@ The Saltlight demo catalog's 25 ticketed events use `https://events.sidequestz.t
 
 ```bash
 # Events (terminal 1)
-cd Events && APP_ENV=dev MERCHANT_BASE_URL=http://localhost:8085 STRIPE_SECRET_KEY=sk_test_… go run .
+cd Events && APP_ENV=dev MERCHANT_BASE_URL=http://localhost:8085 STRIPE_MERCHANT_SECRET_KEY=sk_test_…(merchant sandbox) go run .
 # Backend (terminal 2): same TAP demo key in dev, requests go to the local merchant
 cd Backend && APP_ENV=dev MERCHANT_HOST=events.sidequestz.tech MERCHANT_BASE_URL=http://localhost:8085 \
-  PAYMENTS_MODE=sandbox STRIPE_SECRET_KEY=sk_test_… STRIPE_SELLER_PROFILE=profile_… go run .
+  PAYMENTS_MODE=sandbox STRIPE_SECRET_KEY=sk_test_…(agent sandbox) STRIPE_SELLER_PROFILE=profile_test_…(merchant) go run .
 ```
 
 Then as the demo user: save a Saltlight plan with paid stops, approve a run, and watch the orders arrive in the

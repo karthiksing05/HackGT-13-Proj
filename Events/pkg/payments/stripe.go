@@ -75,6 +75,11 @@ func (s *Stripe) Charge(ctx context.Context, req ChargeRequest) (*ChargeResult, 
 	if err := s.request(ctx, StripeAPIVersion, http.MethodGet, "/v1/shared_payment/granted_tokens/"+url.PathEscape(req.SPT), nil, "", &tok); err != nil {
 		return nil, err
 	}
+	// Stripe answers an expired token and a spent one with the same message
+	// ("already in a deactivated state"); the token itself says which.
+	if d := tokenGone(tok, time.Now()); d != nil {
+		return nil, d
+	}
 	form := url.Values{}
 	form.Set("amount", strconv.Itoa(req.AmountCents))
 	form.Set("currency", req.Currency)
@@ -152,8 +157,13 @@ func (s *Stripe) request(ctx context.Context, version, method, path string, form
 
 // classify maps a Stripe error to a decline reason, or nil when the error is
 // ours (auth, bad request shape) rather than the buyer's token or card.
-// Codes come from Backend/scripts/stripe-spt-smoke.sh; the message checks
-// cover wording Stripe has not given a stable code for.
+// Stripe's test mode (API 2026-04-22.preview) answers these without a code,
+// so the messages decide (seen with Backend/scripts/stripe-spt-smoke.sh):
+//
+//	over the limit: "The requested amount is greater than the remaining
+//	                 amount capturable with this shared payment granted token."
+//	spent/revoked:  "The shared payment granted token cannot be used because
+//	                 it is already in a deactivated state."
 func classify(status int, se stripeError) *DeclineError {
 	e := se.Error
 	d := &DeclineError{Code: firstNonEmpty(e.DeclineCode, e.Code, e.Type), Message: e.Message}
@@ -164,7 +174,8 @@ func classify(status int, se stripeError) *DeclineError {
 		d.Reason = ReasonUnknownToken
 	case strings.Contains(code, "expired") || strings.Contains(msg, "expired"):
 		d.Reason = ReasonExpired
-	case strings.Contains(msg, "max_amount") || strings.Contains(msg, "usage limit") ||
+	case strings.Contains(msg, "greater than the remaining amount") || strings.Contains(msg, "remaining amount capturable") ||
+		strings.Contains(msg, "max_amount") || strings.Contains(msg, "usage limit") ||
 		strings.Contains(msg, "exceeds") || strings.Contains(code, "amount_too_large") || strings.Contains(code, "limit"):
 		d.Reason = ReasonOverLimit
 	case strings.Contains(msg, "already been used") || strings.Contains(msg, "deactivated") ||
@@ -176,6 +187,19 @@ func classify(status int, se stripeError) *DeclineError {
 		return nil
 	}
 	return d
+}
+
+// tokenGone is a decline for a token that can no longer pay: expired (its
+// deactivated_reason, or its expiry has passed) or spent/revoked.
+func tokenGone(tok grantedToken, now time.Time) *DeclineError {
+	switch {
+	case tok.DeactivatedReason == "expired",
+		tok.DeactivatedReason == "" && tok.UsageLimits.ExpiresAt > 0 && now.Unix() >= tok.UsageLimits.ExpiresAt:
+		return &DeclineError{Reason: ReasonExpired, Code: "expired", Message: "the payment token expired"}
+	case tok.DeactivatedReason != "" || tok.DeactivatedAt != nil:
+		return &DeclineError{Reason: ReasonUsed, Code: firstNonEmpty(tok.DeactivatedReason, "deactivated"), Message: "the payment token was already used or revoked"}
+	}
+	return nil
 }
 
 func firstNonEmpty(ss ...string) string {

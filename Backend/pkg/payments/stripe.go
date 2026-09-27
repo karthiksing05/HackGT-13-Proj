@@ -23,20 +23,19 @@ var ErrDeclined = errors.New("payments: the card can't be used for this purchase
 // Stripe issues SPTs with a test-mode secret key. It is a small form client:
 // the SPT endpoints are preview-only and not typed in stripe-go.
 type Stripe struct {
-	key       string
-	base      string
-	returnURL string
-	http      *http.Client
+	key  string
+	base string
+	http *http.Client
 }
 
 // NewStripe builds an issuer for secretKey (sk_test_…) against base (Stripe's
-// host outside tests). returnURL is where Stripe sends a buyer after a
-// 3-D Secure step.
-func NewStripe(secretKey, base, returnURL string) *Stripe {
+// host outside tests). No return_url: Stripe rejects it on issued tokens
+// ("parameter_unknown"), and the sandbox has no 3-D Secure step to return from.
+func NewStripe(secretKey, base string) *Stripe {
 	if base == "" {
 		base = "https://api.stripe.com"
 	}
-	return &Stripe{key: secretKey, base: strings.TrimRight(base, "/"), returnURL: returnURL, http: &http.Client{Timeout: 20 * time.Second}}
+	return &Stripe{key: secretKey, base: strings.TrimRight(base, "/"), http: &http.Client{Timeout: 20 * time.Second}}
 }
 
 type issuedToken struct {
@@ -52,9 +51,6 @@ func (s *Stripe) Issue(ctx context.Context, req IssueRequest) (string, error) {
 	form.Set("usage_limits[currency]", req.Currency)
 	form.Set("usage_limits[max_amount]", strconv.Itoa(req.MaxCents))
 	form.Set("usage_limits[expires_at]", strconv.FormatInt(req.ExpiresAt.Unix(), 10))
-	if s.returnURL != "" {
-		form.Set("return_url", s.returnURL)
-	}
 	var tok issuedToken
 	if err := s.post(ctx, "/v1/shared_payment/issued_tokens", form, req.IdempotencyKey, &tok); err != nil {
 		return "", err

@@ -25,8 +25,21 @@ type Client struct {
 	http  *http.Client
 }
 
-// New builds a client for base (https://api.meta.ai/v1) and model.
+// DefaultBaseURL and DefaultModel fill in an empty base or model (MUSE_BASE_URL
+// and MUSE_MODEL have the same defaults).
+const (
+	DefaultBaseURL = "https://api.meta.ai/v1"
+	DefaultModel   = "muse-spark-1.3"
+)
+
+// New builds a client for base (DefaultBaseURL when empty) and model.
 func New(key, base, model string) *Client {
+	if base == "" {
+		base = DefaultBaseURL
+	}
+	if model == "" {
+		model = DefaultModel
+	}
 	return &Client{key: key, base: strings.TrimRight(base, "/"), model: model, http: &http.Client{Timeout: 90 * time.Second}}
 }
 

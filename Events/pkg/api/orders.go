@@ -6,7 +6,6 @@ import (
 	"events/pkg/models"
 	"events/pkg/payments"
 	"events/pkg/store"
-	"events/pkg/tap"
 	"fmt"
 	"net/http"
 	"strings"
@@ -26,16 +25,12 @@ const maxOrderBody = 16 << 10
 // when the charge fails. The charge carries an idempotency key derived from
 // the order's, so a retried order never charges twice.
 func (d *Deps) HandlePostOrder(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	now := d.Now().UTC()
-
-	parsedSig, err := tap.Verify(r, d.KeyDirectory, d.Store, "agent-payer-auth", d.Cfg.MerchantHost, now)
-	if err != nil {
-		d.recordRejection(ctx, r, http.StatusUnauthorized, "bad_signature")
-		writeJSONError(w, http.StatusUnauthorized, "bad_signature", "")
+	parsedSig, ok := d.verifyTAP(w, r, "agent-payer-auth")
+	if !ok {
 		return
 	}
 
+	ctx := r.Context()
 	idemKey := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
 	if idemKey == "" || len(idemKey) > 255 {
 		writeJSONError(w, http.StatusBadRequest, "missing_idempotency", "")
@@ -67,15 +62,13 @@ func (d *Deps) HandlePostOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if scenario == models.ScenarioSoldOut {
-		d.recordRejection(ctx, r, http.StatusConflict, "sold_out")
-		writeJSONError(w, http.StatusConflict, "sold_out", "")
+		d.reject(w, r, http.StatusConflict, "sold_out", "")
 		return
 	}
 
 	quote, err := d.Store.GetQuote(ctx, req.QuoteID)
 	if err != nil {
-		d.recordRejection(ctx, r, http.StatusConflict, "quote_expired")
-		writeJSONError(w, http.StatusConflict, "quote_expired", "")
+		d.reject(w, r, http.StatusConflict, "quote_expired", "")
 		return
 	}
 	if req.Quantity != quote.Quantity {
@@ -83,6 +76,7 @@ func (d *Deps) HandlePostOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := d.Now().UTC()
 	// price_bump: the price rises 40% between the quote and the order, once.
 	if scenario == models.ScenarioPriceBump && !quote.Repriced {
 		bumped := d.repriceQuote(quote, now)
@@ -101,8 +95,7 @@ func (d *Deps) HandlePostOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := d.Store.ReserveTickets(ctx, quote.Event.Slug, req.Quantity); err != nil {
-		d.recordRejection(ctx, r, http.StatusConflict, "sold_out")
-		writeJSONError(w, http.StatusConflict, "sold_out", "")
+		d.reject(w, r, http.StatusConflict, "sold_out", "")
 		return
 	}
 
@@ -126,7 +119,7 @@ func (d *Deps) HandlePostOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	confirmation := d.newConfirmation(quote.Event, req.Quantity, quote.SubtotalCents, amount, quote.Currency, req.Buyer, models.PaymentSummary{
+	confirmation := d.newConfirmation(r, quote.Event, req.Quantity, quote.SubtotalCents, amount, quote.Currency, req.Buyer, models.PaymentSummary{
 		Scheme:          models.PaymentSchemeStripeSPT,
 		Brand:           charge.Brand,
 		Last4:           charge.Last4,
@@ -149,14 +142,12 @@ func (d *Deps) HandlePostOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(confirmation)
+	writeJSON(w, http.StatusCreated, confirmation)
 }
 
 // newConfirmation is a confirmed order with a fresh ticket: the one shape
 // for orders placed through the API and through the website.
-func (d *Deps) newConfirmation(event models.EventSummary, qty, subtotal, total int, currency string, buyer models.BuyerInfo,
+func (d *Deps) newConfirmation(r *http.Request, event models.EventSummary, qty, subtotal, total int, currency string, buyer models.BuyerInfo,
 	payment models.PaymentSummary, idemKey string, now time.Time) *models.OrderConfirmation {
 	orderID := "SL-" + randomCrockford(5)
 	ticketID := randomHex(16) // 128 random bits
@@ -174,7 +165,7 @@ func (d *Deps) newConfirmation(event models.EventSummary, qty, subtotal, total i
 		Buyer:            buyer,
 		Ticket: models.TicketSummary{
 			TicketID:  ticketID,
-			TicketURL: fmt.Sprintf("%s/t/%s", strings.TrimRight(d.Cfg.MerchantBaseURL, "/"), ticketID),
+			TicketURL: fmt.Sprintf("%s/t/%s", d.BaseURL(r), ticketID),
 			Admit:     qty,
 			Barcode:   "SLT-" + randomCrockford(4) + "-" + randomCrockford(4),
 		},
@@ -191,9 +182,7 @@ func (d *Deps) replay(w http.ResponseWriter, existing *models.OrderConfirmation,
 		writeJSONError(w, http.StatusConflict, "idempotency_conflict", "")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(existing)
+	writeJSON(w, http.StatusOK, existing)
 }
 
 // repriceQuote is quote with the price_bump surge applied, as a new quote.
@@ -219,8 +208,7 @@ func (d *Deps) chargeFailed(w http.ResponseWriter, r *http.Request, err error) {
 	var decline *payments.DeclineError
 	switch {
 	case errors.As(err, &decline):
-		d.recordRejection(r.Context(), r, http.StatusPaymentRequired, "declined: "+decline.Reason)
-		writeJSONError(w, http.StatusPaymentRequired, "declined", decline.Reason)
+		d.reject(w, r, http.StatusPaymentRequired, "declined", decline.Reason)
 	case errors.Is(err, payments.ErrNotConfigured):
 		writeJSONError(w, http.StatusServiceUnavailable, "payments_unavailable", "")
 	default:
