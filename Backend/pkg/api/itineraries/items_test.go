@@ -220,6 +220,10 @@ func TestTicketsAreSharedWithTheGroup(t *testing.T) {
 		full.URL == nil || *full.URL != "http://api.test/tickets/TA" {
 		t.Fatalf("the shared ticket is the whole ticket: %+v", full)
 	}
+	// Only the buyer's copy is theirs: the rest of the group can still get their own.
+	if full.Mine || !event(t, srv, a, rooftop.ID).Ticket.Mine || stops(getItinerary(t, srv, c, it.ID))[0].Ticket.Mine {
+		t.Fatalf("mine: only A's own ticket is A's")
+	}
 	if other := stops(getItinerary(t, srv, b, it.ID))[1]; other.Ticket != nil {
 		t.Fatalf("an item nobody booked has no ticket: %+v", other.Ticket)
 	}

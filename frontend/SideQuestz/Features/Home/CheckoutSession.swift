@@ -314,7 +314,7 @@ final class HomeCheckoutSession {
                 if attempt > 0 { try? await Task.sleep(for: HomeCheckoutWatch.interval) }
                 if let loaded = try? await env.api.eventDetail(id: itemId) {
                     fresh = loaded
-                    if loaded.ticket != nil { break }
+                    if loaded.ticket?.isMine == true { break }
                 }
             }
             withMotion(Motion.arrive) {

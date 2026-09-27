@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
 	"events/pkg/models"
 	"sync"
 	"time"
@@ -14,10 +15,22 @@ import (
 const (
 	CollEvents   = "merchant_events"
 	CollQuotes   = "merchant_quotes"
-	CollOrders   = "merchant_orders"
+	CollOrders   = "orders"
 	CollNonces   = "merchant_nonces"
 	CollRejected = "merchant_rejected"
 )
+
+const crockfordAlphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+func randomCrockford(length int) string {
+	b := make([]byte, length)
+	_, _ = rand.Read(b)
+	out := make([]byte, length)
+	for i, v := range b {
+		out[i] = crockfordAlphabet[int(v)%len(crockfordAlphabet)]
+	}
+	return string(out)
+}
 
 // MongoStore implements Store backed by MongoDB.
 type MongoStore struct {
@@ -57,7 +70,7 @@ func (m *MongoStore) EnsureIndexesAndSeed(ctx context.Context) error {
 		},
 	})
 
-	// 3. Orders index on orderId, ticketId, idempotencyKey
+	// 3. Orders index on orderId, ticketId, ticket.barcode, barcode, idempotencyKey
 	_, _ = m.db.Collection(CollOrders).Indexes().CreateMany(ctx, []mongo.IndexModel{
 		{
 			Keys:    bson.D{{Key: "orderId", Value: 1}},
@@ -68,10 +81,33 @@ func (m *MongoStore) EnsureIndexesAndSeed(ctx context.Context) error {
 			Options: options.Index().SetUnique(true).SetSparse(true),
 		},
 		{
+			Keys:    bson.D{{Key: "ticket.barcode", Value: 1}},
+			Options: options.Index().SetUnique(true).SetSparse(true),
+		},
+		{
+			Keys:    bson.D{{Key: "barcode", Value: 1}},
+			Options: options.Index().SetUnique(true).SetSparse(true),
+		},
+		{
 			Keys:    bson.D{{Key: "idempotencyKey", Value: 1}},
 			Options: options.Index().SetUnique(true).SetSparse(true),
 		},
 	})
+
+	// Drop legacy merchant_orders collection after migrating any remaining docs
+	if cur, err := m.db.Collection("merchant_orders").Find(ctx, bson.M{}); err == nil {
+		for cur.Next(ctx) {
+			var o models.OrderConfirmation
+			if err := cur.Decode(&o); err == nil && o.OrderID != "" {
+				m.fillBarcode(&o)
+				filter := bson.M{"orderId": o.OrderID}
+				update := bson.M{"$setOnInsert": o}
+				_, _ = m.db.Collection(CollOrders).UpdateOne(ctx, filter, update, options.UpdateOne().SetUpsert(true))
+			}
+		}
+		_ = cur.Close(ctx)
+		_ = m.db.Collection("merchant_orders").Drop(ctx)
+	}
 
 	// 4. Nonces TTL
 	_, _ = m.db.Collection(CollNonces).Indexes().CreateMany(ctx, []mongo.IndexModel{
@@ -163,13 +199,47 @@ func (m *MongoStore) GetQuote(ctx context.Context, quoteID string) (*models.Quot
 	return &q, nil
 }
 
+func (m *MongoStore) fillBarcode(o *models.OrderConfirmation) {
+	if o.Barcode == "" && o.Ticket.Barcode != "" {
+		o.Barcode = o.Ticket.Barcode
+	}
+	if o.Ticket.Barcode == "" && o.Barcode != "" {
+		o.Ticket.Barcode = o.Barcode
+	}
+}
+
 func (m *MongoStore) SaveOrder(ctx context.Context, order *models.OrderConfirmation, idempotencyKey string) error {
 	order.IdempotencyKey = idempotencyKey
+	m.fillBarcode(order)
+
 	_, err := m.db.Collection(CollOrders).InsertOne(ctx, order)
-	if mongo.IsDuplicateKeyError(err) {
-		return ErrDuplicateOrder
+	if err != nil {
+		if mongo.IsDuplicateKeyError(err) {
+			if idempotencyKey != "" {
+				if existing, gerr := m.GetOrderByIdempotencyKey(ctx, idempotencyKey); gerr == nil && existing != nil {
+					return ErrDuplicateOrder
+				}
+			}
+			// Accidental collision on orderId or barcode; retry up to 5 times with fresh codes
+			for retry := 0; retry < 5; retry++ {
+				order.OrderID = "SL-" + randomCrockford(6)
+				order.ConfirmationCode = order.OrderID
+				newBarcode := "SLT-" + randomCrockford(4) + "-" + randomCrockford(5)
+				order.Barcode = newBarcode
+				order.Ticket.Barcode = newBarcode
+				_, retryErr := m.db.Collection(CollOrders).InsertOne(ctx, order)
+				if retryErr == nil {
+					return nil
+				}
+				if !mongo.IsDuplicateKeyError(retryErr) {
+					return retryErr
+				}
+			}
+			return ErrDuplicateOrder
+		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func (m *MongoStore) GetOrder(ctx context.Context, orderID string) (*models.OrderConfirmation, error) {
@@ -181,24 +251,48 @@ func (m *MongoStore) GetOrder(ctx context.Context, orderID string) (*models.Orde
 		}
 		return nil, err
 	}
+	m.fillBarcode(&o)
 	return &o, nil
 }
 
 func (m *MongoStore) GetOrderByTicketID(ctx context.Context, ticketID string) (*models.OrderConfirmation, error) {
 	var o models.OrderConfirmation
-	err := m.db.Collection(CollOrders).FindOne(ctx, bson.M{
+	filter := bson.M{
 		"$or": []bson.M{
 			{"ticket.ticketId": ticketID},
 			{"ticket.ticket_id": ticketID},
 			{"ticket.ticketid": ticketID},
+			{"ticket.barcode": ticketID},
+			{"barcode": ticketID},
 		},
-	}).Decode(&o)
+	}
+	err := m.db.Collection(CollOrders).FindOne(ctx, filter).Decode(&o)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
+	m.fillBarcode(&o)
+	return &o, nil
+}
+
+func (m *MongoStore) GetOrderByBarcode(ctx context.Context, barcode string) (*models.OrderConfirmation, error) {
+	var o models.OrderConfirmation
+	filter := bson.M{
+		"$or": []bson.M{
+			{"barcode": barcode},
+			{"ticket.barcode": barcode},
+		},
+	}
+	err := m.db.Collection(CollOrders).FindOne(ctx, filter).Decode(&o)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	m.fillBarcode(&o)
 	return &o, nil
 }
 
@@ -211,6 +305,7 @@ func (m *MongoStore) GetOrderByIdempotencyKey(ctx context.Context, idempotencyKe
 		}
 		return nil, err
 	}
+	m.fillBarcode(&o)
 	return &o, nil
 }
 

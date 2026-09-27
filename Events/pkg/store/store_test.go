@@ -6,6 +6,10 @@ import (
 	"events/pkg/models"
 	"testing"
 	"time"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 func TestMemoryStoreSeedingAndEvents(t *testing.T) {
@@ -117,6 +121,7 @@ func TestStoreQuotesAndOrders(t *testing.T) {
 		},
 		CreatedAt: time.Now(),
 	}
+	order.Ticket.Barcode = "SLT-TEST-1234"
 	if err := st.SaveOrder(ctx, order, "intent_abc"); err != nil {
 		t.Fatal(err)
 	}
@@ -133,9 +138,128 @@ func TestStoreQuotesAndOrders(t *testing.T) {
 		t.Fatalf("GetOrderByTicketID failed: %v", err)
 	}
 
+	// Lookup by barcode
+	byBarcode, err := st.GetOrderByBarcode(ctx, "SLT-TEST-1234")
+	if err != nil || byBarcode.OrderID != "SL-4F7K2" {
+		t.Fatalf("GetOrderByBarcode failed: %v", err)
+	}
+
 	// Lookup by idempotency key
 	byIdem, err := st.GetOrderByIdempotencyKey(ctx, "intent_abc")
 	if err != nil || byIdem.OrderID != "SL-4F7K2" {
 		t.Fatalf("GetOrderByIdempotencyKey failed: %v", err)
+	}
+}
+
+func TestMongoStoreOrdersAndUniqueBarcode(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(options.Client().ApplyURI("mongodb://127.0.0.1:27017"))
+	if err != nil {
+		t.Skip("local mongodb not reachable")
+	}
+	if err := client.Ping(ctx, nil); err != nil {
+		t.Skip("local mongodb not pingable")
+	}
+
+	dbName := "sidequestz_events_test"
+	db := client.Database(dbName)
+	defer func() { _ = db.Drop(context.Background()) }()
+
+	mStore := NewMongoStore(db)
+	if err := mStore.EnsureIndexesAndSeed(ctx); err != nil {
+		t.Fatalf("EnsureIndexesAndSeed failed: %v", err)
+	}
+
+	// Save an order
+	order1 := &models.OrderConfirmation{
+		OrderID:          "SL-ORD01",
+		ConfirmationCode: "SL-ORD01",
+		Status:           "confirmed",
+		Quantity:         1,
+		TotalCents:       1500,
+		Barcode:          "SLT-AAAA-1111",
+		Ticket: models.TicketSummary{
+			TicketID:  "tkt_abc001",
+			TicketURL: "http://localhost:8085/t/tkt_abc001",
+			Admit:     1,
+			Barcode:   "SLT-AAAA-1111",
+		},
+		CreatedAt: time.Now(),
+	}
+
+	if err := mStore.SaveOrder(ctx, order1, "idem_test_1"); err != nil {
+		t.Fatalf("SaveOrder failed: %v", err)
+	}
+
+	// Verify order is in "orders" collection
+	var found bson.M
+	err = db.Collection(CollOrders).FindOne(ctx, bson.M{"orderId": "SL-ORD01"}).Decode(&found)
+	if err != nil {
+		t.Fatalf("Expected order to be in 'orders' collection: %v", err)
+	}
+	if found["barcode"] != "SLT-AAAA-1111" {
+		t.Fatalf("Expected top-level barcode in orders doc, got: %v", found["barcode"])
+	}
+
+	// Verify lookup by barcode works
+	gotByBarcode, err := mStore.GetOrderByBarcode(ctx, "SLT-AAAA-1111")
+	if err != nil || gotByBarcode.OrderID != "SL-ORD01" {
+		t.Fatalf("GetOrderByBarcode failed: %v, got: %+v", err, gotByBarcode)
+	}
+
+	// Verify duplicate barcode with different idempotency key is handled or rejected
+	order2 := &models.OrderConfirmation{
+		OrderID:          "SL-ORD02",
+		ConfirmationCode: "SL-ORD02",
+		Status:           "confirmed",
+		Quantity:         1,
+		TotalCents:       1500,
+		Barcode:          "SLT-AAAA-1111", // duplicate barcode!
+		Ticket: models.TicketSummary{
+			TicketID:  "tkt_abc002",
+			TicketURL: "http://localhost:8085/t/tkt_abc002",
+			Admit:     1,
+			Barcode:   "SLT-AAAA-1111",
+		},
+		CreatedAt: time.Now(),
+	}
+
+	// SaveOrder automatically retries with a new unique barcode upon collision!
+	err = mStore.SaveOrder(ctx, order2, "idem_test_2")
+	if err != nil {
+		t.Fatalf("Expected SaveOrder to retry and resolve barcode collision: %v", err)
+	}
+	if order2.Barcode == "SLT-AAAA-1111" {
+		t.Fatalf("Expected barcode to be refreshed on collision, but stayed same")
+	}
+}
+
+func TestLiveDBMigration(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(options.Client().ApplyURI("mongodb://127.0.0.1:27017"))
+	if err != nil {
+		t.Skip("local mongodb not reachable")
+	}
+	if err := client.Ping(ctx, nil); err != nil {
+		t.Skip("local mongodb not pingable")
+	}
+
+	db := client.Database("sidequestz_events")
+	mStore := NewMongoStore(db)
+	if err := mStore.EnsureIndexesAndSeed(ctx); err != nil {
+		t.Fatalf("EnsureIndexesAndSeed failed: %v", err)
+	}
+
+	// Verify merchant_orders is dropped
+	cols, err := db.ListCollectionNames(ctx, bson.M{"name": "merchant_orders"})
+	if err != nil {
+		t.Fatalf("ListCollectionNames failed: %v", err)
+	}
+	if len(cols) > 0 {
+		t.Fatalf("Expected merchant_orders to be dropped, but still exists")
 	}
 }

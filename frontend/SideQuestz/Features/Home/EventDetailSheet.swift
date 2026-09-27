@@ -408,7 +408,8 @@ struct HomeEventSheet: View {
     @ViewBuilder
     private func actions(_ item: ItineraryItem) -> some View {
         let ticket = ticketInfo(item)
-        let sellsTickets = item.bookable && ticket == nil
+        // A ticket someone else in the group booked doesn't cover the viewer.
+        let sellsTickets = item.bookable && ticket?.mine != true
         if item.websiteURL != nil || sellsTickets {
             HStack(spacing: 10) {
                 if let url = item.websiteURL {
@@ -438,16 +439,20 @@ struct HomeEventSheet: View {
         }
     }
 
-    /// The booked ticket: the item's own, or (until the server's copy of the item has it) the
-    /// checkout that just booked here, so "Get tickets" never comes back for something bought.
+    /// The booked ticket: the viewer's own on the item, or (until the server's copy of the item
+    /// has it) the checkout that just booked here, so "Get tickets" never comes back for something
+    /// bought; failing both, the one another member of the group booked.
     private func ticketInfo(_ item: ItineraryItem) -> HomeTicketInfo? {
-        if let ticket = item.ticket {
-            return HomeTicketInfo(quantity: ticket.quantity, confirmation: ticket.confirmation, url: ticket.url)
+        if let ticket = item.ticket, ticket.isMine {
+            return HomeTicketInfo(quantity: ticket.quantity, confirmation: ticket.confirmation, url: ticket.url, mine: true)
         }
-        guard let session = store.latestCheckout(for: item.id), session.state == .booked else { return nil }
-        let ticket = session.bookedItem?.ticket
-        return HomeTicketInfo(quantity: ticket?.quantity ?? session.intent.value?.quantity ?? 1,
-                              confirmation: ticket?.confirmation, url: ticket?.url)
+        if let session = store.latestCheckout(for: item.id), session.state == .booked {
+            let ticket = session.bookedItem?.ticket.flatMap { $0.isMine ? $0 : nil }
+            return HomeTicketInfo(quantity: ticket?.quantity ?? session.intent.value?.quantity ?? 1,
+                                  confirmation: ticket?.confirmation, url: ticket?.url, mine: true)
+        }
+        guard let ticket = item.ticket else { return nil }
+        return HomeTicketInfo(quantity: ticket.quantity, confirmation: ticket.confirmation, url: ticket.url, mine: false)
     }
 
     /// "Get tickets", or "Buy instantly" when instant checkout covers the known price. While a
@@ -497,7 +502,7 @@ struct HomeEventSheet: View {
                 .background(.white, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
-                Text(ticket.quantity == 1 ? "Ticket booked" : "\(ticket.quantity) tickets booked")
+                Text(Self.ticketTitle(ticket))
                     .sqFont(15, .semibold)
                     .foregroundStyle(Theme.ink)
                     .homeLine(15)
@@ -522,6 +527,11 @@ struct HomeEventSheet: View {
         .padding(.leading, 12)
         .padding(.trailing, 14)
         .background(Theme.sageTint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private static func ticketTitle(_ ticket: HomeTicketInfo) -> String {
+        let count = ticket.quantity == 1 ? "Ticket booked" : "\(ticket.quantity) tickets booked"
+        return ticket.mine ? count : "\(count) by the group"
     }
 
     // MARK: Notes
@@ -699,7 +709,7 @@ struct HomeEventSheet: View {
         }
         guard let item = detail.value else { return }
         if item.kind != .busy, !transitRequested { await loadTransit() }
-        if route.opensCheckout, item.bookable, ticketInfo(item) == nil, !openedCheckout {
+        if route.opensCheckout, item.bookable, ticketInfo(item)?.mine != true, !openedCheckout {
             openedCheckout = true
             // Let the sheet finish sliding up before Checkout goes on top.
             try? await Task.sleep(for: .milliseconds(450))
@@ -891,4 +901,6 @@ private struct HomeTicketInfo {
     let quantity: Int
     let confirmation: String?
     let url: URL?
+    /// false: another member booked it, so the viewer can still get their own.
+    let mine: Bool
 }

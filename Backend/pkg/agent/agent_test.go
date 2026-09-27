@@ -68,6 +68,50 @@ func TestFallbackBooksEveryItemWithinTheBudget(t *testing.T) {
 	}
 }
 
+// Someone who joins a sidequest the host already bought tickets for gets
+// their own: the plan still lists every stop for them, their run books
+// them on their card, and each member's tickets stay their own.
+func TestAJoinedMemberGetsTheirOwnTickets(t *testing.T) {
+	h := newHarness(t, nil, twoShows, "sunset-jazz", "silent-disco")
+	if run := h.start(t, 7000, 1); run.State != contract.CheckoutRunDone {
+		t.Fatalf("host run: %+v", run)
+	}
+	ctx := context.Background()
+	joiner := h.srv.Signup(t, "Jo Iner")
+	card := &models.PaymentMethod{ID: store.NewID(), UserID: joiner.UserID, Brand: "Mastercard", Last4: "4444", IsDefault: true, CreatedAt: time.Now().UTC()}
+	if _, err := h.srv.Store.Collection(store.CollPaymentMethods).InsertOne(ctx, card); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.srv.Store.Collection(store.CollItineraries).UpdateByID(ctx, h.itin.ID,
+		bson.M{"$push": bson.M{"memberIds": joiner.UserID}, "$set": bson.M{"visibility": models.VisibilityOpen}}); err != nil {
+		t.Fatal(err)
+	}
+
+	var plan contract.CheckoutPlan
+	h.srv.Do(t, "GET", "/itineraries/"+h.itin.ID+"/checkout", nil, joiner).Expect(t, http.StatusOK).JSON(t, &plan)
+	if len(plan.Items) != 2 || plan.Items[0].Booked || plan.Items[1].Booked || plan.EstimateCents != 1200+1500 ||
+		plan.CardLast4 == nil || *plan.CardLast4 != "4444" {
+		t.Fatalf("joiner's plan: %+v", plan)
+	}
+	run := h.startAs(t, joiner, 7000, 1)
+	if run.State != contract.CheckoutRunDone || run.CardLast4 != "4444" || len(run.Intents) != 2 {
+		t.Fatalf("joiner's run: %+v", run)
+	}
+	for _, sess := range []*testutil.Session{h.sess, joiner} {
+		tickets, err := h.srv.Store.CheckoutReads().Tickets(ctx, sess.UserID, h.items)
+		if err != nil || len(tickets) != 2 {
+			t.Fatalf("%s's tickets: %+v %v", sess.User.Name, tickets, err)
+		}
+	}
+	var it contract.Itinerary
+	h.srv.Do(t, "GET", "/itineraries/"+h.itin.ID, nil, joiner).Expect(t, http.StatusOK).JSON(t, &it)
+	for _, item := range it.Items {
+		if item.TicketURL != nil && (item.Ticket == nil || !item.Ticket.Mine) {
+			t.Fatalf("the joiner's item shows someone else's ticket: %+v", item.Ticket)
+		}
+	}
+}
+
 // The budget covers the first show only: the second is refused before any
 // token is issued for it.
 func TestTheBudgetRunsOutPartWay(t *testing.T) {

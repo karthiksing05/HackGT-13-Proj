@@ -860,7 +860,7 @@ final class MockAPIClient: APIClient {
         let items = itin.items.filter { $0.kind == .sidequest && $0.ticketURL != nil }.map { item in
             CheckoutPlanItem(itemId: item.id, title: item.title, start: item.start, merchant: "events.sidequestz.tech",
                              ticketURL: item.ticketURL, priceCents: item.priceCents ?? Self.demoTicketCents, quantity: 1,
-                             booked: item.ticket != nil, intentState: nil, confirmation: item.ticket?.confirmation)
+                             booked: item.ticket?.isMine == true, intentState: nil, confirmation: item.ticket?.confirmation)
         }
         let estimate = items.filter { !$0.booked }.reduce(0) { $0 + ($1.priceCents ?? 0) * $1.quantity }
         let card = cards.first { $0.isDefault } ?? cards.first

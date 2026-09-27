@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"events/pkg/models"
@@ -145,12 +146,47 @@ func (d *Deps) HandlePostOrder(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, confirmation)
 }
 
+// generateUniqueBarcode returns a unique barcode string like "SLT-ABCD-EFGH"
+// and verifies against the store that it does not already exist.
+func (d *Deps) generateUniqueBarcode(ctx context.Context) string {
+	for i := 0; i < 10; i++ {
+		code := "SLT-" + randomCrockford(4) + "-" + randomCrockford(4)
+		if d.Store != nil {
+			if existing, err := d.Store.GetOrderByBarcode(ctx, code); err == nil && existing != nil {
+				continue
+			}
+		}
+		return code
+	}
+	return fmt.Sprintf("SLT-%s-%s", randomCrockford(4), randomCrockford(6))
+}
+
+// generateUniqueOrderID returns a unique order ID string like "SL-ABCDE"
+// and verifies against the store that it does not already exist.
+func (d *Deps) generateUniqueOrderID(ctx context.Context) string {
+	for i := 0; i < 10; i++ {
+		code := "SL-" + randomCrockford(5)
+		if d.Store != nil {
+			if existing, err := d.Store.GetOrder(ctx, code); err == nil && existing != nil {
+				continue
+			}
+		}
+		return code
+	}
+	return "SL-" + randomCrockford(7)
+}
+
 // newConfirmation is a confirmed order with a fresh ticket: the one shape
 // for orders placed through the API and through the website.
 func (d *Deps) newConfirmation(r *http.Request, event models.EventSummary, qty, subtotal, total int, currency string, buyer models.BuyerInfo,
 	payment models.PaymentSummary, idemKey string, now time.Time) *models.OrderConfirmation {
-	orderID := "SL-" + randomCrockford(5)
+	ctx := context.Background()
+	if r != nil && r.Context() != nil {
+		ctx = r.Context()
+	}
+	orderID := d.generateUniqueOrderID(ctx)
 	ticketID := randomHex(16) // 128 random bits
+	barcode := d.generateUniqueBarcode(ctx)
 	return &models.OrderConfirmation{
 		OrderID:          orderID,
 		ConfirmationCode: orderID,
@@ -167,9 +203,10 @@ func (d *Deps) newConfirmation(r *http.Request, event models.EventSummary, qty, 
 			TicketID:  ticketID,
 			TicketURL: fmt.Sprintf("%s/t/%s", d.BaseURL(r), ticketID),
 			Admit:     qty,
-			Barcode:   "SLT-" + randomCrockford(4) + "-" + randomCrockford(4),
+			Barcode:   barcode,
 		},
 		Payment:        payment,
+		Barcode:        barcode,
 		IdempotencyKey: idemKey,
 		CreatedAt:      now,
 	}

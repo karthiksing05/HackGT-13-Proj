@@ -29,6 +29,7 @@ type Store interface {
 	SaveOrder(ctx context.Context, order *models.OrderConfirmation, idempotencyKey string) error
 	GetOrder(ctx context.Context, orderID string) (*models.OrderConfirmation, error)
 	GetOrderByTicketID(ctx context.Context, ticketID string) (*models.OrderConfirmation, error)
+	GetOrderByBarcode(ctx context.Context, barcode string) (*models.OrderConfirmation, error)
 	GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey string) (*models.OrderConfirmation, error)
 	ReserveTickets(ctx context.Context, slug string, quantity int) error
 	ReleaseTickets(ctx context.Context, slug string, quantity int) error

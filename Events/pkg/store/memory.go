@@ -10,30 +10,32 @@ import (
 
 // MemoryStore is an in-memory implementation of Store suitable for local dev, demos and tests.
 type MemoryStore struct {
-	mu           sync.RWMutex
-	events       map[string]*models.Event
-	quotes       map[string]*models.Quote
-	orders       map[string]*models.OrderConfirmation
-	ordersByTkt  map[string]*models.OrderConfirmation
-	ordersByIdem map[string]*models.OrderConfirmation
-	orderHistory []*models.OrderConfirmation
-	nonces       map[string]time.Time
-	rejected     []models.RejectedRequest
-	scenario     string
+	mu              sync.RWMutex
+	events          map[string]*models.Event
+	quotes          map[string]*models.Quote
+	orders          map[string]*models.OrderConfirmation
+	ordersByTkt     map[string]*models.OrderConfirmation
+	ordersByBarcode map[string]*models.OrderConfirmation
+	ordersByIdem    map[string]*models.OrderConfirmation
+	orderHistory    []*models.OrderConfirmation
+	nonces          map[string]time.Time
+	rejected        []models.RejectedRequest
+	scenario        string
 }
 
 // NewMemoryStore creates an empty MemoryStore.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		events:       make(map[string]*models.Event),
-		quotes:       make(map[string]*models.Quote),
-		orders:       make(map[string]*models.OrderConfirmation),
-		ordersByTkt:  make(map[string]*models.OrderConfirmation),
-		ordersByIdem: make(map[string]*models.OrderConfirmation),
-		orderHistory: make([]*models.OrderConfirmation, 0),
-		nonces:       make(map[string]time.Time),
-		rejected:     make([]models.RejectedRequest, 0),
-		scenario:     models.ScenarioNormal,
+		events:          make(map[string]*models.Event),
+		quotes:          make(map[string]*models.Quote),
+		orders:          make(map[string]*models.OrderConfirmation),
+		ordersByTkt:     make(map[string]*models.OrderConfirmation),
+		ordersByBarcode: make(map[string]*models.OrderConfirmation),
+		ordersByIdem:    make(map[string]*models.OrderConfirmation),
+		orderHistory:    make([]*models.OrderConfirmation, 0),
+		nonces:          make(map[string]time.Time),
+		rejected:        make([]models.RejectedRequest, 0),
+		scenario:        models.ScenarioNormal,
 	}
 }
 
@@ -120,9 +122,18 @@ func (m *MemoryStore) SaveOrder(ctx context.Context, order *models.OrderConfirma
 	}
 	cp := *order
 	cp.IdempotencyKey = idempotencyKey
+	if cp.Barcode == "" && cp.Ticket.Barcode != "" {
+		cp.Barcode = cp.Ticket.Barcode
+	}
+	if cp.Ticket.Barcode == "" && cp.Barcode != "" {
+		cp.Ticket.Barcode = cp.Barcode
+	}
 	m.orders[order.OrderID] = &cp
 	if order.Ticket.TicketID != "" {
 		m.ordersByTkt[order.Ticket.TicketID] = &cp
+	}
+	if cp.Barcode != "" {
+		m.ordersByBarcode[cp.Barcode] = &cp
 	}
 	if idempotencyKey != "" {
 		m.ordersByIdem[idempotencyKey] = &cp
@@ -147,6 +158,28 @@ func (m *MemoryStore) GetOrderByTicketID(ctx context.Context, ticketID string) (
 	defer m.mu.RUnlock()
 	o, ok := m.ordersByTkt[ticketID]
 	if !ok {
+		// Also scan barcode if queried by barcode
+		if b, bOk := m.ordersByBarcode[ticketID]; bOk {
+			cp := *b
+			return &cp, nil
+		}
+		return nil, ErrNotFound
+	}
+	cp := *o
+	return &cp, nil
+}
+
+func (m *MemoryStore) GetOrderByBarcode(ctx context.Context, barcode string) (*models.OrderConfirmation, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	o, ok := m.ordersByBarcode[barcode]
+	if !ok {
+		for _, ord := range m.orders {
+			if ord.Barcode == barcode || ord.Ticket.Barcode == barcode {
+				cp := *ord
+				return &cp, nil
+			}
+		}
 		return nil, ErrNotFound
 	}
 	cp := *o
