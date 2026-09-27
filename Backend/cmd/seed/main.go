@@ -20,10 +20,14 @@
 //
 //	go run ./cmd/seed [--apply] [--remove] [--world atlanta|saltlight|all] [--demo-email ADDRESS]
 //	go run ./cmd/seed --history @handle[=outdoors|nightlife|arts],… [--apply] [--remove]
+//	go run ./cmd/seed --calendar @handle,… [--apply] [--remove]
+//	go run ./cmd/seed --reset @handle,… [--allow-demo] [--apply]
 //
 // --history gives real accounts a believable past instead (history.go):
 // finished sidequests with rated and unrated stops and liked categories
-// that agree with them, all reversible with --remove.
+// that agree with them, all reversible with --remove. --calendar gives them
+// a fall semester of classes and homework (calendar.go); --reset puts them
+// back to what the seeds gave them (reset.go).
 //
 // It reads the server's environment names: MONGO_URI (default
 // mongodb://127.0.0.1:27017, e.g. the SSH tunnel to the server), MONGO_DB
@@ -39,6 +43,7 @@ import (
 	"Backend/pkg/ml"
 	"Backend/pkg/store"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -70,6 +75,9 @@ type Options struct {
 	Worlds    []string
 	Named     bool
 	History   []historySel // --history: the people to give a past (no worlds then)
+	Calendar  []historySel // --calendar: the people to give a semester
+	Reset     []historySel // --reset: the people to put back to the seeds' baseline
+	AllowDemo bool         // --allow-demo: --reset may take the demo account
 	DemoEmail string
 	Demo      *democlock.Clock // Saltlight's clock (DEMO_DATE, DEMO_TZ)
 	Atlanta   *time.Location
@@ -85,9 +93,12 @@ func main() {
 
 const usage = `usage: go run ./cmd/seed [--apply] [--remove] [--world atlanta|saltlight|all] [--demo-email ADDRESS]
        go run ./cmd/seed --history @handle[=outdoors|nightlife|arts],… [--apply] [--remove]
+       go run ./cmd/seed --calendar @handle,… [--apply] [--remove]
+       go run ./cmd/seed --reset @handle,… [--allow-demo] [--apply]
 
 Fills the database with showcase people and sidequests (a dry run unless --apply).
 --history gives the named real accounts past sidequests, ratings and interests instead.
+--calendar gives them a fall 2026 class schedule; --reset wipes what they made since the seeds.
 --remove deletes what it wrote instead and restores what it changed (also a dry run unless --apply).
 
 Environment: MONGO_URI (default mongodb://127.0.0.1:27017), MONGO_DB (required with --apply),
@@ -103,6 +114,9 @@ func cli(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	world := fs.String("world", "all", "atlanta, saltlight or all")
 	demoEmail := fs.String("demo-email", defaultDemoEmail, "the demo account the Saltlight world is built around")
 	history := fs.String("history", "", "give these real accounts a past instead: @handle[=outdoors|nightlife|arts],…")
+	calendar := fs.String("calendar", "", "give these real accounts a fall semester of classes: @handle,…")
+	reset := fs.String("reset", "", "put these accounts back to the seeds' baseline: @handle,…")
+	allowDemo := fs.Bool("allow-demo", false, "let --reset take the demo account")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -111,12 +125,8 @@ func cli(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 		return 2
 	}
 	o, uri, db, err := readOptions(getenv, *apply, *remove, *world, *demoEmail)
-	if err == nil && *history != "" {
-		if *world != "all" {
-			err = fmt.Errorf("--history and --world do not go together")
-		} else {
-			o.History, err = parseHistory(*history)
-		}
+	if err == nil {
+		err = readModes(&o, *world, *history, *calendar, *reset, *allowDemo)
 	}
 	if err != nil {
 		fmt.Fprintf(stderr, "seed: %v\n", err)
@@ -177,6 +187,45 @@ func readOptions(getenv func(string) string, apply, remove bool, world, demoEmai
 	return o, uri, db, nil
 }
 
+// readModes reads --history, --calendar and --reset: one mode at a time,
+// never with --world.
+func readModes(o *Options, world, history, calendar, reset string, allowDemo bool) error {
+	modes := 0
+	for _, v := range []string{history, calendar, reset} {
+		if v != "" {
+			modes++
+		}
+	}
+	switch {
+	case modes > 1:
+		return errors.New("--history, --calendar and --reset go one at a time")
+	case modes == 1 && world != "all":
+		return errors.New("--world goes with the showcase only, not with --history, --calendar or --reset")
+	case allowDemo && reset == "":
+		return errors.New("--allow-demo goes with --reset")
+	}
+	var err error
+	switch {
+	case history != "":
+		o.History, err = parseHistory(history)
+	case calendar != "":
+		o.Calendar, err = parseHistory(calendar)
+	case reset != "":
+		if o.Reset, err = parseHistory(reset); err == nil {
+			for _, sel := range o.Reset {
+				if sel.flavor != "" {
+					return fmt.Errorf("--reset takes handles only (@%s=%s): the baseline keeps their story", sel.handle, sel.flavor)
+				}
+			}
+			if o.Remove {
+				return errors.New("--reset and --remove do not go together")
+			}
+		}
+		o.AllowDemo = allowDemo
+	}
+	return err
+}
+
 // targetHost is the host part of a MongoDB URI, never its credentials.
 func targetHost(uri string) string {
 	u, err := url.Parse(uri)
@@ -221,7 +270,9 @@ func Run(ctx context.Context, st *store.Store, o Options, out io.Writer) error {
 	}
 	want := slices.Clone(appCollections)
 	switch {
-	case len(o.History) > 0:
+	case len(o.Calendar) > 0:
+		want = []string{store.CollUsers}
+	case len(o.History) > 0 || len(o.Reset) > 0:
 		want = []string{store.CollUsers, store.CollItineraries, store.CollRatings}
 		if !o.Remove {
 			want = append(want, store.DefaultCatalog)
@@ -244,8 +295,13 @@ func Run(ctx context.Context, st *store.Store, o Options, out io.Writer) error {
 		}
 		p.f("Warning: %s; --apply would refuse", msg)
 	}
-	if len(o.History) > 0 {
+	switch {
+	case len(o.History) > 0:
 		return runHistory(ctx, st, o, p)
+	case len(o.Calendar) > 0:
+		return runCalendar(ctx, st, o, p)
+	case len(o.Reset) > 0:
+		return runReset(ctx, st, o, p)
 	}
 	if o.Remove {
 		return runRemove(ctx, st, o, p)

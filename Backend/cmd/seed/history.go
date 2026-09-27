@@ -341,6 +341,12 @@ func (hp *histPerson) uid() string { return hp.user.ID.Hex() }
 // resolveHistory finds each person and refuses anyone who is not a real
 // regular account: no match, more than one, the demo cast or the showcase.
 func resolveHistory(ctx context.Context, st *store.Store, sels []historySel) ([]*histPerson, error) {
+	return resolveAccounts(ctx, st, sels, false)
+}
+
+// resolveAccounts is resolveHistory that, with allowDemo, lets the demo
+// account through (never a bot or a showcase account).
+func resolveAccounts(ctx context.Context, st *store.Store, sels []historySel, allowDemo bool) ([]*histPerson, error) {
 	var out []*histPerson
 	var problems []string
 	for _, sel := range sels {
@@ -361,6 +367,7 @@ func resolveHistory(ctx context.Context, st *store.Store, sels []historySel) ([]
 			return nil, fmt.Errorf("read @%s: %w", sel.handle, err)
 		}
 		switch {
+		case allowDemo && u.HasRole("demo") && !u.HasRole("bot"):
 		case store.IsDemoCast(&u.User):
 			problems = append(problems, fmt.Sprintf("@%s is in the demo cast (roles %v)", sel.handle, u.Roles))
 			continue
@@ -371,7 +378,7 @@ func resolveHistory(ctx context.Context, st *store.Store, sels []historySel) ([]
 		out = append(out, &histPerson{sel: sel, user: &u.User, raw: raws[0]})
 	}
 	if len(problems) > 0 {
-		return nil, fmt.Errorf("refusing --history: %s", strings.Join(problems, "; "))
+		return nil, fmt.Errorf("refusing: %s", strings.Join(problems, "; "))
 	}
 	return out, nil
 }
