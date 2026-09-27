@@ -60,6 +60,7 @@ data pipeline and the training jobs run offline and are not deployed.
 | `dataingestion/` | The Python pipeline that fills MongoDB with events, places and trails, and the Saltlight Harbor demo snapshot | [dataingestion/README.md](dataingestion/README.md), [docs/DATA.md](docs/DATA.md) |
 | `Events/` | The sandbox ticket merchant for Saltlight's ticketed events ("Saltlight Tickets", `events.sidequestz.tech`, its own Go module): the ticket website on Stripe Checkout, and the TAP-signed API agentic checkout buys through with Stripe test-mode payment tokens | [Events/README.md](Events/README.md), [docs/AGENTIC_CHECKOUT.md](docs/AGENTIC_CHECKOUT.md) |
 | `docs/` | This documentation set, the generated API examples (`docs/api/examples/`) and the design notes behind the integration (`docs/design/`) | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| `HEARSAY/` | A git submodule: our separate NSA HEARSAY entry (synthetic-speech detection), developed in its own repository and not part of SideQuests | [Our NSA HEARSAY entry](#our-nsa-hearsay-entry) |
 
 ## Quick start
 
@@ -211,6 +212,21 @@ Embedding-provider settings exist only on the ML service; the Go API never holds
 | [Backend/pkg/api/README.md](Backend/pkg/api/README.md) | The Go API's package layout and the seams a handler uses (store, realtime, planner, profiles) |
 | [ml/README.md](ml/README.md), [ml/models.md](ml/models.md), [ml/training.md](ml/training.md), [ml/dataset.md](ml/dataset.md) | The ML service API, the compatibility model card, the training recipe, the synthetic datasets |
 | [dataingestion/README.md](dataingestion/README.md), [dataingestion/DATA_COLLECTION_SPEC.md](dataingestion/DATA_COLLECTION_SPEC.md) | Running the pipeline, and the full data-collection design |
+
+## Our NSA HEARSAY entry
+
+For information on our NSA challenge submission, follow
+[this link](https://github.com/kevinharvey2025/HactGT13AudioAuthentication). HEARSAY, synthetic-speech
+detection for the NSA audio authentication challenge, is a separate HackGT 13 submission by the same
+team and has nothing to do with SideQuests.
+
+- **Where the code lives:** `HEARSAY/` is a git submodule of that repository. It is developed there,
+  and `HEARSAY/` is only here for reference.
+- **Staying current:** `.github/workflows/update-hearsay.yml` moves the pointer to its latest `main`
+  every six hours, or on demand from the Actions tab.
+- **Getting it locally:** clone with `git clone --recurse-submodules`, or run
+  `git submodule update --init` in an existing clone. `git submodule update --remote HEARSAY` fetches
+  its latest `main` by hand.
 
 ## Credits
 
