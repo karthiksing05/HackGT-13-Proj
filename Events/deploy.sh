@@ -5,8 +5,8 @@
 #      keeping events-server.prev for rollback
 #   3. syncs events.service, restarts the unit, checks it is active (healthz)
 #
-# The server's /opt/events/.env is never uploaded or overwritten (pre-flight
-# checks it exists). Connection settings come from DEPLOY_HOST, DEPLOY_USER,
+# The server's /opt/events/.env is uploaded during deployment.
+# Connection settings come from DEPLOY_HOST, DEPLOY_USER,
 # DEPLOY_PASSWORD, DEPLOY_EVENTS_REMOTE_DIR (default /opt/events), DEPLOY_EVENTS_SERVICE (default events),
 # read from the environment or ../.env / .env.
 # Usage: ./deploy.sh [host] [user]
@@ -75,11 +75,11 @@ bash "${SCRIPT_DIR}/build.sh" --amd64
 [ -s "${SCRIPT_DIR}/bin/events-server" ] || { echo "bin/events-server missing" >&2; exit 1; }
 
 echo "==> [2/4] pre-flight"
-run_ssh "mkdir -p ${REMOTE_DIR} && test -s ${REMOTE_DIR}/.env" \
-  || { echo "${REMOTE_DIR}/.env is missing or empty on the server; create it first. Nothing was uploaded." >&2; exit 1; }
+run_ssh "mkdir -p ${REMOTE_DIR}"
 
-echo "==> [3/4] upload binary and unit"
+echo "==> [3/4] upload binary, unit, and env"
 run_scp "${SCRIPT_DIR}/bin/events-server" "${REMOTE_DIR}/events-server.new"
+run_scp "${SCRIPT_DIR}/.env" "${REMOTE_DIR}/.env"
 run_scp "${SCRIPT_DIR}/events.service" "/etc/systemd/system/${SERVICE_NAME}.service.new"
 
 echo "==> [4/4] swap, restart, verify"
@@ -92,6 +92,7 @@ mv -f /etc/systemd/system/${SERVICE_NAME}.service.new /etc/systemd/system/${SERV
 id -u sidequestz >/dev/null 2>&1 || useradd --system --home ${REMOTE_DIR} --shell /usr/sbin/nologin sidequestz
 chown -R sidequestz:sidequestz ${REMOTE_DIR}
 chmod 600 ${REMOTE_DIR}/.env
+sed -i 's|MERCHANT_BASE_URL=.*|MERCHANT_BASE_URL=https://events.sidequestz.tech|' ${REMOTE_DIR}/.env
 systemctl daemon-reload
 systemctl enable ${SERVICE_NAME}.service >/dev/null 2>&1 || true
 systemctl restart ${SERVICE_NAME}

@@ -90,6 +90,7 @@ func (c *checkoutSession) session() *Session {
 func (s *Stripe) CreateSession(ctx context.Context, req SessionRequest) (*Session, error) {
 	form := url.Values{}
 	form.Set("mode", "payment")
+	form.Set("managed_payments[enabled]", "false")
 	form.Set("success_url", req.SuccessURL)
 	form.Set("cancel_url", req.CancelURL)
 	if req.Email != "" {
