@@ -252,7 +252,7 @@ finished without Muse. Booked items carry their `ticket` on the itinerary. Saved
 |---|---|---|---|
 | `friends` | `GET /friends` | | `[Friend]` (live status line + activity) |
 | `searchUsers` | `GET /users/search` | `q` (name or @handle) | `[UserSearchResult]` `{person, relation: none\|friend\|outgoing\|incoming, request_id?}` |
-| `suggestedPeople` | `GET /people/suggested` | | `[PersonSuggestion]` `{person, relation, request_id?, compatibility}`: up to 20 people whose taste matches yours (likes minus clashes), best first; `compatibility` is a whole-number percent 0–100. Never you, your friends or bot accounts; `[]` without a taste profile; 503 while the ML service is down. The app keeps the list for the session and reloads it on pull-to-refresh |
+| `suggestedPeople` | `GET /people/suggested` | | `[PersonSuggestion]` `{person, relation, request_id?, compatibility?}`: up to 20 people, first those whose taste matches yours (likes minus clashes), best first, with `compatibility` a whole-number percent 0–100; then, to fill the list, people active lately, without `compatibility` (everyone, when you have no taste profile). Never you, your friends or bot accounts; `[]` for the demo cast; 503 while the ML service is down (only with a taste profile). The app keeps the list for the session and reloads it on pull-to-refresh |
 | `friendRequests` | `GET /friends/requests` | | `[FriendRequest]`: incoming, plus the ones you sent with `outgoing: true` (so "Requested" survives a relaunch) |
 | `sendFriendRequest` | `POST /friends/requests` | `{user_id}` | `FriendRequest` (`outgoing: true`) |
 | `cancelFriendRequest` | `DELETE /friends/requests/{id}` | | 2xx (your own outgoing request) |
