@@ -594,6 +594,10 @@ struct ForumView: View {
                 run(post) {
                     let result = try await env.api.requestToJoin(postId: post.id)
                     applyJoin(result, to: post.id)
+                    // You're in: Muse can get your tickets for its paid stops, same as the host's.
+                    if result.status == .joined, let itineraryId = result.itineraryId {
+                        Task { await router.offerAgentCheckout(itineraryId: itineraryId, env: env) }
+                    }
                 }
             case .requested:
                 run(post) {

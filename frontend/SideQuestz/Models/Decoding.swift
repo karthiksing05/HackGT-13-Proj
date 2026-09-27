@@ -85,7 +85,7 @@ extension PersonSuggestion {
         person = try c.decode(PersonRef.self, forKey: .person)
         relation = try c.decodeIfPresent(FriendRelation.self, forKey: .relation) ?? .none
         requestId = try c.decodeIfPresent(String.self, forKey: .requestId)
-        compatibility = min(100, max(0, try c.decodeIfPresent(Int.self, forKey: .compatibility) ?? 0))
+        compatibility = try c.decodeIfPresent(Int.self, forKey: .compatibility).map { min(100, max(0, $0)) }
     }
 }
 

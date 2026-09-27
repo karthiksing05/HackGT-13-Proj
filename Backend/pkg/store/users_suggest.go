@@ -14,13 +14,22 @@ import (
 // bots) and are not in exclude. Each comes with its
 // likes and dislikes vectors; limit caps the pool (default 300).
 func (u Users) Suggestable(ctx context.Context, exclude []string, limit int) ([]*models.User, error) {
+	return u.people(ctx, bson.M{"positiveEmbedding": bson.M{"$exists": true, "$ne": bson.A{}}}, exclude, limit)
+}
+
+// RecentlyActive is everyone outside the demo cast and exclude, taste
+// profile or not, most recently active first; limit caps it (default 300).
+func (u Users) RecentlyActive(ctx context.Context, exclude []string, limit int) ([]*models.User, error) {
+	return u.people(ctx, bson.M{}, exclude, limit)
+}
+
+// people finds real accounts (not the demo cast, not in exclude) matching
+// filter, most recently active first.
+func (u Users) people(ctx context.Context, filter bson.M, exclude []string, limit int) ([]*models.User, error) {
 	if limit <= 0 {
 		limit = 300
 	}
-	filter := bson.M{
-		"positiveEmbedding": bson.M{"$exists": true, "$ne": bson.A{}},
-		"roles":             bson.M{"$nin": bson.A{"bot", "demo"}},
-	}
+	filter["roles"] = bson.M{"$nin": bson.A{"bot", "demo"}}
 	if oids := objectIDs(exclude); len(oids) > 0 {
 		filter["_id"] = bson.M{"$nin": oids}
 	}

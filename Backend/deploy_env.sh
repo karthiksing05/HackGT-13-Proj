@@ -10,4 +10,5 @@ id -u sidequestz >/dev/null 2>&1 || useradd --system --shell /usr/sbin/nologin s
 cat > /opt/backend/.env.new
 chown sidequestz:sidequestz /opt/backend/.env.new
 chmod 600 /opt/backend/.env.new
-mv -f /opt/backend/.env.new /opt/backend/.env' < .env
+mv -f /opt/backend/.env.new /opt/backend/.env
+systemctl restart sidequestz' < .env

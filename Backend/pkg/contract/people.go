@@ -60,12 +60,13 @@ type UserSearchResult struct {
 }
 
 // PersonSuggestion is one row of GET /people/suggested: someone whose taste
-// matches the viewer's, with the match as a whole-number percent (0–100).
+// matches the viewer's, with the match as a whole-number percent (0–100),
+// or (no compatibility) someone recently active, when taste matches run out.
 type PersonSuggestion struct {
 	Person        PersonRef      `json:"person"`
 	Relation      FriendRelation `json:"relation"`
 	RequestID     *string        `json:"request_id,omitempty"`
-	Compatibility int            `json:"compatibility"`
+	Compatibility *int           `json:"compatibility,omitempty"`
 }
 
 // ProfileRelation is how the person on a profile relates to the viewer:

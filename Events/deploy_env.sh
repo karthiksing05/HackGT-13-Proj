@@ -10,4 +10,5 @@ id -u sidequestz >/dev/null 2>&1 || useradd --system --shell /usr/sbin/nologin s
 cat > /opt/events/.env.new
 chown sidequestz:sidequestz /opt/events/.env.new
 chmod 600 /opt/events/.env.new
-mv -f /opt/events/.env.new /opt/events/.env' < .env
+mv -f /opt/events/.env.new /opt/events/.env
+systemctl restart events' < .env

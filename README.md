@@ -168,7 +168,7 @@ Run `bash deploy.sh` from the repository root to deploy ML, Events, then Backend
 first failure. Connection settings come from `DEPLOY_HOST`, `DEPLOY_USER` and `DEPLOY_PASSWORD`
 in the root `.env`; optional `[host] [user]` arguments override the destination. Deployments
 do not run tests or upload `.env` files. Run `bash deploy_env.sh` separately to upload
-`Events/.env` and `Backend/.env`; these values take effect on the next service restart.
+`Events/.env` and `Backend/.env` and restart their services to apply the new values.
 The ordered runbook, rollback, logs and health checks are in [docs/DEPLOY.md](docs/DEPLOY.md).
 There is no website: `sidequestz.tech` has no DNS record, and the API's root
 answers a JSON 404 by design. The sandbox ticket merchant (`Events/`, `events.sidequestz.tech`) is a
