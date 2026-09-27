@@ -44,6 +44,7 @@ func setupTestServer(t *testing.T) (http.Handler, *api.Deps) {
 	}
 	fake.Grant("spt_declined", payments.FakeToken{MaxCents: 100000, Decline: true})
 	deps.Charger = fake
+	deps.Checkout = fake
 	h := router.New(deps)
 	return h, deps
 }
@@ -172,8 +173,8 @@ func TestGetOfferAndOrderHappyPath(t *testing.T) {
 		t.Fatalf("expected 200 on ticket HTML, got %d", wTktHTML.Code)
 	}
 	bodyStr := wTktHTML.Body.String()
-	if !strings.Contains(bodyStr, conf.ConfirmationCode) || !strings.Contains(bodyStr, "Paid with a Stripe shared payment token") {
-		t.Fatalf("ticket HTML missing confirmation code or payment note")
+	if !strings.Contains(bodyStr, conf.ConfirmationCode) || !strings.Contains(bodyStr, "Visa •••• 4242") {
+		t.Fatalf("ticket HTML missing confirmation code or card")
 	}
 }
 
@@ -375,9 +376,6 @@ func TestJSONLDValidity(t *testing.T) {
 		t.Fatalf("expected 200 on tickets page, got %d", w2.Code)
 	}
 	extractAndValidateJSONLD(t, w2.Body.String(), "Event")
-	if !strings.Contains(w2.Body.String(), `rel="agent-checkout"`) {
-		t.Fatalf("tickets page missing rel=agent-checkout link")
-	}
 
 	// 3. Ticket pass page /t/{ticket_id}
 	order := &models.OrderConfirmation{
@@ -551,21 +549,5 @@ func TestOrderRejectsBadPaymentAndQuantity(t *testing.T) {
 	more.Payment = models.PaymentCredential{Scheme: "stripe_spt", Token: "spt_happy"}
 	if w := signedOrder(t, h, "idem-bad-2", more); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "quantity_mismatch") {
 		t.Fatalf("quantity above the quote: %d %s", w.Code, w.Body.String())
-	}
-}
-
-func TestDashboardNeedsTheDemoKey(t *testing.T) {
-	h, _ := setupTestServer(t)
-	for _, path := range []string{"/dashboard", "/api/dashboard/feed"} {
-		w := httptest.NewRecorder()
-		h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
-		if w.Code != http.StatusUnauthorized {
-			t.Fatalf("%s without key: %d", path, w.Code)
-		}
-		w = httptest.NewRecorder()
-		h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path+"?key=test-demo-key", nil))
-		if w.Code != http.StatusOK {
-			t.Fatalf("%s with key: %d", path, w.Code)
-		}
 	}
 }

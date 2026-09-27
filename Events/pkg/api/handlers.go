@@ -7,11 +7,8 @@ import (
 	"encoding/json"
 	"events/pkg/models"
 	"events/pkg/tap"
-	"events/pkg/ui"
-	"html/template"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -35,160 +32,6 @@ func randomHex(bytesLen int) string {
 	b := make([]byte, bytesLen)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
-}
-
-// ------------------------------------------------------------- Web UI Handlers
-
-// HandleHome renders the discovery page at / and /events.
-func (d *Deps) HandleHome(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	category := r.URL.Query().Get("category")
-	search := r.URL.Query().Get("q")
-
-	events, err := d.Store.ListEvents(ctx, category, search)
-	if err != nil {
-		http.Error(w, "failed to list events", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = ui.RenderHome(w, ui.HomeView{
-		Events:   events,
-		Category: category,
-		Search:   search,
-	})
-}
-
-// HandleEvent renders the event details page at /{slug}.
-func (d *Deps) HandleEvent(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	slug := mux.Vars(r)["slug"]
-
-	if models.IsReservedSlug(slug) {
-		http.NotFound(w, r)
-		return
-	}
-
-	event, err := d.Store.GetEvent(ctx, slug)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	baseURL := d.Cfg.MerchantBaseURL
-	jsonld := ui.BuildJSONLDEvent(event, baseURL)
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = ui.RenderEvent(w, ui.EventView{
-		Event:   event,
-		JSONLD:  template.JS(jsonld),
-		Host:    d.Cfg.MerchantHost,
-		BaseURL: baseURL,
-	})
-}
-
-// HandleTickets renders the ticket selection & checkout page at /{slug}/tickets.
-func (d *Deps) HandleTickets(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	slug := mux.Vars(r)["slug"]
-
-	if models.IsReservedSlug(slug) {
-		http.NotFound(w, r)
-		return
-	}
-
-	event, err := d.Store.GetEvent(ctx, slug)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	baseURL := d.Cfg.MerchantBaseURL
-	jsonld := ui.BuildJSONLDEvent(event, baseURL)
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = ui.RenderTickets(w, ui.TicketsView{
-		Event:   event,
-		JSONLD:  template.JS(jsonld),
-		Host:    d.Cfg.MerchantHost,
-		BaseURL: baseURL,
-	})
-}
-
-// HandleTicketPass renders or returns JSON for /t/{ticket_id}.
-func (d *Deps) HandleTicketPass(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	ticketID := mux.Vars(r)["ticket_id"]
-
-	order, err := d.Store.GetOrderByTicketID(ctx, ticketID)
-	if err != nil {
-		if strings.Contains(r.Header.Get("Accept"), "application/json") {
-			writeJSONError(w, http.StatusNotFound, "not_found", "")
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusNotFound)
-		_ = ui.RenderTicketPass(w, ui.TicketPassView{Found: false})
-		return
-	}
-
-	// Content negotiation: Accept: application/json returns the ticket object
-	if strings.Contains(r.Header.Get("Accept"), "application/json") {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(order.Ticket)
-		return
-	}
-
-	// Hardened headers matching spec and checkout/ticket.go
-	h := w.Header()
-	h.Set("Content-Type", "text/html; charset=utf-8")
-	h.Set("Cache-Control", "no-store")
-	h.Set("X-Robots-Tag", "noindex, nofollow")
-	h.Set("Referrer-Policy", "no-referrer")
-	h.Set("Content-Security-Policy", "default-src 'self' 'unsafe-inline' data:;")
-
-	startTime, _ := time.Parse(time.RFC3339, order.Event.StartsAt)
-	jsonld := ui.BuildJSONLDReservation(order)
-
-	_ = ui.RenderTicketPass(w, ui.TicketPassView{
-		Found:         true,
-		Order:         order,
-		FormattedDate: startTime.Format("Mon, Jan 2, 2006"),
-		FormattedTime: startTime.Format("3:04 PM MST"),
-		JSONLD:        template.JS(jsonld),
-	})
-}
-
-// HandleDashboard renders the live operator booth dashboard at /dashboard.
-func (d *Deps) HandleDashboard(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	key := r.URL.Query().Get("key")
-	if key == "" {
-		key = r.Header.Get("X-Demo-Key")
-	}
-	if !d.demoKeyOK(key) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte("Open the dashboard with ?key=<DEMO_KEY>.\n"))
-		return
-	}
-
-	orders, _ := d.Store.ListRecentOrders(ctx, 20)
-	rejected, _ := d.Store.ListRejectedRequests(ctx, 10)
-	scenario := d.Store.GetScenario(ctx)
-	totalOrders := d.Store.TotalOrders(ctx)
-	totalGross := d.Store.TotalGrossCents(ctx)
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = ui.RenderDashboard(w, ui.DashboardView{
-		DemoKey:         d.Cfg.DemoKey,
-		Scenario:        scenario,
-		Orders:          orders,
-		Rejected:        rejected,
-		TotalOrders:     totalOrders,
-		TotalGrossCents: totalGross,
-		Host:            d.Cfg.MerchantHost,
-	})
 }
 
 // ----------------------------------------------------------------- API Handlers
@@ -312,55 +155,6 @@ func (d *Deps) HandleSetScenario(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"scenario": req.Scenario})
 }
 
-// HandleDashboardFeed supplies polling data for GET /api/dashboard/feed.
-func (d *Deps) HandleDashboardFeed(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	key := r.Header.Get("X-Demo-Key")
-	if key == "" {
-		key = r.URL.Query().Get("key")
-	}
-	if !d.demoKeyOK(key) {
-		writeJSONError(w, http.StatusUnauthorized, "bad_demo_key", "")
-		return
-	}
-	orders, _ := d.Store.ListRecentOrders(ctx, 20)
-	rejected, _ := d.Store.ListRejectedRequests(ctx, 10)
-	scenario := d.Store.GetScenario(ctx)
-	totalOrders := d.Store.TotalOrders(ctx)
-	totalGross := d.Store.TotalGrossCents(ctx)
-
-	feedOrders := make([]models.DashboardFeedItem, len(orders))
-	for i, o := range orders {
-		feedOrders[i] = models.DashboardFeedItem{
-			OrderID:         o.OrderID,
-			EventTitle:      o.Event.Title,
-			EventSlug:       o.Event.Slug,
-			Quantity:        o.Quantity,
-			TotalCents:      o.TotalCents,
-			AgentSigned:     true,
-			AgentKeyID:      o.AgentKeyID,
-			CardBrand:       o.Payment.Brand,
-			CardLast4:       o.Payment.Last4,
-			LimitCents:      o.Payment.LimitCents,
-			PaymentIntentID: o.Payment.PaymentIntentID,
-			TicketURL:       o.Ticket.TicketURL,
-			CreatedAt:       o.CreatedAt,
-		}
-	}
-
-	feed := models.DashboardFeed{
-		Scenario:        scenario,
-		Orders:          feedOrders,
-		Rejected:        rejected,
-		TotalOrders:     totalOrders,
-		TotalGrossCents: totalGross,
-		ActiveEvents:    d.activeEvents(ctx),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(feed)
-}
-
 // HandleGetTapKey serves public key directory at GET /sandbox/tap/keys/{keyid}.
 func (d *Deps) HandleGetTapKey(w http.ResponseWriter, r *http.Request) {
 	keyID := mux.Vars(r)["keyid"]
@@ -434,13 +228,4 @@ var errorMessages = map[string]string{
 	"payments_unavailable": "Payments aren't set up on this merchant yet.",
 	"bad_demo_key":         "That demo key isn't right.",
 	"internal":             "Something went wrong on our side.",
-}
-
-// activeEvents counts the catalog for the dashboard.
-func (d *Deps) activeEvents(ctx context.Context) int {
-	events, err := d.Store.ListEvents(ctx, "", "")
-	if err != nil {
-		return 0
-	}
-	return len(events)
 }

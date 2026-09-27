@@ -13,6 +13,7 @@ var ReservedSlugs = map[string]bool{
 	"events":    true,
 	"static":    true,
 	"favicon":   true,
+	"orders":    true,
 }
 
 // IsReservedSlug reports whether a slug is reserved.

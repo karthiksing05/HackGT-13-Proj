@@ -1,0 +1,97 @@
+{{template "head" .Meta}}
+.checkout { max-width: 560px; margin: 0 auto; padding-top: 28px; }
+.back { font-size: 14px; font-weight: 600; color: var(--ink-2); text-decoration: none; }
+.back:hover { text-decoration: underline; }
+h1 { font-size: 32px; margin-top: 12px; }
+.event { display: grid; grid-template-columns: 76px 1fr; gap: 14px; align-items: center; padding: 12px; margin-top: 20px; }
+.event img, .event .ph { width: 76px; height: 76px; border-radius: 12px; object-fit: cover; background: var(--sea-tint); }
+.event b { display: block; font-size: 17px; line-height: 1.25; }
+.event span { display: block; color: var(--ink-3); font-size: 14px; }
+.buy-form { margin-top: 20px; padding: 22px; display: grid; gap: 18px; }
+.buy-form label { display: grid; gap: 6px; font-weight: 600; font-size: 14px; }
+.buy-form input, .buy-form select {
+  height: 48px; border-radius: 12px; border: 1px solid var(--line-2); background: #fff; padding: 0 14px;
+  font: 16px var(--body); color: var(--ink); width: 100%;
+}
+.buy-form select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%233d5260' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; padding-right: 40px; }
+.buy-form input:focus, .buy-form select:focus { outline: 2px solid var(--sea); outline-offset: 1px; border-color: var(--sea); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.summary { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 8px; }
+.summary div { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-2); }
+.summary .total { color: var(--ink); font-weight: 800; font-size: 19px; padding-top: 8px; border-top: 1px dashed var(--line-2); }
+.error { background: #fdecea; color: var(--danger); border-radius: 12px; padding: 12px 14px; font-weight: 600; font-size: 15px; }
+.secure { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; color: var(--ink-3); margin: -4px 0 0; }
+.soldout { margin-top: 20px; padding: 28px 22px; text-align: center; }
+.soldout p { color: var(--ink-3); margin: 6px 0 18px; }
+@media (max-width: 480px) { .row { grid-template-columns: 1fr; } .buy-form { padding: 18px; } }
+{{template "top" ""}}
+{{with .Event}}
+<div class="wrap">
+  <div class="checkout">
+    <a class="back" href="/{{.Slug}}">← Back to event</a>
+    <h1>Checkout</h1>
+
+    <div class="event panel">
+      {{if .ImageURL}}<img src="{{.ImageURL}}" alt="">{{else}}<div class="ph"></div>{{end}}
+      <div>
+        <b>{{.Title}}</b>
+        <span>{{date .Start}} · {{clock .Start}}</span>
+        <span>{{.Venue}}</span>
+      </div>
+    </div>
+
+    {{if $.SoldOut}}
+    <div class="soldout panel">
+      <h2>Sold out</h2>
+      <p>There are no tickets left for this event.</p>
+      <a class="btn" href="/">Browse other events</a>
+    </div>
+    {{else}}
+    <form class="buy-form panel" method="post" action="/{{.Slug}}/tickets" data-unit="{{.UnitCents}}">
+      {{with $.Error}}<div class="error" role="alert">{{.}}</div>{{end}}
+      <label>Tickets
+        <select name="quantity" id="qty">
+          {{range seq $.MaxQty}}<option value="{{.}}"{{if eq . $.Quantity}} selected{{end}}>{{.}} {{if eq . 1}}ticket{{else}}tickets{{end}}</option>{{end}}
+        </select>
+      </label>
+      <div class="row">
+        <label>Full name
+          <input name="name" value="{{$.Name}}" autocomplete="name" required maxlength="100">
+        </label>
+        <label>Email
+          <input name="email" type="email" value="{{$.Email}}" autocomplete="email" required maxlength="200">
+        </label>
+      </div>
+      <div class="summary num" aria-live="polite">
+        <div><span id="line-label">{{$.Quantity}} × {{money .UnitCents}}</span><span id="subtotal">{{money (mul .UnitCents $.Quantity)}}</span></div>
+        <div><span>Service fee</span><span id="fees">{{money (fees .UnitCents $.Quantity)}}</span></div>
+        <div class="total"><span>Total</span><span id="total">{{money (add (mul .UnitCents $.Quantity) (fees .UnitCents $.Quantity))}}</span></div>
+      </div>
+      <button class="btn block" type="submit">Continue to payment</button>
+      <p class="secure"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>You'll pay securely with Stripe</p>
+    </form>
+    {{end}}
+  </div>
+</div>
+{{end}}
+<script>
+(function () {
+  var form = document.querySelector(".buy-form");
+  if (!form) return;
+  var unit = parseInt(form.dataset.unit, 10), qty = document.getElementById("qty");
+  function money(c) { return c % 100 === 0 ? "$" + (c / 100) : "$" + Math.floor(c / 100) + "." + String(c % 100).padStart(2, "0"); }
+  function update() {
+    var q = parseInt(qty.value, 10), sub = unit * q, fees = Math.floor(sub * 8 / 100) + 50 * q;
+    document.getElementById("line-label").textContent = q + " × " + money(unit);
+    document.getElementById("subtotal").textContent = money(sub);
+    document.getElementById("fees").textContent = money(fees);
+    document.getElementById("total").textContent = money(sub + fees);
+  }
+  qty.addEventListener("change", update);
+  form.addEventListener("submit", function () {
+    var b = form.querySelector("button[type=submit]");
+    b.disabled = true; b.textContent = "Redirecting to payment…";
+  });
+})();
+</script>
+{{template "bottom"}}

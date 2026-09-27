@@ -20,26 +20,25 @@ func New(deps *api.Deps) http.Handler {
 	// TAP Key Directory
 	r.HandleFunc("/sandbox/tap/keys/{keyid}", deps.HandleGetTapKey).Methods(http.MethodGet)
 
-	// Demo Booth Controls & Helpers
+	// Demo scenarios (X-Demo-Key): sold_out, price_bump, slow, overcharge, normal
 	r.HandleFunc("/_demo/scenario", deps.HandleSetScenario).Methods(http.MethodPost)
-
-	// Dashboard Feed
-	r.HandleFunc("/api/dashboard/feed", deps.HandleDashboardFeed).Methods(http.MethodGet)
 
 	// Merchant API routes (TAP signed)
 	r.HandleFunc("/api/events/{slug}/offer", deps.HandleGetOffer).Methods(http.MethodGet)
 	r.HandleFunc("/api/orders", deps.HandlePostOrder).Methods(http.MethodPost)
 	r.HandleFunc("/api/orders/{order_id}", deps.HandleGetOrder).Methods(http.MethodGet)
 
-	// Web UI routes
+	// Website
 	r.HandleFunc("/", deps.HandleHome).Methods(http.MethodGet)
 	r.HandleFunc("/events", deps.HandleHome).Methods(http.MethodGet)
-	r.HandleFunc("/dashboard", deps.HandleDashboard).Methods(http.MethodGet)
+	r.HandleFunc("/orders/complete", deps.HandleCheckoutComplete).Methods(http.MethodGet)
 	r.HandleFunc("/t/{ticket_id}", deps.HandleTicketPass).Methods(http.MethodGet)
 
-	// Dynamic slug routes (must be registered after static routes like /dashboard and /healthz)
-	r.HandleFunc("/{slug}/tickets", deps.HandleTickets).Methods(http.MethodGet)
+	// Dynamic slug routes (after the fixed paths above)
+	r.HandleFunc("/{slug}/tickets", deps.HandleCheckoutPage).Methods(http.MethodGet)
+	r.HandleFunc("/{slug}/tickets", deps.HandleStartCheckout).Methods(http.MethodPost)
 	r.HandleFunc("/{slug}", deps.HandleEvent).Methods(http.MethodGet)
+	r.NotFoundHandler = http.HandlerFunc(deps.HandleNotFound)
 
 	return r
 }

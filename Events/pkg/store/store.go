@@ -34,12 +34,8 @@ type Store interface {
 	ReleaseTickets(ctx context.Context, slug string, quantity int) error
 	CheckAndRecordNonce(nonce string, expiresAt time.Time) error
 	RecordRejectedRequest(ctx context.Context, req *models.RejectedRequest) error
-	ListRejectedRequests(ctx context.Context, limit int) ([]models.RejectedRequest, error)
-	ListRecentOrders(ctx context.Context, limit int) ([]*models.OrderConfirmation, error)
 	GetScenario(ctx context.Context) string
 	SetScenario(ctx context.Context, scenario string)
-	TotalOrders(ctx context.Context) int
-	TotalGrossCents(ctx context.Context) int
 }
 
 // NewStore initializes a Store, preferring MongoDB if reachable, and falling back

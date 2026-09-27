@@ -39,8 +39,7 @@ component map and sequence are in [ARCHITECTURE.md](ARCHITECTURE.md); environmen
 3. **Run.** The runner claims the run under a 90 s lease (renewed while working; a restart resumes
    `running` runs). Muse gets the items and budget as data and works through the tools:
    - `open_page(url)`: signed `agent-browser-auth` GET, only on `MERCHANT_HOST`; returns the title,
-     the page text (capped at 8 KB and labelled `untrusted_page_text`), JSON-LD and the
-     `agent-checkout` link.
+     the page text (capped at 8 KB and labelled `untrusted_page_text`) and JSON-LD.
    - `get_offer(item_id)`: the quote at the quantity the user approved.
    - `buy_tickets(item_id, quote_id)`:
      1. Reserve the quote total in Mongo with one conditional update
@@ -62,7 +61,10 @@ component map and sequence are in [ARCHITECTURE.md](ARCHITECTURE.md); environmen
 
 ## Merchant (`Events/`)
 
-- `GET /{slug}` and `/{slug}/tickets`: event pages with JSON-LD and an `agent-checkout` link.
+- The website ("Saltlight Tickets") is an ordinary ticket site with no mention of agents: listings
+  at `/`, event pages at `/{slug}` and checkout at `/{slug}/tickets` (schema.org JSON-LD on each).
+  People pay on Stripe Checkout (test mode); `/orders/complete` issues their ticket once the
+  session is paid. Muse reads the same pages but buys through the signed API below.
 - `GET /api/events/{slug}/offer?quantity=n`: a quote (`unit × qty`, fees `8% + $0.50` per ticket),
   valid for a few minutes.
 - `POST /api/orders`: verifies the TAP signature (the nonce is recorded only after it verifies),
@@ -73,7 +75,7 @@ component map and sequence are in [ARCHITECTURE.md](ARCHITECTURE.md); environmen
 - Demo scenarios per event: `sold_out`, `price_bump` (409 with a new quote), and `overcharge` (the
   merchant tries to charge 125% of the quote; Stripe refuses it and the order is `402 declined /
   over_limit`: the payment layer protects the user even from the merchant).
-- `/dashboard?key=DEMO_KEY`: the booth view of signed requests, orders and rejections.
+- `POST /_demo/scenario` (`X-Demo-Key`) switches the scenario.
 
 Stripe errors map to `decline_reason` in `Events/pkg/payments/stripe.go`: `resource_missing` or 404 →
 `unknown_token`; "expired" → `expired`; amount above the token's limit → `over_limit`; a token already
@@ -118,6 +120,6 @@ cd Backend && APP_ENV=dev MERCHANT_HOST=events.sidequestz.tech MERCHANT_BASE_URL
   PAYMENTS_MODE=sandbox STRIPE_SECRET_KEY=sk_test_… STRIPE_SELLER_PROFILE=profile_… go run .
 ```
 
-Then as the demo user: save a Saltlight plan with paid stops, approve a run, and watch the Events
-dashboard and the Stripe test dashboard. The iOS mock shows the whole flow offline:
+Then as the demo user: save a Saltlight plan with paid stops, approve a run, and watch the orders arrive in the
+Stripe test dashboard. The iOS mock shows the whole flow offline:
 `-SQAPIMode mock -SQRoute home/muse/itin-fri`.

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -132,4 +133,49 @@ func TestFakeAppliesTokenLimits(t *testing.T) {
 func isReason(err error, reason string) bool {
 	var d *DeclineError
 	return errors.As(err, &d) && d.Reason == reason
+}
+
+func TestStripeCheckoutSession(t *testing.T) {
+	var form url.Values
+	var version, path string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		version, path = r.Header.Get("Stripe-Version"), r.URL.RequestURI()
+		if r.Method == http.MethodPost {
+			_ = r.ParseForm()
+			form = r.PostForm
+			_, _ = w.Write([]byte(`{"id":"cs_test_1","url":"https://checkout.stripe.com/c/pay/cs_test_1","payment_status":"unpaid"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"id":"cs_test_1","payment_status":"paid","amount_total":2692,"metadata":{"event":"x"},
+			"customer_details":{"email":"a@b.co"},"payment_intent":{"id":"pi_1","payment_method":{"card":{"brand":"visa","last4":"4242"}}}}`))
+	}))
+	defer srv.Close()
+	s := NewStripe("sk_test_x", srv.URL)
+
+	sess, err := s.CreateSession(context.Background(), SessionRequest{Title: "Jazz", UnitCents: 1200, Quantity: 2, FeesCents: 292,
+		Currency: "usd", Email: "a@b.co", SuccessURL: "https://x/ok?session_id={CHECKOUT_SESSION_ID}", CancelURL: "https://x/back",
+		Metadata: map[string]string{"event": "x"}})
+	if err != nil || sess.URL == "" || sess.Paid {
+		t.Fatalf("create: %+v %v", sess, err)
+	}
+	if version != "" {
+		t.Errorf("checkout should use the account's API version, sent %q", version)
+	}
+	for k, want := range map[string]string{
+		"mode": "payment", "line_items[0][price_data][unit_amount]": "1200", "line_items[0][quantity]": "2",
+		"line_items[1][price_data][unit_amount]": "292", "line_items[1][price_data][product_data][name]": "Service fee",
+		"customer_email": "a@b.co", "metadata[event]": "x",
+	} {
+		if form.Get(k) != want {
+			t.Errorf("%s = %q, want %q", k, form.Get(k), want)
+		}
+	}
+
+	got, err := s.GetSession(context.Background(), "cs_test_1")
+	if err != nil || !got.Paid || got.AmountTotal != 2692 || got.Last4 != "4242" || got.Email != "a@b.co" || got.PaymentIntentID != "pi_1" {
+		t.Fatalf("get: %+v %v", got, err)
+	}
+	if !strings.Contains(path, "expand[]=payment_intent.payment_method") && !strings.Contains(path, "expand%5B%5D=payment_intent.payment_method") {
+		t.Errorf("get path %s doesn't expand the card", path)
+	}
 }

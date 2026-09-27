@@ -1,0 +1,63 @@
+{{template "head" .Meta}}
+.ticket-page { max-width: 480px; margin: 0 auto; padding-top: 28px; }
+.confirm { display: flex; align-items: center; gap: 10px; color: var(--ok); font-weight: 700; }
+.confirm svg { flex: none; }
+.ticket { margin-top: 16px; border-radius: 22px; overflow: hidden; background: var(--card); box-shadow: 0 24px 50px -30px rgba(15,34,48,0.55); border: 1px solid var(--line); }
+.stub-top { background: var(--ink); color: #fff; padding: 22px 22px 26px; }
+.stub-top .brand { font: 700 12px var(--body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--buoy); }
+.stub-top h1 { font-size: 28px; margin-top: 8px; }
+.stub-top p { margin: 8px 0 0; color: rgba(255,255,255,0.75); }
+.perf { position: relative; height: 0; border-top: 2px dashed var(--line-2); margin: 0 18px; }
+.perf::before, .perf::after { content: ""; position: absolute; top: -13px; width: 24px; height: 24px; border-radius: 50%; background: var(--paper); border: 1px solid var(--line); }
+.perf::before { left: -31px; } .perf::after { right: -31px; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; padding: 22px; }
+.fields div span { display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.fields div b { display: block; font-size: 17px; margin-top: 2px; overflow-wrap: anywhere; }
+.fields .wide { grid-column: 1 / -1; }
+.code { padding: 4px 22px 24px; text-align: center; }
+.code svg { width: 100%; max-width: 300px; height: 74px; }
+.code div { font: 600 14px ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0.14em; margin-top: 6px; }
+.receipt { margin-top: 18px; padding: 18px 20px; display: grid; gap: 8px; }
+.receipt h2 { font-size: 18px; margin-bottom: 4px; }
+.receipt div { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-2); }
+.receipt .total { color: var(--ink); font-weight: 800; border-top: 1px solid var(--line); padding-top: 10px; margin-top: 2px; }
+.more { text-align: center; margin-top: 22px; }
+{{template "top" ""}}
+{{with .Order}}
+<div class="wrap">
+  <div class="ticket-page">
+    <p class="confirm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m7.5 12.5 3 3 6-6.5" stroke-linecap="round" stroke-linejoin="round"/></svg>You're going! Show this ticket at the door.</p>
+
+    <div class="ticket">
+      <div class="stub-top">
+        <div class="brand">{{site}}</div>
+        <h1>{{.Event.Title}}</h1>
+        <p>{{longDate $.Start}} · {{clock $.Start}}</p>
+      </div>
+      <div class="fields">
+        <div class="wide"><span>Venue</span><b>{{.Event.Venue}}</b></div>
+        <div><span>Name</span><b>{{.Buyer.Name}}</b></div>
+        <div><span>Admits</span><b class="num">{{.Ticket.Admit}}</b></div>
+        <div><span>Order</span><b class="num">{{.ConfirmationCode}}</b></div>
+        <div><span>Door time</span><b>{{clock $.Start}}</b></div>
+      </div>
+      <div class="perf" aria-hidden="true"></div>
+      <div class="code">
+        <svg viewBox="0 0 280 74" preserveAspectRatio="none" role="img" aria-label="Ticket barcode {{.Ticket.Barcode}}">{{range $.Bars}}<rect x="{{.X}}" y="0" width="{{.W}}" height="74" fill="#0f2230"/>{{end}}</svg>
+        <div>{{.Ticket.Barcode}}</div>
+      </div>
+    </div>
+
+    <section class="receipt panel num" aria-label="Receipt">
+      <h2>Receipt</h2>
+      <div><span>{{.Quantity}} × ticket</span><span>{{money .SubtotalCents}}</span></div>
+      <div><span>Service fee</span><span>{{money .FeesCents}}</span></div>
+      <div class="total"><span>Paid{{with .Payment.Last4}} · {{brand $.Order.Payment.Brand}} •••• {{.}}{{end}}</span><span>{{money .TotalCents}}</span></div>
+      {{with .Buyer.Email}}<div><span>Sent to</span><span>{{.}}</span></div>{{end}}
+    </section>
+
+    <p class="more"><a class="link" href="/">Browse more events</a></p>
+  </div>
+</div>
+{{end}}
+{{template "bottom"}}

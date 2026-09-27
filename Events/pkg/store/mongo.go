@@ -260,42 +260,6 @@ func (m *MongoStore) RecordRejectedRequest(ctx context.Context, req *models.Reje
 	return err
 }
 
-func (m *MongoStore) ListRejectedRequests(ctx context.Context, limit int) ([]models.RejectedRequest, error) {
-	opt := options.Find().SetSort(bson.D{{Key: "timestamp", Value: -1}}).SetLimit(int64(limit))
-	cur, err := m.db.Collection(CollRejected).Find(ctx, bson.M{}, opt)
-	if err != nil {
-		return nil, err
-	}
-	defer cur.Close(ctx)
-
-	var res []models.RejectedRequest
-	for cur.Next(ctx) {
-		var r models.RejectedRequest
-		if err := cur.Decode(&r); err == nil {
-			res = append(res, r)
-		}
-	}
-	return res, nil
-}
-
-func (m *MongoStore) ListRecentOrders(ctx context.Context, limit int) ([]*models.OrderConfirmation, error) {
-	opt := options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}).SetLimit(int64(limit))
-	cur, err := m.db.Collection(CollOrders).Find(ctx, bson.M{}, opt)
-	if err != nil {
-		return nil, err
-	}
-	defer cur.Close(ctx)
-
-	var res []*models.OrderConfirmation
-	for cur.Next(ctx) {
-		var o models.OrderConfirmation
-		if err := cur.Decode(&o); err == nil {
-			res = append(res, &o)
-		}
-	}
-	return res, nil
-}
-
 func (m *MongoStore) GetScenario(ctx context.Context) string {
 	m.scenarioMu.RLock()
 	defer m.scenarioMu.RUnlock()
@@ -306,21 +270,4 @@ func (m *MongoStore) SetScenario(ctx context.Context, scenario string) {
 	m.scenarioMu.Lock()
 	defer m.scenarioMu.Unlock()
 	m.scenario = scenario
-}
-
-func (m *MongoStore) TotalOrders(ctx context.Context) int {
-	n, _ := m.db.Collection(CollOrders).CountDocuments(ctx, bson.M{})
-	return int(n)
-}
-
-func (m *MongoStore) TotalGrossCents(ctx context.Context) int {
-	orders, err := m.ListRecentOrders(ctx, 1000)
-	if err != nil {
-		return 0
-	}
-	total := 0
-	for _, o := range orders {
-		total += o.TotalCents
-	}
-	return total
 }

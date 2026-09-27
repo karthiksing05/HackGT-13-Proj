@@ -13,12 +13,12 @@ Events/
 ├── events.service          systemd unit
 └── pkg/
     ├── config/             env loading; sandbox-only, test Stripe keys only, real keys outside dev
-    ├── models/             events, quotes, orders, dashboard feed, scenarios
+    ├── models/             events, quotes, orders, scenarios
     ├── store/              MongoDB store with an in-memory fallback, 25 seeded events
     ├── tap/                Trusted Agent Protocol (RFC 9421, Ed25519) sign/verify, key directory
     ├── payments/           Stripe SPT charger (raw HTTP, preview API), Fake for tests
     ├── ui/                 server-rendered templates (embed.FS)
-    ├── api/                handlers: pages, offers, orders (orders.go), dashboard
+    ├── api/                handlers: website (web.go), offers, orders (orders.go)
     └── router/             gorilla/mux routes
 ```
 

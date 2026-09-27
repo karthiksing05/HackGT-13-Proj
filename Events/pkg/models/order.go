@@ -2,9 +2,13 @@ package models
 
 import "time"
 
-// PaymentSchemeStripeSPT is the only payment scheme the merchant accepts: a
-// Stripe Shared Payment Token granted to this merchant for one purchase.
-const PaymentSchemeStripeSPT = "stripe_spt"
+// Payment schemes. The API accepts only PaymentSchemeStripeSPT (a Stripe
+// Shared Payment Token granted to this merchant for one purchase); orders
+// from the website are paid by card on Stripe Checkout.
+const (
+	PaymentSchemeStripeSPT      = "stripe_spt"
+	PaymentSchemeStripeCheckout = "stripe_checkout"
+)
 
 // PaymentCredential is the payment part of an order: the scheme and the
 // Stripe Shared Payment Token (spt_…). The merchant never sees card data.

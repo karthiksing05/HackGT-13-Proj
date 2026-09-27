@@ -126,37 +126,14 @@ func (d *Deps) HandlePostOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orderID := "SL-" + randomCrockford(5)
-	ticketID := randomHex(16) // 128 random bits
-	confirmation := &models.OrderConfirmation{
-		OrderID:          orderID,
-		ConfirmationCode: orderID,
-		Status:           "confirmed",
-		Sandbox:          true,
-		Event:            quote.Event,
-		Quantity:         req.Quantity,
-		Currency:         quote.Currency,
-		SubtotalCents:    quote.SubtotalCents,
-		FeesCents:        amount - quote.SubtotalCents,
-		TotalCents:       amount,
-		Buyer:            req.Buyer,
-		Ticket: models.TicketSummary{
-			TicketID:  ticketID,
-			TicketURL: fmt.Sprintf("%s/t/%s", strings.TrimRight(d.Cfg.MerchantBaseURL, "/"), ticketID),
-			Admit:     req.Quantity,
-			Barcode:   "SLT-" + randomCrockford(4) + "-" + randomCrockford(4),
-		},
-		Payment: models.PaymentSummary{
-			Scheme:          models.PaymentSchemeStripeSPT,
-			Brand:           charge.Brand,
-			Last4:           charge.Last4,
-			PaymentIntentID: charge.PaymentIntentID,
-			LimitCents:      charge.LimitCents,
-		},
-		IdempotencyKey: idemKey,
-		AgentKeyID:     parsedSig.KeyID,
-		CreatedAt:      now,
-	}
+	confirmation := d.newConfirmation(quote.Event, req.Quantity, quote.SubtotalCents, amount, quote.Currency, req.Buyer, models.PaymentSummary{
+		Scheme:          models.PaymentSchemeStripeSPT,
+		Brand:           charge.Brand,
+		Last4:           charge.Last4,
+		PaymentIntentID: charge.PaymentIntentID,
+		LimitCents:      charge.LimitCents,
+	}, idemKey, now)
+	confirmation.AgentKeyID = parsedSig.KeyID
 
 	if err := d.Store.SaveOrder(ctx, confirmation, idemKey); err != nil {
 		if errors.Is(err, store.ErrDuplicateOrder) {
@@ -175,6 +152,36 @@ func (d *Deps) HandlePostOrder(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(confirmation)
+}
+
+// newConfirmation is a confirmed order with a fresh ticket: the one shape
+// for orders placed through the API and through the website.
+func (d *Deps) newConfirmation(event models.EventSummary, qty, subtotal, total int, currency string, buyer models.BuyerInfo,
+	payment models.PaymentSummary, idemKey string, now time.Time) *models.OrderConfirmation {
+	orderID := "SL-" + randomCrockford(5)
+	ticketID := randomHex(16) // 128 random bits
+	return &models.OrderConfirmation{
+		OrderID:          orderID,
+		ConfirmationCode: orderID,
+		Status:           "confirmed",
+		Sandbox:          true,
+		Event:            event,
+		Quantity:         qty,
+		Currency:         currency,
+		SubtotalCents:    subtotal,
+		FeesCents:        total - subtotal,
+		TotalCents:       total,
+		Buyer:            buyer,
+		Ticket: models.TicketSummary{
+			TicketID:  ticketID,
+			TicketURL: fmt.Sprintf("%s/t/%s", strings.TrimRight(d.Cfg.MerchantBaseURL, "/"), ticketID),
+			Admit:     qty,
+			Barcode:   "SLT-" + randomCrockford(4) + "-" + randomCrockford(4),
+		},
+		Payment:        payment,
+		IdempotencyKey: idemKey,
+		CreatedAt:      now,
+	}
 }
 
 // replay answers a retried order: the stored confirmation when the retry is

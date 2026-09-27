@@ -62,9 +62,7 @@ func main() {
 			Str("merchant_host", cfg.MerchantHost).
 			Str("payments_mode", cfg.PaymentsMode).
 			Msg("SideQuestz Events merchant (sandbox) listening")
-
-		log.Info().Msgf("🎟  Event Discovery:  http://localhost%s/", cfg.HTTPAddr)
-		log.Info().Msgf("📊  Booth Dashboard:  http://localhost%s/dashboard?key=<DEMO_KEY>", cfg.HTTPAddr)
+		log.Info().Msgf("Website: %s/", cfg.MerchantBaseURL)
 
 		errs <- srv.ListenAndServe()
 	}()

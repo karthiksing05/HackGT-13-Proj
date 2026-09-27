@@ -109,7 +109,7 @@ HTTP_ADDR=127.0.0.1:8085
 MERCHANT_HOST=events.sidequestz.tech
 MERCHANT_BASE_URL=https://events.sidequestz.tech
 PAYMENTS_MODE=sandbox
-DEMO_KEY=<openssl rand -hex 16>          # booth dashboard /dashboard?key=…; the default is refused outside dev
+DEMO_KEY=<openssl rand -hex 16>          # X-Demo-Key for POST /_demo/scenario; the default is refused outside dev
 TAP_AGENT_PUBLIC_KEY=<from sidequestz-admin tap-keygen>   # required outside dev
 STRIPE_SECRET_KEY=sk_test_…              # the merchant's Stripe test account
 MONGO_URI=mongodb://127.0.0.1:27017

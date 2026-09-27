@@ -72,7 +72,7 @@ type paymentIntent struct {
 // with it. Stripe applies the token's limits to the charge.
 func (s *Stripe) Charge(ctx context.Context, req ChargeRequest) (*ChargeResult, error) {
 	var tok grantedToken
-	if err := s.do(ctx, http.MethodGet, "/v1/shared_payment/granted_tokens/"+url.PathEscape(req.SPT), nil, "", &tok); err != nil {
+	if err := s.request(ctx, StripeAPIVersion, http.MethodGet, "/v1/shared_payment/granted_tokens/"+url.PathEscape(req.SPT), nil, "", &tok); err != nil {
 		return nil, err
 	}
 	form := url.Values{}
@@ -88,7 +88,7 @@ func (s *Stripe) Charge(ctx context.Context, req ChargeRequest) (*ChargeResult, 
 		form.Set("metadata["+k+"]", v)
 	}
 	var pi paymentIntent
-	if err := s.do(ctx, http.MethodPost, "/v1/payment_intents", form, req.IdempotencyKey, &pi); err != nil {
+	if err := s.request(ctx, StripeAPIVersion, http.MethodPost, "/v1/payment_intents", form, req.IdempotencyKey, &pi); err != nil {
 		return nil, err
 	}
 	switch pi.Status {
@@ -105,9 +105,10 @@ func (s *Stripe) Charge(ctx context.Context, req ChargeRequest) (*ChargeResult, 
 	return res, nil
 }
 
-// do sends one request. A Stripe error becomes a *DeclineError when it is
-// about the token or the card, and a plain error otherwise.
-func (s *Stripe) do(ctx context.Context, method, path string, form url.Values, idemKey string, out any) error {
+// request sends one request, pinned to version ("" = the account's default).
+// A Stripe error becomes a *DeclineError when it is about the token or the
+// card, and a plain error otherwise.
+func (s *Stripe) request(ctx context.Context, version, method, path string, form url.Values, idemKey string, out any) error {
 	var body io.Reader
 	if form != nil {
 		body = strings.NewReader(form.Encode())
@@ -117,7 +118,9 @@ func (s *Stripe) do(ctx context.Context, method, path string, form url.Values, i
 		return err
 	}
 	req.SetBasicAuth(s.key, "")
-	req.Header.Set("Stripe-Version", StripeAPIVersion)
+	if version != "" {
+		req.Header.Set("Stripe-Version", version)
+	}
 	if form != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}

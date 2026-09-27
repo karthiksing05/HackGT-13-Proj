@@ -219,32 +219,6 @@ func (m *MemoryStore) RecordRejectedRequest(ctx context.Context, req *models.Rej
 	return nil
 }
 
-func (m *MemoryStore) ListRejectedRequests(ctx context.Context, limit int) ([]models.RejectedRequest, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if limit <= 0 || limit > len(m.rejected) {
-		limit = len(m.rejected)
-	}
-	res := make([]models.RejectedRequest, limit)
-	copy(res, m.rejected[:limit])
-	return res, nil
-}
-
-func (m *MemoryStore) ListRecentOrders(ctx context.Context, limit int) ([]*models.OrderConfirmation, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	n := len(m.orderHistory)
-	if limit <= 0 || limit > n {
-		limit = n
-	}
-	res := make([]*models.OrderConfirmation, 0, limit)
-	for i := n - 1; i >= n-limit && i >= 0; i-- {
-		cp := *m.orderHistory[i]
-		res = append(res, &cp)
-	}
-	return res, nil
-}
-
 func (m *MemoryStore) GetScenario(ctx context.Context) string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -255,20 +229,4 @@ func (m *MemoryStore) SetScenario(ctx context.Context, scenario string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.scenario = scenario
-}
-
-func (m *MemoryStore) TotalOrders(ctx context.Context) int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return len(m.orderHistory)
-}
-
-func (m *MemoryStore) TotalGrossCents(ctx context.Context) int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	total := 0
-	for _, o := range m.orderHistory {
-		total += o.TotalCents
-	}
-	return total
 }
