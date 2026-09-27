@@ -248,6 +248,17 @@ A handle that matches no account or several, or a demo, bot or showcase account,
 writes anything. Reruns rewrite the same plans (their dates hang off the first `--apply`) and never
 overwrite the saved originals.
 
+Class calendars and resets work the same way (dry run unless `--apply`):
+
+```sh
+Backend/scripts/seed-live.sh --calendar @lilk,@bayan_98d1,@jev_d9ef            # the weekly pattern and counts per person
+Backend/scripts/seed-live.sh --calendar @lilk,@bayan_98d1,@jev_d9ef --apply    # --remove --apply takes them out
+Backend/scripts/reset-user.sh @lilk                                             # lists what goes and what comes back
+Backend/scripts/reset-user.sh @lilk --apply                                     # back to the seeds' baseline
+```
+
+`reset-user.sh` is `seed-live.sh --reset`; the demo account needs `--allow-demo`.
+
 ## Redeploy an earlier version
 
 The scripts do not create backups. To restore earlier code, check out that revision and run

@@ -135,7 +135,24 @@ rate", and liked categories raised or filled to match (never lowered). Their tas
 like any account's. Everything is tagged `seed: "history-v1"`; the fields it changes (preferences, taste,
 vectors) are saved once in `seed_backups` first, and `--history … --remove --apply` deletes the history and
 puts those fields back exactly, except what the person changed themselves since. Demo, bot and showcase
-accounts are refused.
+accounts are refused. Each person also gets two **default upcoming sidequests** (`seed: "baseline-v1"`),
+so Home is never empty: one they host with a showcase friend or two and a short chat, one a showcase person
+hosts that they are in, in the next one to four days and clear of their classes; every `--apply` and
+`--reset` makes them again with fresh dates.
+
+**Class calendars** (`--calendar @handle,…`): a Georgia Tech fall 2026 semester per person in
+`calendar_events` (busy blocks), matching their story: four classes with rooms, a recitation, homework
+blocks, one or two extras (band practice, run club and climbing, studio and gallery shifts) and a few
+one-offs (midterms, a due date, office hours), weekly from Aug 17 to Dec 11 without Labor Day, fall break
+or Thanksgiving. Afternoons, most evenings and weekends stay free. Tagged `seed: "calendar-v1"`, fixed ids.
+
+**Reset to the baseline** (`Backend/scripts/reset-user.sh @handle,…`): for practicing. It deletes what
+the person made since the seeds (every sidequest they host that no seed wrote, their own from before the
+seeds included, with its chat, notes, tickets, ratings, joins and checkouts; their places in other
+people's plans; their joins to showcase plans; their "free now" posts, extra ratings and calendar events),
+then puts back the history, interests and taste as seeded, the calendar and fresh default upcoming
+sidequests. Their account, friendships and requests, direct messages, payment methods and other people's
+own data stay; the dry run lists every item and who loses a plan of theirs.
 
 ## Known limits
 

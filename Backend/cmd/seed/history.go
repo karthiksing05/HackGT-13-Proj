@@ -303,21 +303,23 @@ func backupID(uid string) string { return historyTag + "|" + uid }
 
 // histPerson is one person of a history run.
 type histPerson struct {
-	sel     historySel
-	user    *models.User
-	raw     bson.Raw // their account as stored
-	flavor  *flavor
-	fitNote string
-	backup  *backup // nil before the first --apply
-	anchor  time.Time
-	plans   []histPlan
-	ratings []histRating
-	likes   map[string]int // the merged preference ratings
-	changed []string       // keys filled or raised, sorted
-	taste   string         // how the taste vectors will be made
-	pos     []float64
-	neg     []float64
-	notes   []string
+	upcoming []upcomingDoc // the default upcoming sidequests of their baseline
+	upNotes  []string
+	sel      historySel
+	user     *models.User
+	raw      bson.Raw // their account as stored
+	flavor   *flavor
+	fitNote  string
+	backup   *backup // nil before the first --apply
+	anchor   time.Time
+	plans    []histPlan
+	ratings  []histRating
+	likes    map[string]int // the merged preference ratings
+	changed  []string       // keys filled or raised, sorted
+	taste    string         // how the taste vectors will be made
+	pos      []float64
+	neg      []float64
+	notes    []string
 }
 
 // histPlan is one past sidequest to write.
@@ -341,6 +343,12 @@ func (hp *histPerson) uid() string { return hp.user.ID.Hex() }
 // resolveHistory finds each person and refuses anyone who is not a real
 // regular account: no match, more than one, the demo cast or the showcase.
 func resolveHistory(ctx context.Context, st *store.Store, sels []historySel) ([]*histPerson, error) {
+	return resolveAccounts(ctx, st, sels, false)
+}
+
+// resolveAccounts is resolveHistory that, with allowDemo, lets the demo
+// account through (never a bot or a showcase account).
+func resolveAccounts(ctx context.Context, st *store.Store, sels []historySel, allowDemo bool) ([]*histPerson, error) {
 	var out []*histPerson
 	var problems []string
 	for _, sel := range sels {
@@ -361,6 +369,7 @@ func resolveHistory(ctx context.Context, st *store.Store, sels []historySel) ([]
 			return nil, fmt.Errorf("read @%s: %w", sel.handle, err)
 		}
 		switch {
+		case allowDemo && u.HasRole("demo") && !u.HasRole("bot"):
 		case store.IsDemoCast(&u.User):
 			problems = append(problems, fmt.Sprintf("@%s is in the demo cast (roles %v)", sel.handle, u.Roles))
 			continue
@@ -371,7 +380,7 @@ func resolveHistory(ctx context.Context, st *store.Store, sels []historySel) ([]
 		out = append(out, &histPerson{sel: sel, user: &u.User, raw: raws[0]})
 	}
 	if len(problems) > 0 {
-		return nil, fmt.Errorf("refusing --history: %s", strings.Join(problems, "; "))
+		return nil, fmt.Errorf("refusing: %s", strings.Join(problems, "; "))
 	}
 	return out, nil
 }
@@ -575,21 +584,7 @@ func (hp *histPerson) planDoc(p *pastPlan, lay laidOut, crew map[string]*models.
 // every stop is there as its kind of place, and the ones the title names
 // are those very places.
 func titleHolds(p *pastPlan, lay laidOut) bool {
-	if !lay.exact {
-		return false
-	}
-	for _, want := range p.names {
-		ok := false
-		for k, slot := range lay.slots {
-			if slot == want && lay.stops[k].tier == 0 {
-				ok = true
-			}
-		}
-		if !ok {
-			return false
-		}
-	}
-	return true
+	return lay.exact && titleNamesHold(p.names, lay)
 }
 
 // keepUnrated leaves at least minUnrated stops unrated: when places had

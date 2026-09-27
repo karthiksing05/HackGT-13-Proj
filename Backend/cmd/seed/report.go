@@ -48,17 +48,31 @@ func (c counts) String() string {
 }
 
 func (p printer) header(o Options) {
-	if len(o.History) > 0 {
-		var who []string
-		for _, sel := range o.History {
-			who = append(who, "@"+sel.handle)
+	who := func(sels []historySel) string {
+		var out []string
+		for _, sel := range sels {
+			out = append(out, "@"+sel.handle)
 		}
-		p.f("SideQuests history seed for %s (everything it creates is tagged %s: %q)", strings.Join(who, ", "), fieldSeed, historyTag)
-	} else {
+		return strings.Join(out, ", ")
+	}
+	switch {
+	case len(o.History) > 0:
+		p.f("SideQuests history seed for %s (everything it creates is tagged %s: %q)", who(o.History), fieldSeed, historyTag)
+	case len(o.Calendar) > 0:
+		p.f("SideQuests calendar seed for %s (every event it writes is tagged %s: %q)", who(o.Calendar), fieldSeed, calendarTag)
+	case len(o.Reset) > 0:
+		p.f("SideQuests reset of %s to the seeds' baseline", who(o.Reset))
+	default:
 		p.f("SideQuests showcase seed (everything it writes is tagged %s: %q)", fieldSeed, seedTag)
 	}
 	p.f("Target: %s", o.Target)
 	switch {
+	case len(o.Reset) > 0 && o.Apply:
+		p.f("Mode: reset (deletes what they made since the seeds and restores the baseline)")
+		return
+	case len(o.Reset) > 0:
+		p.f("Mode: dry run (nothing is deleted or restored; add --apply to reset)")
+		return
 	case o.Remove && o.Apply:
 		p.f("Mode: remove (deletes what this seed wrote)")
 	case o.Remove:
