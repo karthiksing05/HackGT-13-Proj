@@ -202,8 +202,8 @@ struct PlanAlternative: Codable, Identifiable, Hashable {
 
 /// Why a batch came back with no options (`PlanBatch.reason`, only with empty `options`). On the wire
 /// it's one string: `no_candidates_fit_window`, `no_feasible_itinerary`, `invalid_request: <detail>`,
-/// `must_include_unavailable: <title>`, `must_include_no_fit`, or anything else the server wants to
-/// log (`other`).
+/// `must_include_unavailable: <title>`, `must_include_no_fit`, `calendar_full`, or anything else the
+/// server wants to log (`other`).
 enum PlanEmptyReason: Hashable {
     case noCandidatesFitWindow
     case noFeasibleItinerary
@@ -214,6 +214,8 @@ enum PlanEmptyReason: Hashable {
     case mustIncludeUnavailable(String)
     /// The picks exist but can't all fit in this window with travel.
     case mustIncludeNoFit
+    /// The busy blocks on the user's calendar leave no time in this window.
+    case calendarFull
     case other(String)
 
     /// The copy when the server gave no reason.
@@ -233,6 +235,7 @@ enum PlanEmptyReason: Hashable {
             // "a pick" starts the sentence, so it gets a capital.
             "\(title.isEmpty || title == Self.unnamedPick ? "A pick" : title) isn't available in this window. Remove it or pick another time."
         case .mustIncludeNoFit: "Your must-see picks don't all fit in this window. Try a longer window or fewer picks."
+        case .calendarFull: "Your calendar is full then. Try another time or day."
         case .other: Self.defaultMessage
         }
     }
@@ -243,6 +246,7 @@ enum PlanEmptyReason: Hashable {
         case "no_candidates_fit_window": self = .noCandidatesFitWindow
         case "no_feasible_itinerary": self = .noFeasibleItinerary
         case "must_include_no_fit": self = .mustIncludeNoFit
+        case "calendar_full": self = .calendarFull
         default:
             if trimmed.hasPrefix("invalid_request") {
                 let detail = trimmed.dropFirst("invalid_request".count).trimmingCharacters(in: CharacterSet(charactersIn: ": "))
@@ -263,6 +267,7 @@ enum PlanEmptyReason: Hashable {
         case .invalidRequest(let detail): detail.isEmpty ? "invalid_request" : "invalid_request: \(detail)"
         case .mustIncludeUnavailable(let title): title.isEmpty ? Self.unavailablePrefix : "\(Self.unavailablePrefix): \(title)"
         case .mustIncludeNoFit: "must_include_no_fit"
+        case .calendarFull: "calendar_full"
         case .other(let raw): raw
         }
     }
