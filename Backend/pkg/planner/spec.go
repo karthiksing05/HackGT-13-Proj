@@ -198,7 +198,7 @@ func BuildSpec(req Request, tzHeader string, now time.Time, user *UserContext, c
 
 	catalog, ok := NormalizeCatalog(user.Catalog)
 	if !ok {
-		catalog = store.ActivityCollection
+		catalog = store.DefaultCatalog
 	}
 	spec.Catalog = catalog
 

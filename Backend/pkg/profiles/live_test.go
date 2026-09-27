@@ -80,7 +80,7 @@ func TestLiveProfiles(t *testing.T) {
 	t.Logf("profile %s via %s, %d-d vectors", u.ProfileTextHash, u.EmbeddingModel, len(u.PositiveEmbedding))
 
 	var seed bson.M
-	err = st.DB().Client().Database("freetime").Collection(store.ActivityCollection).
+	err = st.DB().Client().Database("freetime").Collection(store.CollDemoActivities).
 		FindOne(ctx, bson.M{"embedding": bson.M{"$exists": true}, "embeddingText": bson.M{"$exists": true}, "category": "park"}).Decode(&seed)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		t.Skip("no seeded demo_activities with a vector in the freetime database")
@@ -92,14 +92,14 @@ func TestLiveProfiles(t *testing.T) {
 	delete(seed, "embedding")
 	delete(seed, "embeddingMeta")
 	delete(seed, "embeddingModel")
-	if _, err := st.Collection(store.ActivityCollection).InsertOne(ctx, seed); err != nil {
+	if _, err := st.Collection(store.CollDemoActivities).InsertOne(ctx, seed); err != nil {
 		t.Fatal(err)
 	}
 	activityID := seed["_id"].(bson.ObjectID).Hex()
 	if err := svc.Rated(ctx, id, activityID, 5); err != nil {
 		t.Fatal(err)
 	}
-	activity, err := st.Profiles().Activity(ctx, store.ActivityCollection, activityID)
+	activity, err := st.Profiles().Activity(ctx, store.CollDemoActivities, activityID)
 	if err != nil {
 		t.Fatal(err)
 	}

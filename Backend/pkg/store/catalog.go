@@ -12,9 +12,25 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// ActivityCollection is the activity catalog used by every account.
-// Change this to CollDemoActivities to use the demo catalog globally.
-const ActivityCollection = CollActivities
+// DefaultCatalog is the catalog of every account outside the demo: the
+// Atlanta pitch catalog. The real Atlanta catalog (activities) is kept but
+// unused for now; CatalogFor is the one place that picks.
+const DefaultCatalog = CollPitchActivities
+
+// CatalogFor is the catalog an account plans from: the demo's cast (the demo
+// account and its bots) plan in Saltlight (demo_activities), everyone else
+// in DefaultCatalog.
+func CatalogFor(u *models.User) string {
+	if IsDemoCast(u) {
+		return CollDemoActivities
+	}
+	return DefaultCatalog
+}
+
+// IsDemoCast reports whether u is the demo account or one of its bots.
+func IsDemoCast(u *models.User) bool {
+	return u != nil && (u.HasRole("demo") || u.HasRole("bot"))
+}
 
 // Catalog reads activity catalogs. Nothing here writes, and the
 // 1024-d embeddings are never loaded.
@@ -22,13 +38,14 @@ type Catalog struct{ s *Store }
 
 func (s *Store) Catalog() Catalog { return Catalog{s} }
 
-// CatalogCollection accepts an explicit catalog or uses the global default.
+// CatalogCollection is the collection of a catalog name; anything unknown
+// is DefaultCatalog.
 func CatalogCollection(catalog string) string {
 	switch catalog {
-	case CollActivities, CollDemoActivities:
+	case CollActivities, CollDemoActivities, CollPitchActivities:
 		return catalog
 	}
-	return ActivityCollection
+	return DefaultCatalog
 }
 
 func (c Catalog) coll(catalog string) *mongo.Collection {

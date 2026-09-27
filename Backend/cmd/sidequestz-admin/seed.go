@@ -68,11 +68,11 @@ type seedPerson struct {
 }
 
 var (
-	sandy = seedPerson{id: mustObjectID("5eed00000000000000000001"), email: "demo@gatech.edu", name: "Sandy Byte",
+	sandy = seedPerson{id: mustObjectID("5eed00000000000000000001"), email: "demo@sidequestz.tech", name: "Sandy Byte",
 		username: "sandybyte", avatar: "sage", role: "demo"}
-	marin = seedPerson{id: mustObjectID("5eed00000000000000000002"), email: "marin@gatech.edu", name: "Marin Okafor",
+	marin = seedPerson{id: mustObjectID("5eed00000000000000000002"), email: "marin@bots.sidequestz.tech", name: "Marin Okafor",
 		username: "marinokafor", avatar: "clay", role: "bot"}
-	theo = seedPerson{id: mustObjectID("5eed00000000000000000003"), email: "theo@gatech.edu", name: "Theo Park",
+	theo = seedPerson{id: mustObjectID("5eed00000000000000000003"), email: "theo@bots.sidequestz.tech", name: "Theo Park",
 		username: "theopark", avatar: "forest", role: "bot"}
 )
 

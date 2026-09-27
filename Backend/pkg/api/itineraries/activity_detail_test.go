@@ -93,15 +93,15 @@ func activityDetail(t *testing.T, srv *testutil.Server, sess *testutil.Session, 
 // useDemoCatalog moves an account to the demo catalog (Sandy and her bots).
 func useDemoCatalog(t *testing.T, srv *testutil.Server, sess *testutil.Session) {
 	t.Helper()
-	if _, err := srv.Store.Users().Update(context.Background(), sess.UserID, bson.M{"catalog": store.CollDemoActivities, "city": "saltlight"}); err != nil {
+	if _, err := srv.Store.Users().Update(context.Background(), sess.UserID, bson.M{"roles": []string{"demo"}, "city": "saltlight"}); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestActivityDetailMapsTheCatalog(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(testutil.Fixed)) // Saturday 26 Sep, noon in New York
-	shop := seedCatalogDoc(t, srv, store.CollActivities, recordShop())
-	jazz := seedCatalogDoc(t, srv, store.CollActivities, jazzNight())
+	shop := seedCatalogDoc(t, srv, store.DefaultCatalog, recordShop())
+	jazz := seedCatalogDoc(t, srv, store.DefaultCatalog, jazzNight())
 	a := srv.Signup(t, "Alice Details")
 
 	// A place, with the hours of the viewer's today (a Saturday)…
@@ -140,7 +140,7 @@ func TestActivityDetailMapsTheCatalog(t *testing.T) {
 
 func TestActivityDetailStaysInTheViewersCatalog(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(testutil.Fixed))
-	shop := seedCatalogDoc(t, srv, store.CollActivities, recordShop())
+	shop := seedCatalogDoc(t, srv, store.DefaultCatalog, recordShop())
 	pub := seedCatalogDoc(t, srv, store.CollDemoActivities, rustyAnchor())
 	a := srv.Signup(t, "Alice Catalog")
 	sandy := srv.Signup(t, "Sandy Catalog")
@@ -184,7 +184,7 @@ func TestActivityDetailOnTheDemoDate(t *testing.T) {
 	real := time.Date(2026, 9, 24, 12, 0, 0, 0, ny)
 	srv := testutil.New(t, testutil.WithNow(real.UTC()), testutil.WithConfig(func(c *config.Config) { c.DemoDate = "2026-09-27" }))
 	pub := seedCatalogDoc(t, srv, store.CollDemoActivities, rustyAnchor())
-	shop := seedCatalogDoc(t, srv, store.CollActivities, recordShop())
+	shop := seedCatalogDoc(t, srv, store.DefaultCatalog, recordShop())
 	sandy := srv.Signup(t, "Sandy Demo Day")
 	useDemoCatalog(t, srv, sandy)
 	a := srv.Signup(t, "Alice Real Day")

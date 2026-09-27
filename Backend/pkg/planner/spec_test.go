@@ -287,7 +287,7 @@ func TestAgeAndCatalogNormalisation(t *testing.T) {
 	if _, ok := NormalizeCatalog("users"); ok {
 		t.Error("only allow-listed catalogs")
 	}
-	if c, ok := NormalizeCatalog(""); !ok || c != store.ActivityCollection {
+	if c, ok := NormalizeCatalog(""); !ok || c != store.DefaultCatalog {
 		t.Error("empty catalog defaults")
 	}
 }

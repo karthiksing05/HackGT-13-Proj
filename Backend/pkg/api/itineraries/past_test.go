@@ -198,7 +198,7 @@ func seedActivity(t *testing.T, srv *testutil.Server, category string, tags ...s
 	summary := "A catalog stop"
 	doc := models.Activity{ID: id, Kind: "place", City: "atlanta", Name: "Catalog " + category, Summary: &summary, Category: category, Tags: tags,
 		Location: models.GeoJSONPoint{Type: "Point", Coordinates: []float64{-84.39, 33.77}}, Timezone: testutil.TimeZone}
-	if _, err := srv.Store.Collection(store.ActivityCollection).InsertOne(context.Background(), doc); err != nil {
+	if _, err := srv.Store.Collection(store.DefaultCatalog).InsertOne(context.Background(), doc); err != nil {
 		t.Fatal(err)
 	}
 	return id.Hex()

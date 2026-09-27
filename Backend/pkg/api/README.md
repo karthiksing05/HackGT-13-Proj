@@ -56,10 +56,10 @@ values are 400 (`contract.Visibility("x").Valid()`). `httpx.DecodeOptional` for 
 
 ## Two clocks
 
-When `DEMO_DATE` is set (YYYY-MM-DD, `pkg/democlock`) and `store.ActivityCollection` is
-`store.CollDemoActivities`, every account lives on that date in `DEMO_TZ` at the real time of day.
-Otherwise, all accounts live in real time. `d.Protect` / `d.Optional` put the signed-in
-account's clock on the request context without an account lookup.
+When `DEMO_DATE` is set (YYYY-MM-DD, `pkg/democlock`), the demo cast (accounts with role `demo` or
+`bot`: Sandy Byte and her bots) lives on that date in `DEMO_TZ` at the real time of day; everyone
+else lives in real time. `d.Protect` / `d.Optional` put the signed-in account's clock on the request
+context (the roles are read once per 30 s per account).
 
 - **Business time** (`h.d.BusinessNow(ctx)`, `s.BusinessNow(ctx)` in stores) for whatever decides or shows
   what is upcoming, past or now: plan windows, active/past, calendar "today", past events, the Forum's
@@ -138,7 +138,7 @@ Generate again."; stop ids the plan does not know are 400 "That plan
 changed. Go back and try again." Ids: option `<runId>-<n>`, stop `stop_<activityId>_<i>` or
 `alt_<activityId>_<slot>`, cursor `dag_<runId>_<offset>`. `POST /itineraries` (backend-B) enriches stops
 through `d.Planner.ResolveStop(ctx, user, optionID, stopID)` (the caller's option, else the activity
-in `store.ActivityCollection`;
+in the caller's catalog, `store.CatalogFor(user)`;
 unknown ids are `store.ErrNotFound`) and falls back to `option.stops` otherwise. Tests wire the real planner
 with `srv.Deps.Planner = planner.NewService(p)` over the test database (`pkg/planner/http_test.go`);
 `pkg/planner` also has fakes for every seam (`FakeSource`, `FakeScorer`, `MemPoolStore`). Design:
@@ -187,12 +187,14 @@ cross-user cases to `scopes` in `pkg/api/scoping_test.go`.
 
 ## Activity collections
 
-`store.ActivityCollection` in `pkg/store/catalog.go` selects the activity collection for every
-account. It defaults to `CollActivities` (`activities`); set it to `CollDemoActivities`
-(`demo_activities`) to use the demo catalog globally. Emails, roles, and legacy `users.catalog`
-values do not select a collection. Search, planning, ratings, profiles, and itinerary enrichment
-all use this constant. Demo planning uses Saltlight and, when `DEMO_DATE` is set, all signed-in
-accounts use the demo clock. With `activities` selected, accounts use real time.
+`store.CatalogFor(user)` in `pkg/store/catalog.go` picks an account's activity collection:
+the demo cast (role `demo` or `bot`) plans in Saltlight (`demo_activities`, on the demo clock);
+every other account plans in `store.DefaultCatalog`, currently `pitch_activities` (the synthetic
+Atlanta pitch catalog). The real Atlanta catalog (`activities`) is kept but unused for now; to go
+back to it, change `DefaultCatalog`. Emails and legacy `users.catalog` values do not select a
+collection. Search, planning, ratings, profiles, and itinerary enrichment all go through `CatalogFor`,
+and each catalog is one city (`pitch_activities` and `activities`: Atlanta).
 
-`seed-demo` uses `demo@gatech.edu`, `marin@gatech.edu`, and `theo@gatech.edu`.
-The e2e demo login defaults to `demo@gatech.edu` (`E2E_DEMO_EMAIL` can override it).
+`seed-demo` uses `demo@sidequestz.tech` (the app's "Use the demo account") and the bots
+`marin@bots.sidequestz.tech` and `theo@bots.sidequestz.tech`.
+The e2e demo login defaults to `demo@sidequestz.tech` (`E2E_DEMO_EMAIL` can override it).
