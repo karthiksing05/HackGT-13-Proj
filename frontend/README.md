@@ -52,7 +52,7 @@ In Xcode, go to Product → Scheme → Edit Scheme → Run → **Arguments** and
 | `-SQMockLatency 0` | Removes the demo backend's fake network delay (each demo call otherwise takes about as long as a real one, 0.1–0.9 s) |
 | `-SQMockFail forum,itineraries` | Makes those demo endpoints fail, to see error states (also `facebook`, `me`, `friends`, `profile`, `splits`, `album`, …) |
 | `-SQMockFriends none` | Starts the demo account with no friends or friend requests yet, like a new account (an empty Forum › Friends under People for you) |
-| `-SQVoiceDemo YES` | Voice buttons return sample transcripts instead of using the mic |
+| `-SQVoiceDemo YES` | Voice buttons stream sample transcripts word by word (Listening… → Transcribing… → text) instead of using the mic |
 
 ### Pointing the app at a server
 

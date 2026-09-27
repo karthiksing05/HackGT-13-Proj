@@ -31,6 +31,8 @@ struct HomeItinerariesView: View {
     @State private var removalError: HomeRemovalError?
     /// The page the header showed last, so a new title slides in from the side you swiped toward.
     @State private var headerIndex = 0
+    /// The New sidequest tile's + circle, growing with the text like the cards beside it.
+    @ScaledMetric(relativeTo: .body) private var newTilePlusSize: CGFloat = 32
 
     init(store: HomeStore, pageWidth: CGFloat, openBlock: @escaping (ItineraryItem, Itinerary) -> Void, retry: @escaping () -> Void) {
         self.store = store
@@ -251,21 +253,28 @@ struct HomeItinerariesView: View {
         }
     }
 
+    /// The dashed tile at the end of the cards row: the cards' 14pt inner padding, a sage + in a
+    /// circle, and the label on up to two lines under it. The whole tile is the button.
     private var newSidequestTile: some View {
         Button {
             router.openCreate()
         } label: {
-            VStack(spacing: 6) {
-                PlusGlyph(length: 14, lineWidth: 1.8)
-                    .frame(width: 24, height: 24)
+            VStack(spacing: 10) {
+                PlusGlyph(length: 14, lineWidth: 2)
+                    .foregroundStyle(Theme.sageInk)
+                    .frame(width: newTilePlusSize, height: newTilePlusSize)
+                    .background(Theme.sageTint, in: Circle())
                 Text("New sidequest")
                     .sqFont(14, .semibold)
                     .homeLine(14)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.85)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .foregroundStyle(Theme.text2)
-            .frame(width: 120)
+            .padding(Metrics.cardPadding)
+            .frame(width: 124)
             .frame(maxHeight: .infinity)
             .background {
                 RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous)
