@@ -326,30 +326,36 @@ struct FriendsView: View {
     }
 
     /// Name (and @handle) plus what you can do: message a friend, withdraw your request, answer
-    /// theirs, or add them. `match` (People for you) adds the taste-match percent.
+    /// theirs, or add them. `match` (People for you) adds the taste-match percent under the name, so
+    /// the name keeps the row's width next to ✕ + Accept on a 375pt phone.
     private func resultRow(_ result: UserSearchResult, match: Int? = nil) -> some View {
         let person = result.person
         let (relation, requestId) = relation(of: result)
+        let handle = person.username.flatMap { $0.isEmpty ? nil : "@\($0)" }
         return HStack(spacing: 12) {
             profileButton(person) {
                 Avatar(person: person, size: 40, fontSize: 14)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 6) {
-                        Text(person.name)
-                            .sqFont(15, .semibold)
-                            .foregroundStyle(Theme.ink)
-                            .authLineHeight(1.35, size: 15)
-                            .lineLimit(1)
-                        if let match {
-                            MatchPill(percent: match)
+                    Text(person.name)
+                        .sqFont(15, .semibold)
+                        .foregroundStyle(Theme.ink)
+                        .authLineHeight(1.35, size: 15)
+                        .lineLimit(1)
+                    if match != nil || handle != nil {
+                        HStack(spacing: 6) {
+                            if let match {
+                                MatchPill(percent: match)
+                            }
+                            if let handle {
+                                Text(handle)
+                                    .sqFont(12)
+                                    .foregroundStyle(Theme.text3)
+                                    .authLineHeight(1.35, size: 12)
+                                    .lineLimit(1)
+                            }
                         }
-                    }
-                    if let handle = person.username, !handle.isEmpty {
-                        Text("@\(handle)")
-                            .sqFont(12)
-                            .foregroundStyle(Theme.text3)
-                            .authLineHeight(1.35, size: 12)
+                        .padding(.top, match == nil ? 0 : 2)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
