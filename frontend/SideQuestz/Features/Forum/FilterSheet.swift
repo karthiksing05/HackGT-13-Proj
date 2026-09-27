@@ -242,7 +242,7 @@ extension ForumQuery {
         query.cost = []
         query.tags = []
         query.openOnly = false
-        query.sort = .soonest
+        query.sort = .forYou
         return query
     }
 }

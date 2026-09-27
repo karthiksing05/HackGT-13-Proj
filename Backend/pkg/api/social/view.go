@@ -249,6 +249,8 @@ type feedItem struct {
 	weekend  bool // happens on a Saturday or Sunday
 	open     bool // a plan that still takes people
 	hasDist  bool
+	// activityIDs are a plan's catalog stops, for its taste match.
+	activityIDs []string
 }
 
 // distance is the rounded miles from the feed's center (at least 0.1 so the
@@ -330,7 +332,22 @@ func (v *postView) planPost(it *models.Itinerary) (feedItem, bool) {
 		post.ThreadID = view.StrPtr(v.threads[it.ID])
 	}
 	open := !store.JoinClosed(it, v.now) && (post.SpotsLeft == nil || *post.SpotsLeft > 0)
-	return feedItem{post: post, postedAt: it.CreatedAt, weekend: isWeekend(start), open: open, hasDist: hasDist}, true
+	return feedItem{post: post, postedAt: it.CreatedAt, weekend: isWeekend(start), open: open, hasDist: hasDist,
+		activityIDs: stopActivityIDs(it)}, true
+}
+
+// stopActivityIDs are the catalog ids of an itinerary's stops, each once.
+func stopActivityIDs(it *models.Itinerary) []string {
+	seen := map[string]bool{}
+	var ids []string
+	for _, item := range it.Items {
+		if item.Kind == models.ItemTransit || item.ActivityID == "" || seen[item.ActivityID] {
+			continue
+		}
+		seen[item.ActivityID] = true
+		ids = append(ids, item.ActivityID)
+	}
+	return ids
 }
 
 // routeLabel is "3 stops · walking" from the plan's legs (most common mode),

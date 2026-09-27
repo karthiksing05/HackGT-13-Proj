@@ -47,7 +47,8 @@ GROUPS = [
     ("Threads, album, splits", [("ChatThread", ""), ("Messages", ""), ("Message", "with client_id"),
                                 ("GroupPhotos", ""), ("NewExpense", ""), ("GroupLedger", "")]),
     ("Friends", [("Friends", ""), ("FriendRequests", ""),
-                 ("OutgoingFriendRequest", "response of POST /friends/requests"), ("UserSearchResults", "")]),
+                 ("OutgoingFriendRequest", "response of POST /friends/requests"), ("UserSearchResults", ""),
+                 ("PersonSuggestions", "GET /people/suggested")]),
 ]
 
 INDEX_NOTE = "frontend ContractTests dump (TEST_RUNNER_SQ_DUMP_CONTRACT) via scripts/gen_contract_examples.py"

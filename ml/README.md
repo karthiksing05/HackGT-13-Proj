@@ -243,6 +243,42 @@ new = normalize(α · embedding + (1 − α) · event_embedding)      α = USER_
 An all-zero `embedding` (no signal yet) becomes the event's direction, so this also builds a user's
 first negative embedding. `kind` is echoed back for the caller's bookkeeping; the math is the same for both.
 
+### `POST /v1/compatibility/users`
+
+How well other users' taste matches one user's, for People for you. Symmetric cosine math over the
+stored likes (`p`) and dislikes (`n`) vectors, "likes minus clashes":
+
+```
+score = cos(pA, pB) − 0.5 · (cos(pA, nB) + cos(nA, pB)) / 2        percent = round(100 · clamp(score, 0, 1))
+```
+
+An all-zero `negative_embedding` means no dislikes and adds nothing.
+
+```json
+// request
+{"user": {"positive_embedding": [/* 1024 */], "negative_embedding": [/* 1024 */]},
+ "candidates": [{"id": "u2", "positive_embedding": [/* 1024 */], "negative_embedding": [/* 1024 */]}]}
+// response: best first
+{"results": [{"id": "u2", "score": 0.81, "percent": 81}]}
+```
+
+400 for mismatched dimensions, repeated ids or an all-zero user `positive_embedding`.
+
+### `POST /v1/compatibility/itineraries`
+
+How well each itinerary fits a user: the mean compatibility-model score (the ranking route's model, no
+filters, no Jev) over its stops, all scored in one batch. `percent = round(100 · clamp(mean, 0, 1))`.
+
+```json
+// request
+{"user": {"positive_embedding": [/* 1024 */], "negative_embedding": [/* 1024 */]},
+ "itineraries": [{"id": "plan-1", "events": [{"id": "act-1", "embedding": [/* 1024 */]}]}]}
+// response: best first; itineraries without events are absent
+{"results": [{"id": "plan-1", "score": 0.74, "percent": 74, "scored_events": 1}], "model_version": "classifier-v1"}
+```
+
+Both routes are stateless: the Go API sends the vectors and nothing is stored.
+
 ### `POST /v1/user-profile`
 
 Turns the app's preferences into the user's likes and dislikes texts, embeds both, and hashes them. The

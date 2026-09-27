@@ -23,6 +23,20 @@ final class AccountFriendsModel {
     var dropping: Set<String> = []
     /// Friends being removed here (person ids), for the same reason.
     var removing: Set<String> = []
+    /// People for you, taste-matched by the server. nil until first asked for; then kept for the
+    /// session (this model lives as long as Account) and refreshed only by pull-to-refresh.
+    var suggestions: Loadable<[PersonSuggestion]>?
+
+    /// Loads People for you the first time, or again when `force` (pull-to-refresh). A failed
+    /// refresh keeps the list on screen.
+    func loadSuggestions(_ env: AppEnvironment, force: Bool = false) async {
+        guard force || suggestions == nil || suggestions?.phase == .failed else { return }
+        if suggestions == nil { suggestions = .loading }
+        let result = await Loadable.run { try await env.api.suggestedPeople() }
+        withMotion(Motion.arrive) {
+            if result.value != nil || suggestions?.value == nil { suggestions = result }
+        }
+    }
 
     /// Loads (or quietly reloads) friends and requests; keeps what's on screen if a refresh fails.
     func reload(_ env: AppEnvironment) async {
@@ -170,6 +184,7 @@ struct FriendsView: View {
                 }
                 .sqTransition(.rise)
             }
+            suggestionsSection
             requestsSection
             eyebrow(friendsTitle)
                 .sqNumeric()
@@ -178,9 +193,15 @@ struct FriendsView: View {
         }
         .task(id: router.tab == .account) {
             guard router.tab == .account else { return }
+            async let suggestions: Void = model.loadSuggestions(env)
             await model.reload(env)
+            await suggestions
         }
-        .sqReloadable("account.friends") { await model.reload(env) }
+        .sqReloadable("account.friends") {
+            async let suggestions: Void = model.loadSuggestions(env, force: true)
+            await model.reload(env)
+            await suggestions
+        }
         .task(id: query) { await search() }
         .sheet(item: $invite) { link in
             AccountShareSheet(items: [link.url])
@@ -250,19 +271,56 @@ struct FriendsView: View {
         .padding(.horizontal, Metrics.side)
     }
 
+    // MARK: People for you
+
+    /// Taste matches who aren't friends yet, best first, each with its match percent. Hidden when
+    /// there is no one to suggest.
+    @ViewBuilder private var suggestionsSection: some View {
+        if let state = model.suggestions {
+            let people = state.value?.filter { !model.isFriend($0.person.id) && $0.person.id != env.user?.id }
+            if people?.isEmpty != true {
+                VStack(alignment: .leading, spacing: 0) {
+                    eyebrow("PEOPLE FOR YOU")
+                    SetupCard {
+                        AuthLoadable(state: state, minHeight: 88, shimmers: onScreen,
+                                     retry: { Task { await model.loadSuggestions(env, force: true) } }) {
+                            AccountPeopleSkeleton(count: 3, trailing: .pill)
+                        } content: { _ in
+                            VStack(spacing: 0) {
+                                ForEach(Array((people ?? []).enumerated()), id: \.element.id) { index, suggestion in
+                                    if index > 0 { RowDivider() }
+                                    resultRow(suggestion.searchResult, match: suggestion.compatibility)
+                                        .sqTransition(.rise)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, Metrics.side)
+                }
+                .sqTransition(.rise)
+            }
+        }
+    }
+
     /// Name (and @handle) plus what you can do: message a friend, withdraw your request, answer
-    /// theirs, or add them.
-    private func resultRow(_ result: UserSearchResult) -> some View {
+    /// theirs, or add them. `match` (People for you) adds the taste-match percent.
+    private func resultRow(_ result: UserSearchResult, match: Int? = nil) -> some View {
         let person = result.person
         let (relation, requestId) = relation(of: result)
         return HStack(spacing: 12) {
             Avatar(person: person, size: 40, fontSize: 14)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
-                Text(person.name)
-                    .sqFont(15, .semibold)
-                    .foregroundStyle(Theme.ink)
-                    .authLineHeight(1.35, size: 15)
+                HStack(spacing: 6) {
+                    Text(person.name)
+                        .sqFont(15, .semibold)
+                        .foregroundStyle(Theme.ink)
+                        .authLineHeight(1.35, size: 15)
+                        .lineLimit(1)
+                    if let match {
+                        MatchPill(percent: match)
+                    }
+                }
                 if let handle = person.username, !handle.isEmpty {
                     Text("@\(handle)")
                         .sqFont(12)

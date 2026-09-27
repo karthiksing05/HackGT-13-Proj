@@ -7,11 +7,19 @@ from fastapi.responses import JSONResponse
 from compatibility.user_embedding import EmbeddingUpdateError, MovingAverageUpdater, UserEmbeddingUpdater
 
 from .errors import EmbeddingUnavailableError, InferenceError, RankingRequestError
+from .helpers.compatibility import MatchService
 from .helpers.embedding import EmbeddingService
 from .helpers.health import HealthState
 from .helpers.profile import ProfileService
 from .helpers.ranking import EventRankingService
-from .routes import embedding_router, health_router, profile_router, ranking_router, user_embedding_router
+from .routes import (
+    compatibility_router,
+    embedding_router,
+    health_router,
+    profile_router,
+    ranking_router,
+    user_embedding_router,
+)
 
 
 def create_app(
@@ -21,17 +29,21 @@ def create_app(
     embedding_service: EmbeddingService | None = None,
     profile_service: ProfileService | None = None,
     health: HealthState | None = None,
+    match_service: MatchService | None = None,
 ) -> FastAPI:
     """Without `embedding_service` the ranking routes work as before and `/v1/embed`,
-    `/v1/user-profile` and `/v1/search-profile` answer 503 (texts still render with `embed: false`)."""
+    `/v1/user-profile` and `/v1/search-profile` answer 503 (texts still render with `embed: false`).
+    Without `match_service` the match routes score with the ranking model."""
     app = FastAPI(title="SideQuestz event ranking")
     app.state.ranking_service = ranking_service
     app.state.user_embedding_updater = user_embedding_updater or MovingAverageUpdater()
     app.state.embedding_service = embedding_service
+    app.state.match_service = match_service or MatchService(ranking_service.model)
     app.state.profile_service = profile_service or ProfileService(embedding_service)
     app.state.health = health or HealthState(ranking_service=ranking_service, embedding_service=embedding_service)
     app.include_router(ranking_router)
     app.include_router(user_embedding_router)
+    app.include_router(compatibility_router)
     app.include_router(embedding_router)
     app.include_router(profile_router)
     app.include_router(health_router)

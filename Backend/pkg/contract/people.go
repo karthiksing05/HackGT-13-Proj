@@ -58,3 +58,12 @@ type UserSearchResult struct {
 	Relation  FriendRelation `json:"relation"`
 	RequestID *string        `json:"request_id,omitempty"`
 }
+
+// PersonSuggestion is one row of GET /people/suggested: someone whose taste
+// matches the viewer's, with the match as a whole-number percent (0–100).
+type PersonSuggestion struct {
+	Person        PersonRef      `json:"person"`
+	Relation      FriendRelation `json:"relation"`
+	RequestID     *string        `json:"request_id,omitempty"`
+	Compatibility int            `json:"compatibility"`
+}

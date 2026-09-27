@@ -186,6 +186,8 @@ protocol APIClient: AnyObject {
     func friends() async throws -> [Friend]
     /// Each result says how they relate to you (friend, requested, asked you).
     func searchUsers(query: String) async throws -> [UserSearchResult]
+    /// People whose taste matches yours, best first, with a match percent (not you, not friends).
+    func suggestedPeople() async throws -> [PersonSuggestion]
     func friendRequests() async throws -> [FriendRequest]
     /// Returns your outgoing request, so it can be cancelled.
     @discardableResult

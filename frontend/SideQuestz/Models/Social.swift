@@ -44,6 +44,8 @@ struct ForumPost: Codable, Identifiable, Hashable {
     var planTogetherSent: Bool = false
     /// The plan's group chat, once you're in (`join_status: joined`).
     var threadId: String? = nil
+    /// How well the plan's stops fit your taste, 0–100 (plans only; nil when unscored).
+    var compatibility: Int? = nil
 
     /// Shortcut for the button: asked (or already in).
     var joinRequested: Bool {
@@ -140,10 +142,11 @@ enum ForumTypeFilter: String, Codable, CaseIterable, Identifiable {
 }
 
 enum ForumSort: String, Codable, CaseIterable, Identifiable {
-    case soonest, closest, spots, newest
+    case forYou = "for_you", soonest, closest, spots, newest
     var id: String { rawValue }
     var label: String {
         switch self {
+        case .forYou: "For you"
         case .soonest: "Soonest"
         case .closest: "Closest"
         case .spots: "Most spots left"
@@ -171,13 +174,13 @@ struct ForumQuery: Codable, Hashable {
     var cost: Set<Int> = []
     var tags: Set<String> = []
     var openOnly: Bool = false
-    var sort: ForumSort = .soonest
+    var sort: ForumSort = .forYou
 
     /// Number of active filters (sort excluded) — "Filter · 2".
     var filterCount: Int {
         (when != .any ? 1 : 0) + (maxDistanceMi != nil ? 1 : 0) + (cost.isEmpty ? 0 : 1) + (tags.isEmpty ? 0 : 1) + (openOnly ? 1 : 0)
     }
-    var hasFiltersOrSort: Bool { filterCount > 0 || sort != .soonest }
+    var hasFiltersOrSort: Bool { filterCount > 0 || sort != .forYou }
 
     static let radii = [1, 2, 5, 10]
     static let interestTags = ["Outdoors", "Food", "Art", "Music", "Active", "Games", "Shopping"]

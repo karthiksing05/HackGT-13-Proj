@@ -4,6 +4,7 @@ from fastapi import Request
 
 from compatibility.user_embedding import UserEmbeddingUpdater
 
+from .helpers.compatibility import MatchService
 from .helpers.embedding import EmbeddingService
 from .helpers.health import HealthState
 from .helpers.profile import ProfileService
@@ -12,6 +13,10 @@ from .helpers.ranking import EventRankingService
 
 def get_ranking_service(request: Request) -> EventRankingService:
     return request.app.state.ranking_service
+
+
+def get_match_service(request: Request) -> MatchService:
+    return request.app.state.match_service
 
 
 def get_user_embedding_updater(request: Request) -> UserEmbeddingUpdater:
