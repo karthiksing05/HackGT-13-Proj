@@ -23,6 +23,13 @@ enum Metrics {
     static let tabBarContentHeight: CGFloat = 50
     static let plusButtonSize: CGFloat = 58
 
+    /// The tab bar's height above the bottom safe area. A phone without a home indicator (iPhone SE)
+    /// has nothing below the bar, so it gets 10pt more: the raised +'s "Plan" label and the
+    /// selected tab's shade then end above the screen's edge instead of running off it.
+    static func tabBarHeight(safeAreaBottom: CGFloat) -> CGFloat {
+        tabBarContentHeight + (safeAreaBottom > 0 ? 0 : 10)
+    }
+
     /// Minimum touch target.
     static let minTouch: CGFloat = 44
 }

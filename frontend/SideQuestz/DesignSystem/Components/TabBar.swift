@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Custom tab bar: 84 tall including the home indicator, white at 97%, 1pt top `line`, 5 equal
+/// Custom tab bar: 84 tall including the home indicator (60 on a phone without one, see
+/// `Metrics.tabBarHeight`), white at 97%, 1pt top `line`, 5 equal
 /// columns, 26pt icons, 10pt Semibold labels. Active = `sageInk` on a `sageTint` rounded shade that
 /// slides to the tab you pick; inactive = `text3`.
 /// Center: raised + (58pt sage circle, ink plus, 4pt cream ring, shadow 0 6 16 18%, up 24pt) + "Plan".
@@ -11,6 +12,7 @@ struct SQTabBar: View {
 
     @Namespace private var shade
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.safeAreaBottom) private var safeBottom
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -22,7 +24,7 @@ struct SQTabBar: View {
         }
         .animation(reduceMotion ? nil : Motion.quick, value: selection)
         .padding(.top, 6)
-        .frame(height: Metrics.tabBarContentHeight, alignment: .top)
+        .frame(height: Metrics.tabBarHeight(safeAreaBottom: safeBottom), alignment: .top)
         .frame(maxWidth: .infinity)
         .background {
             Color.white.opacity(0.97)

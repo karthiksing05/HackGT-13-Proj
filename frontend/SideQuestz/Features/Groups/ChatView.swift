@@ -27,6 +27,7 @@ struct ThreadChatView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.safeAreaBottom) private var safeBottom
 
     @State private var messages: Loadable<[Message]> = .loading
     /// Messages sent from here that the server hasn't confirmed yet, or that failed.
@@ -315,8 +316,9 @@ struct ThreadChatView: View {
         .frame(height: 44)
         .padding(.horizontal, 12)
         .padding(.top, 10)
-        // Prototype: the 84pt bar's field sits 4pt into the home-indicator area.
-        .padding(.bottom, keyboardShown ? 8 : -4)
+        // Prototype: the 84pt bar's field sits 4pt into the home-indicator area. Without one
+        // (iPhone SE) that would put it past the screen's edge, so it keeps the top's 10pt.
+        .padding(.bottom, keyboardShown ? 8 : safeBottom > 0 ? -4 : 10)
         .frame(maxWidth: .infinity)
         .background(Color.white.ignoresSafeArea(edges: .bottom))
         .overlay(alignment: .top) { Rectangle().fill(Theme.line).frame(height: 1) }
