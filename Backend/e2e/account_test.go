@@ -194,6 +194,10 @@ func TestAccount(t *testing.T) {
 		}
 		do(t, nil, "GET", up.URL, nil).Expect(t, http.StatusNotFound)
 		fails(t, casey, "POST", "/me/photo", photoForm(t, "photo", []byte("definitely not an image")), http.StatusBadRequest)
+		huge := append([]byte{0xFF, 0xD8, 0xFF}, make([]byte, 2<<20)...) // over MAX_PHOTO_BYTES (2 MB)
+		if msg := fails(t, casey, "POST", "/me/photo", photoForm(t, "photo", huge), http.StatusRequestEntityTooLarge); !strings.Contains(msg, "too big") {
+			t.Errorf("an oversized photo: %q", msg)
+		}
 		fails(t, casey, "POST", "/me/photo", photoForm(t, "file", first), http.StatusBadRequest)
 
 		do(t, casey, "DELETE", "/me/photo", nil).NoContent(t)
