@@ -102,12 +102,11 @@ func (h *H) Activity(w http.ResponseWriter, r *http.Request) {
 		}
 		day = d
 	}
-	user, err := h.d.CurrentUser(r)
-	if err != nil {
+	if _, err := h.d.CurrentUser(r); err != nil { // signed-in accounts only
 		api.Fail(w, r, err)
 		return
 	}
-	act, err := h.d.Store.Catalog().Activity(r.Context(), user.Catalog, mux.Vars(r)["id"])
+	act, err := h.d.Store.Catalog().Activity(r.Context(), store.ActivityCollection, mux.Vars(r)["id"])
 	if err != nil {
 		api.Fail(w, r, err)
 		return
