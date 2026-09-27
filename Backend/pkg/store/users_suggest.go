@@ -9,8 +9,9 @@ import (
 	"Backend/pkg/models"
 )
 
-// Suggestable loads the people who may be suggested: accounts that have a
-// taste vector, are not bots and are not in exclude. Each comes with its
+// Suggestable loads the people who may be suggested outside the demo:
+// accounts that have a taste vector, are not the demo cast (demo account,
+// bots) and are not in exclude. Each comes with its
 // likes and dislikes vectors; limit caps the pool (default 300).
 func (u Users) Suggestable(ctx context.Context, exclude []string, limit int) ([]*models.User, error) {
 	if limit <= 0 {
@@ -18,7 +19,7 @@ func (u Users) Suggestable(ctx context.Context, exclude []string, limit int) ([]
 	}
 	filter := bson.M{
 		"positiveEmbedding": bson.M{"$exists": true, "$ne": bson.A{}},
-		"roles":             bson.M{"$ne": "bot"},
+		"roles":             bson.M{"$nin": bson.A{"bot", "demo"}},
 	}
 	if oids := objectIDs(exclude); len(oids) > 0 {
 		filter["_id"] = bson.M{"$nin": oids}

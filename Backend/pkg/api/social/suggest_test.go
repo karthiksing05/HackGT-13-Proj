@@ -127,6 +127,9 @@ func TestSuggestPeople(t *testing.T) {
 	var req contract.FriendRequest
 	srv.Do(t, "POST", "/friends/requests", contract.StartDMRequest{UserID: far.UserID}, viewer).Expect(t, http.StatusCreated).JSON(t, &req)
 
+	demo := srv.Signup(t, "Demo Account")
+	setTaste(t, srv, demo, 0.98, bson.M{"roles": []string{"demo"}})
+
 	got := suggested(t, srv, viewer)
 	if len(got) != 2 || got[0].Person.ID != closeMatch.UserID || got[1].Person.ID != far.UserID {
 		t.Fatalf("suggestions: %+v", got)
@@ -136,6 +139,11 @@ func TestSuggestPeople(t *testing.T) {
 	}
 	if got[1].Compatibility != 30 || got[1].Relation != contract.RelationOutgoing || got[1].RequestID == nil || *got[1].RequestID != req.ID {
 		t.Fatalf("far match: %+v", got[1])
+	}
+
+	// The demo cast is never suggested and gets no suggestions (its catalog is Saltlight).
+	if got := suggested(t, srv, demo); len(got) != 0 {
+		t.Fatalf("demo account: %+v", got)
 	}
 }
 
@@ -147,7 +155,7 @@ func TestForumForYou(t *testing.T) {
 
 	activity := func(match float64) string {
 		id := bson.NewObjectID()
-		if _, err := srv.Store.Collection(store.CollActivities).InsertOne(context.Background(),
+		if _, err := srv.Store.Collection(store.DefaultCatalog).InsertOne(context.Background(),
 			bson.M{"_id": id, "name": "Spot", "embedding": taste(match)}); err != nil {
 			t.Fatal(err)
 		}
