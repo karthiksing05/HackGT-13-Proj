@@ -52,6 +52,7 @@ type ItineraryItem struct {
 	End           time.Time `bson:"end"`
 	Description   string    `bson:"description,omitempty"`
 	WebsiteURL    *string   `bson:"websiteUrl,omitempty"`
+	TicketURL     *string   `bson:"ticketUrl,omitempty"` // the catalog's ticket page (agentic checkout)
 	Bookable      bool      `bson:"bookable"`
 	PriceCents    *int      `bson:"priceCents,omitempty"`
 	ActivityID    string    `bson:"activityId,omitempty"` // catalog _id hex of the stop

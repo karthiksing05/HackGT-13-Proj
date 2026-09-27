@@ -1,0 +1,13 @@
+{{template "head" .Meta}}
+.message { max-width: 520px; margin: 64px auto 0; padding: 36px 28px; text-align: center; }
+.message h1 { font-size: 30px; }
+.message p { color: var(--ink-2); margin: 10px 0 24px; font-size: 17px; }
+{{template "top" ""}}
+<div class="wrap">
+  <div class="message panel">
+    <h1>{{.Heading}}</h1>
+    <p>{{.Body}}</p>
+    <a class="btn" href="{{.LinkURL}}">{{.LinkLabel}}</a>
+  </div>
+</div>
+{{template "bottom"}}

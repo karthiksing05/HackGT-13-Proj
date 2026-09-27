@@ -1,6 +1,7 @@
 package main
 
 import (
+	"Backend/pkg/agent"
 	"Backend/pkg/api"
 	"Backend/pkg/api/checkout"
 	"Backend/pkg/config"
@@ -65,6 +66,19 @@ func main() {
 	hub := realtime.NewHub(deps.Auth().UserFromToken)
 	deps.Hub = hub
 	checkout.StartAgent(ctx, deps)
+	// Agentic checkout runs (pkg/agent): only with Stripe test keys and the
+	// merchant configured; otherwise its endpoints answer 503.
+	if cfg.AgentCheckoutReady() {
+		if runner, err := agent.New(ctx, deps, agent.Options{}); err != nil {
+			log.Error().Err(err).Msg("agentic checkout not started")
+		} else {
+			deps.Runner = runner
+			runner.Resume(ctx)
+			log.Info().Str("merchant", cfg.MerchantBaseURL).Bool("muse", cfg.MuseAPIKey != "").Msg("agentic checkout ready (sandbox)")
+		}
+	} else {
+		log.Info().Msg("agentic checkout off: set PAYMENTS_MODE=sandbox, STRIPE_SECRET_KEY, STRIPE_SELLER_PROFILE and TAP_AGENT_KEY")
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

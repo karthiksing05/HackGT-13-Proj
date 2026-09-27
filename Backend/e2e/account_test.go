@@ -332,8 +332,8 @@ func TestAccount(t *testing.T) {
 			t.Error("the card page lacks its title")
 		}
 		submit := parsed.Scheme + "://" + parsed.Host + parsed.Path
-		bad := do(t, nil, "POST", submit, url.Values{"t": {token}, "card": {"number"}, "number": {"4000 0000 0000 0002"}}).Expect(t, http.StatusBadRequest)
-		if strings.Contains(string(bad.Body), "4000") {
+		bad := do(t, nil, "POST", submit, url.Values{"t": {token}, "card": {"number"}, "number": {"4111 1111 1111 1111"}}).Expect(t, http.StatusBadRequest)
+		if strings.Contains(string(bad.Body), "4111") {
 			t.Error("the page echoed the typed number")
 		}
 		ok := do(t, nil, "POST", submit, url.Values{"t": {token}, "card": {"number"}, "number": {"4242 4242 4242 4242"}}).Expect(t, http.StatusFound)
@@ -353,12 +353,12 @@ func TestAccount(t *testing.T) {
 
 		cards := get[[]contract.PaymentMethod](t, casey, "/me/payment-methods")
 		if len(cards) != 3 || cards[0].Brand != "Visa" || cards[0].Last4 != "4242" || !cards[0].IsDefault ||
-			cards[1].Brand != "Mastercard" || cards[1].Last4 != "5454" || cards[1].IsDefault || cards[2].ID != amex.ID {
+			cards[1].Brand != "Mastercard" || cards[1].Last4 != "4444" || cards[1].IsDefault || cards[2].ID != amex.ID {
 			t.Fatalf("cards: %+v", cards)
 		}
 		do(t, casey, "DELETE", "/me/payment-methods/"+cards[0].ID, nil).NoContent(t)
 		cards = get[[]contract.PaymentMethod](t, casey, "/me/payment-methods")
-		if len(cards) != 2 || !cards[0].IsDefault || cards[0].Last4 != "5454" || cards[1].IsDefault {
+		if len(cards) != 2 || !cards[0].IsDefault || cards[0].Last4 != "4444" || cards[1].IsDefault {
 			t.Errorf("after deleting the default, the oldest left should be it: %+v", cards)
 		}
 		do(t, casey, "DELETE", "/me/payment-methods/"+cards[0].ID, nil).NoContent(t)

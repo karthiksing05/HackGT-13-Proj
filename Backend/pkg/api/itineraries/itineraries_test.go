@@ -117,9 +117,9 @@ func TestCreateFromContractExample(t *testing.T) {
 }
 
 func TestCreateEnrichesStopsThroughThePlanner(t *testing.T) {
-	price, site := 1800, "https://skyline.example"
+	price, site, tickets := 1800, "https://skyline.example", "https://events.sidequestz.tech/skyline/tickets"
 	planner := fakePlanner{details: map[string]*api.StopDetail{
-		"opt-a-0": {ActivityID: "64b000000000000000000001", PriceCents: &price, WebsiteURL: &site, Bookable: true, DurationMin: 999},
+		"opt-a-0": {ActivityID: "64b000000000000000000001", PriceCents: &price, WebsiteURL: &site, TicketURL: &tickets, Bookable: true, DurationMin: 999},
 	}}
 	srv := testutil.New(t, testutil.WithNow(exampleClock), testutil.WithPlanner(planner))
 	a := srv.Signup(t, "Alice Planner")
@@ -129,10 +129,10 @@ func TestCreateEnrichesStopsThroughThePlanner(t *testing.T) {
 	it := create(t, srv, a, req)
 	s := stops(it)
 	if s[0].ActivityID == nil || *s[0].ActivityID != "64b000000000000000000001" || s[0].PriceCents == nil || *s[0].PriceCents != 1800 ||
-		s[0].WebsiteURL == nil || *s[0].WebsiteURL != site || !s[0].Bookable {
+		s[0].WebsiteURL == nil || *s[0].WebsiteURL != site || s[0].TicketURL == nil || *s[0].TicketURL != tickets || !s[0].Bookable {
 		t.Fatalf("resolved stop not enriched: %+v", s[0])
 	}
-	if s[1].ActivityID != nil || s[1].PriceCents != nil || s[1].WebsiteURL != nil || s[1].Bookable {
+	if s[1].ActivityID != nil || s[1].PriceCents != nil || s[1].WebsiteURL != nil || s[1].TicketURL != nil || s[1].Bookable {
 		t.Fatalf("an unresolved stop keeps the option's data: %+v", s[1])
 	}
 	if s[2].ActivityID == nil || *s[2].ActivityID != own {

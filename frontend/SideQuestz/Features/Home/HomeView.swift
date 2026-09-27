@@ -342,6 +342,9 @@ struct HomeView: View {
             case .checkoutStatus(_, let state):
                 // A booking landed (here or on another device): items carry their tickets.
                 if state == .booked { Task { await store.loadItineraries(env) } }
+            case .checkoutRun(_, let state, _):
+                // Muse finished a plan's tickets: items carry them now.
+                if state != .running { Task { await store.loadItineraries(env) } }
             default:
                 break
             }
@@ -354,6 +357,9 @@ struct HomeView: View {
         guard let parts = router.consumeLaunch("home") else { return }
         let id = parts.dropFirst().first
         switch parts.first {
+        case "muse":
+            // `home/muse/<itinerary id>`: "Let Muse get your tickets" for that plan.
+            router.agentCheckout = AgentCheckoutRoute(itineraryId: id ?? "itin-fri")
         case "sheet", "checkout":
             guard let id else { break }
             if let match = store.itinerary(containing: id) { store.selectedItineraryId = match.itinerary.id }

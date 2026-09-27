@@ -117,7 +117,7 @@ protocol APIClient: AnyObject {
     func pastInsights() async throws -> PastInsights
     func rate(itemId: String, rating: Rating) async throws
 
-    // MARK: Checkout (Visa agent)
+    // MARK: Checkout (single item)
     /// `paymentMethodId` nil = the default card. The intent usually starts `preparing`; follow it with
     /// `checkout.status` events or `checkoutIntent(id:)` until it's `awaitingApproval`.
     /// `instant`: the user has instant checkout on; the server skips approval when the total is
@@ -129,6 +129,16 @@ protocol APIClient: AnyObject {
     func updateCheckoutIntent(id: String, paymentMethodId: String) async throws -> CheckoutIntent
     func approveCheckout(id: String) async throws -> CheckoutIntent
     func cancelCheckout(id: String) async throws
+
+    // MARK: Agentic checkout (Muse buys a plan's tickets; Stripe test mode)
+    /// What Muse would buy for this plan, the suggested budget and the card.
+    func checkoutPlan(itineraryId: String) async throws -> CheckoutPlan
+    /// Starts Muse on the approved items within `budgetCents` (after Face ID). 409 when the plan is
+    /// already booked or a run is going; follow it with `checkout.run` events or `checkoutRun(id:)`.
+    func startCheckoutRun(itineraryId: String, _ request: CreateCheckoutRun) async throws -> CheckoutRun
+    func checkoutRun(id: String) async throws -> CheckoutRun
+    /// Stops what hasn't been bought yet; tickets already bought stay.
+    func cancelCheckoutRun(id: String) async throws -> CheckoutRun
 
     // MARK: Forum
     func forumPosts(_ query: ForumQuery) async throws -> [ForumPost]

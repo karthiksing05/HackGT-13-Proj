@@ -14,7 +14,7 @@ brief for the account is [DEMO_ACCOUNT.md](DEMO_ACCOUNT.md). The seed is
 | Profile | avatar sage, status open, born 2003-06-14 (adult), school "Saltlight Harbor College", setup complete |
 | Catalog and city | `demo_activities`, `saltlight`; home base **Seaside Market Square** (31.3680, −81.4250) |
 | Likes (1–5) | outdoors 5, long walks 5, live music 4, food 4, early mornings 4, museums 3, sports 3, shopping 2, nightlife 2, big crowds 1 |
-| Preferences | small group, balanced pace, under $15, a bit over is ok, split equally, prefers free; instant checkout off |
+| Preferences | small group, balanced pace, under $15, a bit over is ok, split equally, prefers free; agentic checkout off (Account › Payments; stored as `instant_checkout`) |
 | Answers | perfect afternoon: "A long walk along the water, a snack from the market, then live music somewhere small while the sun goes down." · never: "Packed clubs, huge crowds, or anything that only gets going after midnight." · plans around: "Sunrise swims, the Saturday market, and whoever's free to wander." |
 | Taste vectors | rebuilt through the ML service at seed time; her texts are shown in [EMBEDDINGS.md](EMBEDDINGS.md#text-formats). The seed reports "not refreshed" when the service is down, and her next preferences save rebuilds them |
 
@@ -105,6 +105,10 @@ Lee), without the live planner.
   a demo page), the card page (it saves only a brand and the last four digits), calendar connect (marks
   the calendar connected and reads nothing), password-reset delivery (the code goes to the server log)
   and push notifications.
+- **Agentic checkout is a sandbox.** "Let Muse get your tickets" buys from our own merchant
+  (`events.sidequestz.tech`) with Stripe test-mode payment tokens, so nothing real is charged; it offers
+  only stops whose ticket page is on that merchant (Saltlight's 25 ticketed events), and its endpoints
+  answer 503 until the server has the Stripe and merchant settings ([AGENTIC_CHECKOUT.md](AGENTIC_CHECKOUT.md)).
 - **The bots do not answer.** Marin and Theo are seeded records; messages to them stay unanswered, and
   nobody else will join a judge's open plan unless a second account does.
 - **The demo events run from Sep 26 to Oct 2, 2026 (New York time).** After that the planner only finds places in

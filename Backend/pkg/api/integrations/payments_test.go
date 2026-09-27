@@ -131,7 +131,8 @@ func TestCardSetupPage(t *testing.T) {
 	page := string(res.Body)
 	for _, want := range []string{
 		"Use a demo card", `action="http://api.test/pay/setup"`, `name="t" value="` + token + `"`,
-		"4242 4242 4242 4242 (Visa)", "5454 5454 5454 5454 (Mastercard)", "4012 8888 8888 1881 (Visa)",
+		"4242 4242 4242 4242 (Visa)", "5555 5555 5555 4444 (Mastercard)", "4000 0566 5566 5556 (Visa, debit)",
+		"4000 0000 0000 0002 (Visa, always declines)",
 		"never the full number",
 	} {
 		if !strings.Contains(page, want) {
@@ -173,18 +174,18 @@ func TestCardSetupPage(t *testing.T) {
 			t.Fatal("the typed number was echoed back")
 		}
 	}
-	res = submit(token, url.Values{"card": {"number"}, "number": {" 5454-5454 5454-5454 "}})
-	if res.Status != http.StatusFound || !strings.Contains(string(res.Body), "Mastercard •••• 5454") {
+	res = submit(token, url.Values{"card": {"number"}, "number": {" 5555-5555 5555-4444 "}})
+	if res.Status != http.StatusFound || !strings.Contains(string(res.Body), "Mastercard •••• 4444") {
 		t.Fatalf("test number: %d %s", res.Status, res.Body)
 	}
 
-	// Demo cards take turns: the third card is Visa 1881, and so is every one after.
+	// Demo cards take turns: the third card is Visa 5556, and so is every one after.
 	for i := 0; i < 2; i++ {
 		_, token = newLink()
 		submit(token, url.Values{"card": {"demo"}}).Expect(t, http.StatusFound)
 	}
 	got := cards(t, srv, a)
-	if len(got) != 4 || got[1].Last4 != "5454" || got[2].Last4 != "1881" || got[3].Last4 != "1881" || got[3].Brand != "Visa" {
+	if len(got) != 4 || got[1].Last4 != "4444" || got[2].Last4 != "5556" || got[3].Last4 != "5556" || got[3].Brand != "Visa" {
 		t.Fatalf("demo rotation: %+v", got)
 	}
 
@@ -198,7 +199,7 @@ func TestCardSetupPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw, _ := json.Marshal(docs)
-	for _, number := range []string{"5454545454545454", "4242424242424242", "4012888888881881", "4111"} {
+	for _, number := range []string{"5555555555554444", "4242424242424242", "4000056655665556", "4111"} {
 		if strings.Contains(string(raw), number) {
 			t.Fatalf("a card number was stored: %s", raw)
 		}

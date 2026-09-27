@@ -263,6 +263,24 @@ func (s CheckoutState) Valid() bool {
 	return false
 }
 
+// CheckoutRunState is where an agentic checkout run is: running until every
+// item is booked or failed, then done; cancelled when the buyer stops it.
+type CheckoutRunState string
+
+const (
+	CheckoutRunRunning   CheckoutRunState = "running"
+	CheckoutRunDone      CheckoutRunState = "done"
+	CheckoutRunCancelled CheckoutRunState = "cancelled"
+)
+
+func (s CheckoutRunState) Valid() bool {
+	switch s {
+	case CheckoutRunRunning, CheckoutRunDone, CheckoutRunCancelled:
+		return true
+	}
+	return false
+}
+
 type ForumPostType string
 
 const (

@@ -40,17 +40,22 @@ func (c card) demoToken() string {
 }
 
 // demoCards are what "Use a demo card" adds, in turn (the app's demo cards).
-var demoCards = []card{{"Visa", "4242"}, {"Mastercard", "5454"}, {"Visa", "1881"}}
+// They are Stripe's test cards, so agentic checkout pays with the matching
+// Stripe test PaymentMethod (payments.TestPaymentMethod) and the last four
+// digits match what Stripe reports.
+var demoCards = []card{{"Visa", "4242"}, {"Mastercard", "4444"}, {"Visa", "5556"}}
 
-// testCards are the only numbers the card page accepts (the usual test
-// numbers of the demo cards), shown on the page as hints.
+// testCards are the only numbers the card page accepts (Stripe test numbers),
+// shown on the page as hints. Visa 0002 always declines.
 var testCards = []struct {
 	number string
 	card   card
+	note   string
 }{
-	{"4242424242424242", demoCards[0]},
-	{"5454545454545454", demoCards[1]},
-	{"4012888888881881", demoCards[2]},
+	{"4242424242424242", demoCards[0], ""},
+	{"5555555555554444", demoCards[1], ""},
+	{"4000056655665556", demoCards[2], "debit"},
+	{"4000000000000002", card{"Visa", "0002"}, "always declines"},
 }
 
 // testCard looks up a typed number, ignoring spaces and dashes.

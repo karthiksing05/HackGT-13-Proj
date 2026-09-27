@@ -139,6 +139,10 @@ func (s *Service) ResolveStop(ctx context.Context, stopID string) (*api.StopDeta
 		v := d.WebsiteURL
 		out.WebsiteURL = &v
 	}
+	if d.Stop != nil && d.Stop.TicketURL != "" {
+		v := d.Stop.TicketURL
+		out.TicketURL = &v
+	}
 	return out, nil
 }
 

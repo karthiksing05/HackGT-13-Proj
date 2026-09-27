@@ -5,6 +5,7 @@
 //	sidequestz-admin [--env-file PATH] drop-ttl <collection> [--force]
 //	sidequestz-admin [--env-file PATH] reset-app-data --yes [--users]
 //	sidequestz-admin [--env-file PATH] seed-demo
+//	sidequestz-admin tap-keygen
 package main
 
 import (
@@ -30,6 +31,7 @@ commands:
   drop-ttl <collection> [--force] drop the TTL indexes of a collection ("activities" needs --force)
   reset-app-data --yes [--users] drop every app collection except the catalogs (--users adds users)
   seed-demo                      create or refresh the demo account and its world (needs DEMO_PASSWORD; idempotent)
+  tap-keygen                     print a new agent signing key: TAP_AGENT_KEY for Backend, TAP_AGENT_PUBLIC_KEY for Events
 
 The environment is the server's (MONGO_URI, MONGO_DB, JWT_SECRET, …);
 --env-file loads KEY=VALUE lines first without overriding what is set.
@@ -59,6 +61,9 @@ func run(args []string) int {
 		}
 	}
 	command, cmdArgs := rest[0], rest[1:]
+	if command == "tap-keygen" {
+		return tapKeygen(os.Stdout)
+	}
 	cfg, err := config.FromEnv()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "configuration: %v\n", err)

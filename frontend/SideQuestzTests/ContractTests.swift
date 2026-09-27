@@ -253,6 +253,64 @@ struct ContractTests {
         #expect(!batch.options.isEmpty && batch.options.allSatisfy { Set($0.stops.compactMap(\.activityId)) == [event.id, place.id] })
     }
 
+    /// Agentic checkout, as the Go backend writes it (pkg/contract/checkout.go, pkg/agent): the plan
+    /// for two paid Saltlight stops (`CheckoutPlan`), the one approval (`CreateCheckoutRun`), and the
+    /// finished run (`CheckoutRun`: one stop booked, the other over what was left of the budget).
+    @Test func agenticCheckoutExamples() throws {
+        let clock = AppClock.demo
+        let merchant = "events.sidequestz.tech"
+        let jazz = URL(string: "https://events.sidequestz.tech/sunset-jazz-on-pier-nine/tickets")!
+        let disco = URL(string: "https://events.sidequestz.tech/barnacle-bash-silent-disco/tickets")!
+        let plan = CheckoutPlan(
+            itineraryId: "665f1c2e9b1e8a0012345678", available: true, agenticCheckout: true,
+            items: [CheckoutPlanItem(itemId: "stop-2", title: "Sunset Jazz on Pier Nine", start: clock.date(2026, 9, 26, 18, 30),
+                                     merchant: merchant, ticketURL: jazz, priceCents: 1200, quantity: 1, booked: false,
+                                     intentState: nil, confirmation: nil),
+                    CheckoutPlanItem(itemId: "stop-4", title: "Barnacle Bash Silent Disco", start: clock.date(2026, 9, 26, 22, 0),
+                                     merchant: merchant, ticketURL: disco, priceCents: 1500, quantity: 1, booked: false,
+                                     intentState: nil, confirmation: nil)],
+            estimateCents: 2700, defaultBudgetCents: 5000, suggestedBudgetCents: 5000,
+            paymentMethodId: "pm-4242", cardBrand: "Visa", cardLast4: "4242", activeRunId: nil)
+        #expect(plan.shouldPrompt && plan.buyable.count == 2)
+        try roundTrip(plan, "CheckoutPlan")
+        let approval = CreateCheckoutRun(budgetCents: 5000, items: [.init(itemId: "stop-2", quantity: 2), .init(itemId: "stop-4", quantity: 2)],
+                                         paymentMethodId: "pm-4242")
+        try roundTrip(approval, "CreateCheckoutRun")
+
+        func step(_ text: String, _ done: Bool = true) -> CheckoutStep { CheckoutStep(text: text, done: done) }
+        var booked = CheckoutIntent(id: "ci-51", itemId: "stop-2", itemTitle: "Sunset Jazz on Pier Nine",
+                                    steps: [step("Waiting for Muse to open the ticket page", false), step("Opened the ticket page"),
+                                            step("Found 2 tickets · $26.92 with fees"), step("Paying with a Stripe token limited to $26.92"),
+                                            step("Booked · SL-7KD4Q")],
+                                    subtotalCents: 2400, feesCents: 292, totalCents: 2692, cardBrand: "Visa", cardLast4: "4242",
+                                    state: .booked, quantity: 2, paymentMethodId: "pm-4242")
+        booked.runId = "run-9"
+        booked.merchant = merchant
+        booked.checkoutURL = jazz
+        booked.maxAuthorizedCents = 2692
+        booked.finalCents = 2692
+        booked.orderRef = "SL-7KD4Q"
+        booked.confirmation = "SL-7KD4Q"
+        booked.ticketURL = URL(string: "https://events.sidequestz.tech/t/9f3c2a7e5b1d4c8e0a6f2b9d4e1c7a3f")
+        let reason = "$33.40 is more than the $23.08 left in your budget."
+        var missed = CheckoutIntent(id: "ci-52", itemId: "stop-4", itemTitle: "Barnacle Bash Silent Disco",
+                                    steps: [step("Waiting for Muse to open the ticket page", false), step("Opened the ticket page"),
+                                            step("Found 2 tickets · $33.40 with fees"), step(reason)],
+                                    subtotalCents: 3000, feesCents: 340, totalCents: 3340, cardBrand: "Visa", cardLast4: "4242",
+                                    state: .failed, quantity: 2, paymentMethodId: "pm-4242", failureReason: reason)
+        missed.runId = "run-9"
+        missed.merchant = merchant
+        missed.checkoutURL = disco
+        missed.failureCode = "over_budget"
+        let run = CheckoutRun(id: "run-9", itineraryId: plan.itineraryId, state: .done, budgetCents: 5000, spentCents: 2692,
+                              currency: "usd", cardBrand: "Visa", cardLast4: "4242", agent: "muse",
+                              summary: "Muse got 1 of 2: Sunset Jazz on Pier Nine (2 tickets, $26.92, SL-7KD4Q). "
+                                  + "Barnacle Bash Silent Disco: over budget. Spent $26.92 of your $50.00 budget (sandbox: nothing was charged).",
+                              intents: [booked, missed], createdAt: clock.date(2026, 9, 26, 17, 0), finishedAt: clock.date(2026, 9, 26, 17, 1))
+        #expect(run.booked.map(\.id) == ["ci-51"] && run.notBooked.first?.outcomeLine == reason)
+        try roundTrip(run, "CheckoutRun")
+    }
+
     /// `GET /me` with a home base (the demo account, Sandy Byte) decodes it, and the example
     /// `UserHomeBase` shows the shape.
     @Test func userHomeBaseDecodes() throws {

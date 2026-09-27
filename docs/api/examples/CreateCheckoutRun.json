@@ -1,0 +1,14 @@
+{
+  "budget_cents": 5000,
+  "items": [
+    {
+      "item_id": "stop-2",
+      "quantity": 2
+    },
+    {
+      "item_id": "stop-4",
+      "quantity": 2
+    }
+  ],
+  "payment_method_id": "pm-4242"
+}

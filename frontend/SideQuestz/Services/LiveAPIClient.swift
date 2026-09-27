@@ -403,6 +403,13 @@ final class LiveAPIClient: APIClient {
     func approveCheckout(id: String) async throws -> CheckoutIntent { try await call("POST", "checkout/intents/\(id)/approve") }
     func cancelCheckout(id: String) async throws { try await send("POST", "checkout/intents/\(id)/cancel") }
 
+    func checkoutPlan(itineraryId: String) async throws -> CheckoutPlan { try await call("GET", "itineraries/\(itineraryId)/checkout") }
+    func startCheckoutRun(itineraryId: String, _ request: CreateCheckoutRun) async throws -> CheckoutRun {
+        try await call("POST", "itineraries/\(itineraryId)/checkout-runs", body: request)
+    }
+    func checkoutRun(id: String) async throws -> CheckoutRun { try await call("GET", "checkout/runs/\(id)") }
+    func cancelCheckoutRun(id: String) async throws -> CheckoutRun { try await call("POST", "checkout/runs/\(id)/cancel") }
+
     // MARK: - Forum
 
     func forumPosts(_ query: ForumQuery) async throws -> [ForumPost] {

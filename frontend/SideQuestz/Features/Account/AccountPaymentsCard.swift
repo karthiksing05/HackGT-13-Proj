@@ -146,7 +146,7 @@ struct AccountPaymentsCard: View {
         .accessibilityValue(adding ? "In progress" : "")
     }
 
-    // MARK: Instant checkout
+    // MARK: Agentic checkout (stored as the instant checkout preference)
 
     /// Toggle + one line on what it does; the limit chips grow in underneath while it's on.
     @ViewBuilder private func instantCheckout(hasCard: Bool) -> some View {
@@ -157,7 +157,7 @@ struct AccountPaymentsCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Instant checkout")
+                    Text("Agentic checkout")
                         .sqFont(15, .semibold)
                         .foregroundStyle(Theme.ink)
                         .authLineHeight(1.35, size: 15)
@@ -171,7 +171,7 @@ struct AccountPaymentsCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityHidden(true)
                 SQToggle(isOn: Binding(get: { on }, set: { save(AccountInstantSetting(on: $0, limitCents: limit)) }),
-                         label: "Instant checkout")
+                         label: "Agentic checkout")
                     .authHitHeight(32)
                     .disabled(!usable)
                     .opacity(usable ? (savingInstant ? 0.6 : 1) : 0.45)
@@ -188,16 +188,16 @@ struct AccountPaymentsCard: View {
     }
 
     private func instantSubtitle(hasCard: Bool, loaded: Bool, limit: Int) -> String {
-        if !hasCard { return "Add a card to use instant checkout." }
+        if !hasCard { return "Add a card to use agentic checkout." }
         if !loaded { return "Couldn't load this setting. Pull down to try again." }
-        return "The agent buys tickets up to \(Money.compact(limit)) without asking first."
+        return "After you save a plan, Muse can buy its tickets (Face ID, default budget \(Money.compact(limit))). Sandbox: no real payment is made."
     }
 
-    /// "Up to  $25  $50  $100"
+    /// "Default budget  $25  $50  $100"
     private func limitChips(selected: Int) -> some View {
         let options = Array(Set(Self.limits + [selected])).sorted()
         return HStack(spacing: 8) {
-            Text("Up to")
+            Text("Default budget")
                 .sqFont(13)
                 .foregroundStyle(Theme.text3)
                 .accessibilityHidden(true)
@@ -206,7 +206,7 @@ struct AccountPaymentsCard: View {
                     guard cents != selected else { return }
                     save(AccountInstantSetting(on: true, limitCents: cents))
                 }
-                .accessibilityLabel("Limit \(Money.compact(cents))")
+                .accessibilityLabel("Default budget \(Money.compact(cents))")
             }
             Spacer(minLength: 0)
         }
@@ -300,7 +300,7 @@ struct AccountPaymentsCard: View {
                     }
                     savingInstant = false
                     confirmedInstant = nil
-                    errorText = authMessage(for: error, fallback: "Couldn't save instant checkout. Try again.")
+                    errorText = authMessage(for: error, fallback: "Couldn't save agentic checkout. Try again.")
                 }
             }
         }
