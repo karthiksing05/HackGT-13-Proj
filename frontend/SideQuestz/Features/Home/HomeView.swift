@@ -324,6 +324,11 @@ struct HomeView: View {
         withMotion { router.homeSegment = .itineraries }
         await store.showNewItinerary(id, env: env, coverClosedAt: coverClosing)
         if router.selectedItineraryId == id { router.selectedItineraryId = nil }
+        // Your tickets › "Go to sidequest": the stop's sheet opens on its plan.
+        if let stop = router.stopToOpen {
+            router.stopToOpen = nil
+            openBlock(id: stop)
+        }
     }
 
     /// Changes from the server (`WS /ws`), applied as they arrive.

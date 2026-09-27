@@ -26,7 +26,7 @@ final class MockAPIClient: APIClient {
     private var notes: [String: String] = [:]
     private var notesScopes: [String: NotesScope] = [:]
     private var transitChoices: [String: TravelMode] = [:]
-    private var tickets: [String: Ticket] = [:]
+    private var tickets = MockTickets.booked
     private var itemRatings: [String: Rating] = [:]
     private var sentRequests: [FriendRequest] = []
     /// Realtime events the demo "server" sends (checkout finishing), when an environment is attached.
@@ -989,6 +989,13 @@ final class MockAPIClient: APIClient {
         runs[id] = run
         realtime?.publish(.checkoutRun(runId: id, state: run.state, spentCents: run.spentCents))
         return run
+    }
+
+    // MARK: - Your tickets
+
+    func myTickets() async throws -> [MyTicket] {
+        try await simulate("tickets")
+        return MockTickets.list(itineraries: itins.map(withSavedDetails), now: clock.now)
     }
 
     // MARK: - Forum

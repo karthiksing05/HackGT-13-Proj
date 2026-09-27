@@ -415,6 +415,8 @@ final class LiveAPIClient: APIClient {
     func checkoutRun(id: String) async throws -> CheckoutRun { try await call("GET", "checkout/runs/\(id)") }
     func cancelCheckoutRun(id: String) async throws -> CheckoutRun { try await call("POST", "checkout/runs/\(id)/cancel") }
 
+    func myTickets() async throws -> [MyTicket] { try await list("me/tickets") }
+
     // MARK: - Forum
 
     func forumPosts(_ query: ForumQuery) async throws -> [ForumPost] {
