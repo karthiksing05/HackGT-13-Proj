@@ -66,6 +66,7 @@ type OrderConfirmation struct {
 	Buyer            BuyerInfo      `json:"buyer" bson:"buyer"`
 	Ticket           TicketSummary  `json:"ticket" bson:"ticket"`
 	Payment          PaymentSummary `json:"payment" bson:"payment"`
+	Barcode          string         `json:"barcode" bson:"barcode"`
 
 	// Internal metadata
 	IdempotencyKey string    `json:"-" bson:"idempotencyKey"`
