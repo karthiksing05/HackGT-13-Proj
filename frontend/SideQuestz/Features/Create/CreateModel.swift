@@ -550,22 +550,45 @@ final class CreateFlowModel {
     /// `GET /activities/search` for `mustSeeSearch` (an empty query brings suggestions). The first
     /// search shows a skeleton; later ones keep the results on screen until theirs arrive. A search
     /// that a newer one replaced (the next keystroke cancels it) never lands.
+    ///
+    /// Results land as soon as they arrive, but a failure keeps the skeleton up for at least
+    /// `mustSeeMinimumSkeleton` first, so a quick error doesn't flash past it.
     func searchMustSee() async {
         let search = mustSeeSearch
         if search == mustSeeResultsSearch, mustSeeResults.value != nil { return }
         mustSeeGeneration += 1
         let generation = mustSeeGeneration
-        if mustSeeResults.value != nil { searchingMustSee = true } else { mustSeeResults = .loading }
+        let showsSkeleton = mustSeeResults.value == nil
+        if showsSkeleton { mustSeeResults = .loading } else { searchingMustSee = true }
         defer { if generation == mustSeeGeneration { searchingMustSee = false } }
+        let started = ContinuousClock.now
         let day = date
-        let result: Loadable<[ActivityHit]> = await .run {
+        let result: Loadable<[ActivityHit]>
+        do {
             let hits = try await env.api.searchActivities(q: search.query, near: search.near, date: day, limit: Self.mustSeeLimit)
             var seen = Set<String>()
-            return hits.filter { seen.insert($0.id).inserted }
+            result = .loaded(hits.filter { seen.insert($0.id).inserted })
+        } catch {
+            result = .failed(Self.mustSeeFailureMessage(error))
         }
         guard generation == mustSeeGeneration, !Task.isCancelled else { return }
+        if showsSkeleton, result.value == nil {
+            try? await Task.sleep(until: started + Self.mustSeeMinimumSkeleton, clock: .continuous)
+            guard generation == mustSeeGeneration, !Task.isCancelled else { return }
+        }
         mustSeeResults = result
         mustSeeResultsSearch = result.value == nil ? nil : search
+    }
+
+    /// The shortest time the first-load skeleton shows before a failure replaces it.
+    static let mustSeeMinimumSkeleton: Duration = .milliseconds(300)
+
+    /// What the Must-see section says when a search fails. A 404 means the server has no search
+    /// yet, not that nothing matched, so it says so; other errors keep their own sentence
+    /// ("You're offline…").
+    static func mustSeeFailureMessage(_ error: any Error) -> String {
+        if let error = error as? APIError, error == .notFound { return "Search isn't available right now." }
+        return (error as? LocalizedError)?.errorDescription ?? "Something went wrong."
     }
 
     func isMustSee(_ id: String) -> Bool { mustSee.contains { $0.id == id } }
