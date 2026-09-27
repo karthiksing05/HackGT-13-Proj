@@ -81,7 +81,12 @@ final class AccountFriendsModel {
             case .friendRequest(let request):
                 receive(request)
             case .friendStatus(let userId, let statusLine):
-                updateStatus(of: userId, to: statusLine)
+                if isFriend(userId) {
+                    updateStatus(of: userId, to: statusLine)
+                } else if sentRequest(to: userId) != nil || incomingRequest(from: userId) != nil {
+                    // A new friend's first status line: they accepted (maybe on another device).
+                    await reload(env)
+                }
             default:
                 break
             }
@@ -273,21 +278,36 @@ struct FriendsView: View {
 
     // MARK: People for you
 
-    /// Taste matches who aren't friends yet, best first, each with its match percent. Hidden when
-    /// there is no one to suggest.
+    /// Taste matches who aren't friends yet, best first, each with its match percent, then people
+    /// active lately (no percent). Without any taste match, a note asks for ratings; with no one at
+    /// all, an empty state points to search and Invite.
     @ViewBuilder private var suggestionsSection: some View {
         if let state = model.suggestions {
-            let people = state.value?.filter { !model.isFriend($0.person.id) && $0.person.id != env.user?.id }
-            if people?.isEmpty != true {
-                VStack(alignment: .leading, spacing: 0) {
-                    eyebrow("PEOPLE FOR YOU")
-                    SetupCard {
-                        AuthLoadable(state: state, minHeight: 88, shimmers: onScreen,
-                                     retry: { Task { await model.loadSuggestions(env, force: true) } }) {
-                            AccountPeopleSkeleton(count: 3, trailing: .pill)
-                        } content: { _ in
-                            VStack(spacing: 0) {
-                                ForEach(Array((people ?? []).enumerated()), id: \.element.id) { index, suggestion in
+            let people = (state.value ?? []).filter { !model.isFriend($0.person.id) && $0.person.id != env.user?.id }
+            VStack(alignment: .leading, spacing: 0) {
+                eyebrow("PEOPLE FOR YOU")
+                SetupCard {
+                    AuthLoadable(state: state, minHeight: 88, shimmers: onScreen,
+                                 retry: { Task { await model.loadSuggestions(env, force: true) } }) {
+                        AccountPeopleSkeleton(count: 3, trailing: .pill)
+                    } content: { _ in
+                        VStack(spacing: 0) {
+                            if people.isEmpty {
+                                EmptyStateView(message: "No one to suggest yet. Search by name or tap Invite.",
+                                               minHeight: 72)
+                                    .transition(.opacity)
+                            } else {
+                                if people.allSatisfy({ $0.compatibility == nil }) {
+                                    Text("Rate a few places to see who shares your taste.")
+                                        .sqFont(12)
+                                        .foregroundStyle(Theme.text3)
+                                        .authLineHeight(1.35, size: 12)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.top, 12)
+                                        .padding(.horizontal, 14)
+                                        .transition(.opacity)
+                                }
+                                ForEach(Array(people.enumerated()), id: \.element.id) { index, suggestion in
                                     if index > 0 { RowDivider() }
                                     resultRow(suggestion.searchResult, match: suggestion.compatibility)
                                         .sqTransition(.rise)
@@ -295,10 +315,10 @@ struct FriendsView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, Metrics.side)
                 }
-                .sqTransition(.rise)
+                .padding(.horizontal, Metrics.side)
             }
+            .sqTransition(.rise)
         }
     }
 

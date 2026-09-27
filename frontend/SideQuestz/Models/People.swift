@@ -193,13 +193,13 @@ struct UserSearchResult: Codable, Hashable, Identifiable {
     var id: String { person.id }
 }
 
-/// Someone whose taste matches yours (`GET /people/suggested`), best match first.
+/// Someone to add (`GET /people/suggested`): taste matches, best first, then recently active people.
 struct PersonSuggestion: Codable, Hashable, Identifiable {
     var person: PersonRef
     var relation: FriendRelation = .none
     var requestId: String?
-    /// Taste match as a whole-number percent, 0–100.
-    var compatibility: Int
+    /// Taste match as a whole-number percent, 0–100; nil for someone suggested without a match.
+    var compatibility: Int? = nil
 
     var id: String { person.id }
 

@@ -105,20 +105,20 @@ func TestSuggestPeople(t *testing.T) {
 	far := srv.Signup(t, "Far Match")
 	friend := srv.Signup(t, "Old Friend")
 	bot := srv.Signup(t, "Bot Match")
-	srv.Signup(t, "No Taste") // no taste profile: never suggested
+	noTaste := srv.Signup(t, "No Taste") // no taste profile: suggested after the matches, without a percent
 
-	// Without ML wired: 503.
-	if res := srv.Do(t, "GET", "/people/suggested", nil, viewer); res.Status != http.StatusServiceUnavailable {
-		t.Fatalf("no ML: status %d", res.Status)
-	}
-	calls := fakeMatchML(t, srv)
-
-	// A viewer without a taste profile gets an empty list and no ML call.
-	if got := suggested(t, srv, viewer); len(got) != 0 || *calls != 0 {
-		t.Fatalf("no viewer taste: %v, %d calls", got, *calls)
+	// A viewer without a taste profile needs no ML: everyone else, recently active first, no percents.
+	if got := suggested(t, srv, viewer); len(got) != 5 || got[0].Compatibility != nil {
+		t.Fatalf("no viewer taste: %+v", got)
 	}
 
 	setTaste(t, srv, viewer, 0.5, nil)
+	// Without ML wired, a viewer with taste: 503.
+	if res := srv.Do(t, "GET", "/people/suggested", nil, viewer); res.Status != http.StatusServiceUnavailable {
+		t.Fatalf("no ML: status %d", res.Status)
+	}
+	fakeMatchML(t, srv)
+
 	setTaste(t, srv, closeMatch, 0.9, nil)
 	setTaste(t, srv, far, 0.3, nil)
 	setTaste(t, srv, friend, 0.95, nil)
@@ -131,13 +131,16 @@ func TestSuggestPeople(t *testing.T) {
 	setTaste(t, srv, demo, 0.98, bson.M{"roles": []string{"demo"}})
 
 	got := suggested(t, srv, viewer)
-	if len(got) != 2 || got[0].Person.ID != closeMatch.UserID || got[1].Person.ID != far.UserID {
+	if len(got) != 3 || got[0].Person.ID != closeMatch.UserID || got[1].Person.ID != far.UserID || got[2].Person.ID != noTaste.UserID {
 		t.Fatalf("suggestions: %+v", got)
 	}
-	if got[0].Compatibility != 90 || got[0].Relation != contract.RelationNone {
+	if got[0].Compatibility == nil || *got[0].Compatibility != 90 || got[0].Relation != contract.RelationNone {
 		t.Fatalf("closeMatch match: %+v", got[0])
 	}
-	if got[1].Compatibility != 30 || got[1].Relation != contract.RelationOutgoing || got[1].RequestID == nil || *got[1].RequestID != req.ID {
+	if got[2].Compatibility != nil {
+		t.Fatalf("no-taste filler has a percent: %+v", got[2])
+	}
+	if got[1].Compatibility == nil || *got[1].Compatibility != 30 || got[1].Relation != contract.RelationOutgoing || got[1].RequestID == nil || *got[1].RequestID != req.ID {
 		t.Fatalf("far match: %+v", got[1])
 	}
 

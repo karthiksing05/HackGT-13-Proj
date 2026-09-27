@@ -1,11 +1,24 @@
 import LocalAuthentication
 import SwiftUI
 
-/// Where "Let Muse get your tickets" opens (Router.agentCheckout): right after a plan is saved, or
-/// from the plan's "Get tickets" on Home.
+/// Where "Let Muse get your tickets" opens (Router.agentCheckout): right after a plan is saved or
+/// joined, or from the plan's "Get tickets" on Home.
 struct AgentCheckoutRoute: Identifiable, Equatable {
     let itineraryId: String
     var id: String { itineraryId }
+}
+
+extension Router {
+    /// Agentic checkout on and the plan has stops Muse can still buy for you: ask "Let Muse get your
+    /// tickets", `delay` after the plan comes back (so a closing cover is out of the way).
+    @MainActor
+    func offerAgentCheckout(itineraryId: String, env: AppEnvironment, delay: Duration = .zero) async {
+        guard env.preferences?.instantCheckout == true,
+              let plan = try? await env.api.checkoutPlan(itineraryId: itineraryId), plan.shouldPrompt, plan.agenticCheckout
+        else { return }
+        if delay > .zero { try? await Task.sleep(for: delay) }
+        agentCheckout = AgentCheckoutRoute(itineraryId: itineraryId)
+    }
 }
 
 /// Agentic checkout for one plan (API_CONTRACT.md › Agentic checkout): the prompt (which stops,

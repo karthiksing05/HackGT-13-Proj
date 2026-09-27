@@ -123,8 +123,9 @@ Each service's `deploy.sh` also works on its own. The scripts stop on command fa
 Code deployment never uploads or changes `.env` files. Run `bash deploy_env.sh` separately to
 upload `Events/.env` and `Backend/.env` to the matching `/opt/<service>/.env`.
 Backend and Events each have their own `deploy_env.sh` too. ML secrets remain provisioned separately. Environment uploads set ownership and mode 600,
-but do not build or restart services; the values take effect on the next restart.
-For an initial setup, run `bash deploy_env.sh` before `bash deploy.sh`.
+and restart the matching service to apply the new values. They do not build or deploy code.
+These scripts expect the services to be installed already. On a fresh server, provision the
+initial environment files before deploying code; use `deploy_env.sh` for subsequent updates.
 Tests run separately; there are no test flags, backups or health-check loops.
 
 Set `DEPLOY_HOST`, `DEPLOY_USER` (default `root`) and optionally `DEPLOY_PASSWORD` in the root
@@ -137,7 +138,7 @@ Deployments use the fixed paths and unit names below; the SSH account needs root
 |---|---|
 | `deploy.sh` | Runs all three code deployments in order. |
 | `deploy_env.sh` | Uploads Events and Backend environments in order. |
-| `Backend/deploy_env.sh`, `Events/deploy_env.sh` | Uploads that service's local `.env`, without deploying code or restarting. |
+| `Backend/deploy_env.sh`, `Events/deploy_env.sh` | Uploads that service's local `.env` and restarts it, without deploying code. |
 | `Backend/build.sh` | Builds the server for Linux/amd64 into `Backend/bin/`. |
 | `Events/build.sh` | Builds the merchant for Linux/amd64 into `Events/bin/`. |
 | `Backend/deploy.sh` | Builds/uploads the API and its unit, then restarts `sidequestz` in `/opt/backend`. Keeps the server's `.env`. |
@@ -149,8 +150,9 @@ Deployments use the fixed paths and unit names below; the SSH account needs root
 **0. On the Mac.** Go toolchain, Docker with `sq-mongo` running (for the tests), the root `.env`,
 `DEVELOPER_DIR=/Applications/Xcode-26.6.app/Contents/Developer`.
 
-**1. Server prep (once).** Prepare `Backend/.env` and `Events/.env`, then run
-`bash deploy_env.sh` from the root to upload them. Provision `/opt/ml/.env` separately with mode 600. Copy
+**1. Server prep (once).** Provision `/opt/backend/.env`, `/opt/events/.env` and `/opt/ml/.env`
+with mode 600 before the first code deploy. Later updates to Backend and Events use the local
+`Backend/.env` and `Events/.env` files and the root `bash deploy_env.sh`. Copy
 `gcp-sa.json` to `/opt/ml/` with mode 600, and confirm `ufw status` still blocks 8080, 8000 and 27017.
 Both `.env` files must show `-rw-------`. The catalogs must be in `freetime`: `activities` from the
 ingestion snapshot, `demo_activities` is the embedded Saltlight catalog of record (texts and vectors), which
