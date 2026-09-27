@@ -1,6 +1,7 @@
 package checkout
 
 import (
+	"Backend/pkg/httpx"
 	"Backend/pkg/models"
 	"bytes"
 	"os"
@@ -33,13 +34,13 @@ func TestTicketPageEscapes(t *testing.T) {
 
 func TestMoneyAndConfirmation(t *testing.T) {
 	for cents, want := range map[int]string{0: "$0.00", 5: "$0.05", 2400: "$24.00", 1250: "$12.50", -300: "-$3.00"} {
-		if got := money(cents); got != want {
-			t.Errorf("money(%d) = %q, want %q", cents, got, want)
+		if got := httpx.DollarsFixed(cents); got != want {
+			t.Errorf("httpx.DollarsFixed(%d) = %q, want %q", cents, got, want)
 		}
 	}
 	code := regexp.MustCompile(`^SQ-[0-9A-HJKMNP-TV-Z]{5}$`)
 	seen := map[string]bool{}
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		c := newConfirmation()
 		if !code.MatchString(c) {
 			t.Fatalf("confirmation %q", c)

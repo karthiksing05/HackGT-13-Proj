@@ -42,7 +42,7 @@ func (f Forum) ReplaceFreePost(ctx context.Context, post *models.ForumPost) erro
 	post.CreatedAt = f.s.BusinessNow(ctx)
 	// Each lost race means a concurrent post by the same author was stored
 	// (and that request finished), so n simultaneous posts need n attempts.
-	for attempt := 0; attempt < 8; attempt++ {
+	for range 8 {
 		if _, err := f.coll().DeleteMany(ctx, bson.M{"authorId": post.AuthorID, "type": models.PostFreeNow}); err != nil {
 			return err
 		}

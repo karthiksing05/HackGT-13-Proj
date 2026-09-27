@@ -70,7 +70,7 @@ func (h *H) CalendarDays(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	out := make([]contract.CalendarDay, 0, days)
-	for i := 0; i < days; i++ {
+	for i := range days {
 		day := time.Date(from.Year(), from.Month(), from.Day()+i, 0, 0, 0, 0, tz)
 		key := day.Format("2006-01-02")
 		items := byDay[key]

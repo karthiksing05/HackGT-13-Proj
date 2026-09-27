@@ -8,6 +8,7 @@ import (
 	"Backend/pkg/store"
 	"context"
 	"errors"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -92,9 +93,7 @@ func (h *H) Rate(w http.ResponseWriter, r *http.Request) {
 	if prev != nil {
 		before = prev.Tags
 	}
-	for key, target := range tagTargets(tags, before) {
-		targets[key] = target
-	}
+	maps.Copy(targets, tagTargets(tags, before))
 	if len(targets) > 0 || prev == nil {
 		if err := h.d.Store.Users().BumpTaste(ctx, uid, targets, prev == nil); err != nil {
 			log.Warn().Err(err).Str("user", uid).Str("item", item.ID).Msg("taste tags not updated")

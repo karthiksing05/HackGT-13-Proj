@@ -76,7 +76,7 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 		}
 		add(edgeCandidate{from: i, to: j, pair: travel.Pair{From: a.Loc, To: b.Loc}})
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		j := i + 1
 		for ; j < n && nodes[j].Start.Sub(nodes[i].End) <= cutoff; j++ {
 			pair(i, j) // later nodes start even later
@@ -96,7 +96,7 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 		}
 	}
 
-	for j := 0; j < n; j++ {
+	for j := range n {
 		b := &nodes[j]
 		if w.Start == nil {
 			g.In[j] = append(g.In[j], Edge{From: Source, Wait: b.Start.Sub(w.From), Penalty: firstWaitPenalty(b.Start.Sub(w.From), pace, cfg)})
@@ -111,7 +111,7 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 		add(edgeCandidate{from: Source, to: j, pair: travel.Pair{From: *w.Start, To: b.Loc}})
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		a := &nodes[i]
 		if w.End == nil {
 			g.In[n] = append(g.In[n], Edge{From: i})

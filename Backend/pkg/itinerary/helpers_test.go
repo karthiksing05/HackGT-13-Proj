@@ -85,7 +85,7 @@ func place(name, category string, loc travel.Point, hours []models.WeeklyHourRan
 // Every day, open to close, as minutes of the week.
 func daily(openHour, closeHour int) []models.WeeklyHourRange {
 	var out []models.WeeklyHourRange
-	for d := 0; d < 7; d++ {
+	for d := range 7 {
 		out = append(out, models.WeeklyHourRange{Open: d*1440 + openHour*60, Close: d*1440 + closeHour*60})
 	}
 	return out

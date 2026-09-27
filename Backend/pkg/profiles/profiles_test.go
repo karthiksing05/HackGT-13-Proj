@@ -351,7 +351,7 @@ func TestRefreshStoresTheProfile(t *testing.T) {
 func TestRefreshSkipsACurrentProfile(t *testing.T) {
 	fx := newFixture(t)
 	user := fx.user(jordanPrefs())
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		if err := fx.svc.Refresh(fx.ctx, user); err != nil {
 			t.Fatal(err)
 		}
@@ -435,7 +435,7 @@ func TestRefreshWhenTheServiceIsDown(t *testing.T) {
 func TestRefreshStoresTheZeroVectorForAnEmptyProfile(t *testing.T) {
 	fx := newFixture(t)
 	user := fx.user(models.UserPrefs{})
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		if err := fx.svc.Refresh(fx.ctx, user); err != nil {
 			t.Fatal(err)
 		}

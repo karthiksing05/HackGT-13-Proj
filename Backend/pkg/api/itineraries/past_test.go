@@ -159,7 +159,7 @@ func TestInsightsNudgeWithoutFavorites(t *testing.T) {
 func TestPastEventsPages(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(pastClock))
 	a := srv.Signup(t, "Alice Pages")
-	for i := 0; i < 55; i++ {
+	for i := range 55 {
 		insertPast(t, srv, a, pastStop{id: fmt.Sprintf("p%02d", i), title: fmt.Sprintf("Stop %d", i), place: "Somewhere",
 			start: at(9, 20, 8, 0).Add(time.Duration(i) * 10 * time.Minute)})
 	}

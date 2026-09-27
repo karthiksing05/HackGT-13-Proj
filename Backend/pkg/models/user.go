@@ -1,6 +1,7 @@
 package models
 
 import (
+	"slices"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -36,19 +37,6 @@ func (p UserPrefs) IsSet() bool { return p.Company != "" }
 
 // Flexible is the planner's "a bit over the budget is OK" flag.
 func (p UserPrefs) Flexible() bool { return p.Flexibility == "bit_over_ok" }
-
-// BudgetTier maps the spend tier to the Create-flow budget index (0 Free … 3 $$$).
-func (p UserPrefs) BudgetTier() int {
-	switch p.Spend {
-	case "free_only":
-		return 0
-	case "15_to_40":
-		return 2
-	case "over_40":
-		return 3
-	}
-	return 1
-}
 
 // UserTaste is learned taste: seeded from prefs, moved by ratings.
 type UserTaste struct {
@@ -111,10 +99,5 @@ type User struct {
 
 // HasRole reports whether the user carries a role (bot, demo).
 func (u *User) HasRole(role string) bool {
-	for _, r := range u.Roles {
-		if r == role {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(u.Roles, role)
 }

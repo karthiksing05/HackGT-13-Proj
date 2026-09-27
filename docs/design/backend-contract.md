@@ -29,7 +29,6 @@ behavioral reference for every endpoint.
 
 ```
 main.go                          config → datastore.MustConnect → store.EnsureIndexes → hub → checkout agent → http.Server (timeouts, graceful shutdown)
-cmd/sidequestz-admin/main.go     ensure-indexes | seed-demo | drop-ttl <collection> | reset-app-data --yes
 pkg/config/config.go             typed Config from env (§8); Validate() refuses a default/placeholder JWT secret unless APP_ENV=dev
 pkg/env/env.go                   thin wrappers kept for the planner
 pkg/contract/                    auth.go people.go preferences.go itinerary.go planning.go social.go checkout.go insights.go facebook.go time.go enums.go
@@ -107,7 +106,7 @@ type Deps struct {
 | `plan_pools`, `plan_runs` | run id | planner-owned (see `planner.md`) | |
 | `activities`, `demo_activities` | existing | read-only here (`store/catalog.go`: `SearchPlaces(catalog, q, near, limit)`, `Nearest(catalog, pt, maxM)`, `GetActivity(catalog, id)`) | `user.catalog` selects the collection. |
 
-### 2.2 Indexes (`store.EnsureIndexes`, also `admin ensure-indexes`)
+### 2.2 Indexes (`store.EnsureIndexes`)
 
 ```
 users:             {email:1} unique · {usernameLower:1} unique · {nameLower:1} · {roles:1}
@@ -134,7 +133,7 @@ plan_pools / plan_runs: {expiresAt:1} TTL(0), plan_runs {userId:1, createdAt:-1}
 activities, demo_activities: {location:"2dsphere"} (create if missing) · {city:1, kind:1, start:1} · {name:1}
 ```
 `EnsureIndexes` uses fixed names; "exists with different options" is fatal at startup. It never touches TTL
-indexes on the catalog collections; `admin drop-ttl demo_activities` drops the ones with `expireAfterSeconds`.
+indexes on the catalog collections; remove unwanted TTL indexes directly in MongoDB.
 
 ### 2.3 Fail loudly
 
@@ -493,10 +492,10 @@ in `events.go`. On connect send `{"type":"connected","data":{}}`.
 - Suites per area: `auth_test` (signup→me→refresh rotation→reuse detection→logout→reset flow with `DEV_RESET_CODES=1`, rules, duplicates), `scoping_test` (A's resources are 404 for B; member-vs-host 403s), `itineraries_test` (create from the contract example → items match the mock's materialization; patch reorder → re-timed; calendar days; past events + insights; ratings; search/places), `social_test` (free post; visibility/radius; join → joined/full/closed + thread + events; messages paging + `client_id`; unread/read; expenses 4000/3 → 1334,1333,1333; balances; settle 409; friends/requests/invites; photo upload/serve), `checkout_test` (transitions, instant path, guards, events), `facebook_test` (fake Graph; connect URL; callback states; import mapping; 190 → 409; signed_request vectors), `realtime_test` (real websocket: header auth, `?token=`, per-user delivery, slow-client eviction, `-race`).
 - `scripts/smoke.sh` (`BASE_URL`, curl + jq): signup → preferences → `/plans/generate` → `/plans/route` → `/itineraries` → list → `/calendar/days` → free-now post → `/forum/posts/mine` → `/healthz`.
 
-## 7. Admin and seed tooling (`cmd/sidequestz-admin`)
+## 7. Database setup
 
-- `ensure-indexes`; `drop-ttl <collection>` (never `activities` without `--force`); `reset-app-data --yes` (drops every app-facing collection except the catalogs; `--users` to include users).
-- `seed-demo` (idempotent, fixed `seed-` ids, `DEMO_PASSWORD` required): **Sandy Byte** (`@sandybyte`, `demo@sidequestz.tech`, avatar sage, status open, DOB 2003-06-14, school "Saltlight Harbor College", `catalog: demo_activities`, `city: saltlight`, `homeBase: Seaside Market Square (31.3680, -81.4250)`, `setup_complete: true`, prefs `{outdoors 5, long_walks 5, live_music 4, food 4, early_mornings 4, museums 3, sports 3, shopping 2, nightlife 2, big_crowds 1; small_group; balanced; under_15; bit_over_ok; equally; prefer_free true}`, answers: `perfect_afternoon: "A long walk along the water, a snack from the market, then live music somewhere small while the sun goes down."`, `never_do: "Packed clubs, huge crowds, or anything that only gets going after midnight."`, `plan_around: "Sunrise swims, the Saturday market, and whoever's free to wander."`; embeddings via `ml.UserProfile` if reachable, else logged). **Bot friends** (`roles: [bot]`, random passwords, same catalog/city): **Marin Okafor** `@marinokafor` (friend; hosts an open plan tomorrow 17:30–20:00 local, `max_group_size 6`, `lock_at` 17:00, from the 3 nearest demo places, members Marin+Theo; a `free_now` post for today) and **Theo Park** `@theopark` (pending request "Met at the market"). A past group itinerary (last Saturday) Sandy+Marin+Theo with 2 rated stops (5 `["Great people","Would go again"]`, 4 `["Good value"]`) and a solo past itinerary with one unrated stop; group thread "Saturday market crew" with 3 messages and 2 expenses (Marin 2400 "Coffee", Sandy 900 "Bus fares"); DM Sandy↔Marin with 2 messages, 1 unread; a demo Visa •••• 4242. Times relative to the seed run in `DEMO_TZ` (default `America/New_York`).
+The server creates required indexes at startup. Accounts are created through signup;
+existing fixture records remain in MongoDB. There is no admin executable or seed/reset command.
 
 ## 8. Config and deployment
 
@@ -510,7 +509,7 @@ in `events.go`. On connect send `{"type":"connected","data":{}}`.
 | `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL` | no | `1h`, `720h` |
 | `ML_SERVICE_URL`, `ML_*` timeouts, `PLANNER`, `PLANNER_*` | no | see embeddings.md / planner.md |
 | `FB_APP_ID`, `FB_APP_SECRET`, `FB_GRAPH_VERSION`, `FB_TOKEN_KEY` | for Facebook | |
-| `DEMO_PASSWORD`, `DEMO_TZ` | seed only | |
+| `DEMO_TZ` | timezone for `DEMO_DATE` | `America/New_York` |
 | `DEV_RESET_CODES` | no | `0` |
 | `CHECKOUT_STEP_DELAY` | no | `1500ms` |
 | `TRUST_PROXY` | no | `1` on the VPS |
@@ -522,15 +521,15 @@ MaxHeaderBytes: 64<<10}`; graceful shutdown (10 s). Middleware: recover → requ
 
 `backend.service`: `User=sidequestz`, `EnvironmentFile=/opt/backend/.env` (0600), no inline `Environment=`
 lines, `Restart=always`, `RestartSec=3`, `LimitNOFILE=65536`, hardening kept + `PrivateTmp=true`.
-`deploy.sh`: binary upload + unit sync, **never** upload `.env`, pre-flight `test -s /opt/backend/.env`,
-keep `sidequestz-server.prev`, `--seed` runs `sidequestz-admin ensure-indexes` after restart.
+`Backend/deploy.sh`: build and upload the binary and unit, then restart the API.
+The server's `.env` stays in place. Tests run separately; indexes are created at API startup.
 
 ## 9. Ordering and risks
 
 Phase 0 (foundation) lands first: `pkg/config`, hardened `datastore`, `pkg/contract` + `contract_test`,
 `pkg/httpx`, `pkg/models` rewrite, `pkg/store/{store,users,tokens}.go` + `EnsureIndexes`, `pkg/api/auth` +
 `me` (GET/PATCH), rewritten `pkg/realtime`, `pkg/router` with every contract route registered (unbuilt ones
-answer `501 {"message":"Not built yet"}`), `pkg/testutil`, the admin skeleton, deletion of the old
+answer `501 {"message":"Not built yet"}`), `pkg/testutil`, deletion of the old
 handlers/store/tests, `main.go`. Then A–E in parallel (C depends on B's `store/itineraries.go` for
 `AddMember/RemoveMember`; D on A's payments and B's items). Risks: time zones and day keys (test around
 midnight and DST); planner ↔ B handoff (persisted pools; fallback to `option.stops`); `answers` key casing

@@ -86,7 +86,7 @@ func NewDirectory(publicKeyB64 string, allowDemo bool) (*InMemoryKeyDirectory, e
 }
 
 // PrivateKeyFromSeed reads the agent's signing key: a base64 32-byte Ed25519
-// seed (TAP_AGENT_KEY, from sidequestz-admin tap-keygen).
+// seed (TAP_AGENT_KEY).
 func PrivateKeyFromSeed(seedB64 string) (ed25519.PrivateKey, error) {
 	seed, err := base64.StdEncoding.DecodeString(seedB64)
 	if err != nil || len(seed) != ed25519.SeedSize {

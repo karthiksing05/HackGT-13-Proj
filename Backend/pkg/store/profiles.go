@@ -26,10 +26,8 @@ func (p Profiles) catalog(name string) (*mongo.Collection, error) {
 	switch name {
 	case "":
 		return p.s.db.Collection(ActivityCollection), nil
-	case CollActivities:
-		return p.s.db.Collection(CollActivities), nil
-	case CollDemoActivities:
-		return p.s.db.Collection(CollDemoActivities), nil
+	case CollActivities, CollDemoActivities:
+		return p.s.db.Collection(name), nil
 	}
 	return nil, fmt.Errorf("unknown catalog %q", name)
 }

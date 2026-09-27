@@ -5,6 +5,7 @@ import (
 	"Backend/pkg/travel"
 	"context"
 	"errors"
+	"maps"
 	"strings"
 	"time"
 )
@@ -87,9 +88,7 @@ func resolveStops(pool *PlanPool, opt *Option, order []string) ([]Stop, error) {
 	for _, s := range opt.Stops {
 		known[s.ID] = s
 	}
-	for id, s := range pool.Alternatives {
-		known[id] = s
-	}
+	maps.Copy(known, pool.Alternatives)
 	if len(order) == 0 {
 		return append([]Stop(nil), opt.Stops...), nil
 	}

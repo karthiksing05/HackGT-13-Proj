@@ -4,6 +4,7 @@ import (
 	"Backend/pkg/models"
 	"context"
 	"errors"
+	"maps"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -238,12 +239,8 @@ func (c CheckoutRuns) Running(ctx context.Context, id string) (bool, error) {
 
 func mergeM(a, b bson.M) bson.M {
 	out := bson.M{}
-	for k, v := range a {
-		out[k] = v
-	}
-	for k, v := range b {
-		out[k] = v
-	}
+	maps.Copy(out, a)
+	maps.Copy(out, b)
 	return out
 }
 
@@ -275,9 +272,7 @@ func (c CheckoutIntents) ByRun(ctx context.Context, run *models.CheckoutRun) ([]
 // the intent moved on (booked, failed or cancelled meanwhile).
 func (c CheckoutIntents) RunUpdate(ctx context.Context, id string, from []string, set bson.M, steps ...models.CheckoutStep) (*models.CheckoutIntent, bool, error) {
 	fields := bson.M{"updatedAt": c.s.BusinessNow(ctx)}
-	for k, v := range set {
-		fields[k] = v
-	}
+	maps.Copy(fields, set)
 	update := bson.M{"$set": fields}
 	if len(steps) > 0 {
 		update["$push"] = bson.M{"steps": bson.M{"$each": steps}}

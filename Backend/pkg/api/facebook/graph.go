@@ -306,7 +306,7 @@ type paging struct {
 // rows it read (0 stops).
 func (c *Client) pages(ctx context.Context, path string, params url.Values, token string, limit int, each func(json.RawMessage) int) error {
 	requests := limit/graphPageSize + 2
-	for i := 0; i < requests; i++ {
+	for range requests {
 		var ans struct {
 			Data   json.RawMessage `json:"data"`
 			Paging paging          `json:"paging"`

@@ -10,24 +10,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// WaitEvent polls the recorder until an event of typ addressed to userID
-// (or a broadcast) appears, failing after timeout.
-func (s *Server) WaitEvent(t testing.TB, userID, typ string, timeout time.Duration) realtime.Event {
-	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for {
-		for _, e := range s.Events.For(userID) {
-			if e.Type == typ {
-				return e
-			}
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("no %s event for %s within %s; recorded: %+v", typ, userID, timeout, s.Events.Events())
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-}
-
 // EventCount counts recorded events of typ for userID (broadcasts included).
 func (s *Server) EventCount(userID, typ string) int {
 	n := 0

@@ -12,8 +12,9 @@ import (
 	"time"
 )
 
-// The demo clock (DEMO_DATE, pkg/democlock): demo accounts live on the demo
-// date at the real time of day. Handlers read business time with
+// The demo clock (DEMO_DATE, pkg/democlock): while the demo collection is
+// selected, signed-in accounts live on the demo date at the real time of day.
+// Handlers read business time with
 // BusinessNow(ctx) for whatever decides or shows what is upcoming, past or
 // now, and keep Clock() for tokens, rate limits, web sessions, expiries and
 // logs; stores have the same pair (Store.BusinessNow, Store.Now).
@@ -35,8 +36,8 @@ func (d *Deps) DemoClock() *democlock.Clock {
 	return d.demo.clock
 }
 
-// BusinessNow is now as the request's account lives it: the real time, or
-// for a demo account the demo date at the real time of day.
+// BusinessNow is the request's business time, using the demo date only
+// while the demo collection is selected.
 func (d *Deps) BusinessNow(ctx context.Context) time.Time { return democlock.Now(ctx, d.Clock()) }
 
 // ClockFor returns DEMO_DATE's clock while the demo collection is selected.
@@ -50,18 +51,17 @@ func (d *Deps) ClockFor(u *models.User) *democlock.Clock {
 // ForUser applies the selected collection's clock to signed-in requests
 // and background work. It does not load the user.
 func (d *Deps) ForUser(ctx context.Context, userID string) context.Context {
-	c := d.DemoClock()
-	if c == nil || userID == "" || store.ActivityCollection != store.CollDemoActivities {
+	if userID == "" || store.ActivityCollection != store.CollDemoActivities {
 		return ctx
 	}
-	return democlock.With(ctx, c)
+	return democlock.With(ctx, d.DemoClock())
 }
 
 // withClock puts the signed-in account's clock on the request (ForUser).
 // No account lookup is needed.
 func (d *Deps) withClock(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if id := UserID(r); id != "" && d.DemoClock() != nil {
+		if id := UserID(r); id != "" && store.ActivityCollection == store.CollDemoActivities {
 			r = r.WithContext(d.ForUser(r.Context(), id))
 		}
 		next(w, r)
@@ -69,8 +69,8 @@ func (d *Deps) withClock(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // UserView is the signed-in user's own User (GET and PATCH /me, sign-up and
-// log-in): view.User at their business time, with demo_date for a demo
-// account so the app puts its "today" there too.
+// log-in): view.User at their business time, with demo_date while the demo
+// collection is selected so the app puts its "today" there too.
 func (d *Deps) UserView(u *models.User) contract.User {
 	now := d.Clock()
 	c := d.ClockFor(u)

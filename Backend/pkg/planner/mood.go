@@ -2,6 +2,7 @@ package planner
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -131,8 +132,8 @@ func ExtractMoodConstraints(mood string, picks []string) (HardConstraints, []Fac
 	}
 	hard.ExcludeCategories = uniqueStrings(hard.ExcludeCategories)
 	hard.ExcludeTags = uniqueStrings(hard.ExcludeTags)
-	sortStrings(hard.ExcludeCategories)
-	sortStrings(hard.ExcludeTags)
+	slices.Sort(hard.ExcludeCategories)
+	slices.Sort(hard.ExcludeTags)
 
 	for _, fr := range facetRules {
 		if !fr.re.MatchString(blanked) {
@@ -157,7 +158,7 @@ func facetRefused(f Facet, hard HardConstraints) bool {
 		}
 	}
 	for _, t := range f.Tags {
-		if !containsString(hard.ExcludeTags, t) {
+		if !slices.Contains(hard.ExcludeTags, t) {
 			return false
 		}
 	}

@@ -4,7 +4,7 @@
 // failure, every enum must be one the app knows, times are UTC).
 //
 // The tests live behind the e2e build tag, so `go test ./...` never runs
-// them. They need a server that has run `sidequestz-admin seed-demo`:
+// them. The demo cases need a server with the existing demo fixture records:
 //
 //	cd Backend && E2E_BASE_URL=http://127.0.0.1:18080 E2E_DEMO_PASSWORD=… \
 //	  go test -tags e2e -count=1 -timeout 20m -v ./e2e/
@@ -12,7 +12,7 @@
 // Settings:
 //
 //	E2E_BASE_URL       the API root (required; without it every test skips)
-//	E2E_DEMO_PASSWORD  Sandy Byte's password, the server's DEMO_PASSWORD (the demo tests skip without it)
+//	E2E_DEMO_PASSWORD  Sandy Byte's existing account password (the demo tests skip without it)
 //	E2E_DEMO_EMAIL     the demo account (default demo@gatech.edu)
 //	E2E_WS_URL         the websocket (default: E2E_BASE_URL with ws(s):// and /ws)
 //	E2E_TIME_ZONE      the X-Time-Zone every request sends (default America/New_York)
@@ -26,6 +26,6 @@
 // message), sends "Plan together" to Marin once, posts messages in the crew
 // chat, and plans, saves, books and deletes a sidequest. Expenses,
 // settlements, photos, preferences and the join are undone before it ends.
-// Run `sidequestz-admin seed-demo` afterwards to restore the rating.
+// Restore the fixture database afterwards if the original rating is needed.
 // Password-reset steps need DEV_RESET_CODES=1 on the server and skip without it.
 package e2e

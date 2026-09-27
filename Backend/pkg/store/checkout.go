@@ -4,6 +4,7 @@ import (
 	"Backend/pkg/models"
 	"context"
 	"errors"
+	"maps"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -152,9 +153,7 @@ func (c CheckoutIntents) Due(ctx context.Context, now time.Time, limit int) ([]*
 // due at now. ok is false when a cancel or another worker got there first.
 func (c CheckoutIntents) Advance(ctx context.Context, id, from string, now time.Time, set bson.M) (*models.CheckoutIntent, bool, error) {
 	fields := bson.M{"updatedAt": c.s.BusinessNow(ctx)}
-	for k, v := range set {
-		fields[k] = v
-	}
+	maps.Copy(fields, set)
 	var intent models.CheckoutIntent
 	err := c.coll().FindOneAndUpdate(ctx,
 		bson.M{"_id": id, "state": from, "nextTransitionAt": bson.M{"$lte": now}},

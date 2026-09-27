@@ -69,15 +69,6 @@ const (
 // CatalogCollections are read-only here and never reset or TTL-touched.
 var CatalogCollections = []string{CollActivities, CollDemoActivities}
 
-// AppCollections is everything reset-app-data drops (users excluded; the
-// flag --users adds them; catalogs never).
-var AppCollections = []string{
-	CollRefreshTokens, CollResetCodes, CollWebSessions, CollDevices, CollPaymentMethods, CollPhotos,
-	CollItineraries, CollItemStates, CollRatings, CollCheckoutIntents, CollCheckoutRuns, CollForumPosts, CollJoinRequests,
-	CollThreads, CollMessages, CollExpenses, CollFriendships, CollFriendRequests, CollInvites,
-	CollFacebookAccounts, CollFacebookImports, CollPlanPools, CollPlanRuns, CollPlanTogether,
-}
-
 // Store wraps the database and the clock used for createdAt/updatedAt.
 type Store struct {
 	db  *mongo.Database
@@ -92,7 +83,7 @@ func New(db *mongo.Database, now func() time.Time) *Store {
 	return &Store{db: db, now: now}
 }
 
-// DB is the underlying database (admin tooling, planner store).
+// DB is the underlying database.
 func (s *Store) DB() *mongo.Database { return s.db }
 
 // Collection returns a collection by name.
@@ -213,7 +204,7 @@ var appIndexes = []indexSpec{
 
 // catalogIndexes are created only when no index with the same keys exists,
 // under Mongo's default names; the seed already carries most of them and TTL
-// indexes on the catalogs are never touched here (see admin drop-ttl).
+// indexes on the catalogs are never touched here.
 var catalogIndexes = []bson.D{
 	{{Key: "location", Value: "2dsphere"}},
 	{{Key: "city", Value: 1}, {Key: "kind", Value: 1}, {Key: "start", Value: 1}},
@@ -307,43 +298,6 @@ func keyPattern(keys bson.D) string {
 		parts = append(parts, fmt.Sprintf("%s:%v", e.Key, e.Value))
 	}
 	return strings.Join(parts, ",")
-}
-
-// TTLIndexes lists the names of a collection's TTL indexes (admin drop-ttl).
-func (s *Store) TTLIndexes(ctx context.Context, coll string) ([]string, error) {
-	cursor, err := s.db.Collection(coll).Indexes().List(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var docs []struct {
-		Name               string `bson:"name"`
-		ExpireAfterSeconds *int32 `bson:"expireAfterSeconds"`
-	}
-	if err := cursor.All(ctx, &docs); err != nil {
-		return nil, err
-	}
-	var names []string
-	for _, d := range docs {
-		if d.ExpireAfterSeconds != nil {
-			names = append(names, d.Name)
-		}
-	}
-	return names, nil
-}
-
-// DropIndex removes one index by name.
-func (s *Store) DropIndex(ctx context.Context, coll, name string) error {
-	return s.db.Collection(coll).Indexes().DropOne(ctx, name)
-}
-
-// DropCollections drops the named collections (reset-app-data).
-func (s *Store) DropCollections(ctx context.Context, names []string) error {
-	for _, name := range names {
-		if err := s.db.Collection(name).Drop(ctx); err != nil {
-			return fmt.Errorf("drop %s: %w", name, err)
-		}
-	}
-	return nil
 }
 
 // decodeOne maps a missing document to ErrNotFound.

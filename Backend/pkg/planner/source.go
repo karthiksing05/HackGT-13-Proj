@@ -5,6 +5,7 @@ import (
 	"Backend/pkg/models"
 	"Backend/pkg/travel"
 	"context"
+	"slices"
 	"time"
 )
 
@@ -71,7 +72,7 @@ type ActivityLookup interface {
 
 // MatchesQuery applies the query's conditions to one document.
 func MatchesQuery(a *models.Activity, q *CandidateQuery) bool {
-	if len(q.Kinds) > 0 && !containsString(q.Kinds, a.Kind) {
+	if len(q.Kinds) > 0 && !slices.Contains(q.Kinds, a.Kind) {
 		return false
 	}
 	if q.City != "" && a.City != q.City {
@@ -105,7 +106,7 @@ func MatchesQuery(a *models.Activity, q *CandidateQuery) bool {
 			}
 		}
 	} else {
-		if len(q.PlaceCategories) > 0 && !containsString(q.PlaceCategories, a.Category) {
+		if len(q.PlaceCategories) > 0 && !slices.Contains(q.PlaceCategories, a.Category) {
 			return false
 		}
 		if !ratingAllowed(a, q.MinPlaceRating) {
@@ -115,21 +116,21 @@ func MatchesQuery(a *models.Activity, q *CandidateQuery) bool {
 	if AgeRulesFor(q.AgeBracket).Blocks(a) {
 		return false
 	}
-	if containsString(q.ExcludeCategories, a.Category) {
+	if slices.Contains(q.ExcludeCategories, a.Category) {
 		return false
 	}
 	for _, t := range a.Tags {
-		if containsString(q.ExcludeTags, t) {
+		if slices.Contains(q.ExcludeTags, t) {
 			return false
 		}
 	}
 	if len(q.IncludeCategories)+len(q.AnyTags) > 0 {
-		hit := containsString(q.IncludeCategories, a.Category)
+		hit := slices.Contains(q.IncludeCategories, a.Category)
 		for _, t := range a.Tags {
 			if hit {
 				break
 			}
-			hit = containsString(q.AnyTags, t)
+			hit = slices.Contains(q.AnyTags, t)
 		}
 		if !hit {
 			return false
@@ -138,7 +139,7 @@ func MatchesQuery(a *models.Activity, q *CandidateQuery) bool {
 	if !priceAllowed(a, q) {
 		return false
 	}
-	return !containsString(q.ExcludeIDs, a.ID.Hex())
+	return !slices.Contains(q.ExcludeIDs, a.ID.Hex())
 }
 
 // ratingAllowed is the place-quality rule: rated at least min, or an

@@ -335,7 +335,7 @@ func TestForumPagination(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(testutil.Fixed))
 	viewer := srv.Signup(t, "Page Viewer")
 	host := srv.Signup(t, "Page Host")
-	for i := 0; i < 53; i++ {
+	for i := range 53 {
 		insertPlan(t, srv, plan(host.UserID, testutil.Fixed.Add(time.Duration(i+1)*time.Hour), techSquare))
 	}
 	var first, second contract.Page[contract.ForumPost]

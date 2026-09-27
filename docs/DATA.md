@@ -63,9 +63,9 @@ touristy, local_favorite`. The planner's quick-pick facets and age rules are bui
 | `{expiresAt: 1}` TTL (`expireAfterSeconds: 0`) | `ingest init-db` on `activities` | past events delete themselves 6 h after they end |
 
 The API's `EnsureIndexes` never creates or drops TTL indexes on the catalogs. The demo catalog is the
-exception to expiry: its events run from Sep 26 to Oct 2, 2026 (New York time) and must outlive that week, so the
-runbook runs `sidequestz-admin drop-ttl demo_activities`, which removes any index on that collection
-with `expireAfterSeconds`. `drop-ttl activities` refuses without `--force`.
+exception to expiry: its events run from Sep 26 to Oct 2, 2026 (New York time) and must outlive that week,
+so the demo collection should have no TTL index. Inspect and remove unwanted TTL indexes directly
+in MongoDB when provisioning the catalog.
 
 The ingestion spec also describes an Atlas Vector Search index; the deployment uses a self-hosted
 `mongod`, so similarity is computed in the API over the vectors of a filtered candidate set instead.
@@ -124,7 +124,7 @@ ranks the demo city by taste. Copy it into a local Mongo with:
 ```sh
 Backend/scripts/pull-demo-catalog.sh                 # into the sq-mongo container, database freetime
 Backend/scripts/pull-demo-catalog.sh --db scratch     # or another database; --uri URI for a non-Docker Mongo
-cd Backend && go run ./cmd/sidequestz-admin ensure-indexes
+# Start the API against this database to create any missing catalog indexes.
 ```
 
 It streams `mongodump` over SSH (the `DEPLOY_*` entries of the repo-root `.env`) into `mongorestore

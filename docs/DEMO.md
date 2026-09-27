@@ -1,16 +1,15 @@
 # The demo
 
-Everything a judge sees comes from one seeded account in a fictional city. This page lists what is
-seeded, the three-minute walkthrough, what is deliberately simulated, and how to reset; the one-page
-brief for the account is [DEMO_ACCOUNT.md](DEMO_ACCOUNT.md). The seed is
-`sidequestz-admin seed-demo` (`Backend/cmd/sidequestz-admin/seed.go`); the city is in
-`dataingestion/demo/`.
+This page describes the existing demo fixture account and the three-minute walkthrough.
+The account brief is [DEMO_ACCOUNT.md](DEMO_ACCOUNT.md); city data lives in `dataingestion/demo/`.
+The backend no longer includes seed/reset tooling. The activity collection is selected globally
+by `store.ActivityCollection` in `Backend/pkg/store/catalog.go`.
 
 ## Sandy Byte
 
 | | |
 |---|---|
-| Account | **Sandy Byte**, `@sandybyte`, `demo@sidequestz.tech`; password = the server's `DEMO_PASSWORD` (not in the repo) |
+| Account | **Sandy Byte**, `@sandybyte`, `demo@sidequestz.tech`; password = the existing account password (not in the repo) |
 | Profile | avatar sage, status open, born 2003-06-14 (adult), school "Saltlight Harbor College", setup complete |
 | Catalog and city | `demo_activities`, `saltlight`; home base **Seaside Market Square** (31.3680, −81.4250) |
 | Likes (1–5) | outdoors 5, long walks 5, live music 4, food 4, early mornings 4, museums 3, sports 3, shopping 2, nightlife 2, big crowds 1 |
@@ -119,26 +118,11 @@ Lee), without the live planner.
   and anywhere days still spread over 8–12 miles.
 - **Facebook** works only for accounts added as testers of the Meta app while it is in Development
   mode; the demo does not go through it.
-- **One catalog per account.** Sandy sees Saltlight; a new account sees the real Atlanta catalog (which
-  has no restaurants or cafés yet) and gets no seeded friends.
+- **One activity collection.** All accounts use the configured activity collection; new accounts have no fixture friends.
 - **One shared account.** Two judges signing in as Sandy at once share her plans and realtime events; she
   can hold 5 live sockets, and a sixth connection closes the oldest.
 
 ## Reset
 
-On the VPS:
-
-```sh
-A="/opt/backend/sidequestz-admin --env-file /opt/backend/.env"
-$A reset-app-data --yes          # every app collection except the catalogs and the users
-$A ensure-indexes
-$A drop-ttl demo_activities
-$A seed-demo                     # recreates Sandy's world and prints what it wrote
-```
-
-A full wipe that also removes the accounts judges created is `reset-app-data --yes --users`, then
-`ensure-indexes` (dropping a collection drops its indexes), then `seed-demo`, which recreates Sandy and
-the bots. Locally the same commands are `go
-run ./cmd/sidequestz-admin …` from `Backend/` with the environment from the
-[local loop](DEPLOY.md#local-development-loop). To reset only the app on a phone, relaunch with
-`-SQResetSession YES`.
+Restore a fixture database backup to reset the demo records. To reset only the app session,
+relaunch with `-SQResetSession YES`.

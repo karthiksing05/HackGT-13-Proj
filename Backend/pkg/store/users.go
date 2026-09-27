@@ -3,6 +3,7 @@ package store
 import (
 	"Backend/pkg/models"
 	"context"
+	"maps"
 	"regexp"
 	"strings"
 
@@ -148,9 +149,7 @@ func (u Users) Update(ctx context.Context, id string, set bson.M) (*models.User,
 		return nil, ErrNotFound
 	}
 	fields := bson.M{"updatedAt": u.s.Now()}
-	for k, v := range set {
-		fields[k] = v
-	}
+	maps.Copy(fields, set)
 	if name, ok := fields["name"].(string); ok {
 		fields["nameLower"] = strings.ToLower(name)
 	}

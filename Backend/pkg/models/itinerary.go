@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 // Itinerary statuses, item kinds and visibilities as stored.
 const (
@@ -96,12 +99,7 @@ type Itinerary struct {
 
 // IsMember reports whether userID belongs to the itinerary.
 func (it *Itinerary) IsMember(userID string) bool {
-	for _, id := range it.MemberIDs {
-		if id == userID {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(it.MemberIDs, userID)
 }
 
 // ItemTicket is a booked ticket for one item (written by the checkout agent).

@@ -15,7 +15,7 @@ func TestSeriesCapAbove64(t *testing.T) {
 	cfg.Paces["balanced"] = PaceProfile{MaxStops: 100, MaxWait: 60 * time.Minute, LambdaWait: 0}
 	w := window(at(0, 0), at(0, 0).Add(48*time.Hour))
 	var acts []models.Activity
-	for i := 0; i < 80; i++ {
+	for i := range 80 {
 		a := event("E", techSquare, at(1, 0).Add(time.Duration(i)*30*time.Minute), 15, 0.9)
 		a.Name = a.ID.Hex()
 		a.VenueName = str(a.Name)

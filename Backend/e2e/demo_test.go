@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// Fixed ids the demo seed writes (cmd/sidequestz-admin/seed.go).
+// Fixed ids in the existing demo fixture database.
 const (
 	seedOpenPlan   = "seed-itin-open-plan"
 	seedCrewPlan   = "seed-itin-market-crew"

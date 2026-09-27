@@ -2,6 +2,7 @@ package planner
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -33,7 +34,7 @@ func TestMoodNegationsBecomeHardExcludes(t *testing.T) {
 			t.Errorf("%q: unexpected facets %v", c.mood, got)
 		}
 		for _, f := range c.wantFacet {
-			if !containsString(got, f) {
+			if !slices.Contains(got, f) {
 				t.Errorf("%q: facets %v missing %s", c.mood, got, f)
 			}
 		}
@@ -55,23 +56,23 @@ func TestMoodFreeFamilySober(t *testing.T) {
 		}
 	}
 	hard, _ := ExtractMoodConstraints("something for the kids", nil)
-	if !containsString(hard.ExcludeTags, "21_plus") || !containsString(hard.ExcludeCategories, "bar") || !containsString(hard.ExcludeCategories, "nightclub") {
+	if !slices.Contains(hard.ExcludeTags, "21_plus") || !slices.Contains(hard.ExcludeCategories, "bar") || !slices.Contains(hard.ExcludeCategories, "nightclub") {
 		t.Errorf("family: %+v", hard)
 	}
 	hard, facets := ExtractMoodConstraints("sober night out", nil)
-	if !containsString(hard.ExcludeTags, "drinks") || !containsString(hard.ExcludeCategories, "bar") {
+	if !slices.Contains(hard.ExcludeTags, "drinks") || !slices.Contains(hard.ExcludeCategories, "bar") {
 		t.Errorf("sober: %+v", hard)
 	}
 	// A sober night out can still be live music or comedy: Nightlife stays soft.
-	if !containsString(facetNames(facets), "Nightlife") {
+	if !slices.Contains(facetNames(facets), "Nightlife") {
 		t.Errorf("sober night out facets: %v", facetNames(facets))
 	}
 	// A facet whose every category and tag is refused is not suggested back.
 	hard, facets = ExtractMoodConstraints("no museums or art, maybe murals", nil)
-	if !containsString(hard.ExcludeCategories, "museum") || !containsString(hard.ExcludeTags, "art") {
+	if !slices.Contains(hard.ExcludeCategories, "museum") || !slices.Contains(hard.ExcludeTags, "art") {
 		t.Errorf("no museums: %+v", hard)
 	}
-	if containsString(facetNames(facets), "Art") {
+	if slices.Contains(facetNames(facets), "Art") {
 		t.Errorf("a refused facet came back: %v", facetNames(facets))
 	}
 }

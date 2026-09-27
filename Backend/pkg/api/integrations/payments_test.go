@@ -180,7 +180,7 @@ func TestCardSetupPage(t *testing.T) {
 	}
 
 	// Demo cards take turns: the third card is Visa 5556, and so is every one after.
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_, token = newLink()
 		submit(token, url.Values{"card": {"demo"}}).Expect(t, http.StatusFound)
 	}

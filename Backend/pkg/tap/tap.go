@@ -177,12 +177,12 @@ func Verify(req *http.Request, keyDir KeyDirectory, nonces NonceStore, expectedT
 
 func parseSignatureInput(header string) (*ParsedInput, error) {
 	// Example: sig2=("@authority" "@path");created=123;expires=456;keyid="sqz-agent-1";alg="ed25519";nonce="...";tag="agent-browser-auth"
-	eqIdx := strings.Index(header, "=")
-	if eqIdx == -1 {
+	before, after, ok := strings.Cut(header, "=")
+	if !ok {
 		return nil, errors.New("no label assignment in Signature-Input")
 	}
-	label := strings.TrimSpace(header[:eqIdx])
-	paramsStr := strings.TrimSpace(header[eqIdx+1:])
+	label := strings.TrimSpace(before)
+	paramsStr := strings.TrimSpace(after)
 
 	parsed := &ParsedInput{
 		Label:     label,
@@ -192,12 +192,12 @@ func parseSignatureInput(header string) (*ParsedInput, error) {
 	parts := strings.Split(paramsStr, ";")
 	for _, part := range parts[1:] { // First part is ("@authority" "@path")
 		part = strings.TrimSpace(part)
-		subEq := strings.Index(part, "=")
-		if subEq == -1 {
+		before, after, ok := strings.Cut(part, "=")
+		if !ok {
 			continue
 		}
-		k := strings.TrimSpace(part[:subEq])
-		v := strings.Trim(strings.TrimSpace(part[subEq+1:]), "\"")
+		k := strings.TrimSpace(before)
+		v := strings.Trim(strings.TrimSpace(after), "\"")
 
 		switch k {
 		case "created":
@@ -226,24 +226,24 @@ func parseSignatureInput(header string) (*ParsedInput, error) {
 func extractSignatureBytes(sigHeader, label string) ([]byte, error) {
 	// Look for <label>=:<base64>: or <label>=<base64>
 	var targetVal string
-	entries := strings.Split(sigHeader, ",")
-	for _, entry := range entries {
+	entries := strings.SplitSeq(sigHeader, ",")
+	for entry := range entries {
 		entry = strings.TrimSpace(entry)
-		eqIdx := strings.Index(entry, "=")
-		if eqIdx == -1 {
+		before, after, ok := strings.Cut(entry, "=")
+		if !ok {
 			continue
 		}
-		curLabel := strings.TrimSpace(entry[:eqIdx])
+		curLabel := strings.TrimSpace(before)
 		if curLabel == label {
-			targetVal = strings.TrimSpace(entry[eqIdx+1:])
+			targetVal = strings.TrimSpace(after)
 			break
 		}
 	}
 	if targetVal == "" {
 		// Fallback: if no comma separated match, check direct prefix
-		eqIdx := strings.Index(sigHeader, "=")
-		if eqIdx != -1 {
-			targetVal = strings.TrimSpace(sigHeader[eqIdx+1:])
+		_, after, ok := strings.Cut(sigHeader, "=")
+		if ok {
+			targetVal = strings.TrimSpace(after)
 		} else {
 			targetVal = sigHeader
 		}
@@ -257,8 +257,8 @@ func extractSignatureBytes(sigHeader, label string) ([]byte, error) {
 }
 
 func stripPort(host string) string {
-	if idx := strings.Index(host, ":"); idx != -1 {
-		return host[:idx]
+	if before, _, ok := strings.Cut(host, ":"); ok {
+		return before
 	}
 	return host
 }

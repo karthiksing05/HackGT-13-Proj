@@ -112,7 +112,7 @@ func TestMustSeeOverHTTP(t *testing.T) {
 		t.Errorf("a Sunday pick on Saturday: %+v, want %q", batch, want)
 	}
 	req.MustInclude = nil
-	for i := 0; i < 11; i++ {
+	for i := range 11 {
 		req.MustInclude = append(req.MustInclude, fmt.Sprintf("%024x", i+1))
 	}
 	if msg := srv.Do(t, "POST", "/plans/generate", req, sandy).Expect(t, http.StatusBadRequest).Message(); msg != planner.MsgTooManyPicks {

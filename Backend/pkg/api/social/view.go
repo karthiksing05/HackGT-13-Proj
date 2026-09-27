@@ -215,15 +215,6 @@ func myPostView(p *models.ForumPost) contract.MyFreePost {
 	}
 }
 
-// placeView renders a stored place.
-func placeView(p models.PlaceDoc) contract.Place {
-	out := contract.Place{Name: p.Name}
-	if p.HasCoordinate() {
-		out.Coordinate = &contract.Coordinate{Lat: *p.Lat, Lng: *p.Lng}
-	}
-	return out
-}
-
 // joinStatus is where the viewer stands on a plan post.
 func joinStatus(it *models.Itinerary, viewerID string, now time.Time) contract.JoinStatus {
 	switch {
