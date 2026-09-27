@@ -67,3 +67,45 @@ type PersonSuggestion struct {
 	RequestID     *string        `json:"request_id,omitempty"`
 	Compatibility int            `json:"compatibility"`
 }
+
+// ProfileRelation is how the person on a profile relates to the viewer:
+// the FriendRelation words, or "self" on the viewer's own profile.
+type ProfileRelation string
+
+const (
+	ProfileSelf     ProfileRelation = "self"
+	ProfileNone     ProfileRelation = "none"
+	ProfileFriend   ProfileRelation = "friend"
+	ProfileOutgoing ProfileRelation = "outgoing"
+	ProfileIncoming ProfileRelation = "incoming"
+)
+
+// MutualFriends are the friends two people have in common: how many, and
+// up to three of them.
+type MutualFriends struct {
+	Count  int         `json:"count"`
+	People []PersonRef `json:"people"`
+}
+
+// PublicProfile is GET /users/{id}/profile: someone as the viewer sees
+// them. StatusLine is the line their friends see ("Free until 6:30 PM"),
+// for friends only. Compatibility is the taste match as a whole-number
+// percent (0–100), absent on the viewer's own profile and when it can't be
+// scored. MatchReasons (up to 3) come from what both like, Likes (up to 5)
+// are what they like most, as labels. OpenPlans are their upcoming plans
+// the viewer may see, rendered as the Forum renders plan posts.
+type PublicProfile struct {
+	Person         PersonRef       `json:"person"`
+	School         *string         `json:"school,omitempty"`
+	City           *string         `json:"city,omitempty"`
+	Status         PresenceStatus  `json:"status"`
+	StatusLine     *string         `json:"status_line,omitempty"`
+	Relation       ProfileRelation `json:"relation"`
+	RequestID      *string         `json:"request_id,omitempty"`
+	Compatibility  *int            `json:"compatibility,omitempty"`
+	MatchReasons   []string        `json:"match_reasons"`
+	Likes          []string        `json:"likes"`
+	MutualFriends  MutualFriends   `json:"mutual_friends"`
+	OpenPlans      []ForumPost     `json:"open_plans"`
+	SidequestsDone int             `json:"sidequests_done"`
+}
