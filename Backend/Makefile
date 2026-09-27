@@ -2,7 +2,7 @@
 GO ?= go
 BIN := bin
 
-.PHONY: test test-db build build-native smoke fmt vet clean
+.PHONY: test test-db build build-native build-admin smoke fmt vet clean
 
 ## test: unit tests; Mongo-backed tests skip without a server (MONGO_TEST_URI).
 test:
@@ -12,15 +12,17 @@ test:
 test-db:
 	scripts/test-db.sh
 
-## build: static Linux/amd64 server + admin binaries (what deploy.sh uploads).
+## build: static Linux/amd64 server.
 build:
-	./build.sh --amd64 --skip-tests
+	./build.sh
 
-## build-native: both binaries for this machine, into bin/.
+## build-native: server for this machine.
 build-native:
-	mkdir -p $(BIN)
-	$(GO) build -trimpath -o $(BIN)/sidequestz-server .
-	$(GO) build -trimpath -o $(BIN)/sidequestz-admin ./cmd/sidequestz-admin
+	./build.sh --native
+
+## build-admin: optional maintenance CLI alongside the server.
+build-admin:
+	./build.sh --native --admin
 
 ## smoke: curl + jq against BASE_URL (default http://127.0.0.1:8080).
 smoke:

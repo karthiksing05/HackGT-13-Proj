@@ -32,10 +32,9 @@ const (
 
 // Defaults for a new account.
 const (
-	defaultAvatar  = string(contract.AvatarInk)
-	defaultStatus  = string(contract.StatusOpen)
-	defaultCatalog = "activities"
-	defaultCity    = "atlanta"
+	defaultAvatar = string(contract.AvatarInk)
+	defaultStatus = string(contract.StatusOpen)
+	defaultCity   = "atlanta"
 )
 
 // schools maps email domains to the school shown after the handle.
@@ -149,7 +148,6 @@ func (h *H) Signup(w http.ResponseWriter, r *http.Request) {
 		Status:       defaultStatus,
 		BirthDate:    req.DateOfBirth.StdPtr(),
 		School:       School(email),
-		Catalog:      defaultCatalog,
 		City:         defaultCity,
 		Prefs:        models.UserPrefs{Ratings: map[string]int{}, Answers: map[string]string{}},
 		Taste:        models.UserTaste{Tags: map[string]float64{}},

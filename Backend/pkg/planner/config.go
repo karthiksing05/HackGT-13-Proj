@@ -10,6 +10,7 @@ package planner
 import (
 	"Backend/pkg/itinerary"
 	"Backend/pkg/models"
+	"Backend/pkg/store"
 	"Backend/pkg/travel"
 	"os"
 	"strconv"
@@ -412,7 +413,7 @@ var catalogs = map[string]string{"activities": "atlanta", "demo_activities": "sa
 func NormalizeCatalog(name string) (string, bool) {
 	name = strings.ToLower(strings.TrimSpace(name))
 	if name == "" {
-		return "activities", true
+		return store.ActivityCollection, true
 	}
 	_, ok := catalogs[name]
 	return name, ok

@@ -419,7 +419,7 @@ All copy below is final. Keep it word for word, including sentence case and the 
     - Tapping it shows "Finding more…" / "Checking what fits your window", then appends 2 options and selects the first new one.
     - When there are none left: "No more right now" / "Try changing filters in More options" (grey icon).
     - The summary count updates. API: `POST /plans/generate/more`.
-- Above the route: "Drag ☰ to reorder · hold a stop to swap" (with the two-line glyph) on the left, and a status on the right: "Recalculating transit…" (grey), then "Transit times updated" (green). While a status shows, the hint shortens to "Drag ☰ to reorder".
+- Above the route: "Drag ☰ to reorder · tap a stop for more" (tapping a stop opens its details pane: timing, map, description, price, links, and Swap / Remove; press and hold still offers Swap / Remove) (with the two-line glyph) on the left, and a status on the right: "Recalculating transit…" (grey), then "Transit times updated" (green). While a status shows, the hint shortens to "Drag ☰ to reorder".
 - **Route card** (white, radius 16). Vertical rail on the left (2pt `lineStrong` line):
   - **A** point row: the diamond marker, start place, "Leave 2:10 PM".
   - Leg rows: hollow 8pt blue ring, "MARTA · 14 min" (13 Medium, transit blue).

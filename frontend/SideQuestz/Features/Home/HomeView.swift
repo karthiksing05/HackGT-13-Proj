@@ -6,7 +6,7 @@ import SwiftUI
 /// Event sheet; a past event opens the Rate sheet. Pull down to reload. Changes from the server
 /// apply as they arrive: plans updated or removed, stops running late, join requests, bookings.
 /// Demo routes: `home`, `home/calendar`, `home/past`, `home/sheet/<blockId>`, `home/rate/<pastId>`,
-/// `home/checkout/<blockId>`, `home/edit/<id>`, `home/search/<query>`.
+/// `home/checkout/<blockId>`, `home/edit/<id>`, `home/map/<id>`, `home/search/<query>`.
 struct HomeView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
@@ -17,6 +17,8 @@ struct HomeView: View {
     @FocusState private var searchFocused: Bool
     @State private var pageWidth: CGFloat = Metrics.designWidth
     @State private var ratingsSaved = 0
+    /// Bumped to scroll the selected sidequest's page into view (`home/map/<id>`).
+    @State private var sidequestReveals = 0
 
     // Sheets use the `isPresented` form of `sqSheet`, with the block / event read through a
     // binding inside the sheet, so the content is always the current one.
@@ -71,6 +73,9 @@ struct HomeView: View {
             .scrollIndicators(.hidden)
             .scrollDismissesKeyboard(.immediately)
             .sqPullToRefresh()
+            .onChange(of: sidequestReveals) {
+                withMotion(Motion.gentle) { proxy.scrollTo(HomeItinerariesView.timelineHeaderId, anchor: .top) }
+            }
             // Snapped to the half point: the width feeds the carousel's card widths, and a measurement
             // that creeps by a rounding error must not trigger another layout pass (an endless loop).
             .onGeometryChange(for: CGFloat.self, of: { ($0.size.width * 2).rounded() / 2 }, action: { pageWidth = $0 })
@@ -366,6 +371,14 @@ struct HomeView: View {
             openBlock(id: id, checkout: parts.first == "checkout")
         case "edit":
             store.editRequest = id ?? ""
+        case "map":
+            // `home/map/<itinerary id>`: that sidequest (else the first) on its map, scrolled into
+            // view once the carousel is on screen (it ignores a page set before it's laid out).
+            guard let list = store.itineraries.value, let itinerary = list.first(where: { $0.id == id }) ?? list.first else { break }
+            store.setShowsMap(true, for: itinerary.id)
+            try? await Task.sleep(for: .milliseconds(400))
+            withMotion(Motion.gentle) { store.selectedItineraryId = itinerary.id }
+            sidequestReveals += 1
         case "rate":
             await store.loadPast(env)
             router.homeSegment = .past

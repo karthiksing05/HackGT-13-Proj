@@ -55,6 +55,19 @@ struct CreateSwapTarget: Identifiable, Equatable {
     var id: String { "\(optionId)/\(stop.id)" }
 }
 
+/// Review › tap a stop: the stop whose details pane is open.
+struct CreateStopDetailTarget: Identifiable, Equatable {
+    let optionId: String
+    let stop: PlanStop
+    var id: String { "\(optionId)/\(stop.id)" }
+}
+
+/// What the details pane asked for; it happens once the pane has closed.
+enum CreateStopDetailAction: Equatable {
+    case swap(CreateStopDetailTarget)
+    case remove(CreateStopDetailTarget)
+}
+
 /// A stop just removed on Review, and where it was, so "Undo" can put it back.
 struct CreateStopRemoval: Equatable {
     let optionId: String
@@ -119,6 +132,10 @@ final class CreateFlowModel {
     var swapTarget: CreateSwapTarget?
     /// `create/4/swap`: open the swap sheet for the second stop once the first options load.
     @ObservationIgnored var openSwapAfterLoad = false
+    /// Review › tap a stop: the details pane is open for this stop.
+    var stopDetail: CreateStopDetailTarget?
+    /// `create/4/stop`: open the details pane for the first stop once the first options load.
+    @ObservationIgnored var openStopDetailAfterLoad = false
 
     // MARK: Where
 
@@ -229,6 +246,14 @@ final class CreateFlowModel {
     private(set) var swappedStopId: String?
     /// The last stop removed on Review ("Removed … · Undo").
     private(set) var lastRemoval: CreateStopRemoval?
+    /// What the catalog says about the details pane's stop (`GET /activities/{id}`); a failure is
+    /// `stopDetailUnavailable`.
+    private(set) var stopDetailInfo: Loadable<ActivityDetail> = .loading
+    @ObservationIgnored private var stopDetailGeneration = 0
+    /// Details already loaded in this flow, by activity and day: reopening a stop shows them at once.
+    @ObservationIgnored private var activityDetails: [String: ActivityDetail] = [:]
+    /// Swap or Remove, picked in the details pane: done once the pane has closed.
+    @ObservationIgnored private var afterStopDetail: CreateStopDetailAction?
     private(set) var transitStatus: CreateTransitStatus = .idle
     /// The stop being dragged on the route card (disables page scrolling).
     private(set) var draggingStopId: String?
@@ -550,22 +575,45 @@ final class CreateFlowModel {
     /// `GET /activities/search` for `mustSeeSearch` (an empty query brings suggestions). The first
     /// search shows a skeleton; later ones keep the results on screen until theirs arrive. A search
     /// that a newer one replaced (the next keystroke cancels it) never lands.
+    ///
+    /// Results land as soon as they arrive, but a failure keeps the skeleton up for at least
+    /// `mustSeeMinimumSkeleton` first, so a quick error doesn't flash past it.
     func searchMustSee() async {
         let search = mustSeeSearch
         if search == mustSeeResultsSearch, mustSeeResults.value != nil { return }
         mustSeeGeneration += 1
         let generation = mustSeeGeneration
-        if mustSeeResults.value != nil { searchingMustSee = true } else { mustSeeResults = .loading }
+        let showsSkeleton = mustSeeResults.value == nil
+        if showsSkeleton { mustSeeResults = .loading } else { searchingMustSee = true }
         defer { if generation == mustSeeGeneration { searchingMustSee = false } }
+        let started = ContinuousClock.now
         let day = date
-        let result: Loadable<[ActivityHit]> = await .run {
+        let result: Loadable<[ActivityHit]>
+        do {
             let hits = try await env.api.searchActivities(q: search.query, near: search.near, date: day, limit: Self.mustSeeLimit)
             var seen = Set<String>()
-            return hits.filter { seen.insert($0.id).inserted }
+            result = .loaded(hits.filter { seen.insert($0.id).inserted })
+        } catch {
+            result = .failed(Self.mustSeeFailureMessage(error))
         }
         guard generation == mustSeeGeneration, !Task.isCancelled else { return }
+        if showsSkeleton, result.value == nil {
+            try? await Task.sleep(until: started + Self.mustSeeMinimumSkeleton, clock: .continuous)
+            guard generation == mustSeeGeneration, !Task.isCancelled else { return }
+        }
         mustSeeResults = result
         mustSeeResultsSearch = result.value == nil ? nil : search
+    }
+
+    /// The shortest time the first-load skeleton shows before a failure replaces it.
+    static let mustSeeMinimumSkeleton: Duration = .milliseconds(300)
+
+    /// What the Must-see section says when a search fails. A 404 means the server has no search
+    /// yet, not that nothing matched, so it says so; other errors keep their own sentence
+    /// ("You're offline…").
+    static func mustSeeFailureMessage(_ error: any Error) -> String {
+        if let error = error as? APIError, error == .notFound { return "Search isn't available right now." }
+        return (error as? LocalizedError)?.errorDescription ?? "Something went wrong."
     }
 
     func isMustSee(_ id: String) -> Bool { mustSee.contains { $0.id == id } }
@@ -631,6 +679,8 @@ final class CreateFlowModel {
         swappedStopId = nil
         lastRemoval = nil
         swapTarget = nil
+        stopDetail = nil
+        afterStopDetail = nil
         cursor = nil
         noMoreOptions = false
         loadingMore = false
@@ -653,6 +703,10 @@ final class CreateFlowModel {
             if openSwapAfterLoad, let option = selectedOption, orderedStops(option).count > 1 {
                 openSwapAfterLoad = false
                 openSwap(orderedStops(option)[1].id, in: option.id)
+            }
+            if openStopDetailAfterLoad, let option = selectedOption, let first = orderedStops(option).first {
+                openStopDetailAfterLoad = false
+                openStopDetail(first.id, in: option.id)
             }
         } catch {
             guard generation == generateGeneration else { return }
@@ -768,6 +822,88 @@ final class CreateFlowModel {
     /// The Undo row timed out (or was dismissed).
     func dismissRemoval(_ removal: CreateStopRemoval) {
         if lastRemoval == removal { lastRemoval = nil }
+    }
+
+    // MARK: - Review: stop details
+
+    /// The pane's line when the details can't be had (an error, or a server without the endpoint).
+    static let stopDetailUnavailable = "More details aren't available right now."
+
+    /// Review › tap a stop: opens its details pane, with details this flow already loaded at once.
+    func openStopDetail(_ stopId: String, in optionId: String) {
+        guard let option = optionList.first(where: { $0.id == optionId }),
+              let stop = option.stops.first(where: { $0.id == stopId }) else { return }
+        afterStopDetail = nil
+        stopDetailGeneration += 1
+        stopDetailInfo = stop.activityId.flatMap { activityDetails[detailKey($0)] }.map { .loaded($0) } ?? .loading
+        stopDetail = CreateStopDetailTarget(optionId: optionId, stop: stop)
+    }
+
+    /// Loads the open pane's details (`GET /activities/{id}` on the plan's day), and "Try again".
+    /// Every failure reads the same, a 404 from a server without the endpoint included; a stop
+    /// without an activity has nothing to load.
+    func loadStopDetail() async {
+        guard let target = stopDetail else { return }
+        guard let activityId = target.stop.activityId else {
+            stopDetailInfo = .failed(Self.stopDetailUnavailable)
+            return
+        }
+        let key = detailKey(activityId)
+        if let known = activityDetails[key] {
+            stopDetailInfo = .loaded(known)
+            return
+        }
+        stopDetailGeneration += 1
+        let generation = stopDetailGeneration
+        stopDetailInfo = .loading
+        let result: Loadable<ActivityDetail>
+        do {
+            result = .loaded(try await env.api.activity(id: activityId, date: date))
+        } catch {
+            result = .failed(Self.stopDetailUnavailable)
+        }
+        // Closed, or another stop's pane opened, while this loaded.
+        guard generation == stopDetailGeneration, stopDetail == target else { return }
+        if let detail = result.value { activityDetails[key] = detail }
+        stopDetailInfo = result
+    }
+
+    /// Details depend on the day (its opening hours).
+    private func detailKey(_ activityId: String) -> String { "\(activityId)@\(env.clock.dayKey(date))" }
+
+    /// When the stop happens: the route on screen's times, else the planner's arrive and depart.
+    func visitTimes(of stop: PlanStop, in optionId: String) -> DateInterval? {
+        if let slot = timeSlot(of: stop.id, in: optionId) { return slot }
+        guard let arrive = stop.arriveTime else { return nil }
+        let leave = stop.departTime ?? env.clock.addingMinutes(stop.durationMinutes, to: arrive)
+        return DateInterval(start: arrive, end: max(arrive, leave))
+    }
+
+    /// The route on screen reaches this stop's fixed start too late (`RouteResult.brokenAt`).
+    func isLate(_ stopId: String, in optionId: String) -> Bool {
+        guard let state = routes[optionId], !state.isStale, let brokenAt = state.result?.brokenAt, brokenAt >= 0 else { return false }
+        return state.order.firstIndex(of: stopId) == brokenAt
+    }
+
+    /// The pane's "Swap for something similar": the pane closes, then the swap sheet opens for this stop.
+    func swapFromStopDetail() {
+        guard let target = stopDetail else { return }
+        afterStopDetail = .swap(target)
+        stopDetail = nil
+    }
+
+    /// The pane's "Remove stop": the pane closes, then the stop goes as from the menu (with Undo).
+    /// The last stop stays: a plan keeps at least one.
+    func removeFromStopDetail() {
+        guard let target = stopDetail, canRemoveStop(in: target.optionId) else { return }
+        afterStopDetail = .remove(target)
+        stopDetail = nil
+    }
+
+    /// The pane has closed: what it asked for, if anything, to do now.
+    func takeStopDetailAction() -> CreateStopDetailAction? {
+        defer { afterStopDetail = nil }
+        return afterStopDetail
     }
 
     // MARK: - Review: reorder + route

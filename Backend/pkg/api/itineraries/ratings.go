@@ -126,7 +126,7 @@ func (h *H) starTargets(ctx context.Context, user *models.User, it *models.Itine
 	target := float64(stars-1) / 4
 	out := map[string]float64{}
 	if item.ActivityID != "" {
-		act, err := h.d.Store.Catalog().Activity(ctx, user.Catalog, item.ActivityID)
+		act, err := h.d.Store.Catalog().Activity(ctx, store.ActivityCollection, item.ActivityID)
 		switch {
 		case err == nil:
 			for _, key := range tasteKeys(act) {

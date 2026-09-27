@@ -1,0 +1,28 @@
+{
+  "address": "675 Ponce De Leon Ave NE, Atlanta, GA 30308",
+  "category": "games",
+  "category_label": "Games + views",
+  "description": "Take the freight elevator to the top of Ponce City Market for nine holes of mini golf, skee-ball and boardwalk-style games, with the Midtown and downtown skylines on every side. Games are paid by the round; walking around the roof is free. It gets busy after 5 on Fridays, so an afternoon visit means shorter lines.",
+  "hours_line": "Open 11 AM–10 PM",
+  "id": "act-skyline-park-rooftop",
+  "kind": "place",
+  "place": {
+    "coordinate": {
+      "lat": 33.7727,
+      "lng": -84.3653
+    },
+    "name": "Skyline Park rooftop"
+  },
+  "price_label": "$",
+  "rating": 4.5,
+  "rating_count": 2318,
+  "summary": "Mini golf, carnival games and skyline views on the roof of Ponce City Market.",
+  "tags": [
+    "games",
+    "arcade",
+    "mini golf"
+  ],
+  "ticket_url": "https://events.sidequestz.tech/skyline-park-rooftop/tickets",
+  "title": "Skyline Park rooftop",
+  "url": "https://poncecitymarket.com"
+}

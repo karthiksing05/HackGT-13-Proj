@@ -119,10 +119,10 @@ func (s *Service) Alternatives(ctx context.Context, user *models.User, req contr
 }
 
 // ResolveStop tells POST /itineraries what the planner knows about a stop
-// id it generated: from the newest live pool that holds it, else from the
-// catalog activity the id names. An unknown id is store.ErrNotFound.
-func (s *Service) ResolveStop(ctx context.Context, stopID string) (*api.StopDetail, error) {
-	d, err := s.P.ResolveStopByID(ctx, stopID)
+// id it generated: from the caller's option, else from the activity in
+// the globally selected activity collection. An unknown id is store.ErrNotFound.
+func (s *Service) ResolveStop(ctx context.Context, user *models.User, optionID, stopID string) (*api.StopDetail, error) {
+	d, err := s.P.ResolveStop(ctx, user.ID.Hex(), store.ActivityCollection, optionID, stopID)
 	var unknown *UnknownStopError
 	if errors.As(err, &unknown) {
 		return nil, fmt.Errorf("%w: %v", store.ErrNotFound, err)
@@ -185,14 +185,17 @@ func userID(u *models.User) string {
 // legacy `embedding` field is never read.
 func UserFromModel(u *models.User, now time.Time) *UserContext {
 	if u == nil {
-		return &UserContext{AgeBracket: string(contract.AgeAdult)}
+		return &UserContext{Catalog: store.ActivityCollection, AgeBracket: string(contract.AgeAdult)}
 	}
 	uc := &UserContext{
-		ID: u.ID.Hex(), Catalog: u.Catalog, City: u.City,
+		ID: u.ID.Hex(), Catalog: store.ActivityCollection, City: u.City,
 		AgeBracket:        string(view.AgeBracket(u.BirthDate, now)),
 		Prefs:             UserPrefs{Pace: u.Prefs.Pace, Flexible: u.Prefs.Flexible(), PreferFree: u.Prefs.PreferFree, AvoidTags: u.Taste.AvoidTags},
 		PositiveEmbedding: u.PositiveEmbedding, NegativeEmbedding: u.NegativeEmbedding,
 		PositiveText: u.PositiveText, NegativeText: u.NegativeText,
+	}
+	if uc.Catalog == store.CollDemoActivities {
+		uc.City = DefaultCityForCatalog(uc.Catalog)
 	}
 	if hb := u.HomeBase; hb != nil {
 		uc.HomeBase = &Place{Name: hb.Name, Lat: hb.Lat, Lng: hb.Lng, HasCoord: validCoord(hb.Lat, hb.Lng)}

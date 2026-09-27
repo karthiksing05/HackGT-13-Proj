@@ -36,7 +36,7 @@ func (h *H) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	doc, err := h.materialize(ctx, user.ID.Hex(), req, httpx.TZ(r))
+	doc, err := h.materialize(ctx, user, req, httpx.TZ(r))
 	if err != nil {
 		api.Fail(w, r, err)
 		return
@@ -63,7 +63,8 @@ func (h *H) Create(w http.ResponseWriter, r *http.Request) {
 // the stop at its route time. The planner, when wired, adds what it knows
 // about each stop (activity, price, website, bookable); otherwise the
 // option's own data stands.
-func (h *H) materialize(ctx context.Context, hostID string, req contract.CreateItineraryRequest, tz *time.Location) (*models.Itinerary, error) {
+func (h *H) materialize(ctx context.Context, user *models.User, req contract.CreateItineraryRequest, tz *time.Location) (*models.Itinerary, error) {
+	hostID := user.ID.Hex()
 	plan := req.Plan
 	if !req.Visibility.Valid() || !plan.Range.Valid() || !plan.Ride.Valid() || !plan.Who.Valid() || !plan.Pace.Valid() ||
 		!plan.Modes.Valid() || plan.Budget < 0 || plan.Budget > 3 {
@@ -107,7 +108,7 @@ func (h *H) materialize(ctx context.Context, hostID string, req contract.CreateI
 		}
 	}
 
-	details := h.resolveStops(ctx, stops)
+	details := h.resolveStops(ctx, user, req.Option.ID, stops)
 	places := make([]string, 0, len(stops)+1)
 	for _, s := range stops {
 		places = append(places, s.Place.Name)
@@ -180,13 +181,13 @@ func (h *H) materialize(ctx context.Context, hostID string, req contract.CreateI
 // resolveStops asks the planner (when wired) what it knows about each
 // stop. A stop it cannot resolve (an error, e.g. wrapping ErrNotFound) keeps
 // the option's own data; the save never fails because of it.
-func (h *H) resolveStops(ctx context.Context, stops []contract.PlanStop) []*api.StopDetail {
+func (h *H) resolveStops(ctx context.Context, user *models.User, optionID string, stops []contract.PlanStop) []*api.StopDetail {
 	out := make([]*api.StopDetail, len(stops))
 	if h.d.Planner == nil {
 		return out
 	}
 	for i, s := range stops {
-		detail, err := h.d.Planner.ResolveStop(ctx, s.ID)
+		detail, err := h.d.Planner.ResolveStop(ctx, user, optionID, s.ID)
 		if err != nil {
 			log.Info().Err(err).Str("stop", s.ID).Msg("stop not resolved; saving the option's own data")
 			continue

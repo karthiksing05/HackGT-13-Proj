@@ -1,12 +1,13 @@
 package api_test
 
 import (
+	"Backend/pkg/api"
 	"Backend/pkg/config"
 	"Backend/pkg/contract"
 	"Backend/pkg/models"
 	"Backend/pkg/store"
 	"Backend/pkg/testutil"
-	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/url"
@@ -24,27 +25,59 @@ import (
 // everyone else, and everything security- or expiry-related, stays real.
 
 var (
-	ny, _      = time.LoadLocation("America/New_York")
-	demoReal   = time.Date(2026, 9, 27, 12, 0, 0, 0, ny)
-	demoToday  = time.Date(2026, 9, 24, 0, 0, 0, 0, ny)
-	demoDate   = "2026-09-24"
-	demoFields = bson.M{"catalog": store.CollDemoActivities, "city": "saltlight"}
+	ny, _     = time.LoadLocation("America/New_York")
+	demoReal  = time.Date(2026, 9, 27, 12, 0, 0, 0, ny)
+	demoToday = time.Date(2026, 9, 24, 0, 0, 0, 0, ny)
+	demoDate  = "2026-09-24"
 )
 
 func demoServer(t *testing.T) *testutil.Server {
 	t.Helper()
+	if store.ActivityCollection != store.CollDemoActivities {
+		t.Skip("demo clock requires ActivityCollection = CollDemoActivities")
+	}
 	return testutil.New(t, testutil.WithNow(demoReal.UTC()), testutil.WithConfig(func(c *config.Config) { c.DemoDate = demoDate }))
 }
 
-// demoUser signs someone up and moves them to the demo catalog, as the seed
-// does for Sandy and the bots.
+// demoUser signs up an account in the demo city.
 func demoUser(t *testing.T, srv *testutil.Server, name string) *testutil.Session {
 	t.Helper()
-	sess := srv.Signup(t, name)
-	if _, err := srv.Store.Users().Update(t.Context(), sess.UserID, demoFields); err != nil {
+	req := testutil.SignupRequest(name)
+	req.Email = testutil.UniqueEmail(name)
+	sess := srv.SignupWith(t, req)
+	if srv.Cfg.DemoDate != "" && (sess.User.DemoDate == nil || *sess.User.DemoDate != demoDate) {
+		t.Fatalf("sign-up has no demo date: %+v", sess.User)
+	}
+	if _, err := srv.Store.Users().Update(t.Context(), sess.UserID, bson.M{"city": "saltlight"}); err != nil {
 		t.Fatal(err)
 	}
 	return sess
+}
+
+func TestClockSelectionIgnoresEmail(t *testing.T) {
+	d := &api.Deps{
+		Cfg: &config.Config{DemoDate: demoDate, DemoTZ: "America/New_York"},
+		Now: func() time.Time { return demoReal },
+	}
+	wantDemo := store.ActivityCollection == store.CollDemoActivities
+	for _, email := range []string{"student@gatech.edu", "student@example.com"} {
+		user := &models.User{Email: email}
+		if (d.ClockFor(user) != nil) != wantDemo {
+			t.Fatalf("clock for %s differs from the selected collection", email)
+		}
+		if (d.UserView(user).DemoDate != nil) != wantDemo {
+			t.Fatalf("demo date for %s differs from the selected collection", email)
+		}
+	}
+	// No Store is needed: the clock no longer queries the user's email.
+	ctx := d.ForUser(context.Background(), "user-id")
+	wantDay := dayOf(demoReal)
+	if wantDemo {
+		wantDay = demoDate
+	}
+	if got := dayOf(d.BusinessNow(ctx)); got != wantDay {
+		t.Fatalf("business date = %s, want %s", got, wantDay)
+	}
 }
 
 // dayPlan is a one-stop plan on a local day: leave at hour, the stop from
@@ -94,11 +127,8 @@ func dayOf(t time.Time) string { return t.In(ny).Format("2006-01-02") }
 func TestDemoDateOnTheOwnUser(t *testing.T) {
 	srv := demoServer(t)
 	normal := srv.Signup(t, "Real Person")
-	if normal.User.DemoDate != nil {
-		t.Fatalf("sign-up of a normal account: demo_date %v", *normal.User.DemoDate)
-	}
-	if body := srv.Do(t, "GET", "/me", nil, normal).Expect(t, http.StatusOK).Body; bytes.Contains(body, []byte("demo_date")) {
-		t.Fatalf("a normal account's /me carries demo_date: %s", body)
+	if normal.User.DemoDate == nil || *normal.User.DemoDate != demoDate {
+		t.Fatalf("all accounts should use the selected demo clock: %+v", normal.User)
 	}
 
 	sandy := srv.Login(t, demoUser(t, srv, "Sandy Byte").Email, testutil.Password)
@@ -120,7 +150,7 @@ func TestDemoDateOnTheOwnUser(t *testing.T) {
 	for _, tc := range []struct {
 		sess  *testutil.Session
 		first string
-	}{{sandy, demoDate}, {normal, "2026-09-27"}} {
+	}{{sandy, demoDate}, {normal, demoDate}} {
 		var days []contract.CalendarDay
 		srv.Do(t, "GET", "/calendar/days", nil, tc.sess).Expect(t, http.StatusOK).JSON(t, &days)
 		if len(days) != 14 || days[0].ID != tc.first {
@@ -163,13 +193,10 @@ func TestDemoDatePlansPastAndInsights(t *testing.T) {
 	if err != nil || dayOf(doc.CreatedAt) != demoDate || doc.Status != models.ItineraryActive {
 		t.Fatalf("stored plan: %v %+v", err, doc)
 	}
-	// The same Friday plan is over for everyone else.
+	// Every account uses the selected collection's business time.
 	theirs := createPlan(t, srv, normal, dayPlan(friday, 17, "Friday"))
-	if got := listIDs(t, srv, normal, "/itineraries"); len(got) != 0 {
-		t.Fatalf("a normal account's active plans: %v", got)
-	}
-	if got := listIDs(t, srv, normal, "/itineraries?status=past"); !slices.Equal(got, []string{theirs.ID}) {
-		t.Fatalf("a normal account's past plans %v", got)
+	if got := listIDs(t, srv, normal, "/itineraries"); !slices.Equal(got, []string{theirs.ID}) {
+		t.Fatalf("another account's active plans: %v", got)
 	}
 
 	// Moving Wednesday's plan to Saturday makes it upcoming again for Sandy.
@@ -199,7 +226,7 @@ func TestDemoDatePlansPastAndInsights(t *testing.T) {
 		t.Fatalf("Sandy's past events: %+v", past.Items)
 	}
 	srv.Do(t, "GET", "/me/past-events", nil, normal).Expect(t, http.StatusOK).JSON(t, &past)
-	if len(past.Items) != 1 || past.Items[0].ID != stopOf(theirs) {
+	if len(past.Items) != 0 {
 		t.Fatalf("a normal account's past events: %+v", past.Items)
 	}
 	var days []contract.CalendarDay

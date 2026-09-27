@@ -25,6 +25,9 @@ final class HomeStore {
     var planSelection: HomePlanSelection?
     /// Demo deep link `home/edit/<id>`: asks the Sidequests view to open the editor ("" = the first).
     var editRequest: String?
+    /// Sidequests showing their map instead of their timeline (Timeline | Map), by id. Timeline is
+    /// the default; a sidequest that leaves Home takes its choice with it.
+    private(set) var mapShown: Set<String> = []
 
     /// A plan just made in Create is on its way: the itineraries stay on screen, dimmed, until it
     /// arrives.
@@ -57,6 +60,10 @@ final class HomeStore {
             itineraries = Self.merge(result, into: itineraries)
             if let list = itineraries.value, let id = selectedItineraryId, !list.contains(where: { $0.id == id }) {
                 selectedItineraryId = nil
+            }
+            if let list = itineraries.value {
+                let ids = Set(list.map(\.id))
+                if !mapShown.isSubset(of: ids) { mapShown.formIntersection(ids) }
             }
         }
     }
@@ -165,6 +172,23 @@ final class HomeStore {
         cardHighlights[itinerary.id] = HomeCardHighlight(token: token, delay: 0.25)
     }
 
+    // MARK: Timeline or map
+
+    /// This sidequest shows its map (Home › Sidequests › Timeline | Map).
+    func showsMap(_ id: String) -> Bool {
+        mapShown.contains(id)
+    }
+
+    /// Switches one sidequest between its timeline and its map; the others keep theirs.
+    func setShowsMap(_ shows: Bool, for id: String) {
+        guard shows != mapShown.contains(id) else { return }
+        if shows {
+            mapShown.insert(id)
+        } else {
+            mapShown.remove(id)
+        }
+    }
+
     // MARK: Editing sidequests
 
     /// The server's copy after an edit (re-timed if the window or stops changed) replaces the old one
@@ -186,6 +210,7 @@ final class HomeStore {
             if selectedItineraryId == id {
                 selectedItineraryId = list.isEmpty ? nil : list[min(index, list.count - 1)].id
             }
+            mapShown.remove(id)
         }
         return (removed, index)
     }

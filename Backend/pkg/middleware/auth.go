@@ -1,5 +1,4 @@
-// Package middleware holds bearer authentication, CORS and the response
-// helpers kept for compatibility (they delegate to httpx).
+// Package middleware holds bearer authentication and CORS.
 package middleware
 
 import (

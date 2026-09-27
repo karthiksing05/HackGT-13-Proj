@@ -178,7 +178,7 @@ func TestSeedDemo(t *testing.T) {
 		t.Fatalf("GET /me: %+v", me)
 	}
 	user := findDoc[models.User](t, st, store.CollUsers, bson.M{"_id": sandy.id})
-	if user.Catalog != "demo_activities" || !user.HasRole("demo") || !reflect.DeepEqual(user.Prefs, sandyPrefs) || !user.Prefs.IsSet() {
+	if !user.HasRole("demo") || !reflect.DeepEqual(user.Prefs, sandyPrefs) || !user.Prefs.IsSet() {
 		t.Fatalf("Sandy's document: %+v", user)
 	}
 	if user.Prefs.Answers["never_do"] != "Packed clubs, huge crowds, or anything that only gets going after midnight." || user.Prefs.Ratings["big_crowds"] != 1 {
@@ -186,7 +186,7 @@ func TestSeedDemo(t *testing.T) {
 	}
 	for _, bot := range []seedPerson{marin, theo} {
 		doc := findDoc[models.User](t, st, store.CollUsers, bson.M{"_id": bot.id})
-		if !doc.HasRole("bot") || doc.Catalog != "demo_activities" || doc.City != "saltlight" || doc.PasswordHash == "" {
+		if !doc.HasRole("bot") || doc.City != "saltlight" || doc.PasswordHash == "" {
 			t.Fatalf("bot %s: %+v", bot.name, doc)
 		}
 		if ok, _ := util.VerifyPassword(demoPassword, doc.PasswordHash); ok {

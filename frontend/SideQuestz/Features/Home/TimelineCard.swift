@@ -50,6 +50,8 @@ struct HomeTimelineCard: View {
     var arrives = false
     let open: (ItineraryItem) -> Void
     @Environment(AppEnvironment.self) private var env
+    /// The blocks' Dynamic Type scale (their text is relative to `.body`).
+    @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
 
     var body: some View {
         let layout = HomeTimelineLayout(itinerary: itinerary, clock: env.clock)
@@ -59,13 +61,16 @@ struct HomeTimelineCard: View {
                     .offset(y: layout.y(hour: hour) - 7)
             }
             ForEach(Array(itinerary.items.enumerated()), id: \.element.id) { index, item in
+                let height = layout.blockHeight(item)
                 HomeTimelineBlock(item: item, time: env.format.range(item.start, item.end),
-                                  height: layout.blockHeight(item), lateMinutes: late[item.id]) { open(item) }
+                                  height: height, lateMinutes: late[item.id]) { open(item) }
                     .padding(.leading, 62)
                     .padding(.trailing, 12)
                     .homeArrival(index + 2, enabled: arrives)
                     .sqTransition(.rise)
                     .offset(y: layout.y(item.start))
+                    // A slim bar's label capsule overlaps the blocks next to it: keep it on top.
+                    .zIndex(HomeTimelineBlock.labelStyle(height: height, textScale: textScale) == .capsule ? 1 : 0)
             }
             if env.clock.isToday(itinerary.date), layout.contains(env.clock.now) {
                 nowLine
@@ -111,9 +116,15 @@ struct HomeTimelineCard: View {
     }
 }
 
-/// A block on an itinerary timeline. Tall blocks (≥ 50pt) show the title + "2:30–4:00 PM · Sidequest";
-/// short ones one truncated line "Title · 2:00–2:25 PM". Group blocks ≥ 80pt add faces + counts.
-/// A block running late adds a small "8 min late" chip after its time.
+/// A block on an itinerary timeline. Its label never gets cut through; how it fits depends on the
+/// block's height (`labelStyle(height:textScale:)`):
+/// - 50pt and taller: the title, then "2:30–4:00 PM · Sidequest"; group blocks from 80pt add faces
+///   + counts. A title that would push those out of the block ends in "…".
+/// - 22–50pt: one line "Title · 2:00–2:25 PM", 12pt, centered in the block, "…" when too wide.
+/// - 16–22pt: the same line at 11pt.
+/// - Under 16pt: the block is a slim bar with no text inside; its label sits in a small capsule
+///   over the bar's leading end, above the blocks next to it, and opens the block too.
+/// A block running late adds a small "8 min late" chip after its time (in the capsule for a bar).
 struct HomeTimelineBlock: View {
     let item: ItineraryItem
     let time: String
@@ -121,45 +132,89 @@ struct HomeTimelineBlock: View {
     var lateMinutes: Int? = nil
     let action: () -> Void
 
+    /// How a block's label fits its height.
+    enum LabelStyle: Equatable {
+        /// Title, then "time · kind" (and faces on tall group blocks).
+        case twoLines
+        /// "Title · time" on one centered line, at this point size.
+        case oneLine(CGFloat)
+        /// A slim bar with its label in a capsule on top.
+        case capsule
+    }
+
+    /// The label style for a block this tall. The thresholds are for the default text size; larger
+    /// Dynamic Type sizes (`textScale` > 1) raise them in step, so a line never outgrows its block.
+    static func labelStyle(height: CGFloat, textScale: CGFloat = 1) -> LabelStyle {
+        let scale = max(1, textScale)
+        if height >= 50 * scale { return .twoLines }
+        if height >= 22 * scale { return .oneLine(12) }
+        if height >= 16 * scale { return .oneLine(11) }
+        return .capsule
+    }
+
+    /// How many lines a two-line block's title may take and still leave room for the time line
+    /// (and the faces): at least one, "…" past that. Lines are 17.5pt (title) and 16.2pt (time) at
+    /// the default size, the faces row 28pt, inside 5pt padding.
+    static func titleLineLimit(height: CGFloat, textScale: CGFloat = 1, showsPeople: Bool = false) -> Int {
+        let scale = max(1, textScale)
+        let people = showsPeople ? 6 + max(22, 13.2 * scale) : 0
+        let room = height - 10 - 16.2 * scale - people
+        return max(1, Int((room / (17.5 * scale)).rounded(.down)))
+    }
+
+    @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
+
     private var palette: BlockPalette { item.kind.palette }
-    private var isTall: Bool { height >= 50 }
-    private var showsPeople: Bool { item.kind == .group && item.hasPeople && height >= 80 }
+    private var style: LabelStyle { Self.labelStyle(height: height, textScale: textScale) }
+    private var showsPeople: Bool { item.kind == .group && item.hasPeople && height >= 80 * max(1, textScale) }
+    private var border: StrokeStyle { StrokeStyle(lineWidth: 1, dash: palette.dashed ? [3, 3] : []) }
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        let style = self.style
         Button(action: action) {
+            label(style)
+                .foregroundStyle(palette.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: height, alignment: style == .twoLines ? .top : .center)
+                .background(palette.background, in: shape)
+                .clipShape(shape)
+                .overlay { shape.strokeBorder(palette.border, style: border) }
+                .contentShape(shape)
+        }
+        .buttonStyle(.sqPressable)
+        .overlay(alignment: .leading) {
+            if style == .capsule {
+                // Its own button (same action) so all of it takes taps, also where it overhangs the bar.
+                Button(action: action) { capsule }
+                    .buttonStyle(.sqPressable)
+                    .padding(.horizontal, 8)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityHint("Opens details")
+        .accessibilityAddTraits(.isButton)
+    }
+
+    @ViewBuilder private func label(_ style: LabelStyle) -> some View {
+        switch style {
+        case .twoLines:
             VStack(alignment: .leading, spacing: 0) {
-                if isTall {
-                    Text(item.title)
-                        .sqFont(14, .semibold)
-                        .homeLine(14, 1.25)
-                        .fixedSize(horizontal: false, vertical: true)
-                    HStack(spacing: 6) {
-                        Text("\(time) · \(palette.label)")
-                            .sqFont(12)
-                            .homeLine(12)
-                            .opacity(0.85)
-                            .lineLimit(1)
-                        if let lateMinutes {
-                            HomeLateChip(minutes: lateMinutes)
-                                .sqTransition(.pop)
-                        }
-                    }
-                } else {
-                    // The prototype's one-line label shrinks to the block and clips (overflow: hidden).
-                    let lineHeight = max(0, min(12 * 1.35, height - 10))
-                    HStack(alignment: .top, spacing: 6) {
-                        Text("\(item.title) · \(time)")
-                            .sqFont(12, .semibold)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .homeLine(12)
-                            .frame(height: lineHeight, alignment: .top)
-                            .clipped()
-                        if let lateMinutes {
-                            HomeLateChip(minutes: lateMinutes, height: max(12, min(16, lineHeight)))
-                                .sqTransition(.pop)
-                        }
+                Text(item.title)
+                    .sqFont(14, .semibold)
+                    .homeLine(14, 1.25)
+                    .lineLimit(Self.titleLineLimit(height: height, textScale: textScale, showsPeople: showsPeople))
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    Text("\(time) · \(palette.label)")
+                        .sqFont(12)
+                        .homeLine(12)
+                        .opacity(0.85)
+                        .lineLimit(1)
+                    if let lateMinutes {
+                        HomeLateChip(minutes: lateMinutes)
+                            .sqTransition(.pop)
                     }
                 }
                 if showsPeople {
@@ -173,24 +228,50 @@ struct HomeTimelineBlock: View {
                     .padding(.top, 6)
                 }
             }
-            .foregroundStyle(palette.text)
             // 1pt border + the prototype's 4 / 10 padding.
             .padding(.vertical, 5)
             .padding(.horizontal, 11)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .frame(height: height, alignment: .top)
-            .background(palette.background, in: shape)
-            .clipShape(shape)
-            .overlay {
-                shape.strokeBorder(palette.border, style: StrokeStyle(lineWidth: 1, dash: palette.dashed ? [3, 3] : []))
+        case .oneLine(let size):
+            // Centered by the block's frame; the chip keeps 2pt clear of the border.
+            HStack(spacing: 6) {
+                titleAndTime(size)
+                if let lateMinutes {
+                    HomeLateChip(minutes: lateMinutes, height: min(16 * max(1, textScale), height - 4))
+                        .sqTransition(.pop)
+                }
             }
-            .contentShape(shape)
+            .padding(.horizontal, 11)
+        case .capsule:
+            // Just the bar: the label is in `capsule`.
+            Color.clear
         }
-        .buttonStyle(.sqPressable)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText)
-        .accessibilityHint("Opens details")
-        .accessibilityAddTraits(.isButton)
+    }
+
+    /// "Title · 2:00–2:25 PM" on one line, "…" at the end when it doesn't fit.
+    private func titleAndTime(_ size: CGFloat) -> some View {
+        Text("\(item.title) · \(time)")
+            .sqFont(size, .semibold)
+            .lineLimit(1)
+            .truncationMode(.tail)
+    }
+
+    /// The label of a block too short to hold it: 18pt tall in the block's colors, centered on the
+    /// bar 8pt in from its leading end, as wide as the text (up to 8pt short of the trailing end).
+    /// Its border is solid even on a dashed (transit) bar, so the two outlines don't run together.
+    private var capsule: some View {
+        HStack(spacing: 6) {
+            titleAndTime(11)
+            if let lateMinutes {
+                HomeLateChip(minutes: lateMinutes, height: 14 * max(1, textScale))
+                    .sqTransition(.pop)
+            }
+        }
+        .foregroundStyle(palette.text)
+        .padding(.horizontal, 8)
+        .frame(height: 18 * max(1, textScale))
+        .background(palette.background, in: Capsule())
+        .overlay { Capsule().strokeBorder(palette.border, lineWidth: 1) }
+        .contentShape(Capsule())
     }
 
     private var accessibilityText: String {

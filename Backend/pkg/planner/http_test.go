@@ -107,7 +107,7 @@ func seedDemoCatalog(t *testing.T, db *mongo.Database) []models.Activity {
 			t.Fatal(err)
 		}
 	}
-	if _, err := db.Collection("demo_activities").InsertMany(ctx, docs); err != nil {
+	if _, err := db.Collection(store.ActivityCollection).InsertMany(ctx, docs); err != nil {
 		t.Fatal(err)
 	}
 	return acts
@@ -192,7 +192,7 @@ func TestPlanningOverHTTP(t *testing.T) {
 	// them (the app cannot change them yet).
 	sandy := srv.Signup(t, "Sandy Byte")
 	if _, err := srv.Store.Users().Update(ctx, sandy.UserID, bson.M{
-		"catalog": "demo_activities", "city": "saltlight",
+		"email": testutil.UniqueEmail("demo"), "city": "saltlight",
 		"homeBase":          models.HomeBase{Name: seaside.Name, Lat: seaside.Coordinate.Lat, Lng: seaside.Coordinate.Lng},
 		"positiveEmbedding": profile, "positiveText": "Interests:\n- outdoor recreation\n- live music",
 	}); err != nil {
@@ -365,16 +365,20 @@ func TestPlanningOverHTTP(t *testing.T) {
 	}
 
 	// ResolveStop (POST /itineraries' enrichment) on stop ids it returned.
+	user, err := srv.Store.Users().ByID(ctx, sandy.UserID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, id := range []string{best.Stops[0].ID, alts[0].Stop.ID} {
-		d, err := svc.ResolveStop(ctx, id)
+		d, err := svc.ResolveStop(ctx, user, best.ID, id)
 		if err != nil || d.ActivityID == "" || d.DurationMin <= 0 {
 			t.Errorf("resolve %s: %+v %v", id, d, err)
 		}
 	}
-	if d, _ := svc.ResolveStop(ctx, best.Stops[0].ID); d != nil && d.ActivityID != *best.Stops[0].ActivityID {
+	if d, _ := svc.ResolveStop(ctx, user, best.ID, best.Stops[0].ID); d != nil && d.ActivityID != *best.Stops[0].ActivityID {
 		t.Errorf("resolve names %s, the stop says %s", d.ActivityID, *best.Stops[0].ActivityID)
 	}
-	if _, err := svc.ResolveStop(ctx, "stop_ffffffffffffffffffffffff_0"); !errors.Is(err, store.ErrNotFound) {
+	if _, err := svc.ResolveStop(ctx, user, best.ID, "stop_ffffffffffffffffffffffff_0"); !errors.Is(err, store.ErrNotFound) {
 		t.Errorf("unknown stop: %v", err)
 	}
 

@@ -68,11 +68,11 @@ type seedPerson struct {
 }
 
 var (
-	sandy = seedPerson{id: mustObjectID("5eed00000000000000000001"), email: "demo@sidequestz.tech", name: "Sandy Byte",
+	sandy = seedPerson{id: mustObjectID("5eed00000000000000000001"), email: "demo@gatech.edu", name: "Sandy Byte",
 		username: "sandybyte", avatar: "sage", role: "demo"}
-	marin = seedPerson{id: mustObjectID("5eed00000000000000000002"), email: "marin@bots.sidequestz.tech", name: "Marin Okafor",
+	marin = seedPerson{id: mustObjectID("5eed00000000000000000002"), email: "marin@gatech.edu", name: "Marin Okafor",
 		username: "marinokafor", avatar: "clay", role: "bot"}
-	theo = seedPerson{id: mustObjectID("5eed00000000000000000003"), email: "theo@bots.sidequestz.tech", name: "Theo Park",
+	theo = seedPerson{id: mustObjectID("5eed00000000000000000003"), email: "theo@gatech.edu", name: "Theo Park",
 		username: "theopark", avatar: "forest", role: "bot"}
 )
 
@@ -282,10 +282,11 @@ func writeSeedAccount(ctx context.Context, st *store.Store, p seedPerson, acct *
 		"email": p.email, "name": p.name, "nameLower": strings.ToLower(p.name),
 		"username": p.username, "usernameLower": strings.ToLower(p.username),
 		"avatarColor": p.avatar, "status": "open", "setupComplete": true,
-		"catalog": demoCatalog, "city": demoCity, "roles": []string{p.role}, "updatedAt": now,
+		"city": demoCity, "roles": []string{p.role}, "updatedAt": now,
 	}
 	insert := bson.M{"createdAt": now, "lastActiveAt": now, "integrations": models.UserIntegrations{}}
-	update := bson.M{"$set": set, "$setOnInsert": insert}
+	unset := bson.M{"catalog": ""}
+	update := bson.M{"$set": set, "$setOnInsert": insert, "$unset": unset}
 	if p.username == sandy.username {
 		birth := time.Date(2003, time.June, 14, 0, 0, 0, 0, time.UTC)
 		set["birthDate"] = birth
@@ -299,7 +300,7 @@ func writeSeedAccount(ctx context.Context, st *store.Store, p seedPerson, acct *
 				hash = acct.existing.PasswordHash
 			}
 			if !reflect.DeepEqual(acct.existing.Prefs, sandyPrefs) {
-				update["$unset"] = bson.M{"profileTextHash": ""}
+				unset["profileTextHash"] = ""
 			}
 		}
 		if hash == "" {

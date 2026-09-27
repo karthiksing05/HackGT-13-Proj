@@ -25,8 +25,8 @@ func tasteVectors(u *models.User) ml.UserVectors {
 	return ml.UserVectors{Positive: u.PositiveEmbedding, Negative: u.NegativeEmbedding}
 }
 
-// SuggestPeople is GET /people/suggested → [PersonSuggestion]: people in the
-// viewer's catalog whose taste best matches theirs (likes minus clashes, from
+// SuggestPeople is GET /people/suggested → [PersonSuggestion]: people whose
+// taste best matches the viewer's (likes minus clashes, from
 // the ML service), best first. Not the viewer, not their friends, not bots.
 // A viewer without a taste profile gets []; the ML service being down is 503.
 func (h *H) SuggestPeople(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +50,7 @@ func (h *H) SuggestPeople(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	people, err := h.d.Store.Users().Suggestable(ctx, viewer.Catalog, append(friendIDs, viewerID), suggestPool)
+	people, err := h.d.Store.Users().Suggestable(ctx, append(friendIDs, viewerID), suggestPool)
 	if err != nil {
 		api.Fail(w, r, err)
 		return

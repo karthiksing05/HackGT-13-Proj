@@ -43,6 +43,40 @@ type ActivityHit struct {
 	DistanceMi *float64 `json:"distance_mi,omitempty"`
 }
 
+// ActivityDetail is GET /activities/{id}: what the user's catalog knows
+// about one event or place, for Create › Review's stop pane. Unknowns are
+// left out; tags is [] when there are none.
+type ActivityDetail struct {
+	ID       string       `json:"id"` // the catalog _id, the planner's activity_id
+	Title    string       `json:"title"`
+	Kind     PlanStopKind `json:"kind"`
+	Category string       `json:"category"`
+	// CategoryLabel is the category as stop subtitles say it ("Live music").
+	CategoryLabel string  `json:"category_label"`
+	Summary       *string `json:"summary,omitempty"`
+	Description   *string `json:"description,omitempty"`
+	VenueName     *string `json:"venue_name,omitempty"`
+	// Address is one line: "879 Mooring St, Saltlight Harbor, GA 31991".
+	Address *string `json:"address,omitempty"`
+	Place   Place   `json:"place"`
+	Start   *Time   `json:"start,omitempty"` // events only
+	End     *Time   `json:"end,omitempty"`   // events only, when known
+	// HoursLine is the opening hours on the day asked for ("Open 10 AM–6 PM",
+	// "Closed that day"), left out when they aren't known.
+	HoursLine *string `json:"hours_line,omitempty"`
+	// PriceCents is the cheapest known price, left out when it's unknown.
+	PriceCents *int `json:"price_cents,omitempty"`
+	// PriceLabel is "Free", "$18", "$6–$12", a tier ("$$") when only that is
+	// known, or "Price unknown".
+	PriceLabel  string   `json:"price_label"`
+	Rating      *float64 `json:"rating,omitempty"`
+	RatingCount *int     `json:"rating_count,omitempty"`
+	URL         *string  `json:"url,omitempty"`
+	TicketURL   *string  `json:"ticket_url,omitempty"`
+	ImageURL    *string  `json:"image_url,omitempty"`
+	Tags        []string `json:"tags"`
+}
+
 type PlanStop struct {
 	ID              string `json:"id"`
 	Title           string `json:"title"`

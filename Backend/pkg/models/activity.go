@@ -115,10 +115,3 @@ type Activity struct {
 	Score             *float64          `bson:"score,omitempty" json:"score,omitempty"`
 	RerankScore       *float64          `bson:"rerankScore,omitempty" json:"rerank_score,omitempty"`
 }
-
-// Aliases for compatibility
-type Event = Activity
-type EventAddress = ActivityAddress
-type EventDuration = ActivityDuration
-type EventPrice = ActivityPrice
-type EventSource = ActivitySource

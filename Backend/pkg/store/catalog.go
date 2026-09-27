@@ -12,20 +12,23 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// Catalog reads the activity catalogs (activities, demo_activities); a
-// user's catalog field picks the collection. Nothing here writes, and the
-// 1024-d embeddings are loaded only by Embeddings (catalog_vectors.go).
+// ActivityCollection is the activity catalog used by every account.
+// Change this to CollDemoActivities to use the demo catalog globally.
+const ActivityCollection = CollActivities
+
+// Catalog reads activity catalogs. Nothing here writes, and the 1024-d
+// embeddings are loaded only by Embeddings (catalog_vectors.go).
 type Catalog struct{ s *Store }
 
 func (s *Store) Catalog() Catalog { return Catalog{s} }
 
-// CatalogCollection is the collection for a user's catalog: demo_activities
-// for the demo catalog, activities for anything else.
+// CatalogCollection accepts an explicit catalog or uses the global default.
 func CatalogCollection(catalog string) string {
-	if catalog == CollDemoActivities {
-		return CollDemoActivities
+	switch catalog {
+	case CollActivities, CollDemoActivities:
+		return catalog
 	}
-	return CollActivities
+	return ActivityCollection
 }
 
 func (c Catalog) coll(catalog string) *mongo.Collection {

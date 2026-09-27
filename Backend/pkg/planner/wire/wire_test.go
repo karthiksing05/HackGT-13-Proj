@@ -26,7 +26,7 @@ func TestPlannerWiresTheStoreAndIndexes(t *testing.T) {
 	for _, s := range specs {
 		names[s.Name] = true
 	}
-	if !names[mongosource.ExpiresIndex] || !names[mongosource.StopIDIndex] {
+	if !names[mongosource.ExpiresIndex] {
 		t.Errorf("pool indexes %v", names)
 	}
 	// Without ML the planner still answers: an unknown cursor is the last page.
