@@ -151,6 +151,26 @@ func TestPlansWorkAroundTheCalendar(t *testing.T) {
 		}
 	}
 
+	// Saved, the plan keeps the class in its timeline and no leg crosses it.
+	var saved contract.Itinerary
+	srv.Do(t, "POST", "/itineraries", contract.CreateItineraryRequest{Plan: planRequest(seaside, from, backBy), Option: best,
+		StopOrder: order, Route: route, Visibility: contract.VisibilityJustMe}, sandy).Expect(t, http.StatusCreated).JSON(t, &saved)
+	classes := 0
+	for _, item := range saved.Items {
+		switch {
+		case item.Kind == contract.KindBusy:
+			classes++
+			if item.Title != "CS 3510 lecture" || !item.Start.Equal(classFrom) || !item.End.Equal(classTo) {
+				t.Errorf("busy item %+v", item)
+			}
+		case item.Start.Before(classTo) && item.End.After(classFrom):
+			t.Errorf("%s %s %v–%v crosses the class", item.Kind, item.Title, item.Start, item.End)
+		}
+	}
+	if classes != 1 {
+		t.Errorf("%d busy items in the saved plan", classes)
+	}
+
 	// A window the calendar fills: an empty batch the app has a sentence for.
 	tomorrow := from.Add(16 * time.Hour) // Sunday 10:00 in Saltlight
 	addBusy(t, srv, sandy.UserID, "Brunch shift", tomorrow.Add(-30*time.Minute), tomorrow.Add(80*time.Minute))

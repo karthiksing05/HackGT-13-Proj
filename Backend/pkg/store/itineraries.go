@@ -148,7 +148,7 @@ func (it Itineraries) SearchActive(ctx context.Context, userID, q string, now ti
 		"status":    models.ItineraryActive,
 		"$or": []bson.M{
 			{"title": rx},
-			{"items": bson.M{"$elemMatch": bson.M{"kind": bson.M{"$ne": models.ItemTransit}, "title": rx}}},
+			{"items": bson.M{"$elemMatch": bson.M{"kind": bson.M{"$nin": []string{models.ItemTransit, "busy"}}, "title": rx}}},
 		},
 	}, options.Find().SetSort(bson.D{{Key: "start", Value: 1}, {Key: "_id", Value: 1}}).SetLimit(int64(limit)))
 }

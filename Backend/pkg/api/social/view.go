@@ -358,7 +358,9 @@ func routeLabel(it *models.Itinerary) *string {
 	best := ""
 	for _, item := range it.Items {
 		if item.Kind != models.ItemTransit {
-			stops++
+			if item.Kind != "busy" { // the host's calendar, not a stop
+				stops++
+			}
 			continue
 		}
 		if item.LegMode == "" {

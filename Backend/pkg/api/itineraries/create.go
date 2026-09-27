@@ -4,6 +4,7 @@ import (
 	"Backend/pkg/api"
 	"Backend/pkg/contract"
 	"Backend/pkg/httpx"
+	"Backend/pkg/itinerary"
 	"Backend/pkg/models"
 	"Backend/pkg/realtime"
 	"Backend/pkg/store"
@@ -72,7 +73,9 @@ func (h *H) Create(w http.ResponseWriter, r *http.Request) {
 // (starting at the plan's start time) for the leg's minutes, followed by
 // the stop at its route time. The planner, when wired, adds what it knows
 // about each stop (activity, price, website, bookable); otherwise the
-// option's own data stands.
+// option's own data stands. The busy blocks of the host's calendar that
+// overlap the plan's window come along as busy items, and legs keep off
+// them as the planner laid them out (itinerary/busy.go).
 func (h *H) materialize(ctx context.Context, user *models.User, req contract.CreateItineraryRequest, tz *time.Location) (*models.Itinerary, error) {
 	hostID := user.ID.Hex()
 	plan := req.Plan
@@ -125,10 +128,25 @@ func (h *H) materialize(ctx context.Context, user *models.User, req contract.Cre
 	}
 	places = append(places, req.Plan.End.Name)
 
+	events, err := h.d.Store.CalendarEvents().Overlapping(ctx, hostID, req.Plan.StartTime.Time, req.Plan.BackBy.Time)
+	if err != nil {
+		return nil, err
+	}
+	busy := make([]itinerary.Interval, 0, len(events))
+	for _, ev := range events {
+		busy = append(busy, itinerary.Interval{Start: ev.Start, End: ev.End})
+	}
+	busy = itinerary.MergeBusy(busy)
+
 	items := []models.ItineraryItem{}
 	cursor := req.Plan.StartTime.Time
 	for i, leg := range legs {
-		legEnd := cursor.Add(time.Duration(leg.Minutes) * time.Minute)
+		length := time.Duration(leg.Minutes) * time.Minute
+		setOff := itinerary.LegAfter(busy, cursor, length) // the way back
+		if i < len(stops) {
+			setOff = legSetOff(busy, cursor, times[i].Start.Time, length)
+		}
+		legEnd := setOff.Add(length)
 		destination := req.Plan.End.Name
 		if i < len(places) {
 			destination = places[i]
@@ -138,7 +156,7 @@ func (h *H) materialize(ctx context.Context, user *models.User, req contract.Cre
 			Kind:        models.ItemTransit,
 			Title:       leg.Mode.Label() + " to " + destination,
 			Place:       &models.PlaceDoc{Name: destination},
-			Start:       cursor,
+			Start:       setOff,
 			End:         legEnd,
 			Description: walkNote,
 			LegMode:     string(leg.Mode),
@@ -150,6 +168,7 @@ func (h *H) materialize(ctx context.Context, user *models.User, req contract.Cre
 			cursor = times[i].End.Time
 		}
 	}
+	items = withBusy(items, calendarBusyItems(events, store.NewID))
 
 	title := strings.TrimSpace(req.Option.Name)
 	if title == "" {
@@ -186,6 +205,21 @@ func (h *H) materialize(ctx context.Context, user *models.User, req contract.Cre
 		RunID:     runID(req.Option.ID),
 		RouteMode: routeMode(legs),
 	}, nil
+}
+
+// legSetOff is when a saved leg into a stop starting at `by` sets off: at
+// the cursor or after the last busy block before the stop, unless that
+// leaves too little time to get there (a route timed without the
+// calendar), when it arrives just in time instead.
+func legSetOff(busy []itinerary.Interval, cursor, by time.Time, length time.Duration) time.Time {
+	t := itinerary.LegInto(busy, cursor, by)
+	if t.Add(length).After(by) {
+		t = by.Add(-length)
+		if t.Before(cursor) {
+			t = cursor
+		}
+	}
+	return t
 }
 
 // resolveStops asks the planner (when wired) what it knows about each

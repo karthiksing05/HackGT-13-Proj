@@ -199,10 +199,9 @@ func (h *H) calendarEventNotes(w http.ResponseWriter, r *http.Request, userID st
 	return true
 }
 
-// calendarBusyItems are the busy blocks of userID's calendar that overlap
-// [from, to), as items of a plan saved over that window: the plan's
-// timeline shows what it works around. They are the host's own and only
-// the host sees them (view.go).
+// calendarBusyItems are calendar events (in time order) as the busy items
+// of a plan saved over them: its timeline shows what it works around. They
+// are the host's own and only the host sees them (view.go).
 func calendarBusyItems(events []models.CalendarEvent, newID func() string) []models.ItineraryItem {
 	out := make([]models.ItineraryItem, 0, len(events))
 	for _, ev := range events {
@@ -216,4 +215,22 @@ func calendarBusyItems(events []models.CalendarEvent, newID func() string) []mod
 		out = append(out, item)
 	}
 	return out
+}
+
+// withBusy puts busy items (in time order) among a plan's legs and stops,
+// each before the first of them that starts later; the plan's own order
+// stays as it is.
+func withBusy(items, busy []models.ItineraryItem) []models.ItineraryItem {
+	if len(busy) == 0 {
+		return items
+	}
+	out := make([]models.ItineraryItem, 0, len(items)+len(busy))
+	j := 0
+	for _, item := range items {
+		for ; j < len(busy) && !busy[j].Start.After(item.Start); j++ {
+			out = append(out, busy[j])
+		}
+		out = append(out, item)
+	}
+	return append(out, busy[j:]...)
 }
