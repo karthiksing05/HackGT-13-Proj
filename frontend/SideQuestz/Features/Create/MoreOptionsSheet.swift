@@ -22,7 +22,7 @@ struct CreateMoreOptionsSheet: View {
     }
 
     var body: some View {
-        SheetScaffold(spacing: 12, grabberColor: Theme.mutedBorder, shrinksToFit: true) {
+        SheetScaffold(spacing: 12, grabberColor: Theme.mutedBorder) {
             header
             summaryCard
             CreateEyebrow(text: "GETTING AROUND")
@@ -107,16 +107,12 @@ struct CreateMoreOptionsSheet: View {
         return rows
     }
 
-    /// Like the prototype, the card is what gets shorter when the sheet hits 740pt; it scrolls inside
-    /// itself so Who's coming and Ride stay reachable.
+    /// Every row at full height (no scrolling inside the card): past 740pt, or the screen on a
+    /// smaller phone, the whole sheet scrolls instead, so no row is ever cut off.
     private var summaryCard: some View {
-        ScrollView {
-            summaryRows
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .sheetShrinks()
+        summaryRows
+            .background(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private var summaryRows: some View {

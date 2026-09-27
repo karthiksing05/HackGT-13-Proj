@@ -59,7 +59,7 @@ final class CreateInviteUITests: XCTestCase {
         app.buttons["More options"].tapWhenReady(timeout)
         expect(element(app, labelContains: "Maya and Dev"))
         if shotsDir != nil {
-            // The answers card scrolls inside the sheet: bring the Friends row up.
+            // The sheet scrolls: bring the Friends row up.
             let row = element(app, labelContains: "Time window").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             row.press(forDuration: 0.1, thenDragTo: row.withOffset(CGVector(dx: 0, dy: -260)))
             Thread.sleep(forTimeInterval: 1)

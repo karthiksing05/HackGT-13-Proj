@@ -10,6 +10,7 @@ struct MainShell: View {
     /// The keyboard is up (Home search, Friends search…): the tab bar steps aside, like a system
     /// tab bar staying behind the keyboard.
     @State private var keyboardUp = false
+    @Environment(\.safeAreaBottom) private var safeBottom
 
     var body: some View {
         @Bindable var router = router
@@ -73,8 +74,9 @@ struct MainShell: View {
 
     private func tabView<Content: View>(_ tab: Router.Tab, @ViewBuilder content: () -> Content) -> some View {
         let selected = router.tab == tab
+        let barHeight = keyboardUp ? 0 : Metrics.tabBarHeight(safeAreaBottom: safeBottom)
         return content()
-            .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: keyboardUp ? 0 : Metrics.tabBarContentHeight) }
+            .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: barHeight) }
             // The status bar keeps the screen's cream, so scrolled content never runs under the clock.
             .overlay(alignment: .top) {
                 Color.clear
@@ -85,7 +87,7 @@ struct MainShell: View {
             }
             // Like the prototype, tab content ends at the tab bar instead of showing through it.
             .mask(alignment: .top) {
-                Rectangle().padding(.bottom, keyboardUp ? 0 : Metrics.tabBarContentHeight).ignoresSafeArea(edges: .top)
+                Rectangle().padding(.bottom, barHeight).ignoresSafeArea(edges: .top)
             }
             .opacity(selected ? 1 : 0)
             .allowsHitTesting(selected)

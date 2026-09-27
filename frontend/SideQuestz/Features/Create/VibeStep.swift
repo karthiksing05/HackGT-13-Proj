@@ -44,31 +44,34 @@ struct CreateVibeStep: View {
 
     // MARK: Voice
 
-    private var isListening: Bool { env.voice.isListening(Self.voiceKey) }
+    private var voicePhase: VoicePhase { env.voice.phase(for: Self.voiceKey) }
 
-    /// Live partial while listening, then the returned transcript.
+    /// The words so far while you talk and while they're transcribed, then the transcript that
+    /// went into "Or type it".
     private var quote: String? {
-        if isListening {
-            let partial = env.voice.partial.trimmingCharacters(in: .whitespacesAndNewlines)
-            return partial.isEmpty ? nil : partial
-        }
-        return model.transcript
+        guard voicePhase.isActive else { return model.transcript }
+        let partial = env.voice.partial.trimmingCharacters(in: .whitespacesAndNewlines)
+        return partial.isEmpty ? nil : partial
     }
 
     private var voiceCard: some View {
         VStack(spacing: 10) {
-            MicButton(size: 76, isListening: isListening, idleFill: Theme.sage, idleIcon: Theme.ink,
-                      idleHalo: Theme.sageTint, haloWidth: 8, iconSize: 26,
+            MicButton(size: 76, isListening: voicePhase.isRecording, isBusy: voicePhase == .transcribing,
+                      idleFill: Theme.sage, idleIcon: Theme.ink, idleHalo: Theme.sageTint, haloWidth: 8, iconSize: 26,
                       label: "Start voice input", listeningLabel: "Stop voice input",
                       level: env.voice.level, action: toggleVoice)
-            Text(isListening ? "Listening… tap to stop" : "Tap and say what you want")
+                .accessibilityIdentifier("create.voice")
+            VoiceStatusLine(phase: voicePhase, idleText: "Tap and say what you want", alignment: .center)
                 .sqFont(14, .semibold)
-                .foregroundStyle(Theme.ink)
                 .createLine(14)
-                .contentTransition(.opacity)
             if let quote {
-                // Wraps like the prototype; new words settle in as the transcript updates.
-                CreateLiveText(text: "“\(quote)”", size: 15, color: Theme.text2, lineHeight: 1.4, alignment: .center)
+                // Wraps like the prototype; new words settle in as the transcript updates (dimmed
+                // until the final text lands). VoiceOver reads the words so far, even mid-roll.
+                CreateLiveText(text: "“\(quote)”", size: 15, color: voicePhase == .transcribing ? Theme.text3 : Theme.text2,
+                               lineHeight: 1.4, alignment: .center)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("“\(quote)”")
+                    .accessibilityAddTraits(voicePhase.isActive ? [.isStaticText, .updatesFrequently] : .isStaticText)
                     .sqTransition(.rise)
             }
         }
@@ -78,15 +81,13 @@ struct CreateVibeStep: View {
         .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         // The card eases to the transcript's height as it grows.
         .animation(Motion.standard, value: quote)
-        .animation(Motion.standard, value: isListening)
+        .animation(Motion.standard, value: voicePhase)
     }
 
     private func toggleVoice() {
         focus.wrappedValue = nil
-        Task {
-            if let text = await env.voice.toggle(Self.voiceKey, demoTranscript: CreateFlowModel.voiceDemoTranscript) {
-                model.applyTranscript(text)
-            }
+        env.voice.toggle(Self.voiceKey, demoTranscript: CreateFlowModel.voiceDemoTranscript) { text in
+            model.applyTranscript(text)
         }
     }
 

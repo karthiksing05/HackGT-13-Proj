@@ -667,30 +667,21 @@ struct HomeEventSheet: View {
     private var ratingRow: some View {
         VStack(alignment: .leading, spacing: 0) {
             RowDivider()
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Rate it after")
-                        .sqFont(15, .semibold)
-                        .foregroundStyle(Theme.ink)
-                        .homeLine(15)
-                    // While the rating saves, "Saving…" → "Saved" stands in for the caption.
-                    ZStack(alignment: .leading) {
-                        Text("Tunes your future picks")
-                            .sqFont(12, relativeTo: .caption)
-                            .foregroundStyle(Theme.text3)
-                            .homeLine(12)
-                            .opacity(ratingStatus == .idle ? 1 : 0)
-                        if ratingStatus != .idle {
-                            HomeSaveStatusLabel(state: ratingStatus, size: 12)
-                                .transition(.opacity)
-                        }
-                    }
-                    .animation(reduceMotion ? Motion.reduced : Motion.standard, value: ratingStatus)
+            // Title and caption beside the stars when the caption fits on one line; on a 375pt phone
+            // the stars get their own row under them.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    ratingLabel
+                        .fixedSize()
+                    Spacer(minLength: 0)
+                    ratingStars
                 }
-                Spacer(minLength: 0)
-                StarPicker(rating: Binding(get: { rating }, set: { rate($0) }), size: 26,
-                           target: CGSize(width: 36, height: 44), spacing: 2, emptyStroke: Theme.mutedIcon, lineWidth: 1.6)
-                    .disabled(isRating)
+                VStack(alignment: .leading, spacing: 2) {
+                    ratingLabel
+                    ratingStars
+                        // Each 26pt star sits in a 36pt target: line the first one up with the text.
+                        .padding(.leading, -5)
+                }
             }
             .padding(.top, 6)
             if let ratingError {
@@ -701,6 +692,34 @@ struct HomeEventSheet: View {
                     .sqTransition(.rise)
             }
         }
+    }
+
+    private var ratingLabel: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Rate it after")
+                .sqFont(15, .semibold)
+                .foregroundStyle(Theme.ink)
+                .homeLine(15)
+            // While the rating saves, "Saving…" → "Saved" stands in for the caption.
+            ZStack(alignment: .leading) {
+                Text("Tunes your future picks")
+                    .sqFont(12, relativeTo: .caption)
+                    .foregroundStyle(Theme.text3)
+                    .homeLine(12)
+                    .opacity(ratingStatus == .idle ? 1 : 0)
+                if ratingStatus != .idle {
+                    HomeSaveStatusLabel(state: ratingStatus, size: 12)
+                        .transition(.opacity)
+                }
+            }
+            .animation(reduceMotion ? Motion.reduced : Motion.standard, value: ratingStatus)
+        }
+    }
+
+    private var ratingStars: some View {
+        StarPicker(rating: Binding(get: { rating }, set: { rate($0) }), size: 26,
+                   target: CGSize(width: 36, height: 44), spacing: 2, emptyStroke: Theme.mutedIcon, lineWidth: 1.6)
+            .disabled(isRating)
     }
 
     // MARK: Loading

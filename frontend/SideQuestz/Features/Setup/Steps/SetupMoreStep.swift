@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Setup · 5 "Tell us more": three open questions, typed or spoken (Apple Speech). Transcripts are
-/// appended to whatever is already in the box.
+/// Setup · 5 "Tell us more": three open questions, typed or spoken (Apple Speech). Spoken words
+/// appear in the box as they're recognized, after whatever is already there; the line under the
+/// question says "Listening…", then "Transcribing…" until the final text lands, or what went wrong.
 struct SetupMoreStep: View {
     @Environment(AppEnvironment.self) private var env
     @Bindable var draft: SetupDraft
@@ -45,12 +46,13 @@ private struct SetupQuestionCard: View {
     @Environment(AppEnvironment.self) private var env
     let question: SetupQuestion
     @Binding var answer: String
-    /// Counts transcripts that landed in this card's box (each one fades in).
-    @State private var transcripts = 0
-    /// Whether the last transcript was added after text that was already there.
-    @State private var appended = false
+    /// What the box held when the mic started: the words you say go after it as they're recognized.
+    @State private var base: String?
+    @FocusState private var typing: Bool
 
-    private var listening: Bool { env.voice.isListening(question.id) }
+    private var phase: VoicePhase { env.voice.phase(for: question.id) }
+    /// Listening, transcribing or a failure: the line under the question says so.
+    private var showsStatus: Bool { phase != .idle && phase != .done }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -62,49 +64,66 @@ private struct SetupQuestionCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                // The halo swells with your voice while listening.
-                MicButton(size: 40, isListening: listening, idleFill: Theme.sageTint, idleIcon: Theme.sageInk,
-                          haloWidth: 6, iconSize: 19, level: listening ? env.voice.level : 0, action: toggleVoice)
+                // The halo swells with your voice while listening; dots while transcribing.
+                MicButton(size: 40, isListening: phase.isRecording, isBusy: phase == .transcribing,
+                          idleFill: Theme.sageTint, idleIcon: Theme.sageInk, haloWidth: 6, iconSize: 19,
+                          level: phase.isRecording ? env.voice.level : 0, action: toggleVoice)
                     .padding(-2)
+                    .accessibilityIdentifier("setup.voice.\(question.id)")
             }
-            if listening {
-                Text("Listening… tap the mic again to stop")
+            if showsStatus {
+                VoiceStatusLine(phase: phase, listeningText: "Listening… tap the mic again to stop", listeningColor: Theme.danger)
                     .sqFont(13, .semibold)
-                    .foregroundStyle(Theme.danger)
                     .authLineHeight(1.35, size: 13)
                     .sqTransition(.rise)
             }
             SetupAnswerField(text: $answer, placeholder: question.placeholder, label: question.prompt,
-                             transcripts: transcripts, appended: appended)
+                             live: phase.isActive, pending: phase == .transcribing, typing: $typing)
+                .accessibilityIdentifier("setup.answer.\(question.id)")
         }
         .padding(14)
         .background(.white, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-        .authMotion(value: listening)
+        .authMotion(value: showsStatus)
+        .onChange(of: env.voice.partial) { _, words in follow(words) }
+        .onChange(of: phase.isActive) { _, active in
+            if !active { base = nil }
+        }
+    }
+
+    /// While the mic is on, the box shows the words so far after what was already in it.
+    private func follow(_ words: String) {
+        guard let base, phase.isActive else { return }
+        answer = Self.join(base, words)
     }
 
     private func toggleVoice() {
-        Task {
-            if let text = await env.voice.toggle(question.id, demoTranscript: question.demoTranscript) {
-                let current = answer
-                // The box grows to fit and the words fade in.
-                withMotion {
-                    answer = current.isEmpty ? text : current + " " + text
-                    appended = !current.isEmpty
-                    transcripts += 1
-                }
-            }
+        typing = false
+        if !phase.isActive { base = answer }
+        env.voice.toggle(question.id, demoTranscript: question.demoTranscript) { text in
+            // The final text takes the place of the live words.
+            answer = Self.join(base ?? answer, text)
+            base = nil
         }
+    }
+
+    /// Spoken words go after typed ones, with a space.
+    static func join(_ typed: String, _ spoken: String) -> String {
+        let typed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        let spoken = spoken.trimmingCharacters(in: .whitespacesAndNewlines)
+        return typed.isEmpty ? spoken : spoken.isEmpty ? typed : typed + " " + spoken
     }
 }
 
 /// 3-line text area: `field` fill, 1pt `line` border, radius 12, 15pt with a 1.35 line height.
+/// While voice input fills it (`live`), the border turns sage and typing waits; while the words
+/// are transcribed (`pending`) they're dimmed, then settle when the final text lands.
 private struct SetupAnswerField: View {
     @Binding var text: String
     let placeholder: String
     let label: String
-    /// Bumped when a transcript lands: the text fades in (from dim when it was added to earlier text).
-    var transcripts = 0
-    var appended = false
+    var live = false
+    var pending = false
+    var typing: FocusState<Bool>.Binding
 
     /// Extra leading for a 1.35 line height at 15pt.
     private let leading = 15 * (1.35 - AuthFontMetrics.sf)
@@ -115,13 +134,8 @@ private struct SetupAnswerField: View {
             .sqFont(15)
             .foregroundStyle(Theme.ink)
             .lineSpacing(leading)
-            // Only the words fade (the box stays put).
-            .keyframeAnimator(initialValue: 1.0, trigger: transcripts) { field, opacity in
-                field.opacity(opacity)
-            } keyframes: { _ in
-                MoveKeyframe(appended ? 0.35 : 0)
-                CubicKeyframe(1, duration: 0.5)
-            }
+            .focused(typing)
+            .opacity(pending ? 0.55 : 1)
             // rows="3": three 20.25pt lines (the reserved empty lines don't get line spacing).
             .frame(minHeight: 3 * 15 * 1.35 - leading, alignment: .topLeading)
             // CSS: 10pt padding + 1pt border + half-leading.
@@ -130,8 +144,12 @@ private struct SetupAnswerField: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.field, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.line, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(live ? Theme.sage : Theme.line, lineWidth: live ? 1.5 : 1)
             }
+            .allowsHitTesting(!live)
+            .animation(Motion.standard, value: pending)
+            .animation(Motion.quick, value: live)
             .accessibilityLabel(label)
     }
 }

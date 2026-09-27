@@ -295,8 +295,10 @@ decodes them and publishes to screens through `RealtimeHub`.
 
 ### Voice
 [`VoiceInputService.swift`](SideQuestz/Services/VoiceInputService.swift) uses Apple's Speech framework
-(`SFSpeechRecognizer`), on device when the phone supports it, with automatic punctuation. No audio
-reaches your backend: the transcript only fills a text field, which is sent like any typed text.
+(`SFSpeechRecognizer`), on device when the phone supports it (Apple's servers when the on-device model
+can't start), with automatic punctuation and partial results: the words fill the field as they're
+recognized. No audio reaches your backend: the transcript only fills a text field, which is sent like
+any typed text.
 
 ## For the backend team: differences from `Backend/API_ENDPOINTS.md`
 

@@ -53,7 +53,7 @@ In Xcode, go to Product → Scheme → Edit Scheme → Run → **Arguments** and
 | `-SQMockFail forum,itineraries` | Makes those demo endpoints fail, to see error states (also `facebook`, `me`, `friends`, `profile`, `tickets`, `splits`, `album`, …) |
 | `-SQMockFriends none` | Starts the demo account with no friends or friend requests yet, like a new account (an empty Forum › Friends under People for you) |
 | `-SQMockTickets none` | Starts the demo without tickets (Account › Your tickets' empty state). The list itself is `-SQRoute account/tickets`, one ticket `tickets/tkt_5b1f0c9a2e7d4a13`, and `-SQMockFail tickets` its error state |
-| `-SQVoiceDemo YES` | Voice buttons return sample transcripts instead of using the mic |
+| `-SQVoiceDemo YES` | Voice buttons stream sample transcripts word by word (Listening… → Transcribing… → text) instead of using the mic |
 
 ### Pointing the app at a server
 

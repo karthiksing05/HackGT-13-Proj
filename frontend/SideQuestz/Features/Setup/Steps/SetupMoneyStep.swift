@@ -17,16 +17,21 @@ struct SetupMoneyStep: View {
         VStack(alignment: .leading, spacing: 12) {
             SetupHeading(title: "Money preferences")
 
+            // Each question sits closer to its choices than to the ones above (like step 3's).
             SetupEyebrow(text: "TYPICAL SPEND PER SIDEQUEST")
+                .padding(.top, 6)
             SetupChoiceGrid(options: SpendTier.allCases, columns: 2, selection: $draft.preferences.spend, style: .grid) { $0.label }
 
             SetupEyebrow(text: "IF A GREAT OPTION COSTS A BIT MORE")
+                .padding(.top, 6)
             SetupChoiceGrid(options: Flexibility.allCases, columns: 2, selection: $draft.preferences.flexibility, style: .grid) { $0.label }
 
             SetupEyebrow(text: "SPLITTING WITH A GROUP")
+                .padding(.top, 6)
             SetupChoiceGrid(options: SplitStyle.allCases, columns: 3, selection: $draft.preferences.splitStyle, style: .grid) { $0.label }
 
             freeEventsRow
+                .padding(.top, 6)
             cardRow
         }
         .task { await loadCard() }

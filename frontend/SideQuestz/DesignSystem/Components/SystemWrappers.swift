@@ -168,10 +168,13 @@ final class OAuthSession: NSObject, ASWebAuthenticationPresentationContextProvid
     }
 }
 
-/// Mic button: sage or tint at rest, red `#B91C1C` with a soft red halo while listening.
+/// Mic button: sage or tint at rest, red `#B91C1C` with a soft red halo while listening, and
+/// rising dots instead of the mic while the words are transcribed (taps wait meanwhile).
 struct MicButton: View {
     var size: CGFloat = 40
     var isListening: Bool
+    /// Stopped, and the final text is on its way.
+    var isBusy = false
     /// Vibe step: sage fill + ink icon + 8pt tint halo. Setup answers: tint fill + sageInk icon, no halo.
     var idleFill: Color = Theme.sageTint
     var idleIcon: Color = Theme.sageInk
@@ -187,29 +190,39 @@ struct MicButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "mic")
-                .font(.system(size: iconSize, weight: .regular))
-                .foregroundStyle(isListening ? .white : idleIcon)
-                .frame(width: size, height: size)
-                .background(isListening ? Theme.danger : idleFill, in: Circle())
-                .background {
-                    if isListening {
-                        // Breathes gently, and swells with the voice when there's sound.
-                        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
-                            let breathe = reduceMotion ? 0 : (sin(timeline.date.timeIntervalSinceReferenceDate * 2 * .pi / 1.4) + 1) / 2
-                            let extra = max(CGFloat(level) * size * 0.2, CGFloat(breathe) * 4)
-                            Circle().fill(Theme.danger.opacity(0.15)).padding(-(haloWidth + extra))
-                        }
-                    } else if let idleHalo {
-                        Circle().fill(idleHalo).padding(-haloWidth)
-                    }
+            ZStack {
+                if isBusy {
+                    LoadingDots(color: idleIcon, dotSize: max(4, (size * 0.08).rounded()))
+                        .transition(.opacity)
+                } else {
+                    Image(systemName: "mic")
+                        .font(.system(size: iconSize, weight: .regular))
+                        .foregroundStyle(isListening ? .white : idleIcon)
+                        .transition(.opacity)
                 }
-                .frame(minWidth: Metrics.minTouch, minHeight: Metrics.minTouch)
-                .contentShape(Circle())
+            }
+            .frame(width: size, height: size)
+            .background(isListening ? Theme.danger : idleFill, in: Circle())
+            .background {
+                if isListening {
+                    // Breathes gently, and swells with the voice when there's sound.
+                    TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
+                        let breathe = reduceMotion ? 0 : (sin(timeline.date.timeIntervalSinceReferenceDate * 2 * .pi / 1.4) + 1) / 2
+                        let extra = max(CGFloat(level) * size * 0.2, CGFloat(breathe) * 4)
+                        Circle().fill(Theme.danger.opacity(0.15)).padding(-(haloWidth + extra))
+                    }
+                } else if let idleHalo {
+                    Circle().fill(idleHalo).padding(-haloWidth)
+                }
+            }
+            .frame(minWidth: Metrics.minTouch, minHeight: Metrics.minTouch)
+            .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(isListening ? listeningLabel : label)
+        .allowsHitTesting(!isBusy)
+        .accessibilityLabel(isBusy ? "Transcribing" : isListening ? listeningLabel : label)
         .accessibilityAddTraits(isListening ? .isSelected : [])
         .animation(.easeInOut(duration: 0.2), value: isListening)
+        .animation(.easeInOut(duration: 0.2), value: isBusy)
     }
 }

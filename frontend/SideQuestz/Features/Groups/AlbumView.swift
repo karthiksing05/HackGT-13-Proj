@@ -52,7 +52,8 @@ struct GroupAlbumView: View {
                 }
                 grid
             }
-            .padding(.horizontal, 16)
+            // Lined up with the header's Chat | Album | Splits control.
+            .padding(.horizontal, Metrics.side)
             .padding(.top, 15)
             .padding(.bottom, 30)
         }
