@@ -53,16 +53,23 @@ run_workers() {  # run_workers <label> <command...>; @I@ in the command becomes 
   return $status
 }
 
-# 1. missing texts
-echo "[$(date +%T)] stage 1: writing texts"
-run_workers texts "$VLLM_PY" ml/datagen/activity_texts.py --model "$MODEL" --todo "$IN/texts_todo.jsonl" \
-  --num-workers "$NGPU" --worker-index @I@ --out "$WORK/texts-@I@.jsonl" --failed "$WORK/failed-@I@.jsonl" \
-  --stats "$WORK/text-stats-@I@.json" $LIMIT
+# 1. missing texts (skipped when every document already has one)
+if [ -s "$IN/texts_todo.jsonl" ]; then
+  echo "[$(date +%T)] stage 1: writing texts"
+  run_workers texts "$VLLM_PY" ml/datagen/activity_texts.py --model "$MODEL" --todo "$IN/texts_todo.jsonl" \
+    --num-workers "$NGPU" --worker-index @I@ --out "$WORK/texts-@I@.jsonl" --failed "$WORK/failed-@I@.jsonl" \
+    --stats "$WORK/text-stats-@I@.json" $LIMIT
+else
+  echo "[$(date +%T)] stage 1: no texts to write"
+fi
+shopt -s nullglob
+TEXTS=("$WORK"/texts-*.jsonl)
+FAILED=("$WORK"/failed-*.jsonl)
 
 # 2. embeddings for every text, existing and new (one GPU is plenty)
 echo "[$(date +%T)] stage 2: embedding"
 CUDA_VISIBLE_DEVICES=0 "$EMBED_PY" ml/datagen/activity_embeddings.py --todo "$IN/embed_todo.jsonl" \
-  --texts "$WORK"/texts-*.jsonl --out "$WORK/embeddings" $LIMIT > "$WORK/embed.log" 2>&1 \
+  --texts "${TEXTS[@]}" --out "$WORK/embeddings" $LIMIT > "$WORK/embed.log" 2>&1 \
   || { tail -n 30 "$WORK/embed.log"; exit 1; }
-echo "[$(date +%T)] done: $(cat "$WORK"/texts-*.jsonl | wc -l) texts written, $(cat "$WORK"/failed-*.jsonl | wc -l) failed," \
+echo "[$(date +%T)] done: $(cat /dev/null "${TEXTS[@]}" | wc -l) texts written, $(cat /dev/null "${FAILED[@]}" | wc -l) failed," \
   "$(grep -o '"count": [0-9]*' "$WORK/embeddings/meta.json") vectors"
