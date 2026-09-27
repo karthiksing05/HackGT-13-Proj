@@ -80,7 +80,7 @@ ws://127.0.0.1:8080/ws` targets a local server, `-SQDemoPassword …` enables th
 database `freetime`):
 
 ```sh
-docker run -d --name sq-mongo -p 27017:27017 mongo:7
+ssh -N -L 27017:localhost:27017 user@IP
 # the demo city: copy the embedded Saltlight catalog (100 activities with embedding texts and vectors)
 # from production's demo_activities into the local Mongo (seed-demo and the planner need it)
 Backend/scripts/pull-demo-catalog.sh
