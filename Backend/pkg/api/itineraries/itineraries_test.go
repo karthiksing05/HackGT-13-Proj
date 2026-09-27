@@ -35,9 +35,19 @@ func utc(hhmm string, day int) time.Time {
 func TestCreateFromContractExample(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(exampleClock))
 	a := srv.Signup(t, "Alice Create")
+	// The example brings the demo's Maya and Dev, who are not Alice's friends.
+	raw := readExample(t, "CreateItineraryRequest")
+	res := srv.Do(t, "POST", "/itineraries", json.RawMessage(raw), a).Expect(t, http.StatusBadRequest)
+	if res.Message() != itineraries.MsgInviteFriendsOnly {
+		t.Fatalf("strangers in invite_user_ids: %q", res.Message())
+	}
+	var body map[string]any
+	if err := json.Unmarshal(raw, &body); err != nil {
+		t.Fatal(err)
+	}
+	delete(body, "invite_user_ids")
 	var it contract.Itinerary
-	srv.Do(t, "POST", "/itineraries", json.RawMessage(readExample(t, "CreateItineraryRequest")), a).
-		Expect(t, http.StatusCreated).JSON(t, &it)
+	srv.Do(t, "POST", "/itineraries", body, a).Expect(t, http.StatusCreated).JSON(t, &it)
 
 	if it.ID == "" || it.Title != "Rooftop + murals" || !it.IsHost || it.GoingCount != 1 ||
 		it.Visibility != contract.VisibilityFriends || it.MaxGroupSize == nil || *it.MaxGroupSize != 6 ||

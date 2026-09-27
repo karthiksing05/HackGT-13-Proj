@@ -90,7 +90,8 @@ struct ContractTests {
         let alternatives = try await api.stopAlternatives(optionId: option.id, stopId: option.stops[1].id, stopOrder: option.stops.map(\.id))
         try roundTrip(alternatives.map { PlanAlternative(stop: Self.requiredKeys($0.stop), reason: $0.reason) }, "PlanAlternatives")
         try roundTrip(CreateItineraryRequest(plan: request, option: option, stopOrder: option.stops.map(\.id), route: route,
-                                             visibility: .friends, lockAt: clock.date(2026, 9, 25, 13, 30), maxGroupSize: 6), "CreateItineraryRequest")
+                                             visibility: .friends, lockAt: clock.date(2026, 9, 25, 13, 30), maxGroupSize: 6,
+                                             inviteUserIds: [MockPeople.maya.id, MockPeople.dev.id]), "CreateItineraryRequest")
 
         try roundTrip(try await api.createCheckoutIntent(itemId: "a3", quantity: 1), "CheckoutIntent")
 

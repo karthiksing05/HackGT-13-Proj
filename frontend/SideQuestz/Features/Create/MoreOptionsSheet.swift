@@ -1,12 +1,14 @@
 import SwiftUI
 
-/// Review › More options (cream sheet): every answer with an Edit pill that jumps back to its step,
-/// getting around, pace, the group's lock time and size for shared plans, and "Regenerate options
-/// with these settings".
+/// Review › More options (cream sheet): every answer with an Edit pill that jumps back to its step
+/// (Friends reopens the Bring friends picker), getting around, pace, the group's lock time and size
+/// for shared plans, and "Regenerate options with these settings".
 struct CreateMoreOptionsSheet: View {
     @Bindable var model: CreateFlowModel
     /// Jumps to a step (the flow closes the sheet first).
     let edit: (Int) -> Void
+    /// Opens the Bring friends picker (once this sheet has closed).
+    let friends: () -> Void
 
     @Environment(AppEnvironment.self) private var env
 
@@ -14,6 +16,8 @@ struct CreateMoreOptionsSheet: View {
         let label: String
         let value: String
         let step: Int
+        /// Edit opens the friends picker instead of the step.
+        var opensFriends = false
         var id: String { label }
     }
 
@@ -93,6 +97,8 @@ struct CreateMoreOptionsSheet: View {
             Row(label: "Mood", value: model.moodSummary, step: 3),
             Row(label: "Budget", value: CreateFlowModel.budgetLabels[min(max(model.budget, 0), 3)], step: 3),
             Row(label: "Who's coming", value: model.who.label, step: 3),
+            Row(label: "Friends", value: model.invitees.isEmpty ? "None added" : CreateFlowModel.names(model.invitees, limit: 3),
+                step: 3, opensFriends: true),
             Row(label: "Ride", value: model.ride.summary(openSeats: model.openSeats), step: 1),
         ]
         if !model.mustSee.isEmpty {
@@ -132,7 +138,7 @@ struct CreateMoreOptionsSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityElement(children: .combine)
                     CreatePillButton(title: "Edit", accessibilityLabel: "Edit \(row.label)") {
-                        edit(row.step)
+                        if row.opensFriends { friends() } else { edit(row.step) }
                     }
                 }
                 .padding(.horizontal, 14)
@@ -179,8 +185,8 @@ struct CreateMoreOptionsSheet: View {
 // MARK: - Group size
 
 /// "6 people" with − / + (30pt cream circles, 44pt touch targets that don't overlap). The number
-/// rolls; the ends of the range grey their button out. VoiceOver adjusts the whole card instead
-/// (see the sheet).
+/// rolls; the ends of the range grey their button out (the low end fits you and the friends you're
+/// bringing). VoiceOver adjusts the whole card instead (see the sheet).
 private struct CreateGroupSizeStepper: View {
     let model: CreateFlowModel
 
@@ -207,8 +213,7 @@ private struct CreateGroupSizeStepper: View {
     }
 
     private func button(_ delta: Int) -> some View {
-        let sizes = CreateFlowModel.groupSizes
-        let enabled = delta < 0 ? model.maxGroupSize > sizes.lowerBound : model.maxGroupSize < sizes.upperBound
+        let enabled = delta < 0 ? model.maxGroupSize > model.minGroupSize : model.maxGroupSize < CreateFlowModel.groupSizes.upperBound
         let reach = (Metrics.minTouch - Self.buttonSize) / 2
         return Button {
             withMotion(Motion.quick) { model.changeMaxGroupSize(by: delta) }

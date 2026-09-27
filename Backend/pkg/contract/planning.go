@@ -167,4 +167,8 @@ type CreateItineraryRequest struct {
 	Visibility   Visibility  `json:"visibility"`
 	LockAt       *Time       `json:"lock_at,omitempty"`
 	MaxGroupSize *int        `json:"max_group_size,omitempty"`
+	// InviteUserIDs (additive) are friends the host brings along (Create ›
+	// Vibe › Bring friends): each an accepted friend, at most 12; they join
+	// the plan when it is saved. Left out when empty.
+	InviteUserIDs []string `json:"invite_user_ids,omitempty"`
 }

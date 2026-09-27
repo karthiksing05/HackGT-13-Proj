@@ -29,6 +29,7 @@ struct CreateReviewStep: View {
             VStack(alignment: .leading, spacing: 12) {
                 CreateStepTitle("Pick a sidequest")
                 CreateLiveText(text: summary, size: 14, color: Theme.text3)
+                if !model.invitees.isEmpty { CreateWithFriendsLine(people: model.invitees) }
             }
             // Loader ⇄ options ⇄ error cross-fade here (a VStack, so the content keeps an open height).
             VStack(alignment: .leading, spacing: 0) {

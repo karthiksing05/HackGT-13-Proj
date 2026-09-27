@@ -37,6 +37,8 @@ final class MockAPIClient: APIClient {
     private var myPost: MyFreePost?
     private var threadsById: [String: ChatThread] = [:]
     private var groupOrder: [String] = []
+    /// Group chats of plans saved with friends (Create › Bring friends), by itinerary id.
+    private var planThreads: [String: String] = [:]
     private var messagesByThread: [String: [Message]] = [:]
     private var photosByGroup: [String: [GroupPhoto]] = [:]
     private var expensesByGroup: [String: [Expense]] = [:]
@@ -503,6 +505,7 @@ final class MockAPIClient: APIClient {
 
     func createItinerary(_ request: CreateItineraryRequest) async throws -> Itinerary {
         try await simulate("itineraries", 500)
+        let invited = try MockInvites.invited(by: request, host: me, friends: friendList)
         let stops = request.stopOrder.compactMap { id in request.option.stops.first { $0.id == id } }
         var items: [ItineraryItem] = []
         var cursor = request.plan.startTime
@@ -526,20 +529,33 @@ final class MockAPIClient: APIClient {
                 cursor = time.end
             }
         }
-        let itinerary = Itinerary(id: nextId("itin"), title: request.option.name, date: clock.startOfDay(request.plan.date),
-                                  start: request.plan.startTime, backBy: request.plan.backBy, startPlace: request.plan.start,
-                                  endPlace: request.plan.end, visibility: request.visibility, lockAt: request.lockAt,
-                                  maxGroupSize: request.maxGroupSize, items: items, goingCount: 1)
+        // Friends brought along are on it from the start (see `MockInvites`).
+        let itinerary = MockInvites.bringing(invited, host: me, to: Itinerary(
+            id: nextId("itin"), title: request.option.name, date: clock.startOfDay(request.plan.date),
+            start: request.plan.startTime, backBy: request.plan.backBy, startPlace: request.plan.start,
+            endPlace: request.plan.end, visibility: request.visibility, lockAt: request.lockAt,
+            maxGroupSize: request.maxGroupSize, items: items, goingCount: 1))
         itins.insert(itinerary, at: 0)
         // Show the new stops on the calendar too.
         let key = clock.dayKey(request.plan.date)
         if let index = days.firstIndex(where: { $0.id == key }) {
-            let entries = items.filter { $0.kind == .sidequest }.map {
-                CalendarItem(id: $0.id, kind: .sidequest, title: $0.title, start: $0.start, end: $0.end)
+            let entries = itinerary.items.filter(Self.isStop).map {
+                CalendarItem(id: $0.id, kind: $0.kind, title: $0.title, start: $0.start, end: $0.end, people: $0.people)
             }
             days[index].items = (days[index].items + entries).sorted { $0.start < $1.start }
         }
+        if !invited.isEmpty { openGroupThread(for: itinerary, with: invited) }
         return itinerary
+    }
+
+    /// A plan saved with friends gets its group chat, first in Groups, opened by your line.
+    private func openGroupThread(for itinerary: Itinerary, with people: [PersonRef]) {
+        let (thread, line) = MockInvites.groupThread(for: itinerary, host: me, people: people, id: nextId("g"), lineId: nextId("m"), clock: clock)
+        threadsById[thread.id] = thread
+        groupOrder.insert(thread.id, at: 0)
+        messagesByThread[thread.id] = [line]
+        planThreads[itinerary.id] = thread.id
+        refreshGroupSummary(thread.id)
     }
 
     // MARK: - Itineraries
@@ -621,6 +637,12 @@ final class MockAPIClient: APIClient {
         itins.removeAll { $0.id == id }
         let stops = Set(itin.items.filter(Self.isStop).map(\.id))
         for index in days.indices { days[index].items.removeAll { stops.contains($0.id) } }
+        // Its group chat goes with it, like on the server.
+        if let thread = planThreads.removeValue(forKey: id) {
+            threadsById[thread] = nil
+            groupOrder.removeAll { $0 == thread }
+            messagesByThread[thread] = nil
+        }
     }
 
     func leaveItinerary(id: String) async throws {
