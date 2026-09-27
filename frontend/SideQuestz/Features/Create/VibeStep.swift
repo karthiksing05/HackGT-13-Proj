@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Create › Vibe: voice (Apple Speech) or typed mood, quick picks, budget and who's coming.
+/// Create › Vibe: voice (Apple Speech) or typed mood, quick picks, budget, who's coming, and at the
+/// bottom the must-see picks every option has to include (`CreateMustSeeSection`).
 ///
 /// Motion: the mic's halo swells with your voice; the transcript rises in and its words settle as
 /// they update; quick picks pop when chosen; the who's-coming note cross-fades.
@@ -33,6 +34,7 @@ struct CreateVibeStep: View {
             CreateCrossfade(value: model.who) {
                 CreateWrapText(text: model.who.note, size: 13, color: Theme.text2)
             }
+            CreateMustSeeSection(model: model, focus: focus)
         }
     }
 

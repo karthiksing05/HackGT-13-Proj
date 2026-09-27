@@ -66,11 +66,12 @@ In Xcode, go to Product → Scheme → Edit Scheme → Run → **Arguments** and
 
 Press **⌘U** to run both suites (about 3 minutes, most of it the UI tests).
 
-- **Unit tests** (`SideQuestzTests`, a few seconds) check that the equal-split preview always adds up to the total, to the cent; that reordering stops re-times the route and flags lateness, matching the prototype's numbers; the validation copy; time formatting; the demo backend's forum filters, sidequest edits and stop alternatives (same kind, never already in the plan); how the app reads Facebook's sign-in result and merges suggested likes (never replacing one you picked in Setup); how the demo password is read (a launch argument beats Info.plist, blank means none) and that a `-SQRoute` deep link never skips sign-in in live mode; and that every model round-trips through the API's JSON format.
-- **UI tests** (`SideQuestzUITests`) run twelve flows on the demo backend, plus one launch check against the live configuration:
+- **Unit tests** (`SideQuestzTests`, a few seconds) check that the equal-split preview always adds up to the total, to the cent; that reordering stops re-times the route and flags lateness, matching the prototype's numbers; the validation copy; time formatting; the demo backend's forum filters, sidequest edits and stop alternatives (same kind, never already in the plan); must-see picks (the catalog search's rules, `must_include` on the plan request, why a batch can come back empty, and the demo planner putting every pick in every option); how the app reads Facebook's sign-in result and merges suggested likes (never replacing one you picked in Setup); how the demo password is read (a launch argument beats Info.plist, blank means none) and that a `-SQRoute` deep link never skips sign-in in live mode; and that every model round-trips through the API's JSON format.
+- **UI tests** (`SideQuestzUITests`) run thirteen flows on the demo backend, plus one launch check against the live configuration:
   - create an account through all five Setup steps;
   - reset a password and sign in with it;
   - plan and start a sidequest;
+  - search for must-see spots on Vibe, pick an event and a place, and find both in every option ("Your pick");
   - rename a sidequest, and delete one;
   - drag a stop to re-time the route;
   - swap a stop for something similar, remove one and undo;

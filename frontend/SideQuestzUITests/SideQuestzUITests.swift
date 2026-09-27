@@ -146,6 +146,62 @@ final class SideQuestzUITests: XCTestCase {
         expect(app.descendants(matching: .any)["Reorder Krog Street Market"])
     }
 
+    /// Create › Vibe › Must-see: search, check an event, search again and check a place (the first
+    /// pick stays as a chip) → every option on Review has both, and the route tags them "Your pick".
+    func testMustSeePicksAreInEveryOption() {
+        let app = launchSignedIn()
+
+        app.buttons["tab.plan"].tapWhenReady(timeout)
+        for _ in 0..<2 { app.buttons["Next"].tapWhenReady(timeout) }
+        expect(app.staticTexts["What are you in the mood for?"])
+
+        // The section is at the bottom of the step.
+        let search = app.textFields["Search places and events"]
+        expect(search)
+        app.swipeUp()
+        type(search, "jazz")
+        element(app, type: .button, labelBeginsWith: "Sunset jazz on the Eastside Trail").tapWhenReady(timeout)
+        expect(app.buttons["Remove Sunset jazz on the Eastside Trail"])
+        app.buttons["Clear search"].tapWhenReady(timeout)
+        type(search, "bridge")
+        let bridge = element(app, type: .button, labelBeginsWith: "Jackson Street Bridge")
+        bridge.tapWhenReady(timeout)
+        expect(app.buttons["Remove Jackson Street Bridge"])
+        expect(app.buttons["Remove Sunset jazz on the Eastside Trail"])
+        XCTAssertEqual(bridge.value as? String, "selected")
+        // The chips grew the section: it moves up so the results stay above the keyboard.
+        let keyboard = app.keyboards.firstMatch
+        waitUntil { bridge.frame.maxY <= keyboard.frame.minY + 1 }
+        XCTAssertLessThanOrEqual(bridge.frame.maxY, keyboard.frame.minY + 1, "The results are under the keyboard")
+        screenshot(app, "must-see-picks")
+        // Return closes the keyboard, and the footer comes back.
+        search.typeText("\n")
+
+        app.buttons["Next"].tapWhenReady(timeout)
+        expect(app.staticTexts["Pick a sidequest"])
+        for letter in ["A", "B", "C"] {
+            let card = element(app, type: .button, labelBeginsWith: "Option \(letter)")
+            expect(card)
+            // A card past the screen's edge comes into view by dragging the row along (slowly, so it
+            // doesn't fling past).
+            if card.frame.maxX > app.frame.maxX {
+                let y = card.frame.midY
+                point(app, x: app.frame.maxX - 40, y: y)
+                    .press(forDuration: 0.1, thenDragTo: point(app, x: 40, y: y), withVelocity: .slow, thenHoldForDuration: 0.2)
+            }
+            card.tapWhenReady(timeout)
+            XCTAssertTrue(card.label.contains("Sunset jazz on the Eastside Trail") && card.label.contains("Jackson Street Bridge"),
+                          "Option \(letter) is missing a pick: \(card.label)")
+            for title in ["Sunset jazz on the Eastside Trail", "Jackson Street Bridge"] {
+                expect(app.descendants(matching: .any)
+                    .matching(NSPredicate(format: "label BEGINSWITH %@ AND label CONTAINS %@", title, "Your pick")).firstMatch)
+            }
+        }
+        screenshot(app, "review-options")
+        app.swipeUp()
+        screenshot(app, "review-your-pick")
+    }
+
     /// Home › Calendar: press and hold an empty stretch, then drag down → "Plan this window" → Create
     /// opens with that window filled in. The window is too short for a full plan, so Review flags the
     /// route late.
@@ -298,6 +354,16 @@ final class SideQuestzUITests: XCTestCase {
         return app
     }
 
+    /// Keeps a screenshot in the test results when the run asks for them
+    /// (`TEST_RUNNER_SQ_UI_SCREENSHOTS=1 xcodebuild test …`).
+    private func screenshot(_ app: XCUIApplication, _ name: String) {
+        guard ProcessInfo.processInfo.environment["SQ_UI_SCREENSHOTS"] != nil else { return }
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     /// Home is up and a tab switch works (nothing invisible is left over the app).
     private func expectMainShellResponds(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         expect(app.buttons["Sidequests"], file: file, line: line)
@@ -333,6 +399,12 @@ final class SideQuestzUITests: XCTestCase {
 
     private func expect(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(element.waitForExistence(timeout: timeout), "Missing: \(element)", file: file, line: line)
+    }
+
+    /// Checks `condition` until it holds or the timeout passes (for layout that settles after an animation).
+    private func waitUntil(_ condition: () -> Bool) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition(), Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
     }
 
     private func expectGone(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {

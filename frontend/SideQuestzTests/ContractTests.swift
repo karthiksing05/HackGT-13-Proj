@@ -226,6 +226,33 @@ struct ContractTests {
         try roundTrip(late, "RouteResult.dag")
     }
 
+    /// Must-see: `ActivityHits` is what `GET /activities/search` returns (an event with every field,
+    /// a free place, and a place with neither a known price nor a distance, from a search without
+    /// `near`), and `PlanRequest.mustInclude` a plan request with two picks.
+    @Test func mustSeeExamples() async throws {
+        let api = MockAPIClient(latencyScale: 0)
+        let clock = AppClock.demo
+        let near = MockPlaces.techSquare.coordinate
+        let event = try #require(try await api.searchActivities(q: "trivia", near: near, date: clock.now, limit: 1).first)
+        let place = try #require(try await api.searchActivities(q: "jackson", near: near, date: clock.now, limit: 1).first)
+        let unknown = try #require(try await api.searchActivities(q: "politan", near: nil, date: clock.now, limit: 1).first)
+        #expect(event.kind == .event && event.start != nil && event.end != nil && event.priceCents != nil && event.distanceMi != nil
+                && event.category != nil && event.place?.coordinate != nil)
+        #expect(place.kind == .place && place.priceCents == 0 && place.distanceMi != nil)
+        #expect(unknown.kind == .place && unknown.priceCents == nil && unknown.distanceMi == nil)
+        try roundTrip([event, place, unknown], "ActivityHits")
+
+        let request = PlanRequest(start: MockPlaces.techSquare.place, end: MockPlaces.home.place, date: clock.now,
+                                  startTime: clock.date(2026, 9, 25, 14, 10), backBy: clock.date(2026, 9, 25, 18, 30),
+                                  range: .transit, ride: RideChoice.none, openSeats: nil,
+                                  moodText: "Something chill and outside, then cheap food after.",
+                                  tags: ["Outdoors", "Food", "Meet people"], budget: 1, who: .friends, pace: .balanced, modes: [.walk, .marta],
+                                  mustInclude: [event.id, place.id])
+        try roundTrip(request, "PlanRequest.mustInclude")
+        let batch = try await api.generatePlans(request)
+        #expect(!batch.options.isEmpty && batch.options.allSatisfy { Set($0.stops.compactMap(\.activityId)) == [event.id, place.id] })
+    }
+
     /// `GET /me` with a home base (the demo account, Sandy Byte) decodes it, and the example
     /// `UserHomeBase` shows the shape.
     @Test func userHomeBaseDecodes() throws {

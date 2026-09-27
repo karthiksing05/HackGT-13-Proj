@@ -79,7 +79,12 @@ protocol APIClient: AnyObject {
     func search(query: String) async throws -> SearchResults
 
     // MARK: Planning
-    /// First 3 options + cursor.
+    /// Create › Vibe › Must-see: events and places in the user's catalog matching `q` (an empty `q`
+    /// suggests that day's events, then the best places near `near`). `near` is the plan's start,
+    /// `date` the plan's day; `limit` at most 50.
+    func searchActivities(q: String, near: Coordinate?, date: Date?, limit: Int) async throws -> [ActivityHit]
+    /// First 3 options + cursor. Every option includes every `request.mustInclude` pick, or the batch
+    /// is empty with a `must_include_…` reason.
     func generatePlans(_ request: PlanRequest) async throws -> PlanBatch
     /// 2 more options; `done` when out.
     func moreOptions(cursor: String) async throws -> PlanBatch
