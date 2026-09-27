@@ -92,6 +92,11 @@ func TestParseAgentCheckoutStaysInTheSandbox(t *testing.T) {
 		t.Fatalf("bad TAP_AGENT_KEY accepted: %v", err)
 	}
 	delete(m, "TAP_AGENT_KEY")
+	m["STRIPE_SELLER_PROFILE"] = "profile_61VTVn4abMSkDbvj9A6VTVn4FDSQsXPJuJLXpdDmS4jg"
+	if _, err := Parse(env(m)); err == nil || !strings.Contains(err.Error(), "profile_test_") {
+		t.Fatalf("live-mode seller profile accepted: %v", err)
+	}
+	delete(m, "STRIPE_SELLER_PROFILE")
 	c, err := Parse(env(m))
 	if err != nil {
 		t.Fatalf("sandbox config rejected: %v", err)

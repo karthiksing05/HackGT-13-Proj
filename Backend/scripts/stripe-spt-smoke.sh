@@ -8,7 +8,8 @@
 #   STRIPE_SECRET_KEY           the agent account (SideQuestz): issues SPTs. sk_test_ only.
 #   STRIPE_MERCHANT_SECRET_KEY  the merchant account (SideQuestz Events): confirms
 #                               PaymentIntents. Defaults to STRIPE_SECRET_KEY (one account).
-#   STRIPE_SELLER_PROFILE       the merchant account's Stripe profile (profile_…).
+#   STRIPE_SELLER_PROFILE       the merchant account's TEST-mode Stripe profile (profile_test_…);
+#                               empty = looked up and printed.
 #
 # Steps: 1 issue an SPT, 2 the merchant charges it, 3 a charge above max_amount,
 # 4 reusing a spent SPT, 5 an SPT that has expired. Nothing leaves test mode.
@@ -27,14 +28,25 @@ if [ -f "$ENV_FILE" ]; then
 fi
 AGENT_KEY="${STRIPE_SECRET_KEY:?STRIPE_SECRET_KEY is not set (repo-root .env or environment)}"
 MERCHANT_KEY="${STRIPE_MERCHANT_SECRET_KEY:-$AGENT_KEY}"
-PROFILE="${STRIPE_SELLER_PROFILE:?STRIPE_SELLER_PROFILE is not set (the merchant account's profile_…)}"
+PROFILE="${STRIPE_SELLER_PROFILE:-}"
 for k in "$AGENT_KEY" "$MERCHANT_KEY"; do
   case "$k" in sk_test_*|rk_test_*) ;; *) echo "refusing: Stripe keys must be test keys (sk_test_/rk_test_)" >&2; exit 1 ;; esac
 done
 
 API=https://api.stripe.com/v1
 PREVIEW="Stripe-Version: 2026-04-22.preview"
-RETURN_URL="https://api.sidequestz.tech/checkout/stripe/return"
+
+# The seller profile must be the merchant account's TEST-mode profile
+# (profile_test_…). Empty: look it up with the merchant key.
+if [ -z "$PROFILE" ]; then
+  PROFILE=$(curl -sS https://api.stripe.com/v2/network/business_profiles/me -H "Authorization: Bearer $MERCHANT_KEY" -H "$PREVIEW" | jq -r '.id // empty')
+  [ -n "$PROFILE" ] || { echo "no Stripe profile on the merchant account: create one at https://dashboard.stripe.com/profiles (in test mode / the sandbox)" >&2; exit 1; }
+  echo "==> seller profile (test mode): $PROFILE  (put this in STRIPE_SELLER_PROFILE)"
+fi
+case "$PROFILE" in
+  profile_test_*) ;;
+  *) echo "STRIPE_SELLER_PROFILE is a live-mode profile; test keys need the test one (profile_test_…). Unset it and this script prints it." >&2; exit 1 ;;
+esac
 
 # stripe KEY METHOD PATH [curl args…]: prints the JSON body; never fails the script.
 stripe() {
@@ -49,13 +61,13 @@ issue() { # issue MAX_CENTS EXPIRES_AT → issued-token JSON
     -d "seller_details[network_business_profile]=${PROFILE}" \
     -d "usage_limits[currency]=usd" \
     -d "usage_limits[max_amount]=$1" \
-    -d "usage_limits[expires_at]=$2" \
-    --data-urlencode "return_url=${RETURN_URL}"
+    -d "usage_limits[expires_at]=$2"
 }
 charge() { # charge SPT AMOUNT → PaymentIntent JSON (merchant account)
   stripe "$MERCHANT_KEY" POST /payment_intents \
     -d "amount=$2" -d currency=usd -d confirm=true \
     -d "payment_method_data[shared_payment_granted_token]=$1" \
+    -d "expand[]=payment_method" \
     -d "metadata[source]=stripe-spt-smoke"
 }
 
@@ -72,13 +84,21 @@ if [ "$(echo "$out" | jq -r '.id // empty')" = "" ]; then
   out=$(issue 1000 "$soon")
 fi
 SPT=$(echo "$out" | jq -r '.id // empty')
-[ -n "$SPT" ] || { echo "    FAILED: $(echo "$out" | err)"; exit 1; }
+if [ -z "$SPT" ]; then
+  echo "    FAILED: $(echo "$out" | err)"
+  case "$out" in *"same as the counterparty"*)
+    echo "    The agent and the merchant must be different Stripe accounts: make a second sandbox for SideQuestz Events" >&2
+    echo "    and set STRIPE_MERCHANT_SECRET_KEY to its key (STRIPE_SELLER_PROFILE empty, so its profile is looked up)." >&2 ;;
+  esac
+  exit 1
+fi
 echo "    ok: $SPT status=$(echo "$out" | jq -r .status) payment_method=$PM"
 
 echo "==> 2. merchant charges it (\$10.00)"
 pi=$(charge "$SPT" 1000)
 echo "    status=$(echo "$pi" | jq -r '.status // "error"') id=$(echo "$pi" | jq -r '.id // "-"') error=$(echo "$pi" | err)"
-echo "    granted token: $(stripe "$MERCHANT_KEY" GET "/shared_payment/granted_tokens/$SPT" | jq -c '{status: (.deactivated_reason // "active"), usage_limits, card: (.payment_method_details.card // .payment_method_preview.card // null) | if . then {brand, last4} else null end}')"
+echo "    card on the PaymentIntent (what Events shows): $(echo "$pi" | jq -c '.payment_method.card // null | if . then {brand, last4} else null end')"
+echo "    granted token: $(stripe "$MERCHANT_KEY" GET "/shared_payment/granted_tokens/$SPT" | jq -c '{status: (.deactivated_reason // "active"), usage_limits}')"
 
 echo "==> 3. charge above max_amount (SPT max \$10.00, charge \$12.50)"
 over=$(issue 1000 "$soon" | jq -r '.id // empty')
@@ -87,12 +107,12 @@ echo "    error=$(charge "$over" 1250 | err)"
 echo "==> 4. reuse the SPT spent in step 2"
 echo "    error=$(charge "$SPT" 1000 | err)"
 
-echo "==> 5. an SPT whose expiry has passed"
-exp=$(issue 1000 $((now + 5)))
+echo "==> 5. an SPT whose expiry has passed (waits ~25s)"
+exp=$(issue 1000 $(( $(date +%s) + 20 )))
 if [ "$(echo "$exp" | jq -r '.id // empty')" = "" ]; then
   echo "    issue refused: $(echo "$exp" | err)"
 else
-  sleep 8
+  sleep 25
   echo "    error=$(charge "$(echo "$exp" | jq -r .id)" 1000 | err)"
 fi
 echo "==> done: copy the codes above into docs/AGENTIC_CHECKOUT.md (Stripe error codes)"

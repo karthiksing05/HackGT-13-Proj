@@ -74,6 +74,9 @@ func TestStripeDeclines(t *testing.T) {
 		{"over max_amount", "spt_1", `{"error":{"type":"invalid_request_error","code":"amount_too_large","message":"The amount exceeds the shared payment token's max_amount."}}`, 400, ReasonOverLimit},
 		{"expired", "spt_1", `{"error":{"type":"invalid_request_error","code":"shared_payment_token_expired","message":"This token has expired."}}`, 400, ReasonExpired},
 		{"used", "spt_1", `{"error":{"type":"invalid_request_error","code":"shared_payment_token_deactivated","message":"This shared payment token has been deactivated."}}`, 400, ReasonUsed},
+		// The exact answers Stripe test mode gave (no code, message only).
+		{"over the limit (live wording)", "spt_1", `{"error":{"type":"invalid_request_error","message":"The requested amount is greater than the remaining amount capturable with this shared payment granted token."}}`, 400, ReasonOverLimit},
+		{"spent (live wording)", "spt_1", `{"error":{"type":"invalid_request_error","message":"The shared payment granted token cannot be used because it is already in a deactivated state."}}`, 400, ReasonUsed},
 		{"card declined", "spt_1", `{"error":{"type":"card_error","code":"card_declined","decline_code":"generic_decline","message":"Your card was declined."}}`, 402, ReasonCardDeclined},
 		{"unknown token", "spt_missing", ``, 0, ReasonUnknownToken},
 	}

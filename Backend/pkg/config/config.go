@@ -253,6 +253,9 @@ func (c *Config) validateAgentCheckout() []error {
 			errs = append(errs, errors.New("PAYMENTS_MODE=sandbox is required when STRIPE_SECRET_KEY is set"))
 		}
 	}
+	if c.StripeSellerProfile != "" && !strings.HasPrefix(c.StripeSellerProfile, "profile_test_") {
+		errs = append(errs, errors.New("STRIPE_SELLER_PROFILE must be the test-mode profile (profile_test_…); Backend/scripts/stripe-spt-smoke.sh prints it"))
+	}
 	if c.PaymentsMode != "" && c.PaymentsMode != "sandbox" {
 		errs = append(errs, fmt.Errorf("PAYMENTS_MODE must be sandbox, got %q", c.PaymentsMode))
 	}

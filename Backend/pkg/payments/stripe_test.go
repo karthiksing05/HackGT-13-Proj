@@ -37,12 +37,14 @@ func TestStripeIssueSendsTheLimits(t *testing.T) {
 			"usage_limits[currency]":                   "usd",
 			"usage_limits[max_amount]":                 "2692",
 			"usage_limits[expires_at]":                 "1790532600",
-			"return_url":                               "https://api.example.test/checkout/return",
 		}
 		for k, v := range want {
 			if got := r.Form.Get(k); got != v {
 				t.Errorf("%s = %q, want %q", k, got, v)
 			}
+		}
+		if r.Form.Has("return_url") {
+			t.Errorf("return_url sent; Stripe rejects it as parameter_unknown")
 		}
 		if r.Header.Get("Idempotency-Key") != "spt-intent-1" {
 			t.Errorf("Idempotency-Key = %q", r.Header.Get("Idempotency-Key"))
@@ -51,7 +53,7 @@ func TestStripeIssueSendsTheLimits(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	spt, err := NewStripe("sk_test_1", srv.URL, "https://api.example.test/checkout/return").Issue(context.Background(), IssueRequest{
+	spt, err := NewStripe("sk_test_1", srv.URL).Issue(context.Background(), IssueRequest{
 		PaymentMethod: "pm_card_visa", SellerProfile: "profile_test_seller", MaxCents: 2692, Currency: "usd",
 		ExpiresAt: expires, IdempotencyKey: "spt-intent-1",
 	})
@@ -66,7 +68,7 @@ func TestStripeIssueCardErrorIsADecline(t *testing.T) {
 		_, _ = w.Write([]byte(`{"error":{"type":"card_error","code":"card_declined","message":"Your card was declined."}}`))
 	}))
 	defer srv.Close()
-	_, err := NewStripe("sk_test_1", srv.URL, "").Issue(context.Background(), IssueRequest{PaymentMethod: "pm_card_chargeDeclined"})
+	_, err := NewStripe("sk_test_1", srv.URL).Issue(context.Background(), IssueRequest{PaymentMethod: "pm_card_chargeDeclined"})
 	if !errors.Is(err, ErrDeclined) {
 		t.Fatalf("err = %v, want ErrDeclined", err)
 	}
@@ -79,7 +81,7 @@ func TestStripeRevoke(t *testing.T) {
 		_, _ = w.Write([]byte(`{"id":"spt_123","status":"deactivated"}`))
 	}))
 	defer srv.Close()
-	if err := NewStripe("sk_test_1", srv.URL, "").Revoke(context.Background(), "spt_123"); err != nil {
+	if err := NewStripe("sk_test_1", srv.URL).Revoke(context.Background(), "spt_123"); err != nil {
 		t.Fatal(err)
 	}
 	if path != "/v1/shared_payment/issued_tokens/spt_123/revoke" {
