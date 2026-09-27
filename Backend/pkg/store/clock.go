@@ -4,9 +4,6 @@ import (
 	"Backend/pkg/democlock"
 	"context"
 	"time"
-
-	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // BusinessNow is the store clock as the request's account lives it: Now,
@@ -23,22 +20,4 @@ func (s *Store) BusinessNow(ctx context.Context) time.Time { return democlock.No
 // passes for its owner.
 func (s *Store) RealAt(ctx context.Context, t time.Time) time.Time {
 	return democlock.RealAt(ctx, t, s.Now())
-}
-
-// Catalog is the catalog a user plans from (activities or demo_activities),
-// read without the rest of the document; the demo clock asks it for every
-// signed-in request it has not cached.
-func (u Users) Catalog(ctx context.Context, id string) (string, error) {
-	oid, ok := objectID(id)
-	if !ok {
-		return "", ErrNotFound
-	}
-	var doc struct {
-		Catalog string `bson:"catalog"`
-	}
-	if err := decodeOne(u.coll().FindOne(ctx, bson.M{"_id": oid},
-		options.FindOne().SetProjection(bson.M{"catalog": 1})), &doc); err != nil {
-		return "", err
-	}
-	return doc.Catalog, nil
 }

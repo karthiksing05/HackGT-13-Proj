@@ -7,6 +7,7 @@ import (
 	"Backend/pkg/models"
 	"Backend/pkg/planner"
 	"Backend/pkg/planner/mongosource"
+	"Backend/pkg/store"
 	"Backend/pkg/testutil"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +22,9 @@ import (
 // its plan pools expire by the real clock. Same HTTP surface, real planner
 // and Mongo store as TestPlanningOverHTTP.
 func TestPlanningOnTheDemoDate(t *testing.T) {
+	if store.ActivityCollection != store.CollDemoActivities {
+		t.Skip("demo clock requires ActivityCollection = CollDemoActivities")
+	}
 	ny, _ := time.LoadLocation("America/New_York")
 	for _, tc := range []struct {
 		name         string
@@ -61,7 +65,7 @@ func TestPlanningOnTheDemoDate(t *testing.T) {
 
 			sandy := srv.Signup(t, "Sandy Byte")
 			if _, err := srv.Store.Users().Update(ctx, sandy.UserID, bson.M{
-				"catalog": "demo_activities", "city": "saltlight",
+				"email": testutil.UniqueEmail("demo"), "city": "saltlight",
 				"homeBase":          models.HomeBase{Name: seaside.Name, Lat: seaside.Coordinate.Lat, Lng: seaside.Coordinate.Lng},
 				"positiveEmbedding": profile, "positiveText": "Interests:\n- outdoor recreation\n- live music",
 			}); err != nil {

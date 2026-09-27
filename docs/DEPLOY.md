@@ -31,15 +31,17 @@ uploads, HTTP/1.1 upgrade on `/ws`, long proxy timeouts on the socket). There is
 
 | Path | Contents |
 |---|---|
-| `/opt/backend/sidequestz-server`, `/opt/backend/sidequestz-admin` | the API and the admin tool (static linux/amd64); the previous ones are kept as `*.prev` |
+| `/opt/backend/sidequestz-server`, `/opt/backend/sidequestz-admin` | the API and optional maintenance CLI (static linux/amd64); uploaded binaries keep a `*.prev` backup |
 | `/opt/backend/.env` | the API's environment, mode 0600, owned by `sidequestz` (see below) |
 | `/opt/ml/` | the `ml/` tree without secrets, caches, venvs or the training and data-generation code; `/opt/ml/.venv`; `/opt/ml/.cache` (model weights, the embedding cache); `/opt/ml.prev` is the previous tree |
 | `/opt/ml/.env`, `/opt/ml/gcp-sa.json` | the ML service's secrets, mode 0600 |
 | `/etc/systemd/system/sidequestz.service`, `ml.service`, `ml-embed-missing.service`, `ml-embed-missing.timer` | the units, installed by the deploy scripts (the old `backend.service` unit is retired) |
 | `/etc/nginx/sites-available/sidequestz.tech` | the site, TLS managed by Certbot |
 
-The admin tool reads the same environment as the server, or a file given with `--env-file` (it never
-overrides variables that are already set):
+The optional admin tool handles database maintenance, demo seeding and signing-key generation.
+The API does not need it to run and creates its indexes at startup. Build it with `./build.sh --admin`
+or upload it with `./deploy.sh --admin` when maintenance is needed. It reads the server environment,
+or a file given with `--env-file`, without overriding variables already set:
 
 ```sh
 /opt/backend/sidequestz-admin --env-file /opt/backend/.env ensure-indexes                   # every index the server expects
@@ -132,13 +134,12 @@ Both scripts take the connection settings from the environment or a `.env` file 
 from it: `Backend/deploy.sh` reads `DEPLOY_*` from the repo-root `.env` and then `Backend/.env` (the
 first to set a variable wins); `ml/deploy.sh` reads `DEPLOY_*` and `ML_DEPLOY_*` from the first of
 `ml/.env`, `Backend/.env` and the root `.env`. They authenticate non-interactively (`sshpass` or
-`SSH_ASKPASS`, else your SSH keys) and never print the values. The root `.env` sets
-`DEPLOY_SERVICE=sidequestz`; without it `Backend/deploy.sh` would install the unit as `backend`.
+`SSH_ASKPASS`, else your SSH keys) and never print the values. The Backend service defaults to `sidequestz`; `DEPLOY_SERVICE` can override the unit name.
 
 | Script | What it does |
 |---|---|
-| `Backend/build.sh [--amd64\|--arm64\|--native] [--skip-tests] [--clean]` | `go mod download`, `go test ./...` (unless skipped), then static, stripped builds (`CGO_ENABLED=0`, `-trimpath -ldflags="-s -w"`) of `bin/sidequestz-server` and `bin/sidequestz-admin`; `make build` is `./build.sh --amd64 --skip-tests` |
-| `Backend/deploy.sh [host] [user] [--seed]` | 1. `build.sh --amd64` (tests included); 2. pre-flight: `/opt/backend/.env` must exist and be non-empty, or nothing is uploaded; 3. uploads both binaries and the unit as `*.new`; 4. swaps them in (keeping `*.prev`), creates the `sidequestz` system user if missing, `chown sidequestz` and `chmod 600` the `.env`, `daemon-reload`, `enable`, `restart`, checks the unit is active and that `curl -fsS 127.0.0.1:8080/healthz` answers. `--seed` then runs `sidequestz-admin --env-file /opt/backend/.env ensure-indexes`. It never uploads or rewrites `.env` |
+| `Backend/build.sh [--native] [--admin]` | Builds the static, stripped server for Linux/amd64. Set `GOOS`/`GOARCH` for another target, or use `--native` for this machine. `--admin` also builds the maintenance CLI. Tests run separately with `make test`. |
+| `Backend/deploy.sh [host] [user] [--admin]` | Checks the remote `.env`, builds Linux/amd64, uploads the server and service unit, keeps the previous binary, restarts and retries `/healthz`. `--admin` also uploads the CLI. Supports SSH keys or `DEPLOY_PASSWORD`. Never uploads or rewrites `.env`; sets its ownership and permissions. No database seeding or tests run during deployment. |
 | `ml/deploy.sh [--skip-tests] [host] [user] [password]` | 1. runs the unit tests locally; 2. snapshots `/opt/ml` to `/opt/ml.prev` (hard links, `cp -al`); 3. rsyncs `ml/` with `--delete`, excluding `.env*`, `*.env`, `gcp-sa.json`, `*.pem`, `*.key`, `.cache`, venvs, `datagen/`, `data/`, `*.sbatch`, `wandb/` and `runs/` (excluded paths on the server are kept); 4. directories 755, files 644, secrets 600; creates the venv and installs `requirements-serve.txt` with CPU torch wheels; prefetches the Qwen weights into `/opt/ml/.cache`; installs and enables `ml.service` and the timer; restarts; 5. waits about 5 minutes at most for `/healthz`, then embeds one text through `/healthz?probe=1` and fails loudly (with the last 50 log lines) if either does not come up; only then starts the timer |
 
 ## Runbook
@@ -163,7 +164,7 @@ ssh <host> 'systemctl is-active ml; curl -s 127.0.0.1:8000/healthz | jq "{status
 **3. Backend.**
 
 ```sh
-cd Backend && ./deploy.sh --seed          # builds with tests, uploads, restarts sidequestz, ensure-indexes
+cd Backend && make test && ./deploy.sh --admin  # --admin is needed for the maintenance commands below
 ssh <host> 'systemctl is-active sidequestz; ss -ltnp | grep 8080; journalctl -u sidequestz -n 30 --no-pager'
 ```
 
@@ -178,7 +179,7 @@ $A reset-app-data --yes          # drop the app collections; keeps the catalogs 
 $A ensure-indexes
 $A drop-ttl demo_activities      # the demo events must not expire (a no-op when there is no TTL index)
 $A seed-demo                     # Sandy Byte, Marin, Theo and their world; prints what it wrote
-mongosh freetime --eval 'db.users.findOne({email:"demo@sidequestz.tech"},{name:1,homeBase:1,city:1,setupComplete:1,embeddingModel:1})'
+mongosh freetime --eval 'db.users.findOne({email:"demo@gatech.edu"},{name:1,homeBase:1,city:1,setupComplete:1,embeddingModel:1})'
 ```
 
 `seed-demo` refuses to write anything when `DEMO_PASSWORD` is missing or `demo_activities` has fewer than
@@ -220,7 +221,7 @@ xcrun devicectl device install app --device <device id> /tmp/DD-device/Build/Pro
 
 | Part | Command |
 |---|---|
-| Backend | `cd /opt/backend && mv -f sidequestz-server.prev sidequestz-server && mv -f sidequestz-admin.prev sidequestz-admin && systemctl restart sidequestz` |
+| Backend | `cd /opt/backend && mv -f sidequestz-server.prev sidequestz-server && systemctl restart sidequestz` (restore `sidequestz-admin.prev` too if you deployed the CLI) |
 | ML | `rm -rf /opt/ml && mv /opt/ml.prev /opt/ml && systemctl restart ml` |
 | Data | the seed is idempotent; rerun step 4 |
 | App | reinstall the previous `.app`, or relaunch with `-SQAPIMode mock` to demo offline |
@@ -299,7 +300,7 @@ cd Backend && APP_ENV=dev HTTP_ADDR=127.0.0.1:8080 MONGO_URI=mongodb://127.0.0.1
 `APP_ENV=dev` relaxes the JWT-secret check (a missing secret becomes a random one), defaults
 `PUBLIC_BASE_URL` to the listen address, reads Facebook's app id and secret from the gitignored
 repo-root `meta_app_id` / `meta_app_secret` files when the variables are unset, and allows
-`DEV_RESET_CODES=1`. `make build-native` builds both binaries for the Mac. The Go tests use
+`DEV_RESET_CODES=1`. `make build-native` builds the server for the Mac; `make build-admin` also builds the CLI. The Go tests use
 `MONGO_TEST_URI` (default the same local server) and create and drop `sq_test_*` databases; `make
 test-db` runs them all with the race detector and fails instead of skipping when Mongo is down.
 

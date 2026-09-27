@@ -5,6 +5,7 @@ import (
 	"Backend/pkg/api/view"
 	"Backend/pkg/httpx"
 	"Backend/pkg/planner"
+	"Backend/pkg/store"
 	"Backend/pkg/travel"
 	"net/http"
 	"strconv"
@@ -71,7 +72,7 @@ func (h *H) SearchActivities(w http.ResponseWriter, r *http.Request) {
 	}
 	q := strings.TrimSpace(query.Get("q"))
 	from, to := day, day.AddDate(0, 0, 1)
-	acts, err := h.d.Store.Catalog().SearchActivities(r.Context(), user.Catalog, q, from, to, activitiesFetch)
+	acts, err := h.d.Store.Catalog().SearchActivities(r.Context(), store.ActivityCollection, q, from, to, activitiesFetch)
 	if err != nil {
 		api.Fail(w, r, err)
 		return

@@ -2,6 +2,7 @@ package planner
 
 import (
 	"Backend/pkg/itinerary"
+	"Backend/pkg/store"
 	"Backend/pkg/travel"
 	"bytes"
 	"encoding/json"
@@ -197,7 +198,7 @@ func BuildSpec(req Request, tzHeader string, now time.Time, user *UserContext, c
 
 	catalog, ok := NormalizeCatalog(user.Catalog)
 	if !ok {
-		catalog = "activities"
+		catalog = store.ActivityCollection
 	}
 	spec.Catalog = catalog
 
