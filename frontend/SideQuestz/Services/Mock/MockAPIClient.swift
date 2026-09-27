@@ -32,6 +32,7 @@ final class MockAPIClient: APIClient {
     /// Realtime events the demo "server" sends (checkout finishing), when an environment is attached.
     var realtime: RealtimeHub?
     private var intents: [String: CheckoutIntent] = [:]
+    private var runs: [String: CheckoutRun] = [:]
     private var posts = MockData.forumPosts()
     private var myPost: MyFreePost?
     private var threadsById: [String: ChatThread] = [:]
@@ -285,7 +286,7 @@ final class MockAPIClient: APIClient {
 
     func addPaymentMethod(token: String) async throws -> PaymentMethod {
         try await simulate("me", 500)
-        let demoCards = [("Visa", "4242"), ("Mastercard", "5454"), ("Visa", "1881")]
+        let demoCards = [("Visa", "4242"), ("Mastercard", "4444"), ("Visa", "5556")]
         let (brand, last4) = demoCards[min(cards.count, demoCards.count - 1)]
         let card = PaymentMethod(id: "pm-\(last4)-\(cards.count)", brand: brand, last4: last4, isDefault: cards.isEmpty)
         cards.append(card)
@@ -469,8 +470,14 @@ final class MockAPIClient: APIClient {
             cursor = legEnd
             if i < stops.count, i < request.route.stopTimes.count {
                 let stop = stops[i], time = request.route.stopTimes[i]
-                items.append(ItineraryItem(id: nextId("stop"), kind: .sidequest, title: stop.title, place: stop.place,
-                                           start: time.start, end: time.end, description: stop.subtitle))
+                var item = ItineraryItem(id: nextId("stop"), kind: .sidequest, title: stop.title, place: stop.place,
+                                         start: time.start, end: time.end, description: stop.subtitle)
+                // Paid stops ("· $$") are sold on the sandbox merchant, so agentic checkout can buy them.
+                if stop.subtitle.contains("$") {
+                    item.ticketURL = URL(string: "https://events.sidequestz.tech/\(Self.slug(stop.title))/tickets")
+                    item.bookable = true
+                }
+                items.append(item)
                 cursor = time.end
             }
         }
@@ -788,6 +795,155 @@ final class MockAPIClient: APIClient {
     func cancelCheckout(id: String) async throws {
         try await simulate("checkout", 120)
         intents[id]?.state = .cancelled
+    }
+
+    // MARK: - Agentic checkout
+
+    /// The demo merchant's price per ticket when the stop has none.
+    private static let demoTicketCents = 1800
+
+    private static func slug(_ title: String) -> String {
+        title.lowercased().map { $0.isLetter || $0.isNumber ? String($0) : "-" }.joined()
+            .split(separator: "-").joined(separator: "-")
+    }
+
+    private func mockFees(_ subtotal: Int, quantity: Int) -> Int { subtotal * 8 / 100 + 50 * quantity }
+
+    func checkoutPlan(itineraryId: String) async throws -> CheckoutPlan {
+        try await simulate("checkout", 250)
+        guard let itin = itins.first(where: { $0.id == itineraryId }).map(withSavedDetails) else { throw APIError.notFound }
+        let items = itin.items.filter { $0.kind == .sidequest && $0.ticketURL != nil }.map { item in
+            CheckoutPlanItem(itemId: item.id, title: item.title, start: item.start, merchant: "events.sidequestz.tech",
+                             ticketURL: item.ticketURL, priceCents: item.priceCents ?? Self.demoTicketCents, quantity: 1,
+                             booked: item.ticket != nil, intentState: nil, confirmation: item.ticket?.confirmation)
+        }
+        let estimate = items.filter { !$0.booked }.reduce(0) { $0 + ($1.priceCents ?? 0) * $1.quantity }
+        let card = cards.first { $0.isDefault } ?? cards.first
+        let suggested = min(max((estimate * 115 / 100 + 99) / 100 * 100, prefs.instantCheckoutLimitCents), 100_000)
+        return CheckoutPlan(itineraryId: itineraryId, available: true, agenticCheckout: prefs.instantCheckout, items: items,
+                            estimateCents: estimate, defaultBudgetCents: prefs.instantCheckoutLimitCents,
+                            suggestedBudgetCents: suggested, paymentMethodId: card?.id, cardBrand: card?.brand,
+                            cardLast4: card?.last4, activeRunId: runs.values.first { $0.itineraryId == itineraryId && $0.isRunning }?.id)
+    }
+
+    func startCheckoutRun(itineraryId: String, _ request: CreateCheckoutRun) async throws -> CheckoutRun {
+        try await simulate("checkout", 500)
+        let plan = try await checkoutPlan(itineraryId: itineraryId)
+        if plan.activeRunId != nil { throw APIError.server(status: 409, message: "Muse is already getting tickets for this plan.") }
+        guard let card = cards.first(where: { $0.id == request.paymentMethodId }) ?? cards.first(where: { $0.isDefault }) ?? cards.first else {
+            throw APIError.validation("Add a card in Account first.")
+        }
+        let runId = nextId("run")
+        var list: [CheckoutIntent] = []
+        for wanted in request.items {
+            guard let item = plan.items.first(where: { $0.itemId == wanted.itemId }), !item.booked else { continue }
+            var intent = CheckoutIntent(id: nextId("ci"), itemId: item.itemId, itemTitle: item.title,
+                                        steps: [CheckoutStep(text: "Waiting for Muse", done: false)],
+                                        subtotalCents: nil, feesCents: nil, totalCents: nil,
+                                        cardBrand: card.brand, cardLast4: card.last4, state: .processing,
+                                        quantity: wanted.quantity, paymentMethodId: card.id)
+            intent.runId = runId
+            intent.merchant = item.merchant
+            intent.checkoutURL = item.ticketURL
+            intents[intent.id] = intent
+            list.append(intent)
+        }
+        guard !list.isEmpty else { throw APIError.server(status: 409, message: "Everything on this plan is already booked.") }
+        let run = CheckoutRun(id: runId, itineraryId: itineraryId, state: .running, budgetCents: request.budgetCents, spentCents: 0,
+                              currency: "usd", cardBrand: card.brand, cardLast4: card.last4, agent: "muse", summary: nil,
+                              intents: list, createdAt: clock.now, finishedAt: nil)
+        runs[runId] = run
+        let delay = 1.1 * latencyScale
+        Task { [weak self] in
+            for intent in list {
+                if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
+                self?.advanceRunItem(runId: runId, intentId: intent.id, step: "Opened the ticket page")
+                if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
+                self?.buyRunItem(runId: runId, intentId: intent.id)
+            }
+            self?.finishRun(runId)
+        }
+        return run
+    }
+
+    private func advanceRunItem(runId: String, intentId: String, step: String) {
+        guard runs[runId]?.isRunning == true, var intent = intents[intentId], intent.state == .processing else { return }
+        intent.steps = [CheckoutStep(text: step, done: true), CheckoutStep(text: "Checking the price", done: false)]
+        intents[intentId] = intent
+        realtime?.publish(.checkoutStatus(intentId: intentId, state: intent.state))
+    }
+
+    private func buyRunItem(runId: String, intentId: String) {
+        guard var run = runs[runId], run.isRunning, var intent = intents[intentId], intent.state == .processing else { return }
+        let subtotal = Self.demoTicketCents * intent.quantity
+        let total = subtotal + mockFees(subtotal, quantity: intent.quantity)
+        intent.subtotalCents = subtotal
+        intent.feesCents = total - subtotal
+        intent.totalCents = total
+        if run.spentCents + total > run.budgetCents {
+            intent.state = .failed
+            intent.failureCode = "over_budget"
+            intent.failureReason = "\(Money.compact(total)) is more than what's left of your budget."
+            intent.steps = [CheckoutStep(text: "Opened the ticket page", done: true), CheckoutStep(text: "Over budget, skipped", done: true)]
+        } else {
+            intent.state = .booked
+            intent.maxAuthorizedCents = total
+            intent.finalCents = total
+            intent.confirmation = "SQZ-\(String(abs(intentId.hashValue), radix: 36).prefix(6).uppercased())"
+            intent.orderRef = "ord_\(intentId)"
+            let slug = intent.checkoutURL.map { $0.deletingLastPathComponent().lastPathComponent } ?? "event"
+            intent.ticketURL = URL(string: "https://events.sidequestz.tech/\(slug)/ticket/\(intentId)")
+            intent.steps = [CheckoutStep(text: "Opened the ticket page", done: true),
+                            CheckoutStep(text: "Paid \(Money.compact(total)) with \(intent.cardBrand) •••• \(intent.cardLast4) (sandbox)", done: true),
+                            CheckoutStep(text: "Got your ticket", done: true)]
+            run.spentCents += total
+            tickets[intent.itemId] = Ticket(id: nextId("tk"), quantity: intent.quantity, totalCents: total,
+                                            confirmation: intent.confirmation, url: intent.ticketURL)
+        }
+        intents[intentId] = intent
+        run.intents = run.intents.map { intents[$0.id] ?? $0 }
+        runs[runId] = run
+        realtime?.publish(.checkoutStatus(intentId: intentId, state: intent.state))
+        realtime?.publish(.checkoutRun(runId: runId, state: run.state, spentCents: run.spentCents))
+    }
+
+    private func finishRun(_ runId: String) {
+        guard var run = runs[runId], run.isRunning else { return }
+        run.intents = run.intents.map { intents[$0.id] ?? $0 }
+        run.state = .done
+        run.finishedAt = clock.now
+        let booked = run.booked.map(\.itemTitle), missed = run.notBooked.map(\.itemTitle)
+        var parts: [String] = []
+        if !booked.isEmpty { parts.append("Got tickets for \(ListFormatter.localizedString(byJoining: booked)) (\(Money.compact(run.spentCents)) of your \(Money.compact(run.budgetCents)) budget).") }
+        if !missed.isEmpty { parts.append("Couldn't get \(ListFormatter.localizedString(byJoining: missed)).") }
+        run.summary = parts.joined(separator: " ")
+        runs[runId] = run
+        realtime?.publish(.checkoutRun(runId: runId, state: .done, spentCents: run.spentCents))
+    }
+
+    func checkoutRun(id: String) async throws -> CheckoutRun {
+        try await simulate("checkout", 120)
+        guard var run = runs[id] else { throw APIError.notFound }
+        run.intents = run.intents.map { intents[$0.id] ?? $0 }
+        return run
+    }
+
+    func cancelCheckoutRun(id: String) async throws -> CheckoutRun {
+        try await simulate("checkout", 200)
+        guard var run = runs[id] else { throw APIError.notFound }
+        if run.isRunning {
+            for intent in run.intents where intents[intent.id]?.state == .processing {
+                intents[intent.id]?.state = .cancelled
+                intents[intent.id]?.failureCode = "cancelled"
+            }
+            run.state = .cancelled
+            run.finishedAt = clock.now
+            run.summary = run.booked.isEmpty ? "Stopped before buying anything." : "Stopped. Tickets already bought are kept."
+        }
+        run.intents = run.intents.map { intents[$0.id] ?? $0 }
+        runs[id] = run
+        realtime?.publish(.checkoutRun(runId: id, state: run.state, spentCents: run.spentCents))
+        return run
     }
 
     // MARK: - Forum

@@ -37,6 +37,8 @@ final class Router {
     var openThread: ThreadRoute?
     /// Non-nil → "Redo setup questions" presented full screen while signed in.
     var setupRedo: SetupEntry?
+    /// Non-nil → "Let Muse get your tickets" for this plan (agentic checkout).
+    var agentCheckout: AgentCheckoutRoute?
 
     /// Demo deep link from `-SQRoute …`; features consume the parts meant for them.
     private(set) var pendingLaunch: [String]?
@@ -94,6 +96,7 @@ final class Router {
     }
 
     func signedOut() {
+        agentCheckout = nil
         createDraft = nil
         openThread = nil
         setupRedo = nil

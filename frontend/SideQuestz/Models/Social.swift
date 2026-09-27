@@ -315,6 +315,8 @@ enum RealtimeEvent: Hashable {
     case friendRequest(FriendRequest)
     case forumUpdate
     case checkoutStatus(intentId: String, state: CheckoutState)
+    /// An agentic checkout run moved (an item booked or failed, or the run finished).
+    case checkoutRun(runId: String, state: CheckoutRunState, spentCents: Int)
     case transitDelay(itineraryId: String, itemId: String, minutes: Int)
     /// A plan you're on changed (the host edited it, someone joined, it was re-timed).
     case itineraryUpdated(Itinerary)
