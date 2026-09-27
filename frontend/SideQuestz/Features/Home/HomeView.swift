@@ -29,6 +29,8 @@ struct HomeView: View {
     @State private var showsRate = false
     /// Saved in the Rate sheet; its Past row changes once the sheet is out of the way.
     @State private var savedRating: HomeSavedRating?
+    /// A person from the search results whose profile is open.
+    @State private var profileRoute: PersonProfileRoute?
 
     private static let segments: [(value: Router.HomeSegment, label: String)] = [
         (.itineraries, "Sidequests"), (.calendar, "Calendar"), (.past, "Past"),
@@ -86,6 +88,8 @@ struct HomeView: View {
         .sqSheet(isPresented: $showsEvent, style: SQSheetStyle(height: .fixed(660)), onDismiss: eventSheetClosed) {
             HomeEventSheetHost(route: $eventRoute, store: store, close: { showsEvent = false }, didChange: { reloadAfterEvent = true })
         }
+        // The results show how you relate to each person: they catch up with what the profile did.
+        .personProfileSheet($profileRoute, changed: { Task { await search.reload(env: env) } })
         .sensoryFeedback(.success, trigger: ratingsSaved)
         .task { await start() }
         .task { await listenForUpdates() }
@@ -218,12 +222,10 @@ struct HomeView: View {
         }
     }
 
-    /// A person: your chat with them opens (search stays, for coming back).
+    /// A person: their profile opens (search stays, for coming back); Message is there.
     private func openPerson(_ person: PersonRef) {
         searchFocused = false
-        search.openChat(with: person, env: env) { thread in
-            router.openThread(thread.id, isGroup: false)
-        }
+        profileRoute = PersonProfileRoute(person)
     }
 
     /// A place: plan a sidequest that ends there (search closes).

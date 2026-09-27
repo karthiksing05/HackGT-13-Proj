@@ -17,7 +17,11 @@ import SwiftUI
 /// reordered ones slide, and the results count rolls. Pull to refresh reloads the feed and your
 /// post without leaving the screen.
 ///
-/// Launch routes: `forum`, `forum/area` (Area sheet), `forum/filter` (Sort & filter sheet).
+/// Friends shows what the tab is for and People for you (cards that open a profile) above your
+/// friends' posts. A post's author opens their profile too.
+///
+/// Launch routes: `forum`, `forum/area` (Area sheet), `forum/filter` (Sort & filter sheet),
+/// `forum/friends` (the Friends tab), `profile/<userId>` (that person's profile over the Forum).
 struct ForumView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
@@ -51,6 +55,10 @@ struct ForumView: View {
     @State private var areaResolved = false
     @State private var showArea = false
     @State private var showFilter = false
+    /// Whose profile is open (a post's author, a People for you card, `profile/<id>`).
+    @State private var profileRoute: PersonProfileRoute?
+    /// Friends › People for you, kept for the session.
+    @State private var people = ForumPeopleModel()
 
     private var statusBusy: Bool { posting != nil || takingDown }
 
@@ -73,6 +81,14 @@ struct ForumView: View {
                                    accessibilityLabel: "Who you see")
                     .padding(.horizontal, Metrics.side)
                     .padding(.top, 10)
+                VStack(spacing: 0) {
+                    if query.scope == .friends {
+                        ForumFriendsIntro(model: people) { profileRoute = PersonProfileRoute($0) }
+                            .padding(.top, 12)
+                            .transition(.opacity)
+                    }
+                }
+                .animation(Motion.standard, value: query.scope)
                 statusCard
                     .padding(.horizontal, Metrics.side)
                     .padding(.top, 12)
@@ -92,6 +108,9 @@ struct ForumView: View {
         .sqPullToRefresh()
         .background(Theme.cream.ignoresSafeArea())
         .task(id: query) { await loadPosts() }
+        .task(id: query.scope) {
+            if query.scope == .friends { await people.load(env) }
+        }
         .task { await loadMyPost() }
         // A free post comes down on its own at `until`: check back then.
         .task(id: myPost.value??.until) { await refreshWhenPostEnds() }
@@ -104,6 +123,7 @@ struct ForumView: View {
         .sqSheet(isPresented: $showFilter) {
             ForumFilterSheet(pending: $pendingQuery, initialCount: refreshing ? nil : posts.value?.count) { showFilter = false }
         }
+        .personProfileSheet($profileRoute, changed: { Task { await refreshAfterProfile() } })
         .onChange(of: showFilter) { _, shown in
             if !shown, pendingQuery != query { query = pendingQuery }
         }
@@ -363,7 +383,7 @@ struct ForumView: View {
     private func postList(_ list: [ForumPost]) -> some View {
         VStack(spacing: 12) {
             if list.isEmpty {
-                Text("Nothing here yet. Try a wider area.")
+                Text(emptyMessage)
                     .socialText(15)
                     .foregroundStyle(Theme.text3)
                     .multilineTextAlignment(.center)
@@ -372,12 +392,22 @@ struct ForumView: View {
                     .transition(.opacity)
             }
             ForEach(Array(list.enumerated()), id: \.element.id) { index, post in
-                ForumPostCard(post: post, isBusy: busyPostIds.contains(post.id), error: postErrors[post.id]) {
+                ForumPostCard(post: post, isBusy: busyPostIds.contains(post.id), error: postErrors[post.id],
+                              openAuthor: { profileRoute = PersonProfileRoute(post.author) }) {
                     act(on: post)
                 }
                 .socialArrival(index, staggered: arrivingIds.contains(post.id))
             }
         }
+    }
+
+    /// Friends' posts aren't limited by the area, so an empty Friends tab asks for friends (People
+    /// for you is right above it) unless filters narrowed it down.
+    private var emptyMessage: String {
+        guard shownQuery.scope == .friends else { return "Nothing here yet. Try a wider area." }
+        return shownQuery.filterCount > 0 || shownQuery.type != .all
+            ? "None of your friends' posts match. Try fewer filters."
+            : "Add friends to see their plans here."
     }
 
     // MARK: Loading
@@ -480,11 +510,13 @@ struct ForumView: View {
         await refreshMyPost()
     }
 
-    /// Pull to refresh: the feed and your post, together. Keeps what's on screen if a call fails.
+    /// Pull to refresh: the feed and your post, together (and People for you on Friends). Keeps
+    /// what's on screen if a call fails.
     private func reload() async {
         let request = query
         let feedCall = Task { try await env.api.forumPosts(request) }
         let postCall = Task { try await env.api.myFreePost() }
+        let peopleCall = Task { if request.scope == .friends { await people.load(env, force: true) } }
         if case .success(let fresh) = await feedCall.result, request == query {
             show(.loaded(fresh), for: request)
         }
@@ -494,11 +526,30 @@ struct ForumView: View {
                 if mine == nil { justPosted = false }
             }
         }
+        await peopleCall.value
     }
 
-    /// `forum/area` and `forum/filter` open their sheets.
+    /// A profile changed how you relate to someone, or where you stand on a plan: the feed (its
+    /// "Friend" tags and join buttons) and People for you catch up.
+    private func refreshAfterProfile() async {
+        let feedCall = Task { await refreshFeed() }
+        if people.suggestions != nil { await people.load(env, force: true) }
+        await feedCall.value
+    }
+
+    /// `forum/area` and `forum/filter` open their sheets, `forum/friends` shows Friends, and
+    /// `profile/<userId>` opens that person's profile.
     private func applyLaunchRoute() async {
+        if let id = router.consumeLaunch("profile")?.first {
+            try? await Task.sleep(for: .milliseconds(350))
+            profileRoute = PersonProfileRoute(personId: id)
+            return
+        }
         guard let parts = router.consumeLaunch("forum"), let sheet = parts.first else { return }
+        if sheet == "friends" {
+            query.scope = .friends
+            return
+        }
         try? await Task.sleep(for: .milliseconds(350))
         switch sheet {
         case "area":

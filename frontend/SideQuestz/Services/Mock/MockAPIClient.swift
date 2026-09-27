@@ -61,6 +61,11 @@ final class MockAPIClient: APIClient {
         self.latencyScale = latencyScale
         self.failing = failing
         self.user = MockData.user()
+        // `-SQMockFriends none`: an account with no friends or requests yet (an empty Forum › Friends).
+        if UserDefaults.standard.string(forKey: "SQMockFriends") == "none" {
+            friendList = []
+            requests = []
+        }
         seedThreads()
     }
 
@@ -410,7 +415,7 @@ final class MockAPIClient: APIClient {
         let places = MockPlaces.suggestions
             .filter { $0.pillName.lowercased().contains(q) || $0.label.lowercased().contains(q) }
             .map(\.place)
-        let found = posts.filter { ($0.title ?? $0.text ?? "").lowercased().contains(q) || $0.author.name.lowercased().contains(q) }
+        let found = visiblePosts.filter { ($0.title ?? $0.text ?? "").lowercased().contains(q) || $0.author.name.lowercased().contains(q) }
         return SearchResults(sidequests: sidequests, people: matchingPeople(q), places: Array(places.prefix(5)), posts: found)
     }
 
@@ -993,9 +998,19 @@ final class MockAPIClient: APIClient {
 
     // MARK: - Forum
 
+    /// The posts as you see them now: "Friend" follows your friends list, and only friends see
+    /// friends-only posts.
+    private var visiblePosts: [ForumPost] {
+        posts.compactMap { post in
+            var post = post
+            post.isFriend = friendList.contains { $0.person.id == post.author.id }
+            return post.friendsOnly && !post.isFriend ? nil : post
+        }
+    }
+
     func forumPosts(_ query: ForumQuery) async throws -> [ForumPost] {
         try await simulate("forum")
-        let filtered = posts.enumerated().filter { _, p in
+        let filtered = visiblePosts.enumerated().filter { _, p in
             switch query.type {
             case .all: break
             case .plans: if p.type != .plan { return false }
@@ -1229,6 +1244,17 @@ final class MockAPIClient: APIClient {
                 let row = searchResult(for: s.person)
                 return PersonSuggestion(person: s.person, relation: row.relation, requestId: row.requestId, compatibility: s.compatibility)
             }
+    }
+
+    /// Profiles (`MockProfiles`) with how each person relates to you right now.
+    func profile(userId: String) async throws -> PublicProfile {
+        try await simulate("profile", 220)
+        if userId == me.id { return MockProfiles.own(user, ratings: prefs.ratings) }
+        guard let person = MockPeople.byId(userId) else { throw APIError.notFound }
+        let row = searchResult(for: person)
+        return MockProfiles.profile(of: person, relation: ProfileRelation(row.relation), requestId: row.requestId,
+                                    statusLine: friendList.first { $0.person.id == userId }?.statusLine,
+                                    friends: friendList.map(\.person), ratings: prefs.ratings, posts: visiblePosts)
     }
 
     private func matchingPeople(_ query: String) -> [UserSearchResult] {

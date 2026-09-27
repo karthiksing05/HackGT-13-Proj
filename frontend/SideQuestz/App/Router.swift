@@ -178,7 +178,8 @@ final class Router {
                 tab = .home
                 let step = Int(parts.dropFirst().first ?? "1") ?? 1
                 createDraft = CreateDraft(step: step)
-            case "forum":
+            case "forum", "profile":
+                // A profile opens over the Forum (`ForumView` consumes `profile/<userId>`).
                 tab = .forum
             case "groups":
                 tab = .groups
@@ -253,7 +254,8 @@ struct SetupEntry: Identifiable, Equatable {
 /// - `splash`, `login`, `forgot/1…4`, `setup/1…5`
 /// - `home`, `home/calendar`, `home/past`, `home/sheet/<blockId>`, `home/rate/<pastId>`, `home/checkout/<blockId>`
 /// - `create/1…4`, `create/2/calendar`, `create/4/more`, `create/4/swap`
-/// - `forum`, `forum/area`, `forum/filter`
+/// - `forum`, `forum/area`, `forum/filter`, `forum/friends`
+/// - `profile/<userId>` (someone's profile over the Forum, e.g. `profile/u-mr`)
 /// - `groups`, `thread/<id>/<chat|album|splits>`, `thread/g1/splits/expense`, `thread/dm-maya`
 /// - `account`, `account/friends`, `account/photo`, `account/facebook`
 struct LaunchRoute: Equatable {

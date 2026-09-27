@@ -57,9 +57,6 @@ final class HomeSearchModel {
     private(set) var resultsQuery = ""
     /// A newer query is loading over the results on screen.
     private(set) var isRefreshing = false
-    /// A chat with this person is being opened.
-    private(set) var openingPersonId: String?
-    private(set) var personError: String?
     @ObservationIgnored private var requestedQuery = ""
 
     func search(_ query: String, env: AppEnvironment) async {
@@ -67,7 +64,6 @@ final class HomeSearchModel {
         let showing = results?.value != nil
         withMotion {
             if showing { isRefreshing = true } else { results = .loading }
-            personError = nil
         }
         let result = await Loadable.run { try await env.api.search(query: query) }
         // Typing again cancelled this one; the newer query shows instead.
@@ -98,35 +94,12 @@ final class HomeSearchModel {
         results = nil
         resultsQuery = ""
         isRefreshing = false
-        openingPersonId = nil
-        personError = nil
-    }
-
-    /// A person in the results: open (or start) your chat with them.
-    func openChat(with person: PersonRef, env: AppEnvironment, open: @escaping (ChatThread) -> Void) {
-        guard openingPersonId == nil else { return }
-        withMotion(Motion.quick) {
-            openingPersonId = person.id
-            personError = nil
-        }
-        Task {
-            do {
-                let thread = try await env.api.startDM(userId: person.id)
-                withMotion(Motion.quick) { openingPersonId = nil }
-                open(thread)
-            } catch {
-                withMotion(Motion.arrive) {
-                    openingPersonId = nil
-                    personError = HomeCheckoutSession.message(error, "Couldn't open a chat. Try again.")
-                }
-            }
-        }
     }
 }
 
 /// Search results in sections (Sidequests, People, Places, Posts) of white rows. A sidequest opens
-/// on the Sidequests segment, a person opens your chat, a place starts a plan that ends there, and a
-/// post opens the Forum.
+/// on the Sidequests segment, a person opens their profile, a place starts a plan that ends there,
+/// and a post opens the Forum.
 struct HomeSearchResultsView: View {
     let model: HomeSearchModel
     let retry: () -> Void
@@ -163,14 +136,6 @@ struct HomeSearchResultsView: View {
         if !results.people.isEmpty {
             section("PEOPLE") {
                 rows(results.people) { personRow($0) }
-            }
-            if let error = model.personError {
-                Text(error)
-                    .sqFont(13)
-                    .foregroundStyle(Theme.danger)
-                    .padding(.horizontal, Metrics.side)
-                    .padding(.top, 8)
-                    .sqTransition(.rise)
             }
         }
         if !results.places.isEmpty {
@@ -233,29 +198,15 @@ struct HomeSearchResultsView: View {
 
     private func personRow(_ result: UserSearchResult) -> some View {
         let person = result.person
-        let opening = model.openingPersonId == person.id
         let subtitle = [person.username.map { "@\($0)" }, Self.relation(result.relation)].compactMap { $0 }.joined(separator: " · ")
-        return resultRow(title: person.name, subtitle: subtitle.isEmpty ? nil : subtitle, hint: "Opens your chat") {
+        return resultRow(title: person.name, subtitle: subtitle.isEmpty ? nil : subtitle, hint: "Opens their profile") {
             openPerson(person)
         } leading: {
             Avatar(person: person, size: 36, fontSize: 13)
                 .accessibilityHidden(true)
         } trailing: {
-            ZStack(alignment: .trailing) {
-                if opening {
-                    LoadingDots(color: Theme.sageInk, dotSize: 5)
-                        .transition(.opacity)
-                } else {
-                    Text("Message")
-                        .sqFont(13, .semibold)
-                        .foregroundStyle(Theme.sageInk)
-                        .transition(.opacity)
-                }
-            }
-            .animation(Motion.quick, value: opening)
+            chevron
         }
-        .disabled(model.openingPersonId != nil)
-        .accessibilityValue(opening ? "Opening chat" : "")
     }
 
     private func placeRow(_ place: Place) -> some View {

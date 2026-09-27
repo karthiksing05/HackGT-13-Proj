@@ -109,6 +109,7 @@ struct ContractTests {
         try roundTrip(try await api.friendRequests(), "FriendRequests")
         try roundTrip(try await api.searchUsers(query: "a"), "UserSearchResults")
         try roundTrip(try await api.suggestedPeople(), "PersonSuggestions")
+        try roundTrip(try await api.profile(userId: MockPeople.maya.id), "PublicProfile")
         try roundTrip(try await api.sendFriendRequest(userId: MockPeople.sam.id), "OutgoingFriendRequest")
         try roundTrip(JoinResult(status: .joined, itineraryId: "itin-42", threadId: "g42"), "JoinResult")
         try roundTrip(NewFreePost(visibility: .everyone, until: clock.date(2026, 9, 25, 18, 30), area: ForumArea.midtown, radiusMi: 2), "NewFreePost")

@@ -162,6 +162,8 @@ struct FriendsView: View {
     @State private var confirming: AccountFriendsConfirm?
     /// Rows arrive one after another when the list first loads while this view exists.
     @State private var animateRows: Bool
+    /// Whose profile is open (any row's avatar and name).
+    @State private var profileRoute: PersonProfileRoute?
 
     init(model: AccountFriendsModel) {
         self.model = model
@@ -213,6 +215,7 @@ struct FriendsView: View {
                 .presentationDetents([.medium, .large])
                 .ignoresSafeArea()
         }
+        .personProfileSheet($profileRoute, changed: { Task { await model.reload(env) } })
         .confirmationDialog(confirming?.title ?? "", isPresented: confirmShown, titleVisibility: .visible,
                             presenting: confirming) { item in
             Button(item.actionLabel, role: .destructive) { perform(item) }
@@ -328,28 +331,29 @@ struct FriendsView: View {
         let person = result.person
         let (relation, requestId) = relation(of: result)
         return HStack(spacing: 12) {
-            Avatar(person: person, size: 40, fontSize: 14)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 6) {
-                    Text(person.name)
-                        .sqFont(15, .semibold)
-                        .foregroundStyle(Theme.ink)
-                        .authLineHeight(1.35, size: 15)
-                        .lineLimit(1)
-                    if let match {
-                        MatchPill(percent: match)
+            profileButton(person) {
+                Avatar(person: person, size: 40, fontSize: 14)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 6) {
+                        Text(person.name)
+                            .sqFont(15, .semibold)
+                            .foregroundStyle(Theme.ink)
+                            .authLineHeight(1.35, size: 15)
+                            .lineLimit(1)
+                        if let match {
+                            MatchPill(percent: match)
+                        }
+                    }
+                    if let handle = person.username, !handle.isEmpty {
+                        Text("@\(handle)")
+                            .sqFont(12)
+                            .foregroundStyle(Theme.text3)
+                            .authLineHeight(1.35, size: 12)
                     }
                 }
-                if let handle = person.username, !handle.isEmpty {
-                    Text("@\(handle)")
-                        .sqFont(12)
-                        .foregroundStyle(Theme.text3)
-                        .authLineHeight(1.35, size: 12)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
             // One slot: the states cross-fade in place.
             ZStack(alignment: .trailing) {
                 switch relation {
@@ -489,23 +493,24 @@ struct FriendsView: View {
     private func requestRow(_ row: AccountRequestRow) -> some View {
         let request = row.request
         return HStack(spacing: 12) {
-            Avatar(person: request.person, size: 40, fontSize: 14)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(request.person.name)
-                    .sqFont(15, .semibold)
-                    .foregroundStyle(Theme.ink)
-                    .authLineHeight(1.35, size: 15)
-                if !request.note.isEmpty {
-                    Text(request.note)
-                        .sqFont(12)
-                        .foregroundStyle(Theme.text3)
-                        .authLineHeight(1.35, size: 12)
-                        .fixedSize(horizontal: false, vertical: true)
+            profileButton(request.person) {
+                Avatar(person: request.person, size: 40, fontSize: 14)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(request.person.name)
+                        .sqFont(15, .semibold)
+                        .foregroundStyle(Theme.ink)
+                        .authLineHeight(1.35, size: 15)
+                    if !request.note.isEmpty {
+                        Text(request.note)
+                            .sqFont(12)
+                            .foregroundStyle(Theme.text3)
+                            .authLineHeight(1.35, size: 12)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
             switch row {
             case .incoming:
                 answerButtons(requestId: request.id, person: request.person)
@@ -556,29 +561,31 @@ struct FriendsView: View {
         .padding(.horizontal, Metrics.side)
     }
 
-    /// Photo (or initials) with the activity dot, name, live status line, message button. Long-press
-    /// for Message / Remove friend.
+    /// Photo (or initials) with the activity dot, name, live status line (tap for their profile),
+    /// message button. Long-press for Message / Remove friend.
     private func friendRow(_ row: AccountFriendRow) -> some View {
         let adding = row.isAdding
         let person = row.person
         return HStack(spacing: 12) {
-            Avatar(initials: person.initials, fill: person.color, size: 40, fontSize: 14, imageURL: person.photoURL,
-                   statusColor: row.dotColor, statusSize: 12, statusBorder: .white, statusBorderWidth: 2,
-                   statusOffset: 1)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(person.name)
-                    .sqFont(15, .semibold)
-                    .foregroundStyle(Theme.ink)
-                    .authLineHeight(1.35, size: 15)
-                Text(row.statusLine)
-                    .sqFont(12)
-                    .foregroundStyle(Theme.text3)
-                    .authLineHeight(1.35, size: 12)
-                    .contentTransition(.opacity)
+            profileButton(person) {
+                Avatar(initials: person.initials, fill: person.color, size: 40, fontSize: 14, imageURL: person.photoURL,
+                       statusColor: row.dotColor, statusSize: 12, statusBorder: .white, statusBorderWidth: 2,
+                       statusOffset: 1)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(person.name)
+                        .sqFont(15, .semibold)
+                        .foregroundStyle(Theme.ink)
+                        .authLineHeight(1.35, size: 15)
+                    Text(row.statusLine)
+                        .sqFont(12)
+                        .foregroundStyle(Theme.text3)
+                        .authLineHeight(1.35, size: 12)
+                        .contentTransition(.opacity)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
+            .disabled(adding)
             messageButton(person)
                 .disabled(adding)
                 .opacity(adding ? 0.45 : 1)
@@ -598,6 +605,20 @@ struct FriendsView: View {
         .accessibilityAction(named: "Remove friend") {
             if !adding { confirming = .remove(person) }
         }
+    }
+
+    /// A row's avatar and name, as one button that opens the person's profile (the row's own
+    /// buttons stay separate).
+    private func profileButton<Label: View>(_ person: PersonRef, @ViewBuilder label: () -> Label) -> some View {
+        Button {
+            profileRoute = PersonProfileRoute(person)
+        } label: {
+            HStack(spacing: 12) { label() }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.sqPressable)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens their profile")
     }
 
     /// 40pt `sageTint` circle with a sageInk bubble → DM thread (dots while it opens).

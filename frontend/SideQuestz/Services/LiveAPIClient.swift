@@ -508,6 +508,7 @@ final class LiveAPIClient: APIClient {
         try await list("users/search", query: [URLQueryItem(name: "q", value: query)])
     }
     func suggestedPeople() async throws -> [PersonSuggestion] { try await list("people/suggested") }
+    func profile(userId: String) async throws -> PublicProfile { try await call("GET", "users/\(userId)/profile") }
     func friendRequests() async throws -> [FriendRequest] { try await list("friends/requests") }
 
     func sendFriendRequest(userId: String) async throws -> FriendRequest {

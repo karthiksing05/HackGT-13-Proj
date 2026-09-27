@@ -209,3 +209,90 @@ struct PersonSuggestion: Codable, Hashable, Identifiable {
         set { relation = newValue.relation; requestId = newValue.requestId }
     }
 }
+
+// MARK: - Profiles
+
+/// How the person on a profile relates to you (`PublicProfile.relation`): the Friends words, or
+/// `self` on your own profile.
+enum ProfileRelation: String, Codable, Hashable {
+    case you = "self"
+    case none, friend, outgoing, incoming
+
+    init(from decoder: Decoder) throws {
+        self = ProfileRelation(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .none
+    }
+
+    init(_ relation: FriendRelation) {
+        self = ProfileRelation(rawValue: relation.rawValue) ?? .none
+    }
+}
+
+/// The friends you and someone have in common: how many, and up to three of them.
+struct MutualFriends: Codable, Hashable {
+    var count = 0
+    var people: [PersonRef] = []
+}
+
+/// Someone as you see them (`GET /users/{id}/profile`): who they are, how you relate, why your
+/// tastes match, what they're into, friends in common and their plans you can join.
+struct PublicProfile: Codable, Hashable, Identifiable {
+    var person: PersonRef
+    var school: String? = nil
+    /// The city they plan in: a catalog key ("atlanta") or a name with its own casing.
+    var city: String? = nil
+    var status: PresenceStatus = .open
+    /// Their line in your Friends list ("Free until 8 PM"); only when you're friends.
+    var statusLine: String? = nil
+    var relation: ProfileRelation = .none
+    /// The pending request between you (outgoing: withdraw it; incoming: accept or decline it).
+    var requestId: String? = nil
+    /// Taste match as a whole-number percent, 0–100; nil on your own profile or when unscored.
+    var compatibility: Int? = nil
+    /// Up to three reasons your tastes match ("You both love live music").
+    var matchReasons: [String] = []
+    /// What they like most, as labels ("Live music").
+    var likes: [String] = []
+    var mutualFriends = MutualFriends()
+    /// Their upcoming plans you can see, as the Forum shows them (with where you stand on each).
+    var openPlans: [ForumPost] = []
+    var sidequestsDone = 0
+
+    var id: String { person.id }
+}
+
+extension MutualFriends {
+    enum CodingKeys: String, CodingKey {
+        case count, people
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        people = try c.decodeIfPresent([PersonRef].self, forKey: .people) ?? []
+        count = max(people.count, try c.decodeIfPresent(Int.self, forKey: .count) ?? 0)
+    }
+}
+
+extension PublicProfile {
+    enum CodingKeys: String, CodingKey {
+        case person, school, city, status, statusLine, relation, requestId, compatibility, matchReasons, likes
+        case mutualFriends, openPlans, sidequestsDone
+    }
+
+    /// Only `person` is required: lists default to empty, and the match is kept within 0–100.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        person = try c.decode(PersonRef.self, forKey: .person)
+        school = try c.decodeIfPresent(String.self, forKey: .school)
+        city = try c.decodeIfPresent(String.self, forKey: .city)
+        status = try c.decodeIfPresent(PresenceStatus.self, forKey: .status) ?? .open
+        statusLine = try c.decodeIfPresent(String.self, forKey: .statusLine)
+        relation = try c.decodeIfPresent(ProfileRelation.self, forKey: .relation) ?? .none
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId)
+        compatibility = try c.decodeIfPresent(Int.self, forKey: .compatibility).map { min(100, max(0, $0)) }
+        matchReasons = try c.decodeIfPresent([String].self, forKey: .matchReasons) ?? []
+        likes = try c.decodeIfPresent([String].self, forKey: .likes) ?? []
+        mutualFriends = try c.decodeIfPresent(MutualFriends.self, forKey: .mutualFriends) ?? MutualFriends()
+        openPlans = try c.decodeIfPresent([ForumPost].self, forKey: .openPlans) ?? []
+        sidequestsDone = max(0, try c.decodeIfPresent(Int.self, forKey: .sidequestsDone) ?? 0)
+    }
+}
