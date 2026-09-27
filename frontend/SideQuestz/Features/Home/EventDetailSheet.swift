@@ -56,6 +56,8 @@ struct HomeEventSheet: View {
     /// The checkout in the Checkout sheet (kept while the sheet animates away).
     @State private var shownCheckout: HomeCheckoutSession?
     @State private var openedCheckout = false
+    /// Someone in "Who's in" whose profile is open.
+    @State private var profileRoute: PersonProfileRoute?
     @FocusState private var notesFocused: Bool
     /// The selected travel mode's tint and ring slide between the cards.
     @Namespace private var modeSelection
@@ -132,6 +134,8 @@ struct HomeEventSheet: View {
         .sqSheet(isPresented: $showsCheckout, style: SQSheetStyle(dim: 0.45), onDismiss: checkoutClosed) {
             HomeCheckoutSheetHost(session: $shownCheckout, isShared: sharesWithGroup, close: { showsCheckout = false })
         }
+        // A chat opened from a profile shows over the tabs: this sheet steps aside too.
+        .personProfileSheet($profileRoute, leave: close)
     }
 
     // MARK: Content
@@ -251,27 +255,35 @@ struct HomeEventSheet: View {
         .background(Theme.cream, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
+    /// A face in "Who's in": tap for their profile.
     private func person(_ person: PersonRef, isGoing: Bool) -> some View {
         let name = person.id == env.user?.id ? "You" : person.firstName
         let status = isGoing ? "Going" : "Interested"
-        return VStack(spacing: 4) {
-            Avatar(person: person, size: 40, fontSize: 13, ring: isGoing ? Theme.sage : Theme.lineStrong, ringWidth: 2)
-            Text(name)
-                .sqFont(11, relativeTo: .caption2)
-                .foregroundStyle(Theme.text2)
-                .homeLine(11)
-                .lineLimit(1)
-                .fixedSize()
-            Text(status)
-                .sqFont(10, relativeTo: .caption2)
-                .foregroundStyle(Theme.text3)
-                .homeLine(10)
-                .lineLimit(1)
-                .fixedSize()
+        return Button {
+            profileRoute = PersonProfileRoute(person)
+        } label: {
+            VStack(spacing: 4) {
+                Avatar(person: person, size: 40, fontSize: 13, ring: isGoing ? Theme.sage : Theme.lineStrong, ringWidth: 2)
+                Text(name)
+                    .sqFont(11, relativeTo: .caption2)
+                    .foregroundStyle(Theme.text2)
+                    .homeLine(11)
+                    .lineLimit(1)
+                    .fixedSize()
+                Text(status)
+                    .sqFont(10, relativeTo: .caption2)
+                    .foregroundStyle(Theme.text3)
+                    .homeLine(10)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            .frame(width: 52)
         }
-        .frame(width: 52)
+        .buttonStyle(.sqPressable)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(name), \(status)")
+        .accessibilityHint("Opens their profile")
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: Getting there

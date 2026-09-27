@@ -44,13 +44,14 @@ In Xcode, go to Product → Scheme → Edit Scheme → Run → **Arguments** and
 | Argument | What it does |
 | --- | --- |
 | `-SQAPIMode mock` | Runs fully offline on the demo backend (Atlanta, Friday Sep 25, user Jordan Lee; any valid email with any password signs in). Without it the app uses the live server from Info.plist |
-| `-SQRoute home/calendar` | Opens straight to a screen, signed in as the demo user; needs `-SQAPIMode mock` (in live mode a signed-out launch lands on Login). Also: `login`, `forgot/2`, `setup/3`, `home`, `home/past`, `home/sheet/a3`, `home/rate/x1`, `home/edit/itin-fri` (Edit sidequest), `home/map/itin-fri` (that sidequest on its map), `create/1`…`create/4`, `create/4/more`, `create/4/swap` (the swap sheet for stop 2), `create/4/stop` (the details pane for stop 1), `forum`, `forum/filter`, `groups`, `thread/g1/splits`, `thread/dm-maya`, `account/friends`, `account/facebook` (connects the demo Facebook and opens its sheet), `gallery` (the design-system gallery) |
+| `-SQRoute home/calendar` | Opens straight to a screen, signed in as the demo user; needs `-SQAPIMode mock` (in live mode a signed-out launch lands on Login). Also: `login`, `forgot/2`, `setup/3`, `home`, `home/past`, `home/sheet/a3`, `home/rate/x1`, `home/edit/itin-fri` (Edit sidequest), `home/map/itin-fri` (that sidequest on its map), `create/1`…`create/4`, `create/4/more`, `create/4/swap` (the swap sheet for stop 2), `create/4/stop` (the details pane for stop 1), `forum`, `forum/filter`, `forum/friends` (Friends with People for you), `profile/u-mr` (someone's profile over the Forum; `u-jl` is yours), `groups`, `thread/g1/splits`, `thread/dm-maya`, `account/friends`, `account/facebook` (connects the demo Facebook and opens its sheet), `gallery` (the design-system gallery) |
 | `-SQSkipIntro YES` | Skips the opening animation, which otherwise plays on every cold launch |
 | `-SQDemoPassword …` | The demo account's password for this launch, so Login shows "Use the demo account" (live mode only; wins over the `SQ_DEMO_PASSWORD` build setting) |
 | `-SQAPIBaseURL http://127.0.0.1:8080` | Uses another server for this launch, with `-SQWebSocketURL ws://127.0.0.1:8080/ws` for realtime (see [Pointing the app at a server](#pointing-the-app-at-a-server)) |
 | `-SQSlowLoadingAfter 0` | Seconds a first load shows its skeleton before the S loader takes over (default 2; `0` shows the S at once, a large number never) |
 | `-SQMockLatency 0` | Removes the demo backend's fake network delay (each demo call otherwise takes about as long as a real one, 0.1–0.9 s) |
-| `-SQMockFail forum,itineraries` | Makes those demo endpoints fail, to see error states (also `facebook`, `me`, `friends`, `splits`, `album`, …) |
+| `-SQMockFail forum,itineraries` | Makes those demo endpoints fail, to see error states (also `facebook`, `me`, `friends`, `profile`, `splits`, `album`, …) |
+| `-SQMockFriends none` | Starts the demo account with no friends or friend requests yet, like a new account (an empty Forum › Friends under People for you) |
 | `-SQVoiceDemo YES` | Voice buttons return sample transcripts instead of using the mic |
 
 ### Pointing the app at a server

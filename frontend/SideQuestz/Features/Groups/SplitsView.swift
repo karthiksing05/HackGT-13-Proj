@@ -37,6 +37,8 @@ struct GroupSplitsView: View {
     @State private var deleteError: String?
     @State private var addedCount = 0
     @State private var settledCount = 0
+    /// A member (from the balances) whose profile is open.
+    @State private var profileRoute: PersonProfileRoute?
 
     private static let top = "splits.top"
     private var meId: String { env.user?.id ?? "" }
@@ -92,6 +94,7 @@ struct GroupSplitsView: View {
         }
         .sensoryFeedback(.success, trigger: addedCount)
         .sensoryFeedback(.success, trigger: settledCount)
+        .personProfileSheet($profileRoute)
     }
 
     private var content: some View {
@@ -183,6 +186,7 @@ struct GroupSplitsView: View {
         .background(.white, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
     }
 
+    /// A member and where you stand with them; tap for their profile.
     private func balanceRow(_ balance: Balance, members: [PersonRef]) -> some View {
         let person = members.first { $0.id == balance.userId }
         let name = person?.firstName ?? "Someone"
@@ -190,22 +194,30 @@ struct GroupSplitsView: View {
         let text = net > 0 ? "\(name) owes you" : net < 0 ? "You owe \(name)" : "Settled with \(name)"
         let amount = net == 0 ? "—" : Money.format(abs(net))
         let color = net > 0 ? Theme.success : net < 0 ? Theme.danger : Theme.text3
-        return HStack(spacing: 10) {
-            if let person {
-                Avatar(person: person, size: 30, fontSize: 11)
+        return Button {
+            if let person { profileRoute = PersonProfileRoute(person) }
+        } label: {
+            HStack(spacing: 10) {
+                if let person {
+                    Avatar(person: person, size: 30, fontSize: 11)
+                }
+                Text(text)
+                    .socialText(15)
+                    .foregroundStyle(Theme.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(amount)
+                    .socialText(15, .bold)
+                    .foregroundStyle(color)
+                    .sqNumeric()
             }
-            Text(text)
-                .socialText(15)
-                .foregroundStyle(Theme.ink)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text(amount)
-                .socialText(15, .bold)
-                .foregroundStyle(color)
-                .sqNumeric()
+            .padding(.vertical, 10)
         }
-        .padding(.vertical, 10)
+        .buttonStyle(.sqPressable)
+        .disabled(person == nil)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(net == 0 ? text : "\(text) \(amount)")
+        .accessibilityHint(person == nil ? "" : "Opens their profile")
+        .accessibilityAddTraits(person == nil ? [] : .isButton)
     }
 
     private func expenseList(_ ledger: GroupLedger) -> some View {

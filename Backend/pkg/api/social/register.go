@@ -48,6 +48,7 @@ func Register(r *mux.Router, d *api.Deps) {
 
 	r.Handle("/friends", d.Protect(h.ListFriends)).Methods("GET")
 	r.Handle("/users/search", d.Protect(h.SearchUsers)).Methods("GET")
+	r.Handle("/users/{id}/profile", d.Protect(h.Profile)).Methods("GET")
 	r.Handle("/people/suggested", d.Protect(h.SuggestPeople)).Methods("GET")
 	r.Handle("/friends/requests", d.Protect(h.ListRequests)).Methods("GET")
 	r.Handle("/friends/requests", d.Protect(h.SendRequest)).Methods("POST")

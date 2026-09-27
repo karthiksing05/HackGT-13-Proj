@@ -42,6 +42,7 @@
     "PlanRequest",
     "PlanRequest.mustInclude",
     "Preferences",
+    "PublicProfile",
     "Rating",
     "RouteRequest",
     "RouteResult",

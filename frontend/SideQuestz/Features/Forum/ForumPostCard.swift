@@ -10,12 +10,17 @@ import SwiftUI
 /// Motion: while the card's request runs the button shows `LoadingDots`; when it's done the label
 /// and colors morph ("Message sent" and "You're in" draw a check in). The spot bubbles fill in one
 /// after another when the card appears, and a bubble fills with a pop when someone takes a spot.
+///
+/// The author's avatar and name open their profile when `openAuthor` is set; a profile's own list
+/// of plans leaves the author line out (`showsAuthor: false`).
 struct ForumPostCard: View {
     let post: ForumPost
     /// The card's action is in flight (button disabled, loading dots).
     var isBusy = false
     /// Last action failure for this card.
     var error: String?
+    var openAuthor: (() -> Void)? = nil
+    var showsAuthor = true
     let action: () -> Void
 
     private var isPlan: Bool { post.type == .plan }
@@ -30,7 +35,9 @@ struct ForumPostCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            header
+            if showsAuthor {
+                header
+            }
             if isPlan {
                 planDetails
             } else {
@@ -62,6 +69,26 @@ struct ForumPostCard: View {
 
     private var header: some View {
         HStack(spacing: 10) {
+            if let openAuthor {
+                Button(action: openAuthor) {
+                    author.contentShape(Rectangle())
+                }
+                .buttonStyle(.sqPressable)
+                .accessibilityElement(children: .combine)
+                .accessibilityHint("Opens their profile")
+            } else {
+                author
+                    .accessibilityElement(children: .combine)
+            }
+            SocialTag(text: isPlan ? "Open plan" : "Free now",
+                      fill: isPlan ? Theme.sageTint : Theme.transitBg,
+                      foreground: isPlan ? Theme.sageInk : Theme.transitText)
+        }
+    }
+
+    /// Avatar, name (with "Friend") and the meta line.
+    private var author: some View {
+        HStack(spacing: 10) {
             Avatar(person: post.author, size: 36, fontSize: 13)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
@@ -84,12 +111,8 @@ struct ForumPostCard: View {
                     .foregroundStyle(Theme.text3)
                     .lineLimit(1)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            SocialTag(text: isPlan ? "Open plan" : "Free now",
-                      fill: isPlan ? Theme.sageTint : Theme.transitBg,
-                      foreground: isPlan ? Theme.sageInk : Theme.transitText)
         }
-        .accessibilityElement(children: .combine)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: Open plan

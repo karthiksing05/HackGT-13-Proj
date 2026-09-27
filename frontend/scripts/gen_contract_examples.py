@@ -48,7 +48,8 @@ GROUPS = [
                                 ("GroupPhotos", ""), ("NewExpense", ""), ("GroupLedger", "")]),
     ("Friends", [("Friends", ""), ("FriendRequests", ""),
                  ("OutgoingFriendRequest", "response of POST /friends/requests"), ("UserSearchResults", ""),
-                 ("PersonSuggestions", "GET /people/suggested")]),
+                 ("PersonSuggestions", "GET /people/suggested"),
+                 ("PublicProfile", "GET /users/{id}/profile: a friend's, with their plan")]),
 ]
 
 INDEX_NOTE = "frontend ContractTests dump (TEST_RUNNER_SQ_DUMP_CONTRACT) via scripts/gen_contract_examples.py"
