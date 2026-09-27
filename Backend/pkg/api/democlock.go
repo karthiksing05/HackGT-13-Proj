@@ -18,10 +18,24 @@ import (
 // now, and keep Clock() for tokens, rate limits, web sessions, expiries and
 // logs; stores have the same pair (Store.BusinessNow, Store.Now).
 
-// demoState holds the optional demo clock.
+// demoCacheTTL is how long whether a user is in the demo cast is trusted;
+// demoCacheMax bounds the cache, which starts over when full.
+const (
+	demoCacheTTL = 30 * time.Second
+	demoCacheMax = 10000
+)
+
+type demoEntry struct {
+	demo bool
+	at   time.Time
+}
+
+// demoState is Deps' demo clock and its per-user cache.
 type demoState struct {
 	once  sync.Once
 	clock *democlock.Clock
+	mu    sync.Mutex
+	users map[string]demoEntry
 }
 
 // DemoClock is DEMO_DATE's clock; nil when it is unset (everyone lives in
@@ -39,26 +53,53 @@ func (d *Deps) DemoClock() *democlock.Clock {
 // for a demo account the demo date at the real time of day.
 func (d *Deps) BusinessNow(ctx context.Context) time.Time { return democlock.Now(ctx, d.Clock()) }
 
-// ClockFor returns DEMO_DATE's clock while the demo collection is selected.
+// ClockFor is u's demo clock: DEMO_DATE's for the demo cast (who plan from
+// demo_activities), nil for everyone else.
 func (d *Deps) ClockFor(u *models.User) *democlock.Clock {
-	if u == nil || store.ActivityCollection != store.CollDemoActivities {
+	if !store.IsDemoCast(u) {
 		return nil
 	}
 	return d.DemoClock()
 }
 
-// ForUser applies the selected collection's clock to signed-in requests
-// and background work. It does not load the user.
+// ForUser is ctx carrying userID's clock: the demo clock for the demo cast
+// (roles are read once per demoCacheTTL), ctx itself otherwise. The
+// middleware calls it after bearer auth; work done for a user outside a
+// request (the checkout agent) calls it too.
 func (d *Deps) ForUser(ctx context.Context, userID string) context.Context {
 	c := d.DemoClock()
-	if c == nil || userID == "" || store.ActivityCollection != store.CollDemoActivities {
+	if c == nil || userID == "" || !d.isDemo(ctx, userID) {
 		return ctx
 	}
 	return democlock.With(ctx, c)
 }
 
+// isDemo reports whether userID is in the demo cast. A failed lookup (a
+// deleted account, a database hiccup) reads as real time and is not cached.
+func (d *Deps) isDemo(ctx context.Context, userID string) bool {
+	now := d.Clock()
+	d.demo.mu.Lock()
+	e, ok := d.demo.users[userID]
+	d.demo.mu.Unlock()
+	if age := now.Sub(e.at); ok && age >= 0 && age < demoCacheTTL {
+		return e.demo
+	}
+	roles, err := d.Store.Users().Roles(ctx, userID)
+	if err != nil {
+		return false
+	}
+	demo := store.IsDemoCast(&models.User{Roles: roles})
+	d.demo.mu.Lock()
+	if d.demo.users == nil || len(d.demo.users) >= demoCacheMax {
+		d.demo.users = map[string]demoEntry{}
+	}
+	d.demo.users[userID] = demoEntry{demo: demo, at: now}
+	d.demo.mu.Unlock()
+	return demo
+}
+
 // withClock puts the signed-in account's clock on the request (ForUser).
-// No account lookup is needed.
+// Without DEMO_DATE it adds nothing, not even a lookup.
 func (d *Deps) withClock(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if id := UserID(r); id != "" && d.DemoClock() != nil {

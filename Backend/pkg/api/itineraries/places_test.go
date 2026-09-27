@@ -81,7 +81,7 @@ func placesSearch(t *testing.T, srv *testutil.Server, sess *testutil.Session, qu
 
 func TestPlacesSearch(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(exampleClock))
-	seedCatalog(t, srv, store.ActivityCollection, atlanta)
+	seedCatalog(t, srv, store.DefaultCatalog, atlanta)
 	seedCatalog(t, srv, otherActivityCollection(), saltlight)
 	a := srv.Signup(t, "Alice Places")
 	techSquare := travel.Point{Lat: 33.7766, Lng: -84.3890}
@@ -141,7 +141,7 @@ func TestPlacesSearch(t *testing.T) {
 
 func TestReverseGeocode(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(exampleClock))
-	seedCatalog(t, srv, store.ActivityCollection, atlanta)
+	seedCatalog(t, srv, store.DefaultCatalog, atlanta)
 	a := srv.Signup(t, "Alice Pin")
 	var place contract.Place
 	// About 15 m from Tech Square.

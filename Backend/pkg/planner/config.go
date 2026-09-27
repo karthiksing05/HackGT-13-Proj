@@ -406,14 +406,14 @@ func citySlugs() []string {
 }
 
 // Catalog names that may be used as collection names.
-var catalogs = map[string]string{"activities": "atlanta", "demo_activities": "saltlight"}
+var catalogs = map[string]string{"activities": "atlanta", "demo_activities": "saltlight", "pitch_activities": "atlanta"}
 
 // NormalizeCatalog validates a user's catalog against the allow-list; ok is
-// false for anything else (callers fall back to "activities").
+// false for anything else (callers fall back to store.DefaultCatalog).
 func NormalizeCatalog(name string) (string, bool) {
 	name = strings.ToLower(strings.TrimSpace(name))
 	if name == "" {
-		return store.ActivityCollection, true
+		return store.DefaultCatalog, true
 	}
 	_, ok := catalogs[name]
 	return name, ok

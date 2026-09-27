@@ -74,7 +74,7 @@ func (h *H) SearchActivities(w http.ResponseWriter, r *http.Request) {
 	}
 	q := strings.TrimSpace(query.Get("q"))
 	from, to := day, day.AddDate(0, 0, 1)
-	acts, err := h.d.Store.Catalog().SearchActivities(r.Context(), store.ActivityCollection, q, from, to, activitiesFetch)
+	acts, err := h.d.Store.Catalog().SearchActivities(r.Context(), store.CatalogFor(user), q, from, to, activitiesFetch)
 	if err != nil {
 		api.Fail(w, r, err)
 		return
@@ -102,11 +102,12 @@ func (h *H) Activity(w http.ResponseWriter, r *http.Request) {
 		}
 		day = d
 	}
-	if _, err := h.d.CurrentUser(r); err != nil { // signed-in accounts only
+	user, err := h.d.CurrentUser(r)
+	if err != nil {
 		api.Fail(w, r, err)
 		return
 	}
-	act, err := h.d.Store.Catalog().Activity(r.Context(), store.ActivityCollection, mux.Vars(r)["id"])
+	act, err := h.d.Store.Catalog().Activity(r.Context(), store.CatalogFor(user), mux.Vars(r)["id"])
 	if err != nil {
 		api.Fail(w, r, err)
 		return

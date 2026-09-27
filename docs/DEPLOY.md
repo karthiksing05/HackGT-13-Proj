@@ -179,7 +179,7 @@ $A reset-app-data --yes          # drop the app collections; keeps the catalogs 
 $A ensure-indexes
 $A drop-ttl demo_activities      # the demo events must not expire (a no-op when there is no TTL index)
 $A seed-demo                     # Sandy Byte, Marin, Theo and their world; prints what it wrote
-mongosh freetime --eval 'db.users.findOne({email:"demo@gatech.edu"},{name:1,homeBase:1,city:1,setupComplete:1,embeddingModel:1})'
+mongosh freetime --eval 'db.users.findOne({email:"demo@sidequestz.tech"},{name:1,homeBase:1,city:1,setupComplete:1,embeddingModel:1})'
 ```
 
 `seed-demo` refuses to write anything when `DEMO_PASSWORD` is missing or `demo_activities` has fewer than

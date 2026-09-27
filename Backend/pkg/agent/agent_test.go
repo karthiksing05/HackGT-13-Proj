@@ -261,7 +261,7 @@ func TestADemoAccountsRunStaysOnTheDemoDate(t *testing.T) {
 	ny, _ := time.LoadLocation(testutil.TimeZone)
 	demoDate := time.Now().In(ny).AddDate(0, 0, -3).Format("2006-01-02")
 	h := newHarnessWith(t, func(c *config.Config) { c.DemoDate = demoDate }, nil, map[string]int{"sunset-jazz": 1200}, "sunset-jazz")
-	if _, err := h.srv.Store.Users().Update(context.Background(), h.sess.UserID, bson.M{"email": testutil.UniqueEmail("demo")}); err != nil {
+	if _, err := h.srv.Store.Users().Update(context.Background(), h.sess.UserID, bson.M{"roles": []string{"demo"}}); err != nil {
 		t.Fatal(err)
 	}
 	run := h.start(t, 5000, 1)
