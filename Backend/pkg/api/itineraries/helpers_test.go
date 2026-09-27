@@ -47,13 +47,16 @@ func readExample(t *testing.T, name string) []byte {
 	return raw
 }
 
-// exampleRequest is docs/api/examples/CreateItineraryRequest.json.
+// exampleRequest is docs/api/examples/CreateItineraryRequest.json without its
+// invite_user_ids: those are the demo's people, nobody's friends here (tests
+// that bring friends add their own).
 func exampleRequest(t *testing.T) contract.CreateItineraryRequest {
 	t.Helper()
 	var req contract.CreateItineraryRequest
 	if err := json.Unmarshal(readExample(t, "CreateItineraryRequest"), &req); err != nil {
 		t.Fatal(err)
 	}
+	req.InviteUserIDs = nil
 	return req
 }
 

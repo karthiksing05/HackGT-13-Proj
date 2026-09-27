@@ -24,7 +24,8 @@ const (
 	MsgGroupSize   = "A group needs room for at least 2 people."
 )
 
-// Create is POST /itineraries (CreateItineraryRequest) → 201 Itinerary.
+// Create is POST /itineraries (CreateItineraryRequest) → 201 Itinerary. The
+// friends in invite_user_ids are on it from the start (see invite.go).
 func (h *H) Create(w http.ResponseWriter, r *http.Request) {
 	var req contract.CreateItineraryRequest
 	if !httpx.Decode(w, r, &req) {
@@ -35,15 +36,24 @@ func (h *H) Create(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	ctx := r.Context()
-	doc, err := h.materialize(ctx, user, req, httpx.TZ(r))
+	ctx, tz := r.Context(), httpx.TZ(r)
+	doc, err := h.materialize(ctx, user, req, tz)
 	if err != nil {
 		api.Fail(w, r, err)
 		return
 	}
+	friends, err := h.invitees(ctx, doc.HostID, req)
+	if err != nil {
+		api.Fail(w, r, err)
+		return
+	}
+	bringAlong(doc, friends)
 	if err := h.d.Store.Itineraries().Insert(ctx, doc); err != nil {
 		api.Fail(w, r, err)
 		return
+	}
+	if len(friends) > 0 {
+		h.welcome(ctx, doc, user, friends, tz)
 	}
 	if doc.Visibility != models.VisibilityJustMe {
 		realtime.ForumUpdate(h.d.Publish())
