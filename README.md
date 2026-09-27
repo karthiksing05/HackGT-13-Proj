@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/SideQuests_thumbnail.png" alt="SideQuests: Turn waiting into wandering." width="640">
+</p>
+
 # SideQuests
 
 **Turn waiting into wandering.** A HackGT 13 project.
