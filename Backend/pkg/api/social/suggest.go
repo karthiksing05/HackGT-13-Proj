@@ -7,6 +7,7 @@ import (
 	"Backend/pkg/httpx"
 	"Backend/pkg/ml"
 	"Backend/pkg/models"
+	"Backend/pkg/store"
 	"errors"
 	"net/http"
 )
@@ -50,7 +51,7 @@ func (h *H) SuggestPeople(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	people, err := h.d.Store.Users().Suggestable(ctx, viewer.Catalog, append(friendIDs, viewerID), suggestPool)
+	people, err := h.d.Store.Users().Suggestable(ctx, store.CatalogFor(viewer), append(friendIDs, viewerID), suggestPool)
 	if err != nil {
 		api.Fail(w, r, err)
 		return

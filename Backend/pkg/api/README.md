@@ -56,10 +56,10 @@ values are 400 (`contract.Visibility("x").Valid()`). `httpx.DecodeOptional` for 
 
 ## Two clocks
 
-With `DEMO_DATE` set (YYYY-MM-DD, `pkg/democlock`), accounts of the demo catalog (`demo_activities`: Sandy
-and her bots) live on that date in `DEMO_TZ` at the real time of day, on any real day; everyone else, and
-everything with `DEMO_DATE` unset, lives in real time. `d.Protect` / `d.Optional` put the signed-in
-account's clock on the request context (a cached catalog lookup, only while `DEMO_DATE` is set).
+When `DEMO_DATE` is set (YYYY-MM-DD, `pkg/democlock`), the demo cast (accounts with role `demo` or
+`bot`: Sandy Byte and her bots) lives on that date in `DEMO_TZ` at the real time of day; everyone
+else lives in real time. `d.Protect` / `d.Optional` put the signed-in account's clock on the request
+context (the roles are read once per 30 s per account).
 
 - **Business time** (`h.d.BusinessNow(ctx)`, `s.BusinessNow(ctx)` in stores) for whatever decides or shows
   what is upcoming, past or now: plan windows, active/past, calendar "today", past events, the Forum's
@@ -129,12 +129,16 @@ carry `late_flag` and `total_cost_cents` (sum of the known prices), stops `arriv
 `must_include_unavailable: <title>` or `must_include_no_fit`; more than 10 picks is a 400).
 `GET /activities/search` (`pkg/api/itineraries`, the must-see search) reads the caller's catalog with
 `Store.Catalog().SearchActivities` and leaves what can be a pick, and the order, to `planner.ActivityHits`
-(docs/PLANNER.md, Must-see picks). `broken_at` is the first stop that no longer works (a fixed
-start reached late, or a place outside its hours) and `minutes_late` counts both. Expired or other users'
-plans are 404 "This plan expired. Generate again."; stop ids the plan does not know are 400 "That plan
+(docs/PLANNER.md, Must-see picks). `GET /activities/{id}` (Review's stop pane) reads one document of that
+catalog with `Store.Catalog().Activity` (another catalog's id is a 404) and renders it with
+`planner.ActivityDetail`: the stops' category label, a price label and the plan day's hours line.
+`broken_at` is the first stop that no longer works (a fixed start reached late, or a place outside its
+hours) and `minutes_late` counts both. Expired or other users' plans are 404 "This plan expired.
+Generate again."; stop ids the plan does not know are 400 "That plan
 changed. Go back and try again." Ids: option `<runId>-<n>`, stop `stop_<activityId>_<i>` or
 `alt_<activityId>_<slot>`, cursor `dag_<runId>_<offset>`. `POST /itineraries` (backend-B) enriches stops
-through `d.Planner.ResolveStop` (newest live pool holding the id, else the catalog activity it names;
+through `d.Planner.ResolveStop(ctx, user, optionID, stopID)` (the caller's option, else the activity
+in the caller's catalog, `store.CatalogFor(user)`;
 unknown ids are `store.ErrNotFound`) and falls back to `option.stops` otherwise. Tests wire the real planner
 with `srv.Deps.Planner = planner.NewService(p)` over the test database (`pkg/planner/http_test.go`);
 `pkg/planner` also has fakes for every seam (`FakeSource`, `FakeScorer`, `MemPoolStore`). Design:
@@ -180,3 +184,17 @@ cross-user cases to `scopes` in `pkg/api/scoping_test.go`.
 `d.Cfg` (`pkg/config`): `PublicBaseURL`, `JWTSecret`, token TTLs, `MLServiceURL` + `ML*` timeouts,
 `Planner`, `FB*`, `Demo*` (`DemoDate`: `DEMO_DATE`, `Cfg.DemoClock()`), `DevResetCodes`, `CheckoutStepDelay` (0 in tests), `TrustProxy`,
 `MaxPhotoBytes`, `MaxJSONBytes`, `DisableRateLimits`. `sidequestz-admin --env-file` reads the same names.
+
+## Activity collections
+
+`store.CatalogFor(user)` in `pkg/store/catalog.go` picks an account's activity collection:
+the demo cast (role `demo` or `bot`) plans in Saltlight (`demo_activities`, on the demo clock);
+every other account plans in `store.DefaultCatalog`, currently `pitch_activities` (the synthetic
+Atlanta pitch catalog). The real Atlanta catalog (`activities`) is kept but unused for now; to go
+back to it, change `DefaultCatalog`. Emails and legacy `users.catalog` values do not select a
+collection. Search, planning, ratings, profiles, and itinerary enrichment all go through `CatalogFor`,
+and each catalog is one city (`pitch_activities` and `activities`: Atlanta).
+
+`seed-demo` uses `demo@sidequestz.tech` (the app's "Use the demo account") and the bots
+`marin@bots.sidequestz.tech` and `theo@bots.sidequestz.tech`.
+The e2e demo login defaults to `demo@sidequestz.tech` (`E2E_DEMO_EMAIL` can override it).

@@ -59,7 +59,7 @@ func TestLiveProfiles(t *testing.T) {
 	}
 	r := golden.Request
 	user := &models.User{
-		Email: testutil.UniqueEmail("sandy"), Name: "Sandy Byte", Username: "sandy_live", Catalog: store.CollDemoActivities,
+		Email: testutil.UniqueEmail("sandy"), Name: "Sandy Byte", Username: "sandy_live",
 		Prefs: models.UserPrefs{Ratings: r.Ratings, Company: r.Company, Pace: r.Pace, Spend: r.Spend, Flexibility: r.Flexibility,
 			PreferFree: r.PreferFree, Answers: r.Answers},
 	}

@@ -28,7 +28,7 @@ func titles(its []contract.Itinerary) []string {
 
 func TestSearch(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(exampleClock))
-	seedCatalog(t, srv, store.CollActivities, atlanta)
+	seedCatalog(t, srv, store.DefaultCatalog, atlanta)
 	ctx := context.Background()
 	a := srv.Signup(t, "Alice Search")
 	b := srv.Signup(t, "Bob Search")

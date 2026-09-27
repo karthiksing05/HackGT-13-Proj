@@ -64,10 +64,11 @@ const (
 	CollPlanTogether     = "plan_together"
 	CollActivities       = "activities"
 	CollDemoActivities   = "demo_activities"
+	CollPitchActivities  = "pitch_activities"
 )
 
 // CatalogCollections are read-only here and never reset or TTL-touched.
-var CatalogCollections = []string{CollActivities, CollDemoActivities}
+var CatalogCollections = []string{CollActivities, CollDemoActivities, CollPitchActivities}
 
 // AppCollections is everything reset-app-data drops (users excluded; the
 // flag --users adds them; catalogs never).

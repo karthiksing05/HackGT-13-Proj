@@ -24,10 +24,10 @@ func (p Profiles) users() *mongo.Collection { return p.s.db.Collection(CollUsers
 // catalog resolves a user's catalog name ("" is the default catalog).
 func (p Profiles) catalog(name string) (*mongo.Collection, error) {
 	switch name {
-	case "", CollActivities:
-		return p.s.db.Collection(CollActivities), nil
-	case CollDemoActivities:
-		return p.s.db.Collection(CollDemoActivities), nil
+	case "":
+		return p.s.db.Collection(DefaultCatalog), nil
+	case CollActivities, CollDemoActivities, CollPitchActivities:
+		return p.s.db.Collection(name), nil
 	}
 	return nil, fmt.Errorf("unknown catalog %q", name)
 }

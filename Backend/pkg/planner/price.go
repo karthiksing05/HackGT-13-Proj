@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"Backend/pkg/httpx"
 	"Backend/pkg/models"
 	"math"
 	"regexp"
@@ -49,6 +50,33 @@ func activityTier(a *models.Activity) (tier int, known bool) {
 		return tierForAmount(float64(p.Cents) / 100), true
 	}
 	return 0, false
+}
+
+// priceLabel is what a visit costs as the stop pane says it: "Free", "$18",
+// "$6–$12" for a range, "Up to $20" for a range from nothing, the tier
+// ("$$") when only that is known, else "Price unknown".
+func priceLabel(a *models.Activity) string {
+	cents, known := activityCost(a)
+	if !known {
+		if tier, ok := activityTier(a); ok {
+			return tierSymbol(tier)
+		}
+		return "Price unknown"
+	}
+	p := a.Price // known: there is one
+	var most int64
+	if p.Max != nil && !math.IsNaN(*p.Max) && !math.IsInf(*p.Max, 0) {
+		most = int64(math.Round(*p.Max * 100))
+	}
+	switch {
+	case cents == 0 && (p.IsFree || most <= 0):
+		return "Free"
+	case cents == 0:
+		return "Up to " + httpx.Dollars(int(most))
+	case most > cents:
+		return httpx.Dollars(int(cents)) + "–" + httpx.Dollars(int(most))
+	}
+	return httpx.Dollars(int(cents))
 }
 
 func tierForAmount(units float64) int {

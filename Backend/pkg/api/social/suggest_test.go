@@ -124,7 +124,7 @@ func TestSuggestPeople(t *testing.T) {
 	setTaste(t, srv, far, 0.3, nil)
 	setTaste(t, srv, friend, 0.95, nil)
 	setTaste(t, srv, bot, 0.99, bson.M{"roles": []string{"bot"}})
-	setTaste(t, srv, other, 0.97, bson.M{"catalog": store.CollDemoActivities})
+	setTaste(t, srv, other, 0.97, bson.M{"roles": []string{"demo"}})
 	_ = noTaste
 	befriend(t, srv, viewer, friend)
 	var req contract.FriendRequest
@@ -142,7 +142,7 @@ func TestSuggestPeople(t *testing.T) {
 	}
 
 	// The demo catalog's account only sees its own catalog.
-	setTaste(t, srv, noTaste, 0.6, bson.M{"catalog": store.CollDemoActivities})
+	setTaste(t, srv, noTaste, 0.6, bson.M{"roles": []string{"demo"}})
 	if got := suggested(t, srv, other); len(got) != 1 || got[0].Person.ID != noTaste.UserID {
 		t.Fatalf("demo catalog: %+v", got)
 	}
@@ -156,7 +156,7 @@ func TestForumForYou(t *testing.T) {
 
 	activity := func(match float64) string {
 		id := bson.NewObjectID()
-		if _, err := srv.Store.Collection(store.CollActivities).InsertOne(context.Background(),
+		if _, err := srv.Store.Collection(store.DefaultCatalog).InsertOne(context.Background(),
 			bson.M{"_id": id, "name": "Spot", "embedding": taste(match)}); err != nil {
 			t.Fatal(err)
 		}

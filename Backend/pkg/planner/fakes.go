@@ -401,45 +401,6 @@ func (m *MemPoolStore) SetScores(ctx context.Context, runID string, scores map[s
 	return nil
 }
 
-// FindStop returns the newest live pool holding the stop id, as an
-// option's stop or a suggested alternative.
-func (m *MemPoolStore) FindStop(ctx context.Context, stopID string) (*PlanPool, *Stop, error) {
-	if m.Err != nil {
-		return nil, nil, m.Err
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	var bestPool *PlanPool
-	var best *Stop
-	for _, p := range m.pools {
-		if !p.ExpiresAt.After(m.Clock.Now()) || (bestPool != nil && !p.CreatedAt.After(bestPool.CreatedAt)) {
-			continue
-		}
-		if s, ok := p.Alternatives[stopID]; ok {
-			stop := s
-			bestPool, best = p, &stop
-			continue
-		}
-		// The first option that has it, as the Mongo store answers: the
-		// same stop id can carry another visit length in a later option.
-	options:
-		for _, o := range p.Options {
-			for _, s := range o.Stops {
-				if s.ID == stopID {
-					stop := s
-					bestPool, best = p, &stop
-					break options
-				}
-			}
-		}
-	}
-	if best == nil {
-		return nil, nil, ErrPoolNotFound
-	}
-	cp := *bestPool
-	return &cp, best, nil
-}
-
 // GetRun returns a saved run (tests only; the Mongo store has no reader).
 func (m *MemPoolStore) GetRun(id string) (*PlanRun, bool) {
 	m.mu.Lock()

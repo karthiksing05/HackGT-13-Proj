@@ -46,7 +46,7 @@ func (h *H) SearchPlaces(w http.ResponseWriter, r *http.Request) {
 	if q == "" {
 		limit = placesNearby + 1 // one spare: the home base may be a catalog place too
 	}
-	places, err := h.d.Store.Catalog().SearchPlaces(r.Context(), user.Catalog, q, near, limit)
+	places, err := h.d.Store.Catalog().SearchPlaces(r.Context(), store.CatalogFor(user), q, near, limit)
 	if err != nil {
 		api.Fail(w, r, err)
 		return
@@ -82,7 +82,7 @@ func (h *H) Reverse(w http.ResponseWriter, r *http.Request) {
 		api.Fail(w, r, err)
 		return
 	}
-	place, err := h.d.Store.Catalog().Nearest(r.Context(), user.Catalog, pt, reverseRadiusM)
+	place, err := h.d.Store.Catalog().Nearest(r.Context(), store.CatalogFor(user), pt, reverseRadiusM)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		httpx.JSON(w, http.StatusOK, contract.Place{Name: droppedPin, Coordinate: &contract.Coordinate{Lat: pt.Lat, Lng: pt.Lng}})

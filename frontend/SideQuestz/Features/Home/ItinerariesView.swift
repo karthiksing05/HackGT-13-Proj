@@ -1,7 +1,9 @@
 import SwiftUI
 
 /// Home › Itineraries (GUI_PLAN.md §7.5a): the "past events to rate" card, the itinerary cards,
-/// and the swipeable timeline carousel (blocks running late say so, from `transit.delay`).
+/// and the swipeable timeline carousel (blocks running late say so, from `transit.delay`). Each
+/// page has the sidequest's progress strip, then its timeline or its map: the header's Timeline |
+/// Map pill switches the selected sidequest, and each one keeps its own choice.
 ///
 /// Motion: a skeleton while the first load runs, then cards and timeline blocks arrive one after
 /// another; switching itineraries slides the header title and the active page dot; a plan you just
@@ -16,8 +18,11 @@ struct HomeItinerariesView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     /// Cards and blocks arrive one after another only when they replace the skeleton.
     @State private var arrival = HomeArrivalWindow()
+    /// Between appearing and disappearing (other tabs keep Home alive underneath).
+    @State private var isShown = false
     /// The sidequest being edited (Edit sidequest sheet).
     @State private var editing: Itinerary?
     /// Delete / leave waiting for confirmation.
@@ -54,7 +59,18 @@ struct HomeItinerariesView: View {
             // A plan you just made is on its way: keep these on screen, dimmed, until it lands.
             .sqRefreshing(store.awaitsNewItinerary && store.itineraries.value != nil)
         }
-        .onAppear { arrival.begin(loading: store.itineraries.isLoading) }
+        .onAppear {
+            arrival.begin(loading: store.itineraries.isLoading)
+            isShown = true
+            followLocation(shown: true)
+        }
+        .onDisappear {
+            isShown = false
+            env.locationFeed.stop()
+        }
+        .onChange(of: router.tab) { followLocation(shown: isShown) }
+        .onChange(of: scenePhase) { followLocation(shown: isShown) }
+        .onChange(of: router.createDraft == nil) { followLocation(shown: isShown) }
         .onChange(of: store.itineraries.phase) { _, phase in
             arrival.update(phase)
             openRequestedEditor()
@@ -104,6 +120,16 @@ struct HomeItinerariesView: View {
             Button(role: .destructive) { confirming = .leave(itinerary) } label: {
                 Label("Leave sidequest", systemImage: "rectangle.portrait.and.arrow.right")
             }
+        }
+    }
+
+    /// Your location feeds the strips and maps only while they're on screen (Home's tab, no Create
+    /// on top) and the app is in use.
+    private func followLocation(shown: Bool) {
+        if shown && router.tab == .home && router.createDraft == nil && scenePhase == .active {
+            env.locationFeed.start()
+        } else {
+            env.locationFeed.stop()
         }
     }
 
@@ -279,16 +305,23 @@ struct HomeItinerariesView: View {
             Spacer(minLength: 0)
             HomePageDots(count: list.count, index: index)
                 .alignmentGuide(.firstTextBaseline) { $0[.bottom] }
+            HomeViewModeToggle(showsMap: Binding(get: { store.showsMap(itinerary.id) },
+                                                 set: { store.setShowsMap($0, for: itinerary.id) }))
+                // Centered on the title's letters, like the ••• button.
+                .padding(.vertical, -8)
+                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 6 }
             Menu {
                 menuItems(itinerary)
             } label: {
+                // Just the dots: no circle or system button background behind them.
                 Image(systemName: "ellipsis")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Theme.sageInk)
                     .frame(width: 30, height: 30)
-                    .background(.white, in: Circle())
                     .contentShape(Circle().inset(by: -7))
             }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
             // Centered on the title's letters, without making the row taller.
             .padding(.vertical, -8)
             .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 6 }
@@ -300,14 +333,19 @@ struct HomeItinerariesView: View {
         .padding(.bottom, 10)
         .animation(reduceMotion ? Motion.reduced : Motion.standard, value: index)
         .onChange(of: index) { _, new in headerIndex = new }
+        .id(Self.timelineHeaderId)
     }
+
+    /// Home scrolls here to bring the selected sidequest's page into view (`home/map/<id>`).
+    static let timelineHeaderId = "home.sidequest"
 
     private func carousel(_ list: [Itinerary]) -> some View {
         let arrives = arrival.isOpen
         return ScrollView(.horizontal) {
             HStack(alignment: .top, spacing: 12) {
                 ForEach(list) { itinerary in
-                    HomeTimelineCard(itinerary: itinerary, late: store.delays(in: itinerary.id), arrives: arrives) { openBlock($0, itinerary) }
+                    HomeSidequestPage(itinerary: itinerary, showsMap: store.showsMap(itinerary.id), late: store.delays(in: itinerary.id),
+                                      arrives: arrives) { openBlock($0, itinerary) }
                         .frame(width: max(0, pageWidth - 2 * Metrics.side))
                         .sqTransition(.pop)
                         .id(itinerary.id)
@@ -320,6 +358,41 @@ struct HomeItinerariesView: View {
         .scrollPosition(id: $store.selectedItineraryId)
         .scrollIndicators(.hidden)
         .padding(.bottom, 8)
+    }
+}
+
+/// One page of the carousel: the sidequest's progress strip, then its timeline or its map
+/// (cross-fading when you switch). The strip and the map follow the clock every 30 s while Home
+/// is open, and your location as it changes.
+private struct HomeSidequestPage: View {
+    let itinerary: Itinerary
+    let showsMap: Bool
+    var late: [String: Int] = [:]
+    var arrives = false
+    let open: (ItineraryItem) -> Void
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let here = env.locationFeed.coordinate
+        TimelineView(.periodic(from: .now, by: 30)) { _ in
+            let progress = SidequestProgress(itinerary: itinerary, now: env.clock.now, calendar: env.clock.calendar, here: here)
+            VStack(spacing: 8) {
+                SidequestProgressStrip(progress: progress)
+                    .homeArrival(1, enabled: arrives)
+                ZStack(alignment: .top) {
+                    if showsMap {
+                        let height = HomeTimelineLayout(itinerary: itinerary, clock: env.clock).height
+                        SidequestMapCard(itinerary: itinerary, progress: progress, height: min(max(height, 320), 520), open: open)
+                            .transition(.opacity)
+                    } else {
+                        HomeTimelineCard(itinerary: itinerary, late: late, arrives: arrives, open: open)
+                            .transition(.opacity)
+                    }
+                }
+                .animation(reduceMotion ? Motion.reduced : Motion.standard, value: showsMap)
+            }
+        }
     }
 }
 

@@ -25,20 +25,19 @@ func (s *Store) RealAt(ctx context.Context, t time.Time) time.Time {
 	return democlock.RealAt(ctx, t, s.Now())
 }
 
-// Catalog is the catalog a user plans from (activities or demo_activities),
-// read without the rest of the document; the demo clock asks it for every
-// signed-in request it has not cached.
-func (u Users) Catalog(ctx context.Context, id string) (string, error) {
+// Roles is a user's roles (demo, bot), read without the rest of the
+// document; the demo clock asks it for signed-in requests it has not cached.
+func (u Users) Roles(ctx context.Context, id string) ([]string, error) {
 	oid, ok := objectID(id)
 	if !ok {
-		return "", ErrNotFound
+		return nil, ErrNotFound
 	}
 	var doc struct {
-		Catalog string `bson:"catalog"`
+		Roles []string `bson:"roles"`
 	}
 	if err := decodeOne(u.coll().FindOne(ctx, bson.M{"_id": oid},
-		options.FindOne().SetProjection(bson.M{"catalog": 1})), &doc); err != nil {
-		return "", err
+		options.FindOne().SetProjection(bson.M{"roles": 1})), &doc); err != nil {
+		return nil, err
 	}
-	return doc.Catalog, nil
+	return doc.Roles, nil
 }

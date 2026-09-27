@@ -18,9 +18,8 @@ import (
 // now, and keep Clock() for tokens, rate limits, web sessions, expiries and
 // logs; stores have the same pair (Store.BusinessNow, Store.Now).
 
-// demoCacheTTL is how long whether a user is a demo account is trusted
-// (the testable clock decides); demoCacheMax bounds the cache, which starts
-// over when full.
+// demoCacheTTL is how long whether a user is in the demo cast is trusted;
+// demoCacheMax bounds the cache, which starts over when full.
 const (
 	demoCacheTTL = 30 * time.Second
 	demoCacheMax = 10000
@@ -54,17 +53,17 @@ func (d *Deps) DemoClock() *democlock.Clock {
 // for a demo account the demo date at the real time of day.
 func (d *Deps) BusinessNow(ctx context.Context) time.Time { return democlock.Now(ctx, d.Clock()) }
 
-// ClockFor is u's demo clock: DEMO_DATE's for an account of the demo
-// catalog, nil for everyone else.
+// ClockFor is u's demo clock: DEMO_DATE's for the demo cast (who plan from
+// demo_activities), nil for everyone else.
 func (d *Deps) ClockFor(u *models.User) *democlock.Clock {
-	if u == nil || u.Catalog != store.CollDemoActivities {
+	if !store.IsDemoCast(u) {
 		return nil
 	}
 	return d.DemoClock()
 }
 
-// ForUser is ctx carrying userID's clock: the demo clock for a demo account
-// (the catalog is read once per demoCacheTTL), ctx itself otherwise. The
+// ForUser is ctx carrying userID's clock: the demo clock for the demo cast
+// (roles are read once per demoCacheTTL), ctx itself otherwise. The
 // middleware calls it after bearer auth; work done for a user outside a
 // request (the checkout agent) calls it too.
 func (d *Deps) ForUser(ctx context.Context, userID string) context.Context {
@@ -75,9 +74,8 @@ func (d *Deps) ForUser(ctx context.Context, userID string) context.Context {
 	return democlock.With(ctx, c)
 }
 
-// isDemo reports whether userID plans from the demo catalog. A failed
-// lookup (a deleted account, a database hiccup) reads as real time and is
-// not cached; the handler meets the same error and reports it.
+// isDemo reports whether userID is in the demo cast. A failed lookup (a
+// deleted account, a database hiccup) reads as real time and is not cached.
 func (d *Deps) isDemo(ctx context.Context, userID string) bool {
 	now := d.Clock()
 	d.demo.mu.Lock()
@@ -86,11 +84,11 @@ func (d *Deps) isDemo(ctx context.Context, userID string) bool {
 	if age := now.Sub(e.at); ok && age >= 0 && age < demoCacheTTL {
 		return e.demo
 	}
-	catalog, err := d.Store.Users().Catalog(ctx, userID)
+	roles, err := d.Store.Users().Roles(ctx, userID)
 	if err != nil {
 		return false
 	}
-	demo := catalog == store.CollDemoActivities
+	demo := store.IsDemoCast(&models.User{Roles: roles})
 	d.demo.mu.Lock()
 	if d.demo.users == nil || len(d.demo.users) >= demoCacheMax {
 		d.demo.users = map[string]demoEntry{}

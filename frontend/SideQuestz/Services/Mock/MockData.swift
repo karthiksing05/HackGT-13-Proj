@@ -219,9 +219,12 @@ enum MockData {
 
     // MARK: Plan options (Create › Review)
 
+    /// A stop of the demo's options, with the demo catalog's activity behind it (Review's stop pane
+    /// loads its details by that id).
     private static func stop(_ optionId: String, _ index: Int, _ title: String, _ subtitle: String, _ minutes: Int) -> PlanStop {
         let place = Place(name: title, coordinate: MockPlaces.stops[title]?.coordinate)
-        return PlanStop(id: "\(optionId)-\(index)", title: title, subtitle: subtitle, place: place, durationMinutes: minutes)
+        return PlanStop(id: "\(optionId)-\(index)", title: title, subtitle: subtitle, place: place, durationMinutes: minutes,
+                        activityId: MockActivities.id(for: title))
     }
 
     /// The first batch (A, B, C).

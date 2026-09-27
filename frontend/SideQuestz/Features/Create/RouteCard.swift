@@ -73,8 +73,9 @@ struct CreateRouteRow: Identifiable, Equatable {
 /// The route card (white, radius 16, padding 6 × 14) with a 22pt rail. Stops reorder by dragging
 /// their ☰ handle: the lifted row gets a white fill, shadow and a 2pt sage ring, rows swap live
 /// when the finger passes a neighbor's midpoint, and on drop the server re-times the route.
-/// Press and hold a stop for "Swap for something similar" (the swap sheet) or "Remove stop".
-/// VoiceOver: each handle is adjustable (swipe up/down moves the stop); swap and remove are actions.
+/// Tap a stop for its details pane (with Swap and Remove); press and hold it for "Swap for something
+/// similar" (the swap sheet) or "Remove stop". VoiceOver: a stop is a button ("Shows details") with
+/// swap and remove as actions, and each handle is adjustable (swipe up/down moves the stop).
 ///
 /// Motion: switching options cross-fades the rows. While the timing is pending the legs and stop
 /// times shimmer; when it arrives, leg modes and minutes, stop times and the arrival roll into
@@ -190,8 +191,9 @@ struct CreateRouteCard: View {
         }
     }
 
-    /// The row's title and subtitle, and "Your pick" on a must-see pick. On a stop, press and hold
-    /// for Swap / Remove (the ☰ handle stays free for dragging).
+    /// The row's title and subtitle, and "Your pick" on a must-see pick. A stop's text is a button:
+    /// tap it for the details pane, press and hold it for Swap / Remove (the ☰ handle stays free for
+    /// dragging).
     @ViewBuilder
     private func rowText(_ row: CreateRouteRow) -> some View {
         let text = VStack(alignment: .leading, spacing: 0) {
@@ -219,30 +221,36 @@ struct CreateRouteCard: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
         if let stopId = row.stopId {
-            text
-                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 12, style: .continuous).inset(by: -6))
-                .contextMenu {
-                    Button {
-                        model.openSwap(stopId, in: option.id)
-                    } label: {
-                        Label("Swap for something similar", systemImage: "arrow.triangle.2.circlepath")
-                    }
-                    Button(role: .destructive) {
-                        withMotion { model.removeStop(stopId, in: option.id) }
-                    } label: {
-                        Label("Remove stop", systemImage: "trash")
-                    }
-                    .disabled(!model.canRemoveStop(in: option.id))
+            Button {
+                model.openStopDetail(stopId, in: option.id)
+            } label: {
+                text
+            }
+            .buttonStyle(.sqPressable)
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 12, style: .continuous).inset(by: -6))
+            .contextMenu {
+                Button {
+                    model.openSwap(stopId, in: option.id)
+                } label: {
+                    Label("Swap for something similar", systemImage: "arrow.triangle.2.circlepath")
                 }
-                .accessibilityAction(named: "Swap for something similar") { model.openSwap(stopId, in: option.id) }
-                .accessibilityAction(named: "Remove stop") {
-                    guard model.canRemoveStop(in: option.id) else { return }
+                Button(role: .destructive) {
                     withMotion { model.removeStop(stopId, in: option.id) }
+                } label: {
+                    Label("Remove stop", systemImage: "trash")
                 }
+                .disabled(!model.canRemoveStop(in: option.id))
+            }
+            .accessibilityHint("Shows details")
+            .accessibilityAction(named: "Swap for something similar") { model.openSwap(stopId, in: option.id) }
+            .accessibilityAction(named: "Remove stop") {
+                guard model.canRemoveStop(in: option.id) else { return }
+                withMotion { model.removeStop(stopId, in: option.id) }
+            }
         } else {
             text
+                .accessibilityElement(children: .combine)
         }
     }
 

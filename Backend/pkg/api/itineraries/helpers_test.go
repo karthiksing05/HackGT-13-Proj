@@ -4,6 +4,7 @@ import (
 	"Backend/pkg/api"
 	"Backend/pkg/contract"
 	"Backend/pkg/models"
+	"Backend/pkg/store"
 	"Backend/pkg/testutil"
 	"context"
 	"encoding/json"
@@ -173,9 +174,12 @@ func (fakePlanner) Route(context.Context, *models.User, contract.RouteRequest) (
 func (fakePlanner) Alternatives(context.Context, *models.User, contract.AlternativesRequest) ([]contract.PlanAlternative, error) {
 	return nil, errUnused
 }
-func (p fakePlanner) ResolveStop(_ context.Context, stopID string) (*api.StopDetail, error) {
+func (p fakePlanner) ResolveStop(_ context.Context, _ *models.User, _, stopID string) (*api.StopDetail, error) {
 	if d, ok := p.details[stopID]; ok {
 		return d, nil
 	}
 	return nil, errors.New("unknown stop " + stopID)
 }
+
+// otherActivityCollection is a catalog signed-up (non-demo) accounts never read.
+func otherActivityCollection() string { return store.CollDemoActivities }

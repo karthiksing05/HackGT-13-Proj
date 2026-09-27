@@ -7,6 +7,7 @@ import (
 	"Backend/pkg/store"
 	"Backend/pkg/travel"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -23,7 +24,7 @@ func sandyModel() *models.User {
 	id, _ := bson.ObjectIDFromHex("5f00000000000000000000aa")
 	birth := time.Date(2003, 6, 14, 0, 0, 0, 0, time.UTC)
 	return &models.User{
-		ID: id, Catalog: "demo_activities", City: "saltlight", BirthDate: &birth,
+		ID: id, Email: "sandy@gatech.edu", City: "saltlight", BirthDate: &birth, Roles: []string{"demo"},
 		HomeBase:          &models.HomeBase{Name: "Seaside Market Square", Lat: seasideMkt.Lat, Lng: seasideMkt.Lng},
 		Prefs:             models.UserPrefs{Company: "small_group", Pace: "balanced", Flexibility: "bit_over_ok", PreferFree: true},
 		PositiveEmbedding: sandyPositive, NegativeEmbedding: vectorOf("cat:nightclub", "high_energy"),
@@ -293,7 +294,7 @@ func TestServiceResolveStop(t *testing.T) {
 	if stop.ID == "" {
 		stop = pool.Options[0].Stops[0]
 	}
-	d, err := svc.ResolveStop(t.Context(), stop.ID)
+	d, err := svc.ResolveStop(t.Context(), sandyModel(), batch.Options[0].ID, stop.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,12 +306,12 @@ func TestServiceResolveStop(t *testing.T) {
 	}
 	// Once the pool expired, the activity the id names still answers.
 	tp.clock.Advance(tp.Cfg.PoolTTL + time.Minute)
-	d, err = svc.ResolveStop(t.Context(), stop.ID)
+	d, err = svc.ResolveStop(t.Context(), sandyModel(), batch.Options[0].ID, stop.ID)
 	if err != nil || d.ActivityID != stop.ActivityID {
 		t.Errorf("from the catalog: %+v %v", d, err)
 	}
 	for _, id := range []string{"opt-a-0", "stop_ffffffffffffffffffffffff_0", ""} {
-		if _, err := svc.ResolveStop(t.Context(), id); !errors.Is(err, store.ErrNotFound) {
+		if _, err := svc.ResolveStop(t.Context(), sandyModel(), batch.Options[0].ID, id); !errors.Is(err, store.ErrNotFound) {
 			t.Errorf("%q: %v", id, err)
 		}
 	}
@@ -323,8 +324,24 @@ func TestUserFromModel(t *testing.T) {
 	u.Taste.AvoidTags = []string{"touristy"}
 	u.Embedding = []float64{9, 9, 9} // the legacy field: never read
 	uc := UserFromModel(u, now)
-	if uc.ID != u.ID.Hex() || uc.Catalog != "demo_activities" || uc.City != "saltlight" || uc.AgeBracket != "adult" {
+	if uc.ID != u.ID.Hex() || uc.Catalog != store.CollDemoActivities || uc.City != "saltlight" || uc.AgeBracket != "adult" {
 		t.Errorf("user %+v", uc)
+	}
+	u.City = "atlanta"
+	if got := UserFromModel(u, now).City; got != "saltlight" {
+		t.Fatalf("the demo account with city atlanta plans in %s", got)
+	}
+	u.Email = "sandy@example.com"
+	if got := UserFromModel(u, now).Catalog; got != store.CollDemoActivities {
+		t.Fatalf("changing the email changed the collection to %s", got)
+	}
+	other := &models.User{ID: u.ID, Email: "student@gatech.edu", City: "saltlight"}
+	if got := UserFromModel(other, now); got.Catalog != store.CollPitchActivities || got.City != "atlanta" {
+		t.Fatalf("an account outside the demo plans in %s/%s, want pitch_activities/atlanta", got.Catalog, got.City)
+	}
+	bot := &models.User{ID: u.ID, Roles: []string{"bot"}}
+	if got := UserFromModel(bot, now).Catalog; got != store.CollDemoActivities {
+		t.Fatalf("a demo bot plans in %s", got)
 	}
 	if uc.HomeBase == nil || !uc.HomeBase.HasCoord || uc.HomeBase.Name != "Seaside Market Square" {
 		t.Errorf("home base %+v", uc.HomeBase)
@@ -351,5 +368,35 @@ func TestUserFromModel(t *testing.T) {
 	}
 	if uc := UserFromModel(nil, now); uc.ID != "" || NormalizeAgeBracket(uc.AgeBracket) != "21_plus" {
 		t.Errorf("nil user %+v", uc)
+	}
+}
+
+type catalogLookupFunc func(context.Context, string, []string) ([]models.Activity, error)
+
+func (f catalogLookupFunc) GetActivities(ctx context.Context, catalog string, ids []string) ([]models.Activity, error) {
+	return f(ctx, catalog, ids)
+}
+
+func TestServiceResolveStopUsesActivityCollection(t *testing.T) {
+	act := models.Activity{ID: bson.NewObjectID(), Kind: "place", Name: "Catalog Stop"}
+	stopID := "stop_" + act.ID.Hex() + "_0"
+	for _, tc := range []struct{ email string }{
+		{"student@GATECH.EDU"},
+		{"student@example.com"},
+	} {
+		t.Run(tc.email, func(t *testing.T) {
+			calls := 0
+			svc := NewService(&Planner{Lookup: catalogLookupFunc(func(_ context.Context, catalog string, ids []string) ([]models.Activity, error) {
+				calls++
+				if catalog != store.DefaultCatalog || len(ids) != 1 || ids[0] != act.ID.Hex() {
+					t.Fatalf("lookup in %s for %v, want %s for %s", catalog, ids, store.DefaultCatalog, act.ID.Hex())
+				}
+				return []models.Activity{act}, nil
+			})})
+			detail, err := svc.ResolveStop(t.Context(), &models.User{Email: tc.email}, "", stopID)
+			if err != nil || detail == nil || detail.ActivityID != act.ID.Hex() || calls != 1 {
+				t.Fatalf("resolve: %+v, %v, %d lookups", detail, err, calls)
+			}
+		})
 	}
 }

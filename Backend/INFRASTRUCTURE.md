@@ -9,5 +9,5 @@ shape described here before still holds: nginx (`sidequestz.tech`) terminates TL
 through an SSH tunnel (`ssh -N -L 27017:127.0.0.1:27017 <user>@<host>`). What changed: the API runs as
 `sidequestz.service` under its own `sidequestz` user (the `backend.service` unit is retired), reads its
 configuration from `/opt/backend/.env` (mode 0600) instead of `Environment=` lines in the unit, and
-ships with the `sidequestz-admin` tool; the hostname is proxied by Cloudflare; the deploy scripts never
+can optionally ship the `sidequestz-admin` maintenance tool (`./deploy.sh --admin`); the hostname is proxied by Cloudflare; the deploy scripts never
 upload secrets and keep the previous build for rollback.

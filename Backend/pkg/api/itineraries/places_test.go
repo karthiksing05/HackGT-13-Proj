@@ -81,8 +81,8 @@ func placesSearch(t *testing.T, srv *testutil.Server, sess *testutil.Session, qu
 
 func TestPlacesSearch(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(exampleClock))
-	seedCatalog(t, srv, store.CollActivities, atlanta)
-	seedCatalog(t, srv, store.CollDemoActivities, saltlight)
+	seedCatalog(t, srv, store.DefaultCatalog, atlanta)
+	seedCatalog(t, srv, otherActivityCollection(), saltlight)
 	a := srv.Signup(t, "Alice Places")
 	techSquare := travel.Point{Lat: 33.7766, Lng: -84.3890}
 
@@ -126,16 +126,14 @@ func TestPlacesSearch(t *testing.T) {
 		t.Fatalf("q near the home base: %v", placeNames(got))
 	}
 
-	// The demo catalog is its own world (Sandy Byte's home base is in Saltlight).
-	if _, err := srv.Store.Users().Update(context.Background(), a.UserID, bson.M{"catalog": store.CollDemoActivities}); err != nil {
+	// Changing the email does not switch the configured collection.
+	before := strings.Join(placeNames(placesSearch(t, srv, a, "q=a")), " | ")
+	email := strings.Replace(testutil.UniqueEmail("student"), "@example.test", "@gatech.edu", 1)
+	if _, err := srv.Store.Users().Update(t.Context(), a.UserID, bson.M{"email": email, "catalog": otherActivityCollection()}); err != nil {
 		t.Fatal(err)
 	}
-	setHome(t, srv, a, "Seaside Market Square", 31.3680, -81.4250)
-	if got := placesSearch(t, srv, a, "q=a"); strings.Join(placeNames(got), " | ") != "Seaside Market Square | The Lighthouse Laboratory" {
-		t.Fatalf("demo catalog: %v", placeNames(got))
-	}
-	if got := placesSearch(t, srv, a, "q="); strings.Join(placeNames(got), " | ") != "Seaside Market Square | The Lighthouse Laboratory" {
-		t.Fatalf("demo suggestions (home base once, then the nearest): %v", placeNames(got))
+	if got := strings.Join(placeNames(placesSearch(t, srv, a, "q=a")), " | "); got != before {
+		t.Fatalf("email changed the activity collection: %s, want %s", got, before)
 	}
 	srv.Do(t, "GET", "/places/search?q=park&near=north", nil, a).Expect(t, http.StatusBadRequest)
 	srv.Do(t, "GET", "/places/search?q=park", nil, nil).Expect(t, http.StatusUnauthorized)
@@ -143,7 +141,7 @@ func TestPlacesSearch(t *testing.T) {
 
 func TestReverseGeocode(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(exampleClock))
-	seedCatalog(t, srv, store.CollActivities, atlanta)
+	seedCatalog(t, srv, store.DefaultCatalog, atlanta)
 	a := srv.Signup(t, "Alice Pin")
 	var place contract.Place
 	// About 15 m from Tech Square.

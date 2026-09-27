@@ -1,6 +1,6 @@
 // Package itineraries is sidequests, calendar days, events, transit, past
-// events, ratings, insights, search, places and the must-see activity
-// search (backend-B, backend-contract §4 B). Views are per viewer
+// events, ratings, insights, search, places, the must-see activity search
+// and one activity's details (backend-B, backend-contract §4 B). Views are per viewer
 // (view.go); View, Views, PublishUpdated and Leave are exported for the
 // social area, which in turn installs its thread and forum-post views with
 // UseSocial.
@@ -38,4 +38,6 @@ func Register(r *mux.Router, d *api.Deps) {
 	r.Handle("/places/search", d.Protect(h.SearchPlaces)).Methods("GET")
 	r.Handle("/places/reverse", d.Protect(h.Reverse)).Methods("GET")
 	r.Handle("/activities/search", d.Protect(h.SearchActivities)).Methods("GET")
+	// After /activities/search: gorilla/mux matches in order, and {id} would take "search".
+	r.Handle("/activities/{id}", d.Protect(h.Activity)).Methods("GET")
 }

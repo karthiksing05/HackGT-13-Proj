@@ -45,7 +45,7 @@ func main() {
 	log.Info().Str("db", cfg.MongoDB).Str("env", cfg.AppEnv).Msg("MongoDB connected, indexes ensured")
 	if clock := cfg.DemoClock(); clock != nil {
 		log.Info().Str("demo_date", clock.Date()).Str("demo_tz", clock.Location().String()).
-			Msg("demo clock on: demo accounts live on DEMO_DATE at the real time of day")
+			Msg("demo clock on: the demo cast lives on DEMO_DATE at the real time of day")
 	}
 
 	deps := &api.Deps{

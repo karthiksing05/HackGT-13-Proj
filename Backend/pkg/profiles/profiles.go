@@ -62,7 +62,7 @@ func (s *Service) Refresh(ctx context.Context, userID string) error {
 	if err != nil {
 		return fmt.Errorf("profile refresh: loading the user: %w", err)
 	}
-	stops, err := s.st.Profiles().RatedStops(ctx, userID, user.Catalog, maxRatedStops)
+	stops, err := s.st.Profiles().RatedStops(ctx, userID, store.CatalogFor(&user.User), maxRatedStops)
 	if err != nil {
 		return fmt.Errorf("profile refresh: loading ratings: %w", err)
 	}
@@ -136,7 +136,7 @@ func (s *Service) Rated(ctx context.Context, userID, activityID string, stars in
 	if err != nil {
 		return fmt.Errorf("rating feedback: loading the user: %w", err)
 	}
-	activity, err := s.st.Profiles().Activity(ctx, user.Catalog, activityID)
+	activity, err := s.st.Profiles().Activity(ctx, store.CatalogFor(&user.User), activityID)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil
 	}
@@ -148,7 +148,7 @@ func (s *Service) Rated(ctx context.Context, userID, activityID string, stars in
 		if strings.TrimSpace(activity.EmbeddingText) == "" {
 			return nil
 		}
-		if vector, err = s.embedOnDemand(ctx, user.Catalog, activity); err != nil {
+		if vector, err = s.embedOnDemand(ctx, store.CatalogFor(&user.User), activity); err != nil {
 			return fmt.Errorf("rating feedback: %w", err)
 		}
 	}

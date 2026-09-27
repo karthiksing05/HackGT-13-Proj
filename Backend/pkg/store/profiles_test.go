@@ -60,7 +60,7 @@ func TestProfilesRatedStopsJoinTheCatalogNewestFirst(t *testing.T) {
 func TestProfilesActivityEmbeddingGuard(t *testing.T) {
 	ctx := context.Background()
 	st := testutil.Store(t, nil)
-	coll := st.Collection(store.CollActivities)
+	coll := st.Collection(store.DefaultCatalog)
 	ids := map[string]bson.ObjectID{}
 	for name, doc := range map[string]bson.M{
 		"missing": {"embeddingTextHash": "h1"},
@@ -82,11 +82,11 @@ func TestProfilesActivityEmbeddingGuard(t *testing.T) {
 			t.Errorf("%s: wrote=%v err=%v, want %v", name, got, err, wrote)
 		}
 	}
-	activity, err := st.Profiles().Activity(ctx, store.CollActivities, ids["missing"].Hex())
+	activity, err := st.Profiles().Activity(ctx, store.DefaultCatalog, ids["missing"].Hex())
 	if err != nil || !reflect.DeepEqual(activity.Embedding, []float64{1, 0}) || activity.EmbeddingModel != "m" || activity.ID != ids["missing"].Hex() {
 		t.Fatalf("activity after the write: %+v %v", activity, err)
 	}
-	if _, err := st.Profiles().Activity(ctx, store.CollActivities, bson.NewObjectID().Hex()); !errors.Is(err, store.ErrNotFound) {
+	if _, err := st.Profiles().Activity(ctx, store.DefaultCatalog, bson.NewObjectID().Hex()); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("missing activity: %v", err)
 	}
 }

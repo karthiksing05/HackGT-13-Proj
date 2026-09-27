@@ -3,6 +3,7 @@ package social
 import (
 	"Backend/pkg/ml"
 	"Backend/pkg/models"
+	"Backend/pkg/store"
 	"context"
 	"errors"
 
@@ -24,7 +25,7 @@ func (h *H) scorePlans(ctx context.Context, viewer *models.User, items []feedIte
 	if len(ids) == 0 {
 		return
 	}
-	vectors, err := h.d.Store.Catalog().Embeddings(ctx, viewer.Catalog, ids)
+	vectors, err := h.d.Store.Catalog().Embeddings(ctx, store.CatalogFor(viewer), ids)
 	if err != nil {
 		log.Warn().Err(err).Msg("forum match: loading stop vectors failed")
 		return

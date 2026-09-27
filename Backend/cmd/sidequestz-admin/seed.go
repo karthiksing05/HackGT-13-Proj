@@ -282,10 +282,11 @@ func writeSeedAccount(ctx context.Context, st *store.Store, p seedPerson, acct *
 		"email": p.email, "name": p.name, "nameLower": strings.ToLower(p.name),
 		"username": p.username, "usernameLower": strings.ToLower(p.username),
 		"avatarColor": p.avatar, "status": "open", "setupComplete": true,
-		"catalog": demoCatalog, "city": demoCity, "roles": []string{p.role}, "updatedAt": now,
+		"city": demoCity, "roles": []string{p.role}, "updatedAt": now,
 	}
 	insert := bson.M{"createdAt": now, "lastActiveAt": now, "integrations": models.UserIntegrations{}}
-	update := bson.M{"$set": set, "$setOnInsert": insert}
+	unset := bson.M{"catalog": ""}
+	update := bson.M{"$set": set, "$setOnInsert": insert, "$unset": unset}
 	if p.username == sandy.username {
 		birth := time.Date(2003, time.June, 14, 0, 0, 0, 0, time.UTC)
 		set["birthDate"] = birth
@@ -299,7 +300,7 @@ func writeSeedAccount(ctx context.Context, st *store.Store, p seedPerson, acct *
 				hash = acct.existing.PasswordHash
 			}
 			if !reflect.DeepEqual(acct.existing.Prefs, sandyPrefs) {
-				update["$unset"] = bson.M{"profileTextHash": ""}
+				unset["profileTextHash"] = ""
 			}
 		}
 		if hash == "" {

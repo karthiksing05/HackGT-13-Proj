@@ -176,7 +176,7 @@ func TestResolveStop(t *testing.T) {
 	if err != nil || d.ActivityID != s.ActivityID || d.DurationMin != s.DurationMinutes || d.WebsiteURL != s.WebsiteURL {
 		t.Fatalf("from the pool: %+v %v", d, err)
 	}
-	// Without the option (the api seam passes only the stop id): the catalog.
+	// Without the option: fall back to the caller's catalog.
 	d, err = tp.ResolveStop(t.Context(), "sandy", "demo_activities", "", s.ID)
 	if err != nil || d.ActivityID != s.ActivityID || (d.PriceCents == nil) == s.PriceKnown {
 		t.Fatalf("from the catalog: %+v %v", d, err)

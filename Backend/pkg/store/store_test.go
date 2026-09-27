@@ -115,7 +115,7 @@ func TestEnsureIndexesIdempotentAndLeavesCatalogTTL(t *testing.T) {
 }
 
 func newUser(name, email, username string) *models.User {
-	return &models.User{Name: name, Email: email, Username: username, PasswordHash: "x", AvatarColor: "ink", Status: "open", Catalog: "activities", City: "atlanta"}
+	return &models.User{Name: name, Email: email, Username: username, PasswordHash: "x", AvatarColor: "ink", Status: "open", City: "atlanta"}
 }
 
 func TestUsers(t *testing.T) {

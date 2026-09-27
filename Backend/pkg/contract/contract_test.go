@@ -20,6 +20,7 @@ const examplesDir = "../../../docs/api/examples"
 // through. A ".<variant>" suffix (PlanBatch.dag) selects the same type; aliases
 // map differently named dumps.
 var examples = map[string]func() any{
+	"ActivityDetail":         func() any { return &ActivityDetail{} },
 	"ActivityHits":           func() any { return &[]ActivityHit{} },
 	"AuthResponse":           func() any { return &AuthResponse{} },
 	"CalendarDays":           func() any { return &[]CalendarDay{} },
@@ -189,6 +190,41 @@ func TestActivityHitShape(t *testing.T) {
 	}
 	if empty, _ := json.Marshal(PlanRequest{}); strings.Contains(string(empty), "must_include") {
 		t.Errorf("no picks must leave must_include out: %s", empty)
+	}
+}
+
+// TestActivityDetailShape pins GET /activities/{id} as the server writes it:
+// an event with every field, and a place with only the keys that are
+// always there (the labels, the place, tags as []).
+func TestActivityDetailShape(t *testing.T) {
+	event := `{"id": "9bdbbc5e9aab712a5b769f72", "title": "Sunset Jazz on Pier Nine", "kind": "event", "category": "live_music",
+	  "category_label": "Live music", "summary": "Brass and sunsets on the pier.",
+	  "description": "Brass and sunsets on the pier. Bring a blanket; the bandstand has a few benches.",
+	  "venue_name": "Pier Nine Bandstand", "address": "9 Pier Rd, Saltlight Harbor, GA 31991",
+	  "place": {"name": "Pier Nine Bandstand", "coordinate": {"lat": 31.376524, "lng": -81.41746}},
+	  "start": "2026-09-26T22:30:00Z", "end": "2026-09-27T01:00:00Z", "price_cents": 1200, "price_label": "$12–$20",
+	  "rating": 4.6, "rating_count": 1204, "url": "https://saltlight.example/jazz",
+	  "ticket_url": "https://events.sidequestz.tech/sunset-jazz-on-pier-nine/tickets", "image_url": "https://saltlight.example/jazz.jpg",
+	  "tags": ["music", "outdoor"]}`
+	var ev ActivityDetail
+	roundTrip(t, []byte(event), &ev)
+	if ev.Kind != StopKindEvent || ev.Start == nil || ev.End == nil || ev.HoursLine != nil || ev.PriceCents == nil || *ev.PriceCents != 1200 ||
+		ev.Rating == nil || ev.RatingCount == nil || ev.TicketURL == nil || len(ev.Tags) != 2 || ev.Place.Coordinate == nil {
+		t.Errorf("event %+v", ev)
+	}
+
+	place := `{"id": "62248db0069b1dc732103903", "title": "Seaside Market Hall", "kind": "place", "category": "market",
+	  "category_label": "Market", "place": {"name": "Seaside Market Hall"}, "hours_line": "Closed that day",
+	  "price_label": "Price unknown", "tags": []}`
+	var pl ActivityDetail
+	encoded := roundTrip(t, []byte(place), &pl)
+	if pl.Kind != StopKindPlace || pl.HoursLine == nil || pl.PriceCents != nil || pl.Tags == nil || pl.Start != nil {
+		t.Errorf("place %+v", pl)
+	}
+	for _, key := range []string{"summary", "address", "price_cents", "rating", "url", "start"} {
+		if strings.Contains(string(encoded), `"`+key+`"`) {
+			t.Errorf("%s written without a value: %s", key, encoded)
+		}
 	}
 }
 

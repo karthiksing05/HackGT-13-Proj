@@ -22,6 +22,13 @@ struct ContractTests {
         return d
     }()
 
+    /// The demo's stops carry `activity_id` (Review's stop pane loads their details by it); the
+    /// `PlanBatch`, `PlanAlternatives` and `CreateItineraryRequest` examples show the required keys
+    /// only (`PlanBatch.dag` shows the planner's extras).
+    private static func requiredKeys(_ stop: PlanStop) -> PlanStop {
+        PlanStop(id: stop.id, title: stop.title, subtitle: stop.subtitle, place: stop.place, durationMinutes: stop.durationMinutes)
+    }
+
     private func roundTrip<T: Codable & Equatable>(_ value: T, _ name: String) throws {
         let data = try encoder.encode(value)
         let back = try decoder.decode(T.self, from: data)
@@ -68,15 +75,20 @@ struct ContractTests {
                                   tags: ["Outdoors", "Food", "Meet people"], budget: 1, who: .friends, pace: .balanced, modes: [.walk, .marta])
         try roundTrip(request, "PlanRequest")
         let batch = try await api.generatePlans(request)
-        try roundTrip(batch, "PlanBatch")
-        let option = batch.options[0]
+        let plainBatch = PlanBatch(options: batch.options.map { option in
+            var option = option
+            option.stops = option.stops.map(Self.requiredKeys)
+            return option
+        }, cursor: batch.cursor, done: batch.done)
+        try roundTrip(plainBatch, "PlanBatch")
+        let option = plainBatch.options[0]
         let routeRequest = RouteRequest(optionId: option.id, stopOrder: option.stops.map(\.id), start: request.start, end: request.end,
                                         startTime: request.startTime, backBy: request.backBy, ride: request.ride, modes: request.modes)
         try roundTrip(routeRequest, "RouteRequest")
         let route = try await api.route(routeRequest)
         try roundTrip(route, "RouteResult")
-        try roundTrip(try await api.stopAlternatives(optionId: option.id, stopId: option.stops[1].id,
-                                                     stopOrder: option.stops.map(\.id)), "PlanAlternatives")
+        let alternatives = try await api.stopAlternatives(optionId: option.id, stopId: option.stops[1].id, stopOrder: option.stops.map(\.id))
+        try roundTrip(alternatives.map { PlanAlternative(stop: Self.requiredKeys($0.stop), reason: $0.reason) }, "PlanAlternatives")
         try roundTrip(CreateItineraryRequest(plan: request, option: option, stopOrder: option.stops.map(\.id), route: route,
                                              visibility: .friends, lockAt: clock.date(2026, 9, 25, 13, 30), maxGroupSize: 6), "CreateItineraryRequest")
 
@@ -251,7 +263,23 @@ struct ContractTests {
                                   mustInclude: [event.id, place.id])
         try roundTrip(request, "PlanRequest.mustInclude")
         let batch = try await api.generatePlans(request)
-        #expect(!batch.options.isEmpty && batch.options.allSatisfy { Set($0.stops.compactMap(\.activityId)) == [event.id, place.id] })
+        #expect(!batch.options.isEmpty && batch.options.allSatisfy { Set($0.stops.compactMap(\.activityId)).isSuperset(of: [event.id, place.id]) })
+    }
+
+    /// Review › tap a stop: `GET /activities/{id}` for a place (its hours on the plan's day, rating,
+    /// description and links) and for an event (its start, end, venue and price), as the demo serves
+    /// them. `pkg/contract` pins the server's own shape too.
+    @Test func activityDetailExamples() async throws {
+        let api = MockAPIClient(latencyScale: 0)
+        let clock = AppClock.demo
+        let place = try await api.activity(id: MockActivities.id(for: "Skyline Park rooftop"), date: clock.now)
+        #expect(place.kind == .place && place.hoursLine != nil && place.description != nil && place.rating != nil
+                && place.ratingCount != nil && place.websiteURL != nil && place.ticketURL != nil && place.place.coordinate != nil)
+        try roundTrip(place, "ActivityDetail")
+        let event = try await api.activity(id: MockActivities.id(for: "Gallery talk at the High"), date: clock.now)
+        #expect(event.kind == .event && event.start != nil && event.end != nil && event.priceCents == 1800 && event.priceLabel == "$18"
+                && event.venueName == "High Museum of Art" && event.hoursLine == nil)
+        try roundTrip(event, "ActivityDetail.event")
     }
 
     /// Agentic checkout, as the Go backend writes it (pkg/contract/checkout.go, pkg/agent): the plan

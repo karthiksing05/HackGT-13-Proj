@@ -10,8 +10,8 @@ import (
 )
 
 // Suggestable loads the people who may be suggested to someone in catalog:
-// accounts of the same catalog ("" and activities are one catalog) that have
-// a taste vector, are not bots and are not in exclude. Each comes with its
+// accounts on the same catalog (CatalogFor: the demo cast or everyone else)
+// that have a taste vector, are not bots and are not in exclude. Each comes with its
 // likes and dislikes vectors; limit caps the pool (default 300).
 func (u Users) Suggestable(ctx context.Context, catalog string, exclude []string, limit int) ([]*models.User, error) {
 	if limit <= 0 {
@@ -19,12 +19,11 @@ func (u Users) Suggestable(ctx context.Context, catalog string, exclude []string
 	}
 	filter := bson.M{
 		"positiveEmbedding": bson.M{"$exists": true, "$ne": bson.A{}},
-		"roles":             bson.M{"$ne": "bot"},
 	}
-	if catalog == "" || catalog == CollActivities {
-		filter["catalog"] = bson.M{"$in": bson.A{"", CollActivities, nil}}
+	if catalog == CollDemoActivities {
+		filter["roles"] = bson.M{"$eq": "demo", "$ne": "bot"}
 	} else {
-		filter["catalog"] = catalog
+		filter["roles"] = bson.M{"$nin": bson.A{"demo", "bot"}}
 	}
 	if oids := objectIDs(exclude); len(oids) > 0 {
 		filter["_id"] = bson.M{"$nin": oids}

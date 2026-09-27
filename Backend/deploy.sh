@@ -1,119 +1,93 @@
 #!/usr/bin/env bash
-# Builds and deploys the backend to the VPS:
-#   1. ./build.sh --amd64 (server + admin, tests included)
-#   2. uploads both binaries to /opt/backend as *.new and swaps them in,
-#      keeping sidequestz-server.prev / sidequestz-admin.prev for rollback
-#   3. syncs backend.service, restarts the unit, checks it is active
-#   --seed additionally runs "sidequestz-admin ensure-indexes" on the server.
-#
-# The server's /opt/backend/.env is never uploaded or touched (pre-flight
-# checks it exists). Connection settings come from DEPLOY_HOST, DEPLOY_USER,
-# DEPLOY_PASSWORD (optional; sshpass or SSH_ASKPASS), DEPLOY_REMOTE_DIR,
-# DEPLOY_SERVICE, read from the environment or the repo-root .env / Backend/.env.
-# Usage: ./deploy.sh [host] [user] [--seed]
+# Build, upload and restart the API. Add --admin to also ship the maintenance CLI.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$(dirname "${BASH_SOURCE[0]}")"
 
-# Load DEPLOY_* only (never echoed) from the first env file found.
-load_deploy_vars() {
-  local file="$1"
-  [ -f "$file" ] || return 0
-  while IFS='=' read -r key val || [ -n "$key" ]; do
-    key=$(printf '%s' "$key" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-    case "$key" in DEPLOY_*) ;; *) continue ;; esac
-    val=$(printf '%s' "$val" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-    val="${val#\"}"; val="${val%\"}"; val="${val#\'}"; val="${val%\'}"
-    [ -z "${!key:-}" ] && export "$key=$val"
-  done < "$file"
-}
-load_deploy_vars "${SCRIPT_DIR}/../.env"
-load_deploy_vars "${SCRIPT_DIR}/.env"
-
-SEED=false
-POSITIONAL=()
+build_args=()
+names=(sidequestz-server)
+args=()
 for arg in "$@"; do
   case "$arg" in
-    --seed) SEED=true ;;
-    *) POSITIONAL+=("$arg") ;;
+    --admin) build_args=(--admin); names=(sidequestz-server sidequestz-admin) ;;
+    -h|--help) echo "Usage: ./deploy.sh [host] [user] [--admin]"; exit 0 ;;
+    --*) echo "Unknown option: $arg" >&2; exit 1 ;;
+    *) args+=("$arg") ;;
   esac
 done
-SERVER_IP="${POSITIONAL[0]:-${DEPLOY_HOST:-}}"
-SERVER_USER="${POSITIONAL[1]:-${DEPLOY_USER:-root}}"
-SERVER_PASS="${DEPLOY_PASSWORD:-}"
-REMOTE_DIR="${DEPLOY_REMOTE_DIR:-/opt/backend}"
-SERVICE_NAME="${DEPLOY_SERVICE:-sidequestz}"
-[ -n "$SERVER_IP" ] || { echo "DEPLOY_HOST (or the host argument) is required" >&2; exit 1; }
+[[ ${#args[@]} -le 2 ]] || { echo "Expected at most host and user." >&2; exit 1; }
 
-# Non-interactive SSH: sshpass when available, else SSH_ASKPASS.
-AUTH_MODE="none"; ASKPASS_FILE=""
-cleanup() { [ -n "$ASKPASS_FILE" ] && rm -f "$ASKPASS_FILE" 2>/dev/null || true; }
-trap cleanup EXIT INT TERM
-if [ -n "$SERVER_PASS" ]; then
+# Read DEPLOY_* values only; shell environment takes precedence, then root .env.
+for file in ../.env .env; do
+  [[ -f "$file" ]] || continue
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ "$line" =~ ^[[:space:]]*(DEPLOY_[A-Z_]+)[[:space:]]*=[[:space:]]*(.*[^[:space:]])?[[:space:]]*$ ]] || continue
+    key="${BASH_REMATCH[1]}"; value="${BASH_REMATCH[2]}"
+    value="${value#\"}"; value="${value%\"}"; value="${value#\'}"; value="${value%\'}"
+    [[ -n "${!key:-}" ]] || export "$key=$value"
+  done < "$file"
+done
+
+host="${args[0]:-${DEPLOY_HOST:-}}"
+user="${args[1]:-${DEPLOY_USER:-root}}"
+remote_dir="${DEPLOY_REMOTE_DIR:-/opt/backend}"
+service="${DEPLOY_SERVICE:-sidequestz}"
+[[ -n "$host" ]] || { echo "Set DEPLOY_HOST or pass a host." >&2; exit 1; }
+[[ "$remote_dir" =~ ^/[a-zA-Z0-9_./-]+$ && "$service" =~ ^[a-zA-Z0-9_-]+$ ]] || {
+  echo "Invalid DEPLOY_REMOTE_DIR or DEPLOY_SERVICE." >&2; exit 1;
+}
+
+# Use SSH keys, or reuse the same password helper for ssh and scp.
+auth=()
+if [[ -n "${DEPLOY_PASSWORD:-}" ]]; then
   if command -v sshpass >/dev/null 2>&1; then
-    AUTH_MODE="sshpass"
+    export SSHPASS="$DEPLOY_PASSWORD"
+    auth=(sshpass -e)
   else
-    AUTH_MODE="askpass"
-    ASKPASS_FILE=$(mktemp); chmod 700 "$ASKPASS_FILE"
-    printf '#!/usr/bin/env bash\necho "${DEPLOY_PASS_INTERNAL}"\n' > "$ASKPASS_FILE"
-    export DEPLOY_PASS_INTERNAL="$SERVER_PASS" SSH_ASKPASS="$ASKPASS_FILE" SSH_ASKPASS_REQUIRE="force" DISPLAY="${DISPLAY:-:0}"
+    askpass=$(mktemp)
+    trap 'rm -f "$askpass"' EXIT
+    printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$DEPLOY_PASSWORD"\n' > "$askpass"
+    chmod 700 "$askpass"
+    export SSH_ASKPASS="$askpass" SSH_ASKPASS_REQUIRE=force DISPLAY="${DISPLAY:-:0}"
   fi
 fi
-run_ssh() {
-  case "$AUTH_MODE" in
-    sshpass) SSHPASS="$SERVER_PASS" sshpass -e ssh -o StrictHostKeyChecking=accept-new "${SERVER_USER}@${SERVER_IP}" "$1" ;;
-    askpass) ssh -o StrictHostKeyChecking=accept-new "${SERVER_USER}@${SERVER_IP}" "$1" < /dev/null ;;
-    *) ssh -o StrictHostKeyChecking=accept-new "${SERVER_USER}@${SERVER_IP}" "$1" ;;
-  esac
+ssh_options=(-o StrictHostKeyChecking=accept-new)
+
+# Check the remote configuration before building or uploading.
+"${auth[@]}" ssh "${ssh_options[@]}" "$user@$host" "test -s '$remote_dir/.env'" || {
+  echo "Remote connection failed or $remote_dir/.env is missing or empty." >&2; exit 1;
 }
-run_scp() {
-  case "$AUTH_MODE" in
-    sshpass) SSHPASS="$SERVER_PASS" sshpass -e scp -o StrictHostKeyChecking=accept-new "$1" "${SERVER_USER}@${SERVER_IP}:$2" ;;
-    askpass) scp -o StrictHostKeyChecking=accept-new "$1" "${SERVER_USER}@${SERVER_IP}:$2" < /dev/null ;;
-    *) scp -o StrictHostKeyChecking=accept-new "$1" "${SERVER_USER}@${SERVER_IP}:$2" ;;
-  esac
-}
-
-echo "==> deploy to ${SERVER_USER}@${SERVER_IP}:${REMOTE_DIR} (auth: ${AUTH_MODE}, seed: ${SEED})"
-
-echo "==> [1/4] build"
-bash "${SCRIPT_DIR}/build.sh" --amd64
-for bin in sidequestz-server sidequestz-admin; do
-  [ -s "${SCRIPT_DIR}/bin/${bin}" ] || { echo "bin/${bin} missing" >&2; exit 1; }
+GOOS=linux GOARCH=amd64 bash ./build.sh "${build_args[@]}"
+for name in "${names[@]}"; do
+  "${auth[@]}" scp "${ssh_options[@]}" "bin/$name" "$user@$host:$remote_dir/$name.new"
 done
+"${auth[@]}" scp "${ssh_options[@]}" backend.service "$user@$host:$remote_dir/backend.service.new"
 
-echo "==> [2/4] pre-flight"
-run_ssh "mkdir -p ${REMOTE_DIR} && test -s ${REMOTE_DIR}/.env" \
-  || { echo "${REMOTE_DIR}/.env is missing or empty on the server; create it first (see docs/design/app-docs-deploy.md §3.2). Nothing was uploaded." >&2; exit 1; }
-
-echo "==> [3/4] upload binaries and unit"
-for bin in sidequestz-server sidequestz-admin; do
-  run_scp "${SCRIPT_DIR}/bin/${bin}" "${REMOTE_DIR}/${bin}.new"
+"${auth[@]}" ssh "${ssh_options[@]}" "$user@$host" "bash -s -- '$remote_dir' '$service' ${names[*]}" <<'REMOTE'
+set -euo pipefail
+remote_dir=$1; service=$2; shift 2
+cd "$remote_dir"
+for name in "$@"; do
+  chmod 755 "$name.new"
+  [[ ! -f "$name" ]] || mv -f "$name" "$name.prev"
+  mv -f "$name.new" "$name"
 done
-run_scp "${SCRIPT_DIR}/backend.service" "/etc/systemd/system/${SERVICE_NAME}.service.new"
-
-echo "==> [4/4] swap, restart, verify"
-REMOTE_CMDS="set -e
-cd ${REMOTE_DIR}
-for bin in sidequestz-server sidequestz-admin; do
-  chmod 755 \${bin}.new
-  if [ -f \${bin} ]; then mv -f \${bin} \${bin}.prev; fi
-  mv -f \${bin}.new \${bin}
-done
-mv -f /etc/systemd/system/${SERVICE_NAME}.service.new /etc/systemd/system/${SERVICE_NAME}.service
-id -u sidequestz >/dev/null 2>&1 || useradd --system --home ${REMOTE_DIR} --shell /usr/sbin/nologin sidequestz
-chown sidequestz:sidequestz ${REMOTE_DIR}/.env
-chmod 600 ${REMOTE_DIR}/.env
+sed "s|/opt/backend|$remote_dir|g" backend.service.new > "/etc/systemd/system/$service.service"
+rm backend.service.new
+id -u sidequestz >/dev/null 2>&1 || useradd --system --home "$remote_dir" --shell /usr/sbin/nologin sidequestz
+chown sidequestz:sidequestz .env
+chmod 600 .env
 systemctl daemon-reload
-systemctl enable ${SERVICE_NAME}.service >/dev/null 2>&1 || true
-systemctl restart ${SERVICE_NAME}
-sleep 2
-systemctl is-active --quiet ${SERVICE_NAME} || { systemctl status ${SERVICE_NAME} --no-pager | tail -20; exit 1; }
-curl -fsS http://127.0.0.1:8080/healthz
-echo
-"
-if [ "$SEED" = true ]; then
-  REMOTE_CMDS+="${REMOTE_DIR}/sidequestz-admin --env-file ${REMOTE_DIR}/.env ensure-indexes
-"
-fi
-run_ssh "$REMOTE_CMDS"
-echo "==> deployed; rollback: for b in sidequestz-server sidequestz-admin; do mv -f ${REMOTE_DIR}/\$b.prev ${REMOTE_DIR}/\$b; done && systemctl restart ${SERVICE_NAME}"
+systemctl enable "$service"
+systemctl restart "$service"
+for attempt in {1..15}; do
+  if systemctl is-active --quiet "$service" && curl -fsS --max-time 2 http://127.0.0.1:8080/healthz; then
+    exit 0
+  fi
+  sleep 2
+done
+systemctl status "$service" --no-pager
+exit 1
+REMOTE
+
+echo "Deployed. Rollback: ssh $user@$host 'cd $remote_dir && mv -f sidequestz-server.prev sidequestz-server && systemctl restart $service'"

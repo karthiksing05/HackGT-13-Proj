@@ -232,38 +232,6 @@ type StopDetail struct {
 	Stop        *Stop
 }
 
-// ResolveStopByID finds a stop from its id alone, as the api seam asks:
-// the newest live pool that holds it (an option's stop or a suggested
-// alternative), else the activity the id names, looked up in each catalog
-// (activity ids are ObjectIDs, unique across both).
-func (p *Planner) ResolveStopByID(ctx context.Context, stopID string) (*StopDetail, error) {
-	if f, ok := p.Pools.(StopFinder); ok {
-		_, s, err := f.FindStop(ctx, stopID)
-		if err == nil {
-			return detailFromStop(s), nil
-		}
-		if !errors.Is(err, ErrPoolNotFound) {
-			return nil, err
-		}
-	}
-	actID, ok := ActivityIDFromStop(stopID)
-	if !ok || p.Lookup == nil {
-		return nil, &UnknownStopError{ID: stopID}
-	}
-	for _, catalog := range []string{"demo_activities", "activities"} {
-		acts, err := p.Lookup.GetActivities(ctx, catalog, []string{actID})
-		if err != nil {
-			return nil, err
-		}
-		if len(acts) == 1 {
-			s := stopFromActivity(&acts[0], nil)
-			s.ID = stopID
-			return detailFromStop(&s), nil
-		}
-	}
-	return nil, &UnknownStopError{ID: stopID}
-}
-
 // ResolveStop finds a stop by id: in the pool of optionID when one is
 // given (the option's stops and its suggested alternatives), else by the
 // activity id the stop id carries, in the caller's catalog.

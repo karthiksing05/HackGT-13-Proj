@@ -1,12 +1,14 @@
 package api_test
 
 import (
+	"Backend/pkg/api"
 	"Backend/pkg/config"
 	"Backend/pkg/contract"
 	"Backend/pkg/models"
 	"Backend/pkg/store"
 	"Backend/pkg/testutil"
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/url"
@@ -20,7 +22,7 @@ import (
 
 // The demo clock end to end: DEMO_DATE=2026-09-24 while the real time is
 // pinned to Sunday Sep 27, noon in New York. Demo accounts (catalog
-// demo_activities) live on Thursday Sep 24 at the real time of day;
+// role demo or bot) live on Thursday Sep 24 at the real time of day;
 // everyone else, and everything security- or expiry-related, stays real.
 
 var (
@@ -28,7 +30,7 @@ var (
 	demoReal   = time.Date(2026, 9, 27, 12, 0, 0, 0, ny)
 	demoToday  = time.Date(2026, 9, 24, 0, 0, 0, 0, ny)
 	demoDate   = "2026-09-24"
-	demoFields = bson.M{"catalog": store.CollDemoActivities, "city": "saltlight"}
+	demoFields = bson.M{"roles": []string{"demo"}, "city": "saltlight"}
 )
 
 func demoServer(t *testing.T) *testutil.Server {
@@ -36,8 +38,8 @@ func demoServer(t *testing.T) *testutil.Server {
 	return testutil.New(t, testutil.WithNow(demoReal.UTC()), testutil.WithConfig(func(c *config.Config) { c.DemoDate = demoDate }))
 }
 
-// demoUser signs someone up and moves them to the demo catalog, as the seed
-// does for Sandy and the bots.
+// demoUser signs someone up and makes them a demo account (role demo, city
+// saltlight), as the seed does for Sandy; the bots carry role bot.
 func demoUser(t *testing.T, srv *testutil.Server, name string) *testutil.Session {
 	t.Helper()
 	sess := srv.Signup(t, name)
@@ -369,4 +371,30 @@ func TestDemoDateKeepsRealTimeForLinksAndTokens(t *testing.T) {
 	}
 	sandy.Access = fresh.AccessToken
 	srv.Do(t, "GET", "/me", nil, sandy).Expect(t, http.StatusOK)
+}
+
+func TestClockFollowsTheDemoCast(t *testing.T) {
+	d := &api.Deps{
+		Cfg: &config.Config{DemoDate: demoDate, DemoTZ: "America/New_York"},
+		Now: func() time.Time { return demoReal },
+	}
+	for _, tc := range []struct {
+		user *models.User
+		demo bool
+	}{
+		{&models.User{Email: "student@gatech.edu"}, false},
+		{&models.User{Email: "someone@example.com"}, false},
+		{&models.User{Email: "demo@sidequestz.tech", Roles: []string{"demo"}}, true},
+		{&models.User{Email: "bot@sidequestz.tech", Roles: []string{"bot"}}, true},
+	} {
+		if (d.ClockFor(tc.user) != nil) != tc.demo || (d.UserView(tc.user).DemoDate != nil) != tc.demo {
+			t.Fatalf("%s: demo clock should be %v", tc.user.Email, tc.demo)
+		}
+	}
+	// A user id the store can't find reads as real time.
+	srv := demoServer(t)
+	ctx := srv.Deps.ForUser(context.Background(), bson.NewObjectID().Hex())
+	if got := dayOf(srv.Deps.BusinessNow(ctx)); got != dayOf(demoReal) {
+		t.Fatalf("business date = %s, want the real %s", got, dayOf(demoReal))
+	}
 }

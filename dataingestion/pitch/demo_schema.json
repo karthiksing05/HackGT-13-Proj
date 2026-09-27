@@ -1,0 +1,290 @@
+{
+ "_id": [
+  "objectId"
+ ],
+ "address": [
+  "object"
+ ],
+ "address.countryCode": [
+  "string"
+ ],
+ "address.formatted": [
+  "string"
+ ],
+ "address.locality": [
+  "string"
+ ],
+ "address.postalCode": [
+  "string"
+ ],
+ "address.region": [
+  "string"
+ ],
+ "address.street": [
+  "string"
+ ],
+ "attendance": [
+  "string"
+ ],
+ "category": [
+  "string"
+ ],
+ "city": [
+  "string"
+ ],
+ "createdAt": [
+  "date"
+ ],
+ "description": [
+  "string"
+ ],
+ "duration": [
+  "object"
+ ],
+ "duration.medianMin": [
+  "double"
+ ],
+ "duration.p75Min": [
+  "double"
+ ],
+ "duration.sigma": [
+  "double"
+ ],
+ "duration.source": [
+  "string"
+ ],
+ "embedding": [
+  "array"
+ ],
+ "embeddingMeta": [
+  "object"
+ ],
+ "embeddingMeta.dimension": [
+  "int"
+ ],
+ "embeddingMeta.generatedAt": [
+  "date"
+ ],
+ "embeddingMeta.maxSeqLength": [
+  "int"
+ ],
+ "embeddingMeta.model": [
+  "string"
+ ],
+ "embeddingMeta.normalized": [
+  "bool"
+ ],
+ "embeddingMeta.prompt": [
+  "null"
+ ],
+ "embeddingMeta.provider": [
+  "string"
+ ],
+ "embeddingMeta.source": [
+  "string"
+ ],
+ "embeddingMeta.textHash": [
+  "string"
+ ],
+ "embeddingModel": [
+  "string"
+ ],
+ "embeddingText": [
+  "string"
+ ],
+ "embeddingTextHash": [
+  "string"
+ ],
+ "embeddingTextMeta": [
+  "object"
+ ],
+ "embeddingTextMeta.generatedAt": [
+  "date"
+ ],
+ "embeddingTextMeta.grounded": [
+  "bool"
+ ],
+ "embeddingTextMeta.inputHash": [
+  "string"
+ ],
+ "embeddingTextMeta.model": [
+  "string"
+ ],
+ "embeddingTextMeta.prompt": [
+  "string"
+ ],
+ "embeddingTextMeta.sources": [
+  "array"
+ ],
+ "embedding[]": [
+  "double"
+ ],
+ "end": [
+  "date",
+  "null"
+ ],
+ "expiresAt": [
+  "date",
+  "null"
+ ],
+ "googlePlaceId": [
+  "null"
+ ],
+ "hoursSource": [
+  "null",
+  "string"
+ ],
+ "imageUrl": [
+  "null"
+ ],
+ "kind": [
+  "string"
+ ],
+ "location": [
+  "object"
+ ],
+ "location.coordinates": [
+  "array"
+ ],
+ "location.coordinates[]": [
+  "double"
+ ],
+ "location.type": [
+  "string"
+ ],
+ "name": [
+  "string"
+ ],
+ "popularity": [
+  "double"
+ ],
+ "price": [
+  "object"
+ ],
+ "price.currency": [
+  "string"
+ ],
+ "price.isFree": [
+  "bool"
+ ],
+ "price.max": [
+  "double"
+ ],
+ "price.min": [
+  "double"
+ ],
+ "price.tier": [
+  "int"
+ ],
+ "rating": [
+  "double",
+  "null"
+ ],
+ "ratingCount": [
+  "int",
+  "null"
+ ],
+ "recurrence": [
+  "null"
+ ],
+ "sourceCategory": [
+  "string"
+ ],
+ "sourceKeys": [
+  "array"
+ ],
+ "sourceKeys[]": [
+  "string"
+ ],
+ "sources": [
+  "array"
+ ],
+ "sources[]": [
+  "object"
+ ],
+ "sources[].fetchedAt": [
+  "date"
+ ],
+ "sources[].id": [
+  "string"
+ ],
+ "sources[].name": [
+  "string"
+ ],
+ "sources[].url": [
+  "string"
+ ],
+ "start": [
+  "date",
+  "null"
+ ],
+ "summary": [
+  "string"
+ ],
+ "tags": [
+  "array"
+ ],
+ "tags[]": [
+  "string"
+ ],
+ "ticketUrl": [
+  "null",
+  "string"
+ ],
+ "timezone": [
+  "string"
+ ],
+ "trail": [
+  "null",
+  "object"
+ ],
+ "trail.ascentM": [
+  "double"
+ ],
+ "trail.descentM": [
+  "double"
+ ],
+ "trail.geometry": [
+  "object"
+ ],
+ "trail.geometry.coordinates": [
+  "array"
+ ],
+ "trail.geometry.coordinates[]": [
+  "array"
+ ],
+ "trail.geometry.coordinates[][]": [
+  "double"
+ ],
+ "trail.geometry.type": [
+  "string"
+ ],
+ "trail.lengthKm": [
+  "double"
+ ],
+ "trail.loop": [
+  "bool"
+ ],
+ "updatedAt": [
+  "date"
+ ],
+ "url": [
+  "string"
+ ],
+ "venueName": [
+  "string"
+ ],
+ "weeklyHours": [
+  "array",
+  "null"
+ ],
+ "weeklyHours[]": [
+  "object"
+ ],
+ "weeklyHours[].close": [
+  "int"
+ ],
+ "weeklyHours[].open": [
+  "int"
+ ]
+}

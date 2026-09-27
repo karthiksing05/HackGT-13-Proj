@@ -17,7 +17,7 @@ encoder, so they are exactly what the app sends and what it expects to read:
 - `<Name>.json` is the payload of that Swift model (`Name` matches the type, or a variant of it:
   `PlanBatch.dag` is a batch with the DAG planner's extras, `PlanBatch.empty` an empty one with a
   `reason`, `RouteResult.dag` a re-timed route with `broken_at`, `UserHomeBase` an account with a
-  home base).
+  home base, `ActivityDetail.event` an event's details where `ActivityDetail` is a place's).
 - Every file is normalized the same way: keys sorted, 2-space indent, UTF-8 (no `\uXXXX` escapes), a
   trailing newline. A regeneration therefore only changes the shapes whose models changed.
 - Requests (`PlanRequest`, `RouteRequest`, `CreateItineraryRequest`, `CreateCheckoutRun`, `SignupRequest`,

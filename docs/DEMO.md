@@ -72,7 +72,8 @@ the S logo appears only if the request takes more than 2 s.
    3 stops" (typical stop counts are in [PLANNER.md](PLANNER.md#measured-on-the-live-server)). Drag the
    ☰ handle to reorder:
    "Recalculating transit…" then updated times; if a fixed start breaks, the route header says "Some
-   stops would be late" and the stop reads "Late for a fixed start". Press and hold a stop → **Swap for
+   stops would be late" and the stop reads "Late for a fixed start". Tap a stop for its details (timing, map, description, price, links) with **Swap for something
+   similar** and **Remove stop**; press and hold does the same from a menu. **Swap for
    something similar**: up to five alternatives with a reason ("Also time outside · 0.4 mi away"); pick
    one and the route re-times. **Start this sidequest**.
 4. **Home again** (1:45). The new sidequest is selected, with its timeline of walks and stops. **Tap a

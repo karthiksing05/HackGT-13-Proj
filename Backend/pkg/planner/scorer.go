@@ -80,12 +80,6 @@ type TextSource interface {
 	FetchTexts(ctx context.Context, catalog string, ids []string) (map[string]string, error)
 }
 
-// StopFinder is implemented by pool stores that can find a stop by its id
-// alone across live pools, newest first (ResolveStopByID).
-type StopFinder interface {
-	FindStop(ctx context.Context, stopID string) (*PlanPool, *Stop, error)
-}
-
 // Clock is the planner's time source, fixed in tests.
 type Clock interface {
 	Now() time.Time

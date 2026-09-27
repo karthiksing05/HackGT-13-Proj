@@ -90,6 +90,67 @@ struct TimeFormat {
         let days = clock.calendar.dateComponents([.day], from: clock.startOfDay(clock.now), to: clock.startOfDay(date)).day ?? 0
         return (0..<7).contains(days) ? weekdayShort(date) : shortDate(date)
     }
+
+    /// "in 20 min", "in 1 hr", "in 1 hr 5 min" from `now` to `date` (a started minute counts);
+    /// `spoken` spells the units out for VoiceOver ("in 1 hour 5 minutes").
+    func countdown(to date: Date, from now: Date, spoken: Bool = false) -> String {
+        let minutes = max(1, Int((date.timeIntervalSince(now) / 60).rounded(.up)))
+        let hours = minutes / 60, rest = minutes % 60
+        func unit(_ n: Int, _ short: String, _ long: String) -> String {
+            spoken ? "\(n) \(long)\(n == 1 ? "" : "s")" : "\(n) \(short)"
+        }
+        guard hours > 0 else { return "in \(unit(minutes, "min", "minute"))" }
+        return rest == 0 ? "in \(unit(hours, "hr", "hour"))" : "in \(unit(hours, "hr", "hour")) \(unit(rest, "min", "minute"))"
+    }
+}
+
+/// Distances in US units: under 0.1 mi in feet (to the nearest 50 ft), under 10 mi with one
+/// decimal ("1.4 mi"), else whole miles ("263 mi").
+enum DistanceFormat {
+    static let metersPerMile = 1609.344
+    static let feetPerMeter = 3.280_84
+
+    /// "550 ft", "1.4 mi", "263 mi"
+    static func short(_ meters: Double) -> String {
+        switch reading(meters) {
+        case .feet(let feet): "\(feet) ft"
+        case .tenths(let miles): "\(String(format: "%.1f", miles)) mi"
+        case .miles(let miles): "\(grouped(miles)) mi"
+        }
+    }
+
+    /// For VoiceOver: "550 feet", "1.4 miles", "1 mile", "263 miles".
+    static func spoken(_ meters: Double) -> String {
+        switch reading(meters) {
+        case .feet(let feet):
+            return "\(feet) feet"
+        case .tenths(let miles):
+            guard miles != miles.rounded() else { return Int(miles) == 1 ? "1 mile" : "\(Int(miles)) miles" }
+            return "\(String(format: "%.1f", miles)) miles"
+        case .miles(let miles):
+            return "\(grouped(miles)) miles"
+        }
+    }
+
+    private enum Reading {
+        case feet(Int), tenths(Double), miles(Int)
+    }
+
+    private static func reading(_ meters: Double) -> Reading {
+        let miles = max(0, meters) / metersPerMile
+        if miles < 0.1 {
+            let feet = Int((max(0, meters) * feetPerMeter / 50).rounded()) * 50
+            return .feet(max(50, feet))
+        }
+        // 9.96 mi rounds to "10.0": from there it's whole miles.
+        let tenths = (miles * 10).rounded() / 10
+        return tenths < 10 ? .tenths(tenths) : .miles(Int(miles.rounded()))
+    }
+
+    /// "1,243"
+    private static func grouped(_ value: Int) -> String {
+        value.formatted(.number.locale(Locale(identifier: "en_US")))
+    }
 }
 
 /// Money is stored as Int cents and formatted with the currency FormatStyle.

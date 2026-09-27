@@ -111,8 +111,8 @@ const nearTechSquare = "near=33.7766,-84.389"
 
 func TestActivitySearchMatchesAndRanks(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(testutil.Fixed))
-	seedHits(t, srv, store.CollActivities, "atlanta", atlantaHits)
-	seedHits(t, srv, store.CollDemoActivities, "saltlight", saltlightHits)
+	seedHits(t, srv, store.DefaultCatalog, "atlanta", atlantaHits)
+	seedHits(t, srv, otherActivityCollection(), "saltlight", saltlightHits)
 	a := srv.Signup(t, "Alice Picks")
 
 	// Names starting with "jazz", then names with a word that does, then
@@ -163,7 +163,7 @@ func TestActivitySearchMatchesAndRanks(t *testing.T) {
 
 func TestActivitySuggestions(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(testutil.Fixed))
-	seedHits(t, srv, store.CollActivities, "atlanta", atlantaHits)
+	seedHits(t, srv, store.DefaultCatalog, "atlanta", atlantaHits)
 	a := srv.Signup(t, "Alice Suggest")
 	// The day's events that are not over, by start; then the places, the
 	// best-rated within 5 km first, the far park last.
@@ -180,8 +180,8 @@ func TestActivitySuggestions(t *testing.T) {
 
 func TestActivitySearchAgeAndCatalog(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(testutil.Fixed))
-	seedHits(t, srv, store.CollActivities, "atlanta", atlantaHits)
-	seedHits(t, srv, store.CollDemoActivities, "saltlight", saltlightHits)
+	seedHits(t, srv, store.DefaultCatalog, "atlanta", atlantaHits)
+	seedHits(t, srv, otherActivityCollection(), "saltlight", saltlightHits)
 
 	// Under 21: no 21+ set, no bar.
 	req := testutil.SignupRequest("Young Picker")
@@ -192,19 +192,31 @@ func TestActivitySearchAgeAndCatalog(t *testing.T) {
 		t.Errorf("19-year-old: %s", got)
 	}
 
-	// Each account searches its own catalog.
+	// An account outside the demo searches the default catalog, whatever a
+	// legacy catalog field says.
 	a := srv.Signup(t, "Alice Atlanta")
+	if _, err := srv.Store.Users().Update(t.Context(), a.UserID, bson.M{"catalog": store.CollDemoActivities}); err != nil {
+		t.Fatal(err)
+	}
 	for _, h := range searchHits(t, srv, a, "q=a&limit=50") {
 		if strings.Contains(h.Title, "Pier Nine") || h.Title == "Seaside Market Hall" {
 			t.Errorf("an Atlanta account finds %s", h.Title)
 		}
 	}
 	sandy := srv.Signup(t, "Sandy Picks")
-	if _, err := srv.Store.Users().Update(context.Background(), sandy.UserID, bson.M{"catalog": store.CollDemoActivities, "city": "saltlight"}); err != nil {
+	if _, err := srv.Store.Users().Update(context.Background(), sandy.UserID, bson.M{"email": strings.Replace(testutil.UniqueEmail("demo"), "@example.test", "@gatech.edu", 1), "catalog": otherActivityCollection(), "city": "saltlight"}); err != nil {
 		t.Fatal(err)
 	}
-	if got := hitNames(searchHits(t, srv, sandy, "q=jazz")); got != "Sunset Jazz on Pier Nine" {
-		t.Errorf("the demo catalog: %s", got)
+	if got, want := hitNames(searchHits(t, srv, sandy, "q=jazz")), hitNames(searchHits(t, srv, a, "q=jazz")); got != want {
+		t.Errorf("email or legacy catalog changed the search: %s, want %s", got, want)
+	}
+	// The demo account searches Saltlight.
+	if _, err := srv.Store.Users().Update(context.Background(), sandy.UserID, bson.M{"roles": []string{"demo"}}); err != nil {
+		t.Fatal(err)
+	}
+	demo, atlanta := hitNames(searchHits(t, srv, sandy, "q=a&limit=50")), hitNames(searchHits(t, srv, a, "q=a&limit=50"))
+	if demo == "" || demo == atlanta {
+		t.Errorf("the demo account should search Saltlight: %q (Atlanta: %q)", demo, atlanta)
 	}
 }
 
@@ -222,7 +234,7 @@ func TestActivitySearchOnTheDemoDate(t *testing.T) {
 			start: at(9, 27, 19, 0), end: at(9, 27, 21, 0)},
 	})
 	sandy := srv.Signup(t, "Sandy Demo")
-	if _, err := srv.Store.Users().Update(context.Background(), sandy.UserID, bson.M{"catalog": store.CollDemoActivities, "city": "saltlight"}); err != nil {
+	if _, err := srv.Store.Users().Update(context.Background(), sandy.UserID, bson.M{"email": testutil.UniqueEmail("demo"), "city": "saltlight", "roles": []string{"demo"}}); err != nil {
 		t.Fatal(err)
 	}
 	if got := hitNames(searchHits(t, srv, sandy, "q=")); got != "Thursday Trivia Night" {
@@ -235,7 +247,7 @@ func TestActivitySearchOnTheDemoDate(t *testing.T) {
 
 func TestActivitySearchErrors(t *testing.T) {
 	srv := testutil.New(t, testutil.WithNow(testutil.Fixed))
-	seedHits(t, srv, store.CollActivities, "atlanta", atlantaHits)
+	seedHits(t, srv, store.DefaultCatalog, "atlanta", atlantaHits)
 	a := srv.Signup(t, "Alice Errors")
 	for query, msg := range map[string]string{
 		"q=jazz&near=north":       "Check the location and try again.",
