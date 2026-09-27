@@ -176,7 +176,8 @@ The log shows "MongoDB connected, indexes ensured", "planner ready" and the list
 only (`ss` lists no other address).
 
 **4. Data and accounts.** The API uses the existing database. Create new accounts through signup;
-existing demo accounts and fixture records remain available. There is no automatic seed/reset command.
+existing demo accounts and fixture records remain available. There is no reset command;
+`Backend/cmd/seed` adds or removes the [showcase data](#showcase-data).
 
 **5. Smoke tests.** From the Mac, against the public URL:
 
@@ -207,6 +208,31 @@ xcodebuild -project frontend/SideQuestz.xcodeproj -scheme SideQuestz -configurat
   -allowProvisioningUpdates SQ_DEMO_PASSWORD='…' build
 xcrun devicectl device install app --device <device id> /tmp/DD-device/Build/Products/Debug-iphoneos/SideQuestz.app
 ```
+
+## Showcase data
+
+`Backend/cmd/seed` writes the showcase people and sidequests ([DEMO.md](DEMO.md#showcase-data)). Run it
+from the Mac against the server's MongoDB through a tunnel; it reads the server's variable names. Tunnel
+to a local port other than 27017, so it can never reach the local `sq-mongo` by mistake, and forward the
+ML service too so the showcase taste vectors are built by it (without it, they are blended from the
+catalog's own vectors):
+
+```sh
+ssh -N -L 27018:127.0.0.1:27017 -L 8001:127.0.0.1:8000 <user>@<host>    # a separate terminal
+cd Backend
+export MONGO_URI=mongodb://127.0.0.1:27018 MONGO_DB=freetime ML_SERVICE_URL=http://127.0.0.1:8001
+go run ./cmd/seed                  # dry run: the target, then every document it would write or keep
+go run ./cmd/seed --apply          # writes it
+go run ./cmd/seed --remove         # lists what it wrote; add --apply to delete exactly that
+```
+
+Nothing is written without `--apply`. It prints the target host and database (never credentials),
+refuses to write without an explicit `MONGO_DB` or when the target lacks the app's collections, and
+writes nothing at all while an account it did not create holds one of its emails or handles (marked `!`
+in the dry run). `--world atlanta|saltlight` limits it to one world; `--demo-email` names the demo
+account (default `demo@sidequestz.tech`); `DEMO_DATE` (default `2026-09-27`) must match the server's.
+Rerun it before a demo: it refreshes every time, and the Atlanta plans are for today's and tomorrow's
+evenings, the "free now" posts end tonight.
 
 ## Redeploy an earlier version
 
