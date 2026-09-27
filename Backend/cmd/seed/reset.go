@@ -106,7 +106,13 @@ func runReset(ctx context.Context, st *store.Store, o Options, p printer) error 
 				return err
 			}
 		}
+		if !rp.demo {
+			hp.upcoming, hp.upNotes = planUpcoming(hp, cat, crew, o.Now, o.Atlanta)
+		}
 		p.reset(rp, o.Atlanta)
+		if !rp.demo {
+			p.upcoming(hp.upcoming, hp.upNotes, o.Atlanta)
+		}
 		plans = append(plans, rp)
 	}
 	p.f("")
@@ -141,6 +147,11 @@ func planReset(ctx context.Context, st *store.Store, hp *histPerson, o Options) 
 		var it models.Itinerary
 		if err := bson.Unmarshal(raw, &it); err != nil {
 			return nil, err
+		}
+		tag, _ := raw.Lookup(fieldSeed).StringValueOK()
+		owner, _ := raw.Lookup(fieldFor).StringValueOK()
+		if tag == baselineTag && owner == uid {
+			continue // their default upcoming sidequests: cleared and made again
 		}
 		switch {
 		case !seedOwned(raw) && it.HostID == uid:
@@ -387,7 +398,10 @@ func (rp *resetPlan) apply(ctx context.Context, st *store.Store) error {
 			return err
 		}
 	}
-	return nil
+	if rp.demo {
+		return nil
+	}
+	return writeUpcoming(ctx, st, uid, rp.hp.upcoming)
 }
 
 // pullFromChats takes uid out of chats: member, unread and read marks

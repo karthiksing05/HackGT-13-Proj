@@ -303,21 +303,23 @@ func backupID(uid string) string { return historyTag + "|" + uid }
 
 // histPerson is one person of a history run.
 type histPerson struct {
-	sel     historySel
-	user    *models.User
-	raw     bson.Raw // their account as stored
-	flavor  *flavor
-	fitNote string
-	backup  *backup // nil before the first --apply
-	anchor  time.Time
-	plans   []histPlan
-	ratings []histRating
-	likes   map[string]int // the merged preference ratings
-	changed []string       // keys filled or raised, sorted
-	taste   string         // how the taste vectors will be made
-	pos     []float64
-	neg     []float64
-	notes   []string
+	upcoming []upcomingDoc // the default upcoming sidequests of their baseline
+	upNotes  []string
+	sel      historySel
+	user     *models.User
+	raw      bson.Raw // their account as stored
+	flavor   *flavor
+	fitNote  string
+	backup   *backup // nil before the first --apply
+	anchor   time.Time
+	plans    []histPlan
+	ratings  []histRating
+	likes    map[string]int // the merged preference ratings
+	changed  []string       // keys filled or raised, sorted
+	taste    string         // how the taste vectors will be made
+	pos      []float64
+	neg      []float64
+	notes    []string
 }
 
 // histPlan is one past sidequest to write.
@@ -582,21 +584,7 @@ func (hp *histPerson) planDoc(p *pastPlan, lay laidOut, crew map[string]*models.
 // every stop is there as its kind of place, and the ones the title names
 // are those very places.
 func titleHolds(p *pastPlan, lay laidOut) bool {
-	if !lay.exact {
-		return false
-	}
-	for _, want := range p.names {
-		ok := false
-		for k, slot := range lay.slots {
-			if slot == want && lay.stops[k].tier == 0 {
-				ok = true
-			}
-		}
-		if !ok {
-			return false
-		}
-	}
-	return true
+	return lay.exact && titleNamesHold(p.names, lay)
 }
 
 // keepUnrated leaves at least minUnrated stops unrated: when places had

@@ -76,6 +76,8 @@ func runHistory(ctx context.Context, st *store.Store, o Options, p printer) erro
 			}
 		}
 		p.history(hp, taste, o.Atlanta)
+		hp.upcoming, hp.upNotes = planUpcoming(hp, cat, crew, o.Now, o.Atlanta)
+		p.upcoming(hp.upcoming, hp.upNotes, o.Atlanta)
 		for _, pl := range hp.plans {
 			if pl.act == actConflict {
 				conflicts++
@@ -96,8 +98,11 @@ func runHistory(ctx context.Context, st *store.Store, o Options, p printer) erro
 		if err := hp.apply(ctx, st, rater, taste); err != nil {
 			return fmt.Errorf("@%s: %w", hp.user.Username, err)
 		}
-		p.f("  @%s: %d past sidequests, %d ratings, interests %s, taste vectors %s", hp.user.Username, len(hp.plans),
-			len(hp.ratings), orNone(hp.changed), hp.taste)
+		if err := writeUpcoming(ctx, st, hp.uid(), hp.upcoming); err != nil {
+			return fmt.Errorf("@%s: %w", hp.user.Username, err)
+		}
+		p.f("  @%s: %d past sidequests, %d ratings, interests %s, taste vectors %s; %d default upcoming sidequests", hp.user.Username,
+			len(hp.plans), len(hp.ratings), orNone(hp.changed), hp.taste, len(hp.upcoming))
 	}
 	p.f("Done. --history … --remove --apply takes it back out and restores what it changed.")
 	return nil
@@ -309,6 +314,11 @@ func removeHistory(ctx context.Context, st *store.Store, o Options, p printer, p
 			}
 			p.f("  %s: %d", coll, n)
 		}
+		up, err := st.Collection(store.CollItineraries).CountDocuments(ctx, bson.M{fieldSeed: baselineTag, fieldFor: uid})
+		if err != nil {
+			return err
+		}
+		p.f("  default upcoming sidequests (with their chats): %d", up)
 		b, err := loadBackup(ctx, st, uid)
 		if err != nil {
 			return err
@@ -340,6 +350,9 @@ func removeHistory(ctx context.Context, st *store.Store, o Options, p printer, p
 			if _, err := st.Collection(store.CollUsers).UpdateOne(ctx, bson.M{"_id": j.hp.user.ID}, j.update); err != nil {
 				return fmt.Errorf("@%s: restore: %w", j.hp.user.Username, err)
 			}
+		}
+		if err := clearUpcoming(ctx, st, j.hp.uid()); err != nil {
+			return fmt.Errorf("@%s: %w", j.hp.user.Username, err)
 		}
 		if _, err := st.Collection(collBackups).DeleteOne(ctx, bson.M{"_id": backupID(j.hp.uid())}); err != nil {
 			return fmt.Errorf("@%s: delete the backup: %w", j.hp.user.Username, err)
