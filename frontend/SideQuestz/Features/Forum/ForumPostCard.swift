@@ -95,11 +95,18 @@ struct ForumPostCard: View {
     // MARK: Open plan
 
     @ViewBuilder private var planDetails: some View {
-        Text(post.title ?? "")
-            .socialText(17, .bold)
-            .foregroundStyle(Theme.ink)
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityAddTraits(.isHeader)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(post.title ?? "")
+                .socialText(17, .bold)
+                .foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            // How well the plan's stops fit your taste (server-scored).
+            if let match = post.compatibility {
+                MatchPill(percent: match)
+            }
+        }
         if post.when != nil || post.route != nil {
             VStack(alignment: .leading, spacing: 4) {
                 if let when = post.when { Text(when).socialText(13) }

@@ -32,8 +32,8 @@ func IsDemoCast(u *models.User) bool {
 	return u != nil && (u.HasRole("demo") || u.HasRole("bot"))
 }
 
-// Catalog reads activity catalogs. Nothing here writes, and the
-// 1024-d embeddings are never loaded.
+// Catalog reads activity catalogs. Nothing here writes, and the 1024-d
+// embeddings are loaded only by Embeddings (catalog_vectors.go).
 type Catalog struct{ s *Store }
 
 func (s *Store) Catalog() Catalog { return Catalog{s} }

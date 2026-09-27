@@ -75,6 +75,20 @@ extension UserSearchResult {
     }
 }
 
+extension PersonSuggestion {
+    enum CodingKeys: String, CodingKey {
+        case person, relation, requestId, compatibility
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        person = try c.decode(PersonRef.self, forKey: .person)
+        relation = try c.decodeIfPresent(FriendRelation.self, forKey: .relation) ?? .none
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId)
+        compatibility = min(100, max(0, try c.decodeIfPresent(Int.self, forKey: .compatibility) ?? 0))
+    }
+}
+
 extension Preferences {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -171,7 +185,7 @@ extension ForumPost {
     enum CodingKeys: String, CodingKey {
         case id, type, author, isFriend, friendsOnly, title, text, meta, when, route, startsInMinutes, day, distanceMi
         case priceTier, tags, spotsLeft, capacity, lockLabel, going, goingCount, interestedCount, postedMinutesAgo
-        case joinStatus, planTogetherSent, threadId
+        case joinStatus, planTogetherSent, threadId, compatibility
     }
 
     /// Older servers send `join_requested: true` instead of `join_status`.
@@ -209,6 +223,7 @@ extension ForumPost {
         }
         planTogetherSent = try c.decodeIfPresent(Bool.self, forKey: .planTogetherSent) ?? false
         threadId = try c.decodeIfPresent(String.self, forKey: .threadId)
+        compatibility = try c.decodeIfPresent(Int.self, forKey: .compatibility)
     }
 }
 

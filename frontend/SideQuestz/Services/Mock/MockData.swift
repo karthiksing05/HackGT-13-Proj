@@ -277,6 +277,13 @@ enum MockData {
 
     // MARK: Forum
 
+    /// People for you: taste matches that aren't friends yet (relations are filled in live).
+    static let suggestedPeople: [PersonSuggestion] = [
+        PersonSuggestion(person: MockPeople.priya, compatibility: 88),
+        PersonSuggestion(person: MockPeople.chris, compatibility: 74),
+        PersonSuggestion(person: MockPeople.gtOutdoors, compatibility: 63),
+    ]
+
     static func forumPosts() -> [ForumPost] {
         let p = MockPeople.self
         return [
@@ -285,7 +292,7 @@ enum MockData {
                       when: "Today · 5:30–8 PM", route: "3 stops along the Eastside Trail",
                       startsInMinutes: 210, day: "today", distanceMi: 0.4, priceTier: 1, tags: ["Outdoors", "Food"],
                       spotsLeft: 2, capacity: 6, lockLabel: "Locks 5:00 PM", going: [p.dev, p.ava, p.chris],
-                      goingCount: 4, interestedCount: 2, postedMinutesAgo: 25),
+                      goingCount: 4, interestedCount: 2, postedMinutesAgo: 25, compatibility: 92),
             ForumPost(id: "p2", type: .freeNow, author: p.dev, isFriend: true, friendsOnly: true,
                       title: nil, text: "Free 2–6 near Tech Square. Down for anything outside or a board game café.",
                       meta: "Free now · 0.3 mi away", when: nil, route: nil,
@@ -296,7 +303,7 @@ enum MockData {
                       when: "Sat · 6–10 AM", route: "Carpool from Tech Square",
                       startsInMinutes: 900, day: "sat", distanceMi: 0.2, priceTier: 1, tags: ["Outdoors", "Active"],
                       spotsLeft: 5, capacity: 12, lockLabel: "Locks Fri 9 PM", going: [p.chris, p.ava, p.priya],
-                      goingCount: 7, interestedCount: 5, postedMinutesAgo: 180),
+                      goingCount: 7, interestedCount: 5, postedMinutesAgo: 180, compatibility: 78),
             ForumPost(id: "p4", type: .freeNow, author: p.priya, isFriend: false, friendsOnly: false,
                       title: nil, text: "Layover at ATL until 7 PM. Anyone near the airport want to grab food?",
                       meta: "12 min ago · 8.1 mi away", when: nil, route: nil,
@@ -307,7 +314,7 @@ enum MockData {
                       when: "Sun · 12–4 PM", route: "4 stops · walking",
                       startsInMinutes: 2750, day: "sun", distanceMi: 1.8, priceTier: 1, tags: ["Shopping"],
                       spotsLeft: 1, capacity: 4, lockLabel: "Locks Sun 10 AM", going: [p.sam, p.ava, p.maya],
-                      goingCount: 3, interestedCount: 1, postedMinutesAgo: 90),
+                      goingCount: 3, interestedCount: 1, postedMinutesAgo: 90, compatibility: 61),
         ]
     }
 
