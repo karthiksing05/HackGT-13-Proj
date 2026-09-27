@@ -65,6 +65,7 @@ const (
 	CollActivities       = "activities"
 	CollDemoActivities   = "demo_activities"
 	CollPitchActivities  = "pitch_activities"
+	CollCalendarEvents   = "calendar_events"
 )
 
 // CatalogCollections are read-only here and never reset or TTL-touched.
