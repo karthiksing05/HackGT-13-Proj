@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"events/pkg/models"
 	"events/pkg/payments"
@@ -172,25 +171,12 @@ func (d *Deps) HandleStartCheckout(w http.ResponseWriter, r *http.Request) {
 		html(w, status)
 		_ = ui.RenderCheckout(w, d.checkoutView(r, event, qty, name, email, problem))
 	}
-	switch {
-	case d.soldOut(r, event):
-		again(http.StatusConflict, "")
-		return
-	case qty < 1 || qty > ui.MaxTicketsPerOrder:
-		again(http.StatusBadRequest, "Choose how many tickets you want.")
-		return
-	case qty > event.Remaining:
-		again(http.StatusConflict, fmt.Sprintf("Only %d tickets are left.", event.Remaining))
-		return
-	case name == "" || len(name) > 100:
-		again(http.StatusBadRequest, "Enter the name the tickets should be under.")
-		return
-	case !validEmail(email):
-		again(http.StatusBadRequest, "Enter a valid email address for your tickets.")
+	if status, problem := validateCheckout(event, d.soldOut(r, event), qty, name, email); status != 0 {
+		again(status, problem)
 		return
 	}
 
-	base := strings.TrimRight(d.Cfg.MerchantBaseURL, "/")
+	base := d.BaseURL(r)
 	session, err := d.Checkout.CreateSession(r.Context(), payments.SessionRequest{
 		Title:       event.Title,
 		UnitCents:   event.UnitCents,
@@ -214,6 +200,23 @@ func (d *Deps) HandleStartCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, session.URL, http.StatusSeeOther)
+}
+
+func validateCheckout(event *models.Event, soldOut bool, qty int, name, email string) (int, string) {
+	switch {
+	case soldOut:
+		return http.StatusConflict, ""
+	case qty < 1 || qty > ui.MaxTicketsPerOrder:
+		return http.StatusBadRequest, "Choose how many tickets you want."
+	case qty > event.Remaining:
+		return http.StatusConflict, fmt.Sprintf("Only %d tickets are left.", event.Remaining)
+	case name == "" || len(name) > 100:
+		return http.StatusBadRequest, "Enter the name the tickets should be under."
+	case !validEmail(email):
+		return http.StatusBadRequest, "Enter a valid email address for your tickets."
+	default:
+		return 0, ""
+	}
 }
 
 func validEmail(s string) bool {
@@ -271,7 +274,7 @@ func (d *Deps) HandleCheckoutComplete(w http.ResponseWriter, r *http.Request) {
 	if total == 0 {
 		total = subtotal + models.CalculateFees(subtotal/qty, qty)
 	}
-	order := d.newConfirmation(event.SummaryView(), qty, subtotal, total, "usd",
+	order := d.newConfirmation(r, event.SummaryView(), qty, subtotal, total, "usd",
 		models.BuyerInfo{Name: session.Metadata["name"], Email: session.Email},
 		models.PaymentSummary{
 			Scheme: models.PaymentSchemeStripeCheckout, Brand: session.Brand, Last4: session.Last4,
@@ -306,8 +309,7 @@ func (d *Deps) HandleTicketPass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if wantsJSON {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(order.Ticket)
+		writeJSON(w, http.StatusOK, order.Ticket)
 		return
 	}
 

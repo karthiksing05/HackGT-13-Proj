@@ -51,10 +51,12 @@ trap cleanup EXIT INT TERM
 
 echo "==> starting Events on :$PORT (merchant sandbox, database sqz_events_e2e)"
 (cd "$ROOT/Events" && go build -o "$WORK/events" .)
-APP_ENV=dev HTTP_ADDR=":$PORT" MERCHANT_HOST=events.sidequestz.tech MERCHANT_BASE_URL="http://localhost:$PORT" \
-  PAYMENTS_MODE=sandbox MONGO_URI="${MONGO_TEST_URI:-mongodb://127.0.0.1:27017}" MONGO_DB=sqz_events_e2e \
-  STRIPE_SECRET_KEY="$STRIPE_MERCHANT_SECRET_KEY" STRIPE_MERCHANT_SECRET_KEY="$STRIPE_MERCHANT_SECRET_KEY" \
-  "$WORK/events" > "$WORK/events.log" 2>&1 &
+# Started in $WORK: Events loads ./.env, and the repo's .env is not this merchant's config.
+export E2E_DEMO_KEY="e2e-$(date +%s)"
+(cd "$WORK" && exec env APP_ENV=dev HTTP_ADDR=":$PORT" MERCHANT_HOST=events.sidequestz.tech MERCHANT_BASE_URL="http://localhost:$PORT" \
+  PAYMENTS_MODE=sandbox MONGO_URI="${MONGO_TEST_URI:-mongodb://127.0.0.1:27017}" MONGO_DB=sqz_events_e2e DEMO_KEY="$E2E_DEMO_KEY" \
+  TAP_AGENT_PUBLIC_KEY= STRIPE_SECRET_KEY="$STRIPE_MERCHANT_SECRET_KEY" STRIPE_MERCHANT_SECRET_KEY="$STRIPE_MERCHANT_SECRET_KEY" \
+  "$WORK/events" > "$WORK/events.log" 2>&1) &
 EVENTS_PID=$!
 for _ in $(seq 40); do
   curl -sf "http://localhost:$PORT/healthz" > /dev/null && break

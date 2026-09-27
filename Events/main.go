@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -20,6 +21,7 @@ import (
 const shutdownGrace = 10 * time.Second
 
 func main() {
+	_ = godotenv.Load()
 	// Console logger matching Backend
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "02 Jan 3:04:05 PM MST"})
 
