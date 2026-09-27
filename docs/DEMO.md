@@ -2,7 +2,8 @@
 
 This page describes the existing demo fixture account and the three-minute walkthrough.
 The account brief is [DEMO_ACCOUNT.md](DEMO_ACCOUNT.md); city data lives in `dataingestion/demo/`.
-The backend no longer includes seed/reset tooling. `store.CatalogFor` in
+The backend no longer includes the demo account's seed/reset tooling; `Backend/cmd/seed` only adds
+[showcase data](#showcase-data) around it. `store.CatalogFor` in
 `Backend/pkg/store/catalog.go` selects `demo_activities` for demo/bot roles and `pitch_activities`
 for other accounts.
 
@@ -98,6 +99,31 @@ the S logo appears only if the request takes more than 2 s.
 attaches screenshots ([DEPLOY.md](DEPLOY.md#runbook), step 5). If the server is unreachable,
 `-SQAPIMode mock` runs the same screens offline on the app's built-in Atlanta demo data (user Jordan
 Lee), without the live planner.
+
+## Showcase data
+
+`Backend/cmd/seed` fills the live database with made-up people and sidequests, so the app is lively the
+moment anyone opens it. Roles decide who sees which of its two worlds (`store.CatalogFor`):
+
+- **Atlanta**, what every regular account sees: eight students from Georgia Tech, Emory, Georgia State,
+  SCAD Atlanta, Morehouse and Spelman (role `showcase`: neither the demo cast nor bots, so they share the
+  pitch catalog, People for you and the Forum with real sign-ups), with preferences, taste vectors (for
+  People for you and the Forum's match %), presence and friendships among them; five plans on today's and
+  tomorrow's evenings around Midtown, Tech Square and the BeltLine (open or friends only, real
+  `pitch_activities` places, 2–3 people each), each with a group chat; three "free now" posts near Tech
+  Square that end tonight.
+- **Saltlight**, what Sandy sees on the demo date: Marin Okafor and Theo Park (reused as they are when
+  they exist) and Juno Reyes, Kai Nakamura and Rosa Delgado; friendships with Sandy, Rosa's pending friend
+  request, three open plans near Seaside Market Square, "Bowling night" that Sandy is in (2 unread
+  messages in its chat) and two "free now" posts. Sandy's own account is never changed. With it, the
+  walkthrough above shows more: Home has "Bowling night" tomorrow (not "no active sidequest yet"), Groups
+  has its chat, the Forum has four more plans and two more "free now" posts, and Account ›
+  Friends has Juno and Kai, with Rosa's request next to Theo's.
+
+Every document it writes is tagged `seed: "showcase-v1"` and has a fixed id, so running it again rewrites
+the same documents with fresh times (Atlanta from now, Saltlight from `DEMO_DATE`), and anyone who joined
+a showcase plan stays in it. `--remove` deletes exactly what it wrote, plus what exists only inside its
+plans and chats (as when a host deletes a plan). How to run it: [DEPLOY.md](DEPLOY.md#showcase-data).
 
 ## Known limits
 
