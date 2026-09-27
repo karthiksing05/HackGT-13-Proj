@@ -23,6 +23,10 @@ type Window struct {
 
 	BudgetCents int64 // 0 = no budget
 	Pace        string
+
+	// Busy are the user's busy blocks (their calendar), sorted and merged
+	// (MergeBusy): no visit and no leg is put on top of one (busy.go).
+	Busy []Interval
 }
 
 // ResolveMode picks the main travel mode from ride_choice and travel_modes.

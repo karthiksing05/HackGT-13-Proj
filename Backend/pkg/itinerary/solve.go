@@ -321,17 +321,18 @@ func build(g *Graph, w Window, cfg Config, sink *label) Itinerary {
 	}
 
 	// Leave the start point so as to arrive a buffer before the first visit,
-	// rather than waiting there.
+	// rather than waiting there (and never before a busy block ends).
 	first := it.Stops[0]
 	depart := first.Node.Start.Add(-it.Legs[0].Duration - cfg.Buffer)
-	if depart.Before(w.From) {
-		depart = w.From
+	if earliest := LegInto(w.Busy, w.From, first.Node.Start); depart.Before(earliest) {
+		depart = earliest
 	}
 	it.Depart = depart
 	it.Stops[0].Arrive = depart.Add(it.Legs[0].Duration)
 
 	last := it.Stops[len(it.Stops)-1].Node
-	it.Arrival = last.End.Add(it.Legs[len(it.Legs)-1].Duration)
+	home := it.Legs[len(it.Legs)-1].Duration
+	it.Arrival = LegAfter(w.Busy, last.End, home).Add(home)
 
 	for i, s := range it.Stops {
 		leg := it.Legs[i+1]
@@ -339,7 +340,8 @@ func build(g *Graph, w Window, cfg Config, sink *label) Itinerary {
 		if i+1 < len(it.Stops) {
 			limit = it.Stops[i+1].Node.Start
 		}
-		if s.Node.P75End.Add(leg.Duration).After(limit) {
+		// Running long would miss the next start, back-by, or run into a busy block.
+		if s.Node.P75End.Add(leg.Duration).After(limit) || Clashes(w.Busy, s.Node.End, s.Node.P75End) {
 			it.LateRisk = true
 		}
 	}

@@ -120,7 +120,7 @@ func poolWindow(pool *PlanPool) itinerary.Window {
 		From: w.From, BackBy: w.BackBy, TZ: tz,
 		Start: w.Start.Point(), End: w.End.Point(),
 		Mode: travel.Mode(w.Mode), DriveLabel: w.DriveLabel, MaxLegKm: w.MaxLegKm,
-		BudgetCents: w.BudgetCents, Pace: w.Pace,
+		BudgetCents: w.BudgetCents, Pace: w.Pace, Busy: intervalsOf(w.Busy),
 	}
 }
 

@@ -52,11 +52,12 @@ func (h *H) SelectTransit(w http.ResponseWriter, r *http.Request) {
 	httpx.NoContent(w)
 }
 
-// legEnds is where getting to item i starts and ends.
+// legEnds is where getting to item i starts and ends (busy blocks are not
+// places the plan goes).
 func legEnds(it *models.Itinerary, i int) (from, to *models.PlaceDoc) {
 	from = &it.StartPlace
 	for j := i - 1; j >= 0; j-- {
-		if it.Items[j].Kind != models.ItemTransit {
+		if it.Items[j].Kind != models.ItemTransit && it.Items[j].Kind != kindBusy {
 			from = it.Items[j].Place
 			break
 		}
@@ -66,7 +67,7 @@ func legEnds(it *models.Itinerary, i int) (from, to *models.PlaceDoc) {
 	}
 	to = &it.EndPlace
 	for j := i + 1; j < len(it.Items); j++ {
-		if it.Items[j].Kind != models.ItemTransit {
+		if it.Items[j].Kind != models.ItemTransit && it.Items[j].Kind != kindBusy {
 			to = it.Items[j].Place
 			break
 		}

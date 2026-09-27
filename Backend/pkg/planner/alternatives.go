@@ -221,6 +221,7 @@ func poolSpec(pool *PlanPool, w itinerary.Window) PlanSpec {
 		Budget: pool.Spec.Budget, Pace: w.Pace, Who: pool.Spec.Who,
 		MoodText: pool.Spec.MoodText, QuickPicks: pool.Spec.QuickPicks, Facets: pool.Spec.Facets,
 		Hard: pool.Spec.Hard, AgeBracket: pool.Spec.AgeBracket, AvoidTags: pool.Spec.AvoidTags, Flexible: pool.Spec.Flexible,
+		Busy: w.Busy,
 	}
 }
 
@@ -254,8 +255,9 @@ func neighbours(stops []Stop, idx int, w itinerary.Window) (prev, next neighbour
 
 // scheduleAlternative finds the earliest grid start inside the slot that
 // the previous stop can reach and from which the next stop is reachable,
-// within the leg limits. A flexible visit is shortened to fit (never below
-// MinDuration); a flexible next stop may shift by up to altFlexShiftMax.
+// within the leg limits, off the user's busy blocks. A flexible visit is
+// shortened to fit (never below MinDuration); a flexible next stop may
+// shift by up to altFlexShiftMax.
 func (p *Planner) scheduleAlternative(ctx context.Context, c *Candidate, slot TimeSlot, w itinerary.Window, prev, next neighbour) (start, end time.Time, shiftMin int, ok bool) {
 	itCfg := p.Cfg.Itinerary
 	// Every leg, to and from the user's start and end points too, is
@@ -327,7 +329,7 @@ func (p *Planner) scheduleAlternative(ctx context.Context, c *Candidate, slot Ti
 			intervals = []itinerary.Interval{{Start: maxTime(s, slot.From), End: minTime(e, slot.To)}}
 		}
 		found := false
-		for _, iv := range intervals {
+		for _, iv := range itinerary.WithoutBusy(intervals, w.Busy) {
 			t := maxTime(iv.Start, earliest)
 			if t.After(iv.Start) {
 				t = gridUp(t, itCfg.SlotStep)
@@ -343,6 +345,9 @@ func (p *Planner) scheduleAlternative(ctx context.Context, c *Candidate, slot Ti
 		if !found {
 			return start, end, 0, false
 		}
+	}
+	if itinerary.Clashes(w.Busy, start, end) {
+		return start, end, 0, false
 	}
 	if !next.flexible {
 		return start, end, 0, true

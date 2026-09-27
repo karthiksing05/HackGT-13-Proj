@@ -1,13 +1,16 @@
 // Package mongosource is the planner's MongoDB side: the guaranteed
 // pre-filter queries over a catalog collection (planner.md §4.1), the
-// phase-B vector fetch for the survivors, and the plan_pools / plan_runs
-// documents (§5.6, §6.1). One Store implements planner.CandidateSource,
-// EmbeddingSource, ActivityLookup and PoolStore over a *mongo.Database.
+// phase-B vector fetch for the survivors, the plan_pools / plan_runs
+// documents (§5.6, §6.1) and the user's busy blocks (calendar_events).
+// One Store implements planner.CandidateSource, EmbeddingSource,
+// ActivityLookup, PoolStore and CalendarSource over a *mongo.Database.
 package mongosource
 
 import (
+	"Backend/pkg/itinerary"
 	"Backend/pkg/models"
 	"Backend/pkg/planner"
+	"Backend/pkg/store"
 	"Backend/pkg/travel"
 	"context"
 	"errors"
@@ -15,6 +18,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -62,7 +66,21 @@ var (
 	_ planner.TextSource      = (*Store)(nil)
 	_ planner.ActivityLookup  = (*Store)(nil)
 	_ planner.PoolStore       = (*Store)(nil)
+	_ planner.CalendarSource  = (*Store)(nil)
 )
+
+// BusyBlocks is the user's calendar_events overlapping [from, to).
+func (s *Store) BusyBlocks(ctx context.Context, userID string, from, to time.Time) ([]itinerary.Interval, error) {
+	events, err := store.New(s.db, nil).CalendarEvents().Overlapping(ctx, userID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("mongosource: calendar: %w", err)
+	}
+	out := make([]itinerary.Interval, 0, len(events))
+	for _, ev := range events {
+		out = append(out, itinerary.Interval{Start: ev.Start, End: ev.End})
+	}
+	return out, nil
+}
 
 func (s *Store) catalog(name string) (*mongo.Collection, error) {
 	c, ok := planner.NormalizeCatalog(name)

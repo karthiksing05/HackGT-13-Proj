@@ -165,6 +165,10 @@ type PlanSpec struct {
 	// over by then is unavailable.
 	Now time.Time
 
+	// Busy are the user's busy blocks around the window (their calendar,
+	// busy.go), merged: no stop or leg goes on top of one.
+	Busy []itinerary.Interval
+
 	Raw          json.RawMessage
 	SnappedStart bool
 }
@@ -175,7 +179,7 @@ func (s *PlanSpec) Window() itinerary.Window {
 		From: s.From, BackBy: s.BackBy, TZ: s.TZ,
 		Start: s.Start, End: s.End,
 		Mode: s.Mode, DriveLabel: s.DriveLabel, MaxLegKm: s.MaxLegKm,
-		BudgetCents: s.Budget.TotalCents, Pace: s.Pace,
+		BudgetCents: s.Budget.TotalCents, Pace: s.Pace, Busy: s.Busy,
 	}
 }
 

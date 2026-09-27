@@ -15,10 +15,11 @@ import (
 
 // Deps are the planner's collaborators. Source, Embeddings and Pools are
 // required (mongosource.Store provides all three, plus Lookup, which save
-// and ResolveStop use for stops the pool no longer has). Scorer and Search
-// may be nil: planning then takes the priors path, and plan_runs says so.
-// Travel defaults to the heuristic, Clock to the system clock, NewID to
-// UUID v7.
+// and ResolveStop use for stops the pool no longer has, and Calendar).
+// Scorer and Search may be nil: planning then takes the priors path, and
+// plan_runs says so. Calendar may be nil: plans then know of no busy
+// blocks. Travel defaults to the heuristic, Clock to the system clock,
+// NewID to UUID v7.
 type Deps struct {
 	Source     CandidateSource
 	Embeddings EmbeddingSource
@@ -26,6 +27,7 @@ type Deps struct {
 	Scorer     Scorer
 	Search     SearchVectorizer
 	Pools      PoolStore
+	Calendar   CalendarSource
 	Travel     travel.Provider
 	Clock      Clock
 	NewID      func() string
@@ -40,6 +42,7 @@ type Planner struct {
 	Scorer     Scorer
 	Search     SearchVectorizer
 	Pools      PoolStore
+	Calendar   CalendarSource
 	Travel     travel.Provider
 	Clock      Clock
 	NewID      func() string
@@ -62,7 +65,7 @@ func New(cfg Config, d Deps) (*Planner, error) {
 		return nil, errors.New("planner: a PoolStore is required")
 	}
 	p := &Planner{Cfg: cfg, Source: d.Source, Embeddings: d.Embeddings, Lookup: d.Lookup, Scorer: d.Scorer,
-		Search: d.Search, Pools: d.Pools, Travel: d.Travel, Clock: d.Clock, NewID: d.NewID}
+		Search: d.Search, Pools: d.Pools, Calendar: d.Calendar, Travel: d.Travel, Clock: d.Clock, NewID: d.NewID}
 	if p.Travel == nil {
 		p.Travel = travel.Heuristic{}
 	}
@@ -113,7 +116,7 @@ func (p *Planner) newRun(user *UserContext, spec PlanSpec) *Run {
 			Mode: string(spec.Mode), DriveLabel: spec.DriveLabel, Range: spec.Range, MaxLegKm: spec.MaxLegKm,
 			Budget: spec.Budget, Pace: spec.Pace, Who: spec.Who, OpenSeats: spec.OpenSeats,
 			MoodText: spec.MoodText, QuickPicks: spec.QuickPicks, AgeBracket: spec.AgeBracket, Flexible: spec.Flexible,
-			MustInclude: spec.MustInclude,
+			MustInclude: spec.MustInclude, Busy: slotsOf(spec.Busy),
 		},
 		TZ: spec.TZ.String(), SnappedStart: spec.SnappedStart,
 		Filters: FilterLog{
@@ -132,7 +135,9 @@ func (p *Planner) newRun(user *UserContext, spec PlanSpec) *Run {
 
 // Generate is §5.3: retrieval, the loop, rendering, persistence and the
 // first page. A request that yields nothing returns an empty batch with a
-// reason; only infrastructure failures are errors.
+// reason; only infrastructure failures are errors. The user's calendar is
+// read first: nothing goes on top of its busy blocks, and a window they
+// fill is ReasonCalendarFull.
 func (p *Planner) Generate(ctx context.Context, user *UserContext, spec PlanSpec) (Batch, error) {
 	if user == nil {
 		user = &UserContext{}
@@ -142,7 +147,13 @@ func (p *Planner) Generate(ctx context.Context, user *UserContext, spec PlanSpec
 	}
 	ctx, cancel := context.WithTimeout(ctx, p.Cfg.HardTimeout)
 	defer cancel()
+	if err := p.loadBusy(ctx, user.ID, &spec); err != nil {
+		return Batch{}, fmt.Errorf("planner: calendar: %w", err)
+	}
 	run := p.newRun(user, spec)
+	if calendarFull(&run.Spec, run.ItCfg) {
+		return p.finishEmpty(ctx, run, ReasonCalendarFull)
+	}
 
 	// Must-see picks: one that can't be had, or picks that can't all fit
 	// even alone, end the run before anything is retrieved.
@@ -255,7 +266,7 @@ func (p *Planner) buildPool(run *Run, options []Option) *PlanPool {
 			From: spec.From, BackBy: spec.BackBy, TZ: spec.TZ.String(),
 			Start: PlaceAt(spec.StartName, *spec.Start), End: PlaceAt(spec.EndName, *spec.End),
 			Mode: string(spec.Mode), DriveLabel: spec.DriveLabel, MaxLegKm: spec.MaxLegKm,
-			BudgetCents: run.Window.BudgetCents, Pace: spec.Pace,
+			BudgetCents: run.Window.BudgetCents, Pace: spec.Pace, Busy: slotsOf(spec.Busy),
 		},
 		Spec: PoolSpec{
 			City: spec.City, Catalog: spec.Catalog, Range: spec.Range, RadiusKm: run.RadiusKm, Budget: spec.Budget,

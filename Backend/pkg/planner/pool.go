@@ -132,6 +132,9 @@ type PoolWindow struct {
 	MaxLegKm    float64   `bson:"maxLegKm"`
 	BudgetCents int64     `bson:"budgetCents"`
 	Pace        string    `bson:"pace"`
+	// Busy are the user's busy blocks around the window when it was
+	// planned: re-routes, alternatives and the save step keep off them too.
+	Busy []TimeSlot `bson:"busy,omitempty"`
 }
 
 // PoolSpec is the part of the spec alternatives need.
@@ -221,6 +224,8 @@ type SpecLog struct {
 	Flexible   bool      `bson:"flexible" json:"flexible"`
 	// MustInclude are the must-see picks every option visits.
 	MustInclude []string `bson:"mustInclude,omitempty" json:"must_include,omitempty"`
+	// Busy are the user's busy blocks the plans work around.
+	Busy []TimeSlot `bson:"busy,omitempty" json:"busy,omitempty"`
 }
 
 type FilterLog struct {

@@ -22,19 +22,24 @@ const (
 
 // routeItem resolves the item of /itineraries/{id}/items/{itemId} or
 // /events/{id} for a member: the itinerary and the item's index in it.
-// Anything the viewer is not on is ErrNotFound.
+// Anything the viewer is not on is ErrNotFound, and so is a busy block of
+// someone else's calendar (a plan's busy blocks are its host's).
 func (h *H) routeItem(r *http.Request, userID string) (*models.Itinerary, int, error) {
 	vars := mux.Vars(r)
 	itemID, nested := vars["itemId"]
 	if !nested {
-		return h.d.Store.Itineraries().FindItem(r.Context(), vars["id"], userID)
+		it, i, err := h.d.Store.Itineraries().FindItem(r.Context(), vars["id"], userID)
+		if err == nil && !seesItem(it, &it.Items[i], userID) {
+			return nil, -1, store.ErrNotFound
+		}
+		return it, i, err
 	}
 	it, err := h.d.Store.Itineraries().ForMember(r.Context(), vars["id"], userID)
 	if err != nil {
 		return nil, -1, err
 	}
 	for i := range it.Items {
-		if it.Items[i].ID == itemID {
+		if it.Items[i].ID == itemID && seesItem(it, &it.Items[i], userID) {
 			return it, i, nil
 		}
 	}
@@ -42,10 +47,14 @@ func (h *H) routeItem(r *http.Request, userID string) (*models.Itinerary, int, e
 }
 
 // Event is GET /events/{id} → ItineraryItem: any block of an itinerary the
-// viewer is on, with their own notes, travel choice, rating and ticket.
+// viewer is on, with their own notes, travel choice, rating and ticket, or
+// a busy block of their own calendar (calendar.go).
 func (h *H) Event(w http.ResponseWriter, r *http.Request) {
 	uid := api.UserID(r)
 	it, i, err := h.routeItem(r, uid)
+	if errors.Is(err, store.ErrNotFound) && h.calendarEvent(w, r, uid) {
+		return
+	}
 	if err != nil {
 		api.Fail(w, r, err)
 		return
@@ -79,6 +88,9 @@ func (h *H) PatchNotes(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, uid := r.Context(), api.UserID(r)
 	it, i, err := h.routeItem(r, uid)
+	if errors.Is(err, store.ErrNotFound) && h.calendarEventNotes(w, r, uid, req) {
+		return
+	}
 	if err != nil {
 		api.Fail(w, r, err)
 		return
