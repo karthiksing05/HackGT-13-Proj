@@ -32,11 +32,14 @@ const demoDate = "2026-09-27" // production's DEMO_DATE, a Sunday
 // Midtown. The sample's places are trails that close at 6 PM, so their
 // copies get the evening hours the pitch catalog's parks have (6 AM to
 // 11 PM); evening plans need something open.
-func catalogs(t *testing.T, st *store.Store) {
+func catalogs(t *testing.T, st *store.Store) { catalogsWithin(t, st, 4) }
+
+// catalogsWithin is catalogs with the Atlanta sample taken within miles of Midtown.
+func catalogsWithin(t *testing.T, st *store.Store, miles float64) {
 	t.Helper()
 	src := st.DB().Client().Database("freetime")
 	demo := readAll(t, src.Collection(store.CollDemoActivities), bson.M{})
-	near := bson.M{"location": bson.M{"$geoWithin": bson.M{"$centerSphere": bson.A{bson.A{midtown.Lng, midtown.Lat}, 4 / 3963.2}}}}
+	near := bson.M{"location": bson.M{"$geoWithin": bson.M{"$centerSphere": bson.A{bson.A{midtown.Lng, midtown.Lat}, miles / 3963.2}}}}
 	atl := readAll(t, src.Collection(store.CollActivities), near)
 	if len(demo) == 0 || len(atl) == 0 {
 		if os.Getenv("CI") == "1" {

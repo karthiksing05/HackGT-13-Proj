@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Runs the showcase seed (Backend/cmd/seed) against the live database through an SSH tunnel, then
 # closes the tunnel. A dry run unless you pass --apply; --remove (with --apply) takes it back out.
-# Other flags go to the seed as they are (--world atlanta|saltlight|all, --demo-email ADDRESS).
+# Other flags go to the seed as they are (--world atlanta|saltlight|all, --demo-email ADDRESS,
+# --history @handle,… for the past of real accounts).
 #
 # The connection comes from DEPLOY_HOST / DEPLOY_USER / DEPLOY_PASSWORD in the root .env (the same
 # settings the deploy scripts use). The tunnel uses local ports 27018 (MongoDB) and 8001 (the ML
 # service), so it can never reach a local MongoDB on 27017 by mistake.
 #
 # Usage: Backend/scripts/seed-live.sh [--apply] [--remove] [--world atlanta|saltlight|all]
+#        Backend/scripts/seed-live.sh --history @handle[=outdoors|nightlife|arts],… [--apply] [--remove]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -20,9 +22,12 @@ set -- ${args[@]+"${args[@]}"}
 mongo_port=27018
 ml_port=8001
 seed=./bin/seed
-if [[ ! -x "$seed" ]]; then
-  command -v go >/dev/null || { echo "bin/seed is missing and Go isn't installed: build it with 'go build -o bin/seed ./cmd/seed'." >&2; exit 1; }
+# Rebuild whenever Go is here, so bin/seed is never older than cmd/seed.
+if command -v go >/dev/null; then
   go build -o "$seed" ./cmd/seed
+elif [[ ! -x "$seed" ]]; then
+  echo "bin/seed is missing and Go isn't installed: build it with 'go build -o bin/seed ./cmd/seed'." >&2
+  exit 1
 fi
 if nc -z 127.0.0.1 "$mongo_port" 2>/dev/null; then
   echo "Port $mongo_port is already in use (an old tunnel?). Close it and try again." >&2

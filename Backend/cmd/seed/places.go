@@ -192,29 +192,42 @@ func planStart(spec *planSpec, now time.Time, loc *time.Location) time.Time {
 type laidOut struct {
 	start, backBy time.Time
 	stops         []stopPick
-	exact         bool // every stop matched its spec (a named place or its categories)
+	slots         []int // the spec stop each pick fills
+	exact         bool  // every spec stop is there, as a named place or one of its categories
+	named         bool  // every spec stop is there as one of its named places
 }
 
 // layOut picks a plan's stops from the catalog; ok is false when not even
 // its first stop fits.
 func (c *catalog) layOut(w *worldSpec, spec *planSpec, now time.Time, loc *time.Location, used map[string]bool) (laidOut, bool) {
-	out := laidOut{start: planStart(spec, now, loc), exact: true}
+	return c.layOutAt(w, spec.anchor, spec.stops, planStart(spec, now, loc), loc, used)
+}
+
+// layOutAt picks stops for a plan that starts at start: each one open for
+// its time, the first near anchor, the others a walk apart.
+func (c *catalog) layOutAt(w *worldSpec, anchor travel.Point, stops []stopSpec, start time.Time, loc *time.Location,
+	used map[string]bool) (laidOut, bool) {
+	out := laidOut{start: start, exact: true, named: true}
 	inPlan := map[string]bool{}
 	cursor := out.start
 	var prev *models.Activity
-	for _, s := range spec.stops {
-		pick, ok := c.pickStop(w, s, spec.anchor, prev, cursor, loc, used, inPlan)
+	for slot, s := range stops {
+		pick, ok := c.pickStop(w, s, anchor, prev, cursor, loc, used, inPlan)
 		if !ok {
 			if prev == nil {
 				return laidOut{}, false
 			}
-			out.exact = false
+			out.exact, out.named = false, false
 			continue
 		}
 		if pick.tier > 1 {
 			out.exact = false
 		}
+		if pick.tier > 0 {
+			out.named = false
+		}
 		out.stops = append(out.stops, pick)
+		out.slots = append(out.slots, slot)
 		inPlan[pick.place.ID.Hex()] = true
 		cursor, prev = pick.end, pick.place
 	}

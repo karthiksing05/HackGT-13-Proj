@@ -207,8 +207,14 @@ func rawKey(v bson.RawValue) string {
 	return v.String()
 }
 
-// existing loads the documents of coll among ids, keyed by idKey.
+// existing loads the documents of coll among ids, keyed by idKey; ours
+// are the showcase seed's.
 func existing(ctx context.Context, st *store.Store, coll string, ids []any) (map[string]stored, error) {
+	return existingTagged(ctx, st, coll, ids, seedTag)
+}
+
+// existingTagged is existing for the documents tagged tag.
+func existingTagged(ctx context.Context, st *store.Store, coll string, ids []any, tag string) (map[string]stored, error) {
 	out := map[string]stored{}
 	if len(ids) == 0 {
 		return out, nil
@@ -222,8 +228,8 @@ func existing(ctx context.Context, st *store.Store, coll string, ids []any) (map
 		return nil, fmt.Errorf("read %s: %w", coll, err)
 	}
 	for _, raw := range raws {
-		tag, _ := raw.Lookup(fieldSeed).StringValueOK()
-		out[rawKey(raw.Lookup("_id"))] = stored{ours: tag == seedTag, raw: raw}
+		have, _ := raw.Lookup(fieldSeed).StringValueOK()
+		out[rawKey(raw.Lookup("_id"))] = stored{ours: have == tag, raw: raw}
 	}
 	return out, nil
 }

@@ -48,7 +48,15 @@ func (c counts) String() string {
 }
 
 func (p printer) header(o Options) {
-	p.f("SideQuests showcase seed (everything it writes is tagged %s: %q)", fieldSeed, seedTag)
+	if len(o.History) > 0 {
+		var who []string
+		for _, sel := range o.History {
+			who = append(who, "@"+sel.handle)
+		}
+		p.f("SideQuests history seed for %s (everything it creates is tagged %s: %q)", strings.Join(who, ", "), fieldSeed, historyTag)
+	} else {
+		p.f("SideQuests showcase seed (everything it writes is tagged %s: %q)", fieldSeed, seedTag)
+	}
 	p.f("Target: %s", o.Target)
 	switch {
 	case o.Remove && o.Apply:
