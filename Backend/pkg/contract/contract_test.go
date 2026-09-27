@@ -49,6 +49,7 @@ var examples = map[string]func() any{
 	"PastEvents":             func() any { return &[]PastEvent{} },
 	"PastInsights":           func() any { return &PastInsights{} },
 	"PaymentMethods":         func() any { return &[]PaymentMethod{} },
+	"PersonSuggestions":      func() any { return &[]PersonSuggestion{} },
 	"PlanAlternatives":       func() any { return &[]PlanAlternative{} },
 	"PlanBatch":              func() any { return &PlanBatch{} },
 	"PlanRequest":            func() any { return &PlanRequest{} },

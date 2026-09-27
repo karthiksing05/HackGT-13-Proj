@@ -192,3 +192,20 @@ struct UserSearchResult: Codable, Hashable, Identifiable {
 
     var id: String { person.id }
 }
+
+/// Someone whose taste matches yours (`GET /people/suggested`), best match first.
+struct PersonSuggestion: Codable, Hashable, Identifiable {
+    var person: PersonRef
+    var relation: FriendRelation = .none
+    var requestId: String?
+    /// Taste match as a whole-number percent, 0–100.
+    var compatibility: Int
+
+    var id: String { person.id }
+
+    /// The row as a search result, for the shared Add / Requested buttons.
+    var searchResult: UserSearchResult {
+        get { UserSearchResult(person: person, relation: relation, requestId: requestId) }
+        set { relation = newValue.relation; requestId = newValue.requestId }
+    }
+}

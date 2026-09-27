@@ -55,7 +55,7 @@ type forumQuery struct {
 	cost        map[int]bool
 	tags        []string
 	openOnly    bool
-	sort        string // soonest | closest | spots | newest
+	sort        string // soonest | closest | spots | newest | for_you
 }
 
 // parseForumQuery reads the query string; without lat/lng the viewer's home
@@ -94,7 +94,7 @@ func parseForumQuery(r *http.Request, viewer *models.User) (forumQuery, error) {
 	if when != "" {
 		q.when = when
 	}
-	if sortBy, ok = pick("sort", "soonest", "closest", "spots", "newest"); !ok {
+	if sortBy, ok = pick("sort", "soonest", "closest", "spots", "newest", "for_you"); !ok {
 		return q, bad
 	}
 	if sortBy != "" {
@@ -325,8 +325,22 @@ func anyTag(have, want []string) bool {
 
 // sortFeed orders posts by the chosen key; ties go to the newer post.
 // "spots": the most spots left first, unlimited plans ahead of all, free-now
-// posts last.
+// posts last. "for_you": the best taste match first; posts without one after
+// the scored ones, soonest first among themselves.
 func sortFeed(items []feedItem, by string) {
+	if by == "for_you" {
+		sort.SliceStable(items, func(i, j int) bool {
+			ci, cj := items[i].post.Compatibility, items[j].post.Compatibility
+			switch {
+			case ci != nil && cj != nil && *ci != *cj:
+				return *ci > *cj
+			case (ci == nil) != (cj == nil):
+				return ci != nil
+			}
+			return items[i].post.StartsInMinutes < items[j].post.StartsInMinutes
+		})
+		return
+	}
 	key := func(it feedItem) float64 {
 		p := it.post
 		switch by {
@@ -383,6 +397,7 @@ func (h *H) ListPosts(w http.ResponseWriter, r *http.Request) {
 			kept = append(kept, it)
 		}
 	}
+	h.scorePlans(r.Context(), viewer, kept)
 	sortFeed(kept, q.sort)
 	offset, _ := strconv.Atoi(httpx.Cursor(r))
 	offset = min(max(0, offset), len(kept))

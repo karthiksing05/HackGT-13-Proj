@@ -14,7 +14,7 @@ import (
 
 // Catalog reads the activity catalogs (activities, demo_activities); a
 // user's catalog field picks the collection. Nothing here writes, and the
-// 1024-d embeddings are never loaded.
+// 1024-d embeddings are loaded only by Embeddings (catalog_vectors.go).
 type Catalog struct{ s *Store }
 
 func (s *Store) Catalog() Catalog { return Catalog{s} }

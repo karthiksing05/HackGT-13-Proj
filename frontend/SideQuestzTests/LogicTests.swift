@@ -151,11 +151,15 @@ struct ValidationTests {
 struct MockAPITests {
     @Test func forumDefaultsAndFilters() async throws {
         let api = MockAPIClient(latencyScale: 0)
+        // "For you" by default: best taste match first, unscored free-now posts after.
         let all = try await api.forumPosts(ForumQuery())
-        #expect(all.map(\.id) == ["p2", "p4", "p1", "p3", "p5"])
+        #expect(all.map(\.id) == ["p1", "p3", "p5", "p2", "p4"])
+        var soonest = ForumQuery()
+        soonest.sort = .soonest
+        #expect(try await api.forumPosts(soonest).map(\.id) == ["p2", "p4", "p1", "p3", "p5"])
         var friends = ForumQuery()
         friends.scope = .friends
-        #expect(try await api.forumPosts(friends).map(\.id) == ["p2", "p1", "p5"])
+        #expect(try await api.forumPosts(friends).map(\.id) == ["p1", "p5", "p2"])
         var open = ForumQuery()
         open.openOnly = true
         open.sort = .closest

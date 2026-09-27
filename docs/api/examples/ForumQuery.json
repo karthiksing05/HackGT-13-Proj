@@ -11,7 +11,7 @@
   "open_only": false,
   "radius_mi": 2,
   "scope": "everyone",
-  "sort": "soonest",
+  "sort": "for_you",
   "tags": [],
   "type": "all",
   "when": "any"

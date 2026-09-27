@@ -26,6 +26,10 @@ type ForumPost struct {
 	JoinStatus       JoinStatus    `json:"join_status"`
 	PlanTogetherSent bool          `json:"plan_together_sent"`
 	ThreadID         *string       `json:"thread_id,omitempty"`
+	// Compatibility is how well a plan's stops fit the viewer's taste, as a
+	// whole-number percent (0–100); absent for free-now posts and when it
+	// could not be scored.
+	Compatibility *int `json:"compatibility,omitempty"`
 }
 
 type JoinResult struct {

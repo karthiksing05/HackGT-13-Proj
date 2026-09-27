@@ -32,6 +32,7 @@
     "PastEvents",
     "PastInsights",
     "PaymentMethods",
+    "PersonSuggestions",
     "PlanAlternatives",
     "PlanBatch",
     "PlanBatch.dag",

@@ -1,0 +1,33 @@
+[
+  {
+    "compatibility": 88,
+    "person": {
+      "color_hex": "#9D174D",
+      "id": "u-pk",
+      "initials": "PK",
+      "name": "Priya K."
+    },
+    "relation": "none"
+  },
+  {
+    "compatibility": 74,
+    "person": {
+      "color_hex": "#4338CA",
+      "id": "u-cn",
+      "initials": "CN",
+      "name": "Chris N."
+    },
+    "relation": "incoming",
+    "request_id": "fr-chris"
+  },
+  {
+    "compatibility": 63,
+    "person": {
+      "color_hex": "#4338CA",
+      "id": "u-go",
+      "initials": "GO",
+      "name": "GT Outdoors Club"
+    },
+    "relation": "none"
+  }
+]

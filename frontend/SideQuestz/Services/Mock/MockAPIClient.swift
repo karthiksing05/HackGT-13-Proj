@@ -1008,6 +1008,8 @@ final class MockAPIClient: APIClient {
         }
         func key(_ p: ForumPost) -> Double {
             switch query.sort {
+            // Best match first; unscored posts after, soonest first.
+            case .forYou: p.compatibility.map { -1_000 - Double($0) } ?? Double(p.startsInMinutes)
             case .soonest: Double(p.startsInMinutes)
             case .closest: p.distanceMi
             case .spots: -Double(p.spotsLeft ?? -1)
@@ -1209,6 +1211,16 @@ final class MockAPIClient: APIClient {
     func searchUsers(query: String) async throws -> [UserSearchResult] {
         try await simulate("friends", 150)
         return matchingPeople(query)
+    }
+
+    func suggestedPeople() async throws -> [PersonSuggestion] {
+        try await simulate("friends", 250)
+        return MockData.suggestedPeople
+            .filter { s in !friendList.contains { $0.person.id == s.person.id } }
+            .map { s in
+                let row = searchResult(for: s.person)
+                return PersonSuggestion(person: s.person, relation: row.relation, requestId: row.requestId, compatibility: s.compatibility)
+            }
     }
 
     private func matchingPeople(_ query: String) -> [UserSearchResult] {

@@ -166,3 +166,21 @@ struct FlowLayout: Layout {
         }
     }
 }
+
+/// "88% match": a taste match from the server (People for you, Forum plans). Soft sage, not tappable.
+struct MatchPill: View {
+    let percent: Int
+
+    var body: some View {
+        Text("\(percent)% match")
+            .sqFont(11, .semibold)
+            .foregroundStyle(Theme.sageInk)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 7)
+            .frame(height: 20)
+            .background(Theme.sageTint, in: Capsule())
+            .sqNumeric()
+            .accessibilityLabel("\(percent) percent taste match")
+    }
+}
