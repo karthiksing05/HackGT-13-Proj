@@ -27,7 +27,7 @@ const (
 type H struct{ d *api.Deps }
 
 // Register mounts /me; the routes past GET/PATCH /me live in photo.go,
-// avatar.go, preferences.go, taste.go and devices.go.
+// avatar.go, preferences.go, taste.go, devices.go and tickets.go.
 func Register(r *mux.Router, d *api.Deps) {
 	h := &H{d: d}
 	r.Handle("/me", d.Protect(h.Get)).Methods("GET")
@@ -41,6 +41,7 @@ func Register(r *mux.Router, d *api.Deps) {
 	r.Handle("/me/taste-profile", d.Protect(h.TasteProfile)).Methods("GET")
 	r.Handle("/me/devices", d.Protect(h.RegisterDevice)).Methods("POST")
 	r.Handle("/me/devices/{token}", d.Protect(h.UnregisterDevice)).Methods("DELETE")
+	r.Handle("/me/tickets", d.Protect(h.Tickets)).Methods("GET")
 }
 
 // Get is GET /me → User.
