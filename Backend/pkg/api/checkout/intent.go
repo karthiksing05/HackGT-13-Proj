@@ -84,21 +84,46 @@ func render(intent *models.CheckoutIntent) contract.CheckoutIntent {
 		steps = append(steps, contract.CheckoutStep{Text: step.Text, Done: step.Done})
 	}
 	return contract.CheckoutIntent{
-		ID:              intent.ID,
-		ItemID:          intent.ItemID,
-		ItemTitle:       intent.ItemTitle,
-		Steps:           steps,
-		SubtotalCents:   intent.SubtotalCents,
-		FeesCents:       intent.FeesCents,
-		TotalCents:      intent.TotalCents,
-		CardBrand:       intent.CardBrand,
-		CardLast4:       intent.CardLast4,
-		State:           contract.CheckoutState(intent.State),
-		Quantity:        intent.Quantity,
-		PaymentMethodID: intent.PaymentMethodID,
-		FailureReason:   intent.FailureReason,
-		Instant:         intent.Instant,
+		ID:                 intent.ID,
+		ItemID:             intent.ItemID,
+		ItemTitle:          intent.ItemTitle,
+		Steps:              steps,
+		SubtotalCents:      intent.SubtotalCents,
+		FeesCents:          intent.FeesCents,
+		TotalCents:         intent.TotalCents,
+		CardBrand:          intent.CardBrand,
+		CardLast4:          intent.CardLast4,
+		State:              contract.CheckoutState(intent.State),
+		Quantity:           intent.Quantity,
+		PaymentMethodID:    intent.PaymentMethodID,
+		FailureReason:      intent.FailureReason,
+		Instant:            intent.Instant,
+		RunID:              optional(intent.RunID),
+		Merchant:           optional(intent.Merchant),
+		CheckoutURL:        optional(intent.CheckoutURL),
+		MaxAuthorizedCents: intent.MaxAuthorizedCents,
+		FinalCents:         intent.FinalCents,
+		FailureCode:        optional(intent.FailureCode),
+		OrderRef:           optional(intent.OrderRef),
+		Confirmation:       optionalIf(intent.RunID != "", intent.Confirmation),
+		TicketURL:          optional(intent.TicketURL),
 	}
+}
+
+// optional is s as a pointer, nil when empty.
+func optional(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// optionalIf is optional(s) when cond holds.
+func optionalIf(cond bool, s string) *string {
+	if !cond {
+		return nil
+	}
+	return optional(s)
 }
 
 // publish tells the owner's devices about the intent's state (checkout.status).

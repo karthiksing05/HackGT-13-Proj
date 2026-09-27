@@ -98,7 +98,7 @@ extension Preferences {
 
 extension ItineraryItem {
     enum CodingKeys: String, CodingKey {
-        case id, kind, title, place, start, end, description, websiteURL = "websiteUrl", bookable, priceCents
+        case id, kind, title, place, start, end, description, websiteURL = "websiteUrl", ticketURL = "ticketUrl", bookable, priceCents
         case people, interested, extraGoing, notes, notesScope, rating, transitMode, ticket
     }
 
@@ -112,6 +112,7 @@ extension ItineraryItem {
         end = try c.decode(Date.self, forKey: .end)
         description = try c.decodeIfPresent(String.self, forKey: .description)
         websiteURL = try c.decodeIfPresent(URL.self, forKey: .websiteURL)
+        ticketURL = try c.decodeIfPresent(URL.self, forKey: .ticketURL)
         bookable = try c.decodeIfPresent(Bool.self, forKey: .bookable) ?? false
         priceCents = try c.decodeIfPresent(Int.self, forKey: .priceCents)
         people = try c.decodeIfPresent([PersonRef].self, forKey: .people) ?? []

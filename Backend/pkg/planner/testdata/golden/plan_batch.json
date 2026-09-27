@@ -377,8 +377,8 @@
           "price_cents": 1200,
           "price_known": true,
           "address": "597 Mooring St, Saltlight Harbor, GA 31991",
-          "website_url": "https://saltlight.example/sunset-jazz-on-pier-nine",
-          "ticket_url": "https://saltlight.example/sunset-jazz-on-pier-nine/tickets",
+          "website_url": "https://events.sidequestz.tech/sunset-jazz-on-pier-nine",
+          "ticket_url": "https://events.sidequestz.tech/sunset-jazz-on-pier-nine/tickets",
           "summary": "The Brass Barnacles quartet plays standards as the sun drops behind the moored sailboats.",
           "utility": 0.71813,
           "order": 0

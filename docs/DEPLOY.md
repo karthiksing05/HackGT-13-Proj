@@ -81,6 +81,45 @@ token unreadable. Optional: `ML_*` timeouts, `PLANNER_*` knobs ([PLANNER.md](PLA
 `CHECKOUT_STEP_DELAY` (`1500ms`), `ACCESS_TOKEN_TTL` (`1h`), `REFRESH_TOKEN_TTL` (`720h`),
 `MAX_PHOTO_BYTES` (2 MB), `MAX_JSON_BYTES` (1 MB). `PORT` is accepted in place of `HTTP_ADDR`.
 
+Agentic checkout (optional; the endpoints answer 503 until all of these are set). Stripe **test**
+keys only: both services refuse live keys.
+
+```
+PAYMENTS_MODE=sandbox
+STRIPE_SECRET_KEY=sk_test_…              # the agent's Stripe test account
+STRIPE_SELLER_PROFILE=profile_test_…     # the Events merchant sandbox TEST profile (stripe-spt-smoke.sh prints it)
+MERCHANT_HOST=events.sidequestz.tech     # the authority the TAP signature covers
+MERCHANT_BASE_URL=https://events.sidequestz.tech
+TAP_AGENT_KEY=<from sidequestz-admin tap-keygen>   # secret; its public half goes on Events
+MUSE_API_KEY=<Meta Model API key>        # optional: without it the server buys in itinerary order itself
+```
+
+Optional: `MUSE_MODEL` (`muse-spark-1.3`), `MUSE_BASE_URL` (`https://api.meta.ai/v1`), `AGENT_MAX_TURNS`
+(`24`), `CHECKOUT_RUN_TIMEOUT` (`3m`). Check the Stripe path with `Backend/scripts/stripe-spt-smoke.sh`.
+
+### Events merchant (`events.sidequestz.tech`)
+
+A separate Go service in `Events/` on `127.0.0.1:8085`, behind nginx and Cloudflare like the API (DNS,
+nginx site and certificate are set up alongside `api.sidequestz.tech`). Its env (template
+`Events/.env.example`):
+
+```
+APP_ENV=prod
+HTTP_ADDR=127.0.0.1:8085
+MERCHANT_HOST=events.sidequestz.tech
+MERCHANT_BASE_URL=https://events.sidequestz.tech
+PAYMENTS_MODE=sandbox
+DEMO_KEY=<openssl rand -hex 16>          # X-Demo-Key for POST /_demo/scenario; the default is refused outside dev
+TAP_AGENT_PUBLIC_KEY=<from sidequestz-admin tap-keygen>   # required outside dev
+STRIPE_SECRET_KEY=sk_test_…              # the merchant sandbox: a DIFFERENT Stripe account from the Backend
+MONGO_URI=mongodb://127.0.0.1:27017
+MONGO_DB=sidequestz_events
+```
+
+The catalog's ticketed events must point at it: `Backend/scripts/migrate-ticket-host.sh` (dry run by
+default, `--apply` to write) rewrites their `url`, `ticketUrl` and `sources[].url` in
+`freetime.demo_activities` from `https://saltlight.example/` to `https://events.sidequestz.tech/`.
+
 `/opt/ml/.env`: `HF_TOKEN`, `TYPESAFE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS=/opt/ml/gcp-sa.json`, and
 any `EMBED_*` / `VERTEX_*` override ([EMBEDDINGS.md](EMBEDDINGS.md)). Without the file the service still
 runs: it embeds locally and ranks without Jev.

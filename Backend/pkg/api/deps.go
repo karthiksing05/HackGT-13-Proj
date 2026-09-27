@@ -24,6 +24,7 @@ type StopDetail struct {
 	ActivityID  string
 	PriceCents  *int
 	WebsiteURL  *string
+	TicketURL   *string // where tickets are sold; the agent buys from MERCHANT_HOST ones
 	Bookable    bool
 	DurationMin int
 }
@@ -38,6 +39,12 @@ type Planner interface {
 	ResolveStop(ctx context.Context, stopID string) (*StopDetail, error)
 }
 
+// CheckoutRunner works agentic checkout runs (pkg/agent implements it and
+// main wires it); Start begins a run the handler just created.
+type CheckoutRunner interface {
+	Start(runID string)
+}
+
 // Deps is everything a handler needs. Use it by pointer only.
 type Deps struct {
 	Store   *store.Store
@@ -50,6 +57,8 @@ type Deps struct {
 	// ML is the raw ML client for pkg/profiles and the planner; handlers use
 	// Profiles instead.
 	ML *ml.Client
+	// Runner starts agentic checkout runs; nil = agentic checkout is off.
+	Runner CheckoutRunner
 
 	authOnce sync.Once
 	auth     *middleware.Auth

@@ -48,6 +48,7 @@ const (
 	CollItemStates       = "item_states"
 	CollRatings          = "ratings"
 	CollCheckoutIntents  = "checkout_intents"
+	CollCheckoutRuns     = "checkout_runs"
 	CollForumPosts       = "forum_posts"
 	CollJoinRequests     = "join_requests"
 	CollThreads          = "threads"
@@ -72,7 +73,7 @@ var CatalogCollections = []string{CollActivities, CollDemoActivities}
 // flag --users adds them; catalogs never).
 var AppCollections = []string{
 	CollRefreshTokens, CollResetCodes, CollWebSessions, CollDevices, CollPaymentMethods, CollPhotos,
-	CollItineraries, CollItemStates, CollRatings, CollCheckoutIntents, CollForumPosts, CollJoinRequests,
+	CollItineraries, CollItemStates, CollRatings, CollCheckoutIntents, CollCheckoutRuns, CollForumPosts, CollJoinRequests,
 	CollThreads, CollMessages, CollExpenses, CollFriendships, CollFriendRequests, CollInvites,
 	CollFacebookAccounts, CollFacebookImports, CollPlanPools, CollPlanRuns, CollPlanTogether,
 }

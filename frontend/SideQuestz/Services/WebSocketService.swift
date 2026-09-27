@@ -98,6 +98,7 @@ final class WebSocketService {
     private struct JoinUpdate: Decodable { var postId: String; var result: JoinResult }
     private struct FriendStatus: Decodable { var userId: String; var statusLine: String }
     private struct CheckoutStatus: Decodable { var intentId: String; var state: CheckoutState }
+    private struct CheckoutRunUpdate: Decodable { var runId: String; var state: CheckoutRunState; var spentCents: Int? }
     private struct TransitDelay: Decodable { var itineraryId: String; var itemId: String; var minutes: Int }
     private struct ItineraryRemoved: Decodable { var itineraryId: String }
     private struct ExpenseAdded: Decodable { var groupId: String; var expense: Expense }
@@ -120,6 +121,7 @@ final class WebSocketService {
         case "friend.request": event = payload(FriendRequest.self, data).map { .friendRequest($0) }
         case "forum.update": event = .forumUpdate
         case "checkout.status": event = payload(CheckoutStatus.self, data).map { .checkoutStatus(intentId: $0.intentId, state: $0.state) }
+        case "checkout.run": event = payload(CheckoutRunUpdate.self, data).map { .checkoutRun(runId: $0.runId, state: $0.state, spentCents: $0.spentCents ?? 0) }
         case "transit.delay": event = payload(TransitDelay.self, data).map { .transitDelay(itineraryId: $0.itineraryId, itemId: $0.itemId, minutes: $0.minutes) }
         case "itinerary.updated": event = payload(Itinerary.self, data).map { .itineraryUpdated($0) }
         case "itinerary.removed": event = payload(ItineraryRemoved.self, data).map { .itineraryRemoved(id: $0.itineraryId) }

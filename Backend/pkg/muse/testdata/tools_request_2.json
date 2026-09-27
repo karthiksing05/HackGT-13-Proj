@@ -1,0 +1,50 @@
+{
+  "model": "muse-spark-1.3",
+  "instructions": "You buy event tickets for a user. Use the tools. Never exceed the budget.",
+  "tools": [
+    {
+      "type": "function",
+      "name": "get_offer",
+      "description": "Get the merchant's current price for an itinerary item.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id"
+        ],
+        "additionalProperties": false
+      },
+      "strict": true
+    },
+    {
+      "type": "function",
+      "name": "finish",
+      "description": "End the run with a short summary for the user.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "strict": true
+    }
+  ],
+  "previous_response_id": "resp_6ab86ca362f1e312d8ff4a1f",
+  "input": [
+    {
+      "type": "function_call_output",
+      "call_id": "call_1348255d-d35f-45d0-9a55-59c3ae62a8ef",
+      "output": "{\"quote_id\":\"q_1\",\"quantity\":1,\"total_cents\":1346,\"currency\":\"usd\",\"available\":38}"
+    }
+  ]
+}

@@ -211,7 +211,17 @@ private struct CreateFlowScreen: View {
             router.homeSegment = .itineraries
             router.select(.home)
             router.createDraft = nil
+            await offerAgentCheckout(itinerary)
         }
+    }
+
+    /// Agentic checkout on and the plan has paid stops: ask "Let Muse get your tickets" once the
+    /// Create cover has gone.
+    private func offerAgentCheckout(_ itinerary: Itinerary) async {
+        guard env.preferences?.instantCheckout == true, itinerary.items.contains(where: { $0.ticketURL != nil }) else { return }
+        guard let plan = try? await env.api.checkoutPlan(itineraryId: itinerary.id), plan.shouldPrompt, plan.agenticCheckout else { return }
+        try? await Task.sleep(nanoseconds: 600_000_000)
+        router.agentCheckout = AgentCheckoutRoute(itineraryId: itinerary.id)
     }
 
     /// Demo deep links (`create/2/calendar`, `create/4/more`, `create/4/swap`) + first loads.

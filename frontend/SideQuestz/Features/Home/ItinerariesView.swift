@@ -90,6 +90,12 @@ struct HomeItinerariesView: View {
     /// "•••" menu and the card's long-press menu: the host edits or deletes; someone who joined leaves.
     @ViewBuilder
     private func menuItems(_ itinerary: Itinerary) -> some View {
+        // Paid stops still without a ticket: Muse can buy them (agentic checkout).
+        if itinerary.items.contains(where: { $0.ticketURL != nil && $0.ticket == nil }) {
+            Button { router.agentCheckout = AgentCheckoutRoute(itineraryId: itinerary.id) } label: {
+                Label("Get tickets with Muse", systemImage: "ticket")
+            }
+        }
         if itinerary.isHost {
             Button { editing = itinerary } label: { Label("Edit sidequest", systemImage: "pencil") }
             Button(role: .destructive) { confirming = .delete(itinerary) } label: { Label("Delete sidequest", systemImage: "trash") }

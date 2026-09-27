@@ -71,3 +71,44 @@ func TestParseRejectsBadValues(t *testing.T) {
 		t.Fatalf("bad PLANNER accepted: %v", err)
 	}
 }
+
+func TestParseAgentCheckoutStaysInTheSandbox(t *testing.T) {
+	m := map[string]string{"APP_ENV": "dev", "STRIPE_SECRET_KEY": "sk_live_abc", "PAYMENTS_MODE": "sandbox"}
+	if _, err := Parse(env(m)); err == nil || !strings.Contains(err.Error(), "test key") {
+		t.Fatalf("live Stripe key accepted: %v", err)
+	}
+	m["STRIPE_SECRET_KEY"] = "sk_test_abc"
+	delete(m, "PAYMENTS_MODE")
+	if _, err := Parse(env(m)); err == nil || !strings.Contains(err.Error(), "PAYMENTS_MODE") {
+		t.Fatalf("Stripe key without PAYMENTS_MODE=sandbox accepted: %v", err)
+	}
+	m["PAYMENTS_MODE"] = "live"
+	if _, err := Parse(env(m)); err == nil {
+		t.Fatal("PAYMENTS_MODE=live accepted")
+	}
+	m["PAYMENTS_MODE"] = "sandbox"
+	m["TAP_AGENT_KEY"] = "not-a-seed"
+	if _, err := Parse(env(m)); err == nil || !strings.Contains(err.Error(), "TAP_AGENT_KEY") {
+		t.Fatalf("bad TAP_AGENT_KEY accepted: %v", err)
+	}
+	delete(m, "TAP_AGENT_KEY")
+	m["STRIPE_SELLER_PROFILE"] = "profile_61VTVn4abMSkDbvj9A6VTVn4FDSQsXPJuJLXpdDmS4jg"
+	if _, err := Parse(env(m)); err == nil || !strings.Contains(err.Error(), "profile_test_") {
+		t.Fatalf("live-mode seller profile accepted: %v", err)
+	}
+	delete(m, "STRIPE_SELLER_PROFILE")
+	c, err := Parse(env(m))
+	if err != nil {
+		t.Fatalf("sandbox config rejected: %v", err)
+	}
+	if c.AgentCheckoutReady() {
+		t.Fatal("ready without STRIPE_SELLER_PROFILE")
+	}
+	c.StripeSellerProfile = "profile_test_1"
+	if !c.AgentCheckoutReady() {
+		t.Fatal("dev with Stripe and a seller profile is not ready")
+	}
+	if c.MuseModel != "muse-spark-1.3" || c.MerchantHost != "events.sidequestz.tech" || c.AgentMaxTurns != 24 {
+		t.Fatalf("defaults wrong: %+v", c)
+	}
+}

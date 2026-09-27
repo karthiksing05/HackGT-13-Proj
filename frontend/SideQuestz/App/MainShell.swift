@@ -37,6 +37,9 @@ struct MainShell: View {
         .fullScreenCover(item: $router.setupRedo) { entry in
             SetupFlowView(startStep: entry.step, isRedo: true)
         }
+        .sqSheet(item: $router.agentCheckout, style: SQSheetStyle(height: .fitted(max: 720), dim: 0.45)) { route in
+            AgentCheckoutHost(route: route, env: env) { router.agentCheckout = nil }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             withAnimation(.easeOut(duration: 0.15)) { keyboardUp = true }
         }

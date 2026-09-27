@@ -1,0 +1,11 @@
+{
+  "model": "muse-spark-1.3",
+  "instructions": "You buy event tickets for a user. Use the tools. Never exceed the budget.",
+  "input": [{"role": "user", "content": "Get tickets for item it_1 (Sunset Jazz on Pier Nine). Budget $40. Start by getting the offer."}],
+  "tools": [
+    {"type": "function", "name": "get_offer", "description": "Get the merchant's current price for an itinerary item.",
+     "parameters": {"type": "object", "properties": {"item_id": {"type": "string"}}, "required": ["item_id"], "additionalProperties": false}, "strict": true},
+    {"type": "function", "name": "finish", "description": "End the run with a short summary for the user.",
+     "parameters": {"type": "object", "properties": {"summary": {"type": "string"}}, "required": ["summary"], "additionalProperties": false}, "strict": true}
+  ]
+}

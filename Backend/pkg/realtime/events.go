@@ -14,6 +14,7 @@ const (
 	EventFriendRequest    = "friend.request"
 	EventForumUpdate      = "forum.update"
 	EventCheckoutStatus   = "checkout.status"
+	EventCheckoutRun      = "checkout.run"
 	EventItineraryUpdated = "itinerary.updated"
 	EventItineraryRemoved = "itinerary.removed"
 	EventExpenseAdded     = "expense.added"
@@ -45,6 +46,12 @@ type (
 	CheckoutStatusData struct {
 		IntentID string                 `json:"intent_id"`
 		State    contract.CheckoutState `json:"state"`
+	}
+	// CheckoutRunData is checkout.run: an agentic checkout run changed.
+	CheckoutRunData struct {
+		RunID      string                    `json:"run_id"`
+		State      contract.CheckoutRunState `json:"state"`
+		SpentCents int                       `json:"spent_cents"`
 	}
 	ItineraryRemovedData struct {
 		ItineraryID string `json:"itinerary_id"`
@@ -110,6 +117,11 @@ func ForumUpdate(p Publisher) {
 // CheckoutStatus tells the intent owner about a state change.
 func CheckoutStatus(p Publisher, userID, intentID string, state contract.CheckoutState) {
 	p.Send(userID, EventCheckoutStatus, CheckoutStatusData{IntentID: intentID, State: state})
+}
+
+// CheckoutRun tells the run owner about its progress (spend, state).
+func CheckoutRun(p Publisher, userID, runID string, state contract.CheckoutRunState, spentCents int) {
+	p.Send(userID, EventCheckoutRun, CheckoutRunData{RunID: runID, State: state, SpentCents: spentCents})
 }
 
 // ItineraryUpdated sends an itinerary rendered for one member.

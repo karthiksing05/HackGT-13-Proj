@@ -49,6 +49,8 @@ struct ItineraryItem: Codable, Identifiable, Hashable {
     var end: Date
     var description: String?
     var websiteURL: URL?
+    /// The event's page on the ticket merchant (events.sidequestz.tech), for agentic checkout.
+    var ticketURL: URL?
     var bookable: Bool = false
     /// nil = unknown real price → show the "$[price]" placeholder, never invent one.
     var priceCents: Int?
@@ -173,7 +175,7 @@ struct PastEvent: Codable, Identifiable, Hashable {
     var subtitle: String { "\(place) · \(company)" }
 }
 
-// MARK: - Checkout (Visa agent)
+// MARK: - Checkout (agent)
 
 /// The agent works in the background: `preparing` (finding the tickets, building the quote) →
 /// `awaitingApproval` → `processing` (paying) → `booked`, or `failed` / `cancelled`. Unknown states
@@ -213,4 +215,28 @@ struct CheckoutIntent: Codable, Identifiable, Hashable {
     var failureReason: String?
     /// Instant checkout: the server skipped approval (it goes straight to `processing`).
     var instant: Bool = false
+
+    // Agentic checkout runs only (nil on single-item checkouts).
+    var runId: String?
+    /// "events.sidequestz.tech"
+    var merchant: String?
+    var checkoutURL: URL?
+    /// The most the payment token allowed (the quote total).
+    var maxAuthorizedCents: Int?
+    /// What was actually charged.
+    var finalCents: Int?
+    /// sold_out, price_changed, over_budget, declined, card_declined, merchant_error, agent_error,
+    /// skipped, cancelled.
+    var failureCode: String?
+    var orderRef: String?
+    /// "SQZ-7KD4Q2"
+    var confirmation: String?
+    /// The ticket pass on the merchant.
+    var ticketURL: URL?
+
+    enum CodingKeys: String, CodingKey {
+        case id, itemId, itemTitle, steps, subtotalCents, feesCents, totalCents, cardBrand, cardLast4, state, quantity
+        case paymentMethodId, failureReason, instant, runId, merchant, checkoutURL = "checkoutUrl", maxAuthorizedCents
+        case finalCents, failureCode, orderRef, confirmation, ticketURL = "ticketUrl"
+    }
 }
