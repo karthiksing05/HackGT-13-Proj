@@ -230,6 +230,7 @@ func (v *viewer) item(it *models.Itinerary, item *models.ItineraryItem) contract
 		End:         contract.NewTime(item.End),
 		Description: view.StrPtr(item.Description),
 		WebsiteURL:  item.WebsiteURL,
+		TicketURL:   item.TicketURL,
 		Bookable:    item.Bookable,
 		PriceCents:  item.PriceCents,
 		People:      people,

@@ -25,6 +25,7 @@ type ItineraryItem struct {
 	End         Time        `json:"end"`
 	Description *string     `json:"description,omitempty"`
 	WebsiteURL  *string     `json:"website_url,omitempty"`
+	TicketURL   *string     `json:"ticket_url,omitempty"`
 	Bookable    bool        `json:"bookable"`
 	PriceCents  *int        `json:"price_cents,omitempty"`
 	People      []PersonRef `json:"people"`

@@ -54,6 +54,20 @@ type Config struct {
 
 	// DisableRateLimits switches the /auth rate limiters off (tests only; DISABLE_RATE_LIMITS=1).
 	DisableRateLimits bool
+
+	// Agentic checkout (pkg/agent): the sandbox merchant, Stripe test mode and Muse.
+	PaymentsMode        string        // PAYMENTS_MODE: must be "sandbox" when a Stripe key is set
+	MerchantHost        string        // MERCHANT_HOST: ticket URLs on this host go to the agent
+	MerchantBaseURL     string        // MERCHANT_BASE_URL: where the agent reaches that merchant
+	StripeSecretKey     string        // STRIPE_SECRET_KEY: test keys only (sk_test_/rk_test_)
+	StripeSellerProfile string        // STRIPE_SELLER_PROFILE: the merchant's Stripe profile (profile_…)
+	StripeAPIBase       string        // STRIPE_API_BASE: Stripe's host (tests point it at a fake)
+	TapAgentKey         string        // TAP_AGENT_KEY: base64 Ed25519 seed the agent signs with; dev falls back to the demo key
+	MuseAPIKey          string        // MUSE_API_KEY: empty = the agent runs its deterministic path
+	MuseModel           string        // MUSE_MODEL
+	MuseBaseURL         string        // MUSE_BASE_URL
+	AgentMaxTurns       int           // AGENT_MAX_TURNS: model turns per checkout run
+	CheckoutRunTimeout  time.Duration // CHECKOUT_RUN_TIMEOUT: how long one run may take
 }
 
 // Placeholder secrets that must never reach production.
@@ -134,6 +148,18 @@ func Parse(getenv func(string) string) (*Config, error) {
 		MaxPhotoBytes:       int64(integer("MAX_PHOTO_BYTES", 2<<20)),
 		MaxJSONBytes:        int64(integer("MAX_JSON_BYTES", 1<<20)),
 		DisableRateLimits:   boolean(get("DISABLE_RATE_LIMITS", "0")),
+		PaymentsMode:        get("PAYMENTS_MODE", ""),
+		MerchantHost:        get("MERCHANT_HOST", "events.sidequestz.tech"),
+		MerchantBaseURL:     strings.TrimRight(get("MERCHANT_BASE_URL", "https://events.sidequestz.tech"), "/"),
+		StripeSecretKey:     get("STRIPE_SECRET_KEY", ""),
+		StripeSellerProfile: get("STRIPE_SELLER_PROFILE", ""),
+		StripeAPIBase:       strings.TrimRight(get("STRIPE_API_BASE", "https://api.stripe.com"), "/"),
+		TapAgentKey:         get("TAP_AGENT_KEY", ""),
+		MuseAPIKey:          get("MUSE_API_KEY", ""),
+		MuseModel:           get("MUSE_MODEL", "muse-spark-1.3"),
+		MuseBaseURL:         strings.TrimRight(get("MUSE_BASE_URL", "https://api.meta.ai/v1"), "/"),
+		AgentMaxTurns:       integer("AGENT_MAX_TURNS", 24),
+		CheckoutRunTimeout:  dur("CHECKOUT_RUN_TIMEOUT", "3m"),
 	}
 
 	if c.HTTPAddr == "" {
@@ -211,7 +237,44 @@ func (c *Config) Validate() error {
 	if err := c.validateDemoDate(); err != nil {
 		errs = append(errs, err)
 	}
+	errs = append(errs, c.validateAgentCheckout()...)
 	return errors.Join(errs...)
+}
+
+// validateAgentCheckout keeps agentic checkout in the sandbox: Stripe test
+// keys only, and only with PAYMENTS_MODE=sandbox.
+func (c *Config) validateAgentCheckout() []error {
+	var errs []error
+	if c.StripeSecretKey != "" {
+		if !strings.HasPrefix(c.StripeSecretKey, "sk_test_") && !strings.HasPrefix(c.StripeSecretKey, "rk_test_") {
+			errs = append(errs, errors.New("STRIPE_SECRET_KEY must be a Stripe test key (sk_test_… or rk_test_…)"))
+		}
+		if c.PaymentsMode != "sandbox" {
+			errs = append(errs, errors.New("PAYMENTS_MODE=sandbox is required when STRIPE_SECRET_KEY is set"))
+		}
+	}
+	if c.PaymentsMode != "" && c.PaymentsMode != "sandbox" {
+		errs = append(errs, fmt.Errorf("PAYMENTS_MODE must be sandbox, got %q", c.PaymentsMode))
+	}
+	if c.MerchantBaseURL != "" && !strings.HasPrefix(c.MerchantBaseURL, "http://") && !strings.HasPrefix(c.MerchantBaseURL, "https://") {
+		errs = append(errs, fmt.Errorf("MERCHANT_BASE_URL must start with http:// or https://, got %q", c.MerchantBaseURL))
+	}
+	if c.TapAgentKey != "" {
+		if seed, err := base64.StdEncoding.DecodeString(c.TapAgentKey); err != nil || len(seed) != 32 {
+			errs = append(errs, errors.New("TAP_AGENT_KEY must be a base64 32-byte Ed25519 seed (sidequestz-admin tap-keygen)"))
+		}
+	}
+	if c.AgentMaxTurns < 0 || c.CheckoutRunTimeout < 0 {
+		errs = append(errs, errors.New("AGENT_MAX_TURNS and CHECKOUT_RUN_TIMEOUT must not be negative"))
+	}
+	return errs
+}
+
+// AgentCheckoutReady reports whether agentic checkout can run: a Stripe test
+// key and the merchant's Stripe profile, and a signing key (the demo key is
+// accepted in dev only).
+func (c *Config) AgentCheckoutReady() bool {
+	return c.StripeSecretKey != "" && c.StripeSellerProfile != "" && c.MerchantBaseURL != "" && (c.TapAgentKey != "" || c.Dev())
 }
 
 func boolean(v string) bool {

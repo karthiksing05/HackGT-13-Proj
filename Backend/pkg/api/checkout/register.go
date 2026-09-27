@@ -26,4 +26,9 @@ func Register(r *mux.Router, d *api.Deps) {
 	r.Handle("/checkout/intents/{id}/approve", d.Protect(h.Approve)).Methods("POST")
 	r.Handle("/checkout/intents/{id}/cancel", d.Protect(h.Cancel)).Methods("POST")
 	r.Handle("/tickets/{id}", http.HandlerFunc(h.Ticket)).Methods("GET")
+	// Agentic checkout runs (runs.go).
+	r.Handle("/itineraries/{id}/checkout", d.Protect(h.Plan)).Methods("GET")
+	r.Handle("/itineraries/{id}/checkout-runs", d.Protect(h.CreateRun)).Methods("POST")
+	r.Handle("/checkout/runs/{id}", d.Protect(h.GetRun)).Methods("GET")
+	r.Handle("/checkout/runs/{id}/cancel", d.Protect(h.CancelRun)).Methods("POST")
 }

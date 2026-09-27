@@ -149,8 +149,8 @@
   "ratingCount": null,
   "popularity": 0.59,
   "trail": null,
-  "url": "https://saltlight.example/sunset-jazz-on-pier-nine",
-  "ticketUrl": "https://saltlight.example/sunset-jazz-on-pier-nine/tickets",
+  "url": "https://events.sidequestz.tech/sunset-jazz-on-pier-nine",
+  "ticketUrl": "https://events.sidequestz.tech/sunset-jazz-on-pier-nine/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:sunset-jazz-on-pier-nine"
@@ -159,7 +159,7 @@
    {
     "name": "demo",
     "id": "sunset-jazz-on-pier-nine",
-    "url": "https://saltlight.example/sunset-jazz-on-pier-nine",
+    "url": "https://events.sidequestz.tech/sunset-jazz-on-pier-nine",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -240,8 +240,8 @@
   "ratingCount": null,
   "popularity": 0.48,
   "trail": null,
-  "url": "https://saltlight.example/barnacle-bash-silent-disco",
-  "ticketUrl": "https://saltlight.example/barnacle-bash-silent-disco/tickets",
+  "url": "https://events.sidequestz.tech/barnacle-bash-silent-disco",
+  "ticketUrl": "https://events.sidequestz.tech/barnacle-bash-silent-disco/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:barnacle-bash-silent-disco"
@@ -250,7 +250,7 @@
    {
     "name": "demo",
     "id": "barnacle-bash-silent-disco",
-    "url": "https://saltlight.example/barnacle-bash-silent-disco",
+    "url": "https://events.sidequestz.tech/barnacle-bash-silent-disco",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -513,8 +513,8 @@
   "ratingCount": null,
   "popularity": 0.6,
   "trail": null,
-  "url": "https://saltlight.example/seasick-standup-at-the-crow-s-nest",
-  "ticketUrl": "https://saltlight.example/seasick-standup-at-the-crow-s-nest/tickets",
+  "url": "https://events.sidequestz.tech/seasick-standup-at-the-crow-s-nest",
+  "ticketUrl": "https://events.sidequestz.tech/seasick-standup-at-the-crow-s-nest/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:seasick-standup-at-the-crow-s-nest"
@@ -523,7 +523,7 @@
    {
     "name": "demo",
     "id": "seasick-standup-at-the-crow-s-nest",
-    "url": "https://saltlight.example/seasick-standup-at-the-crow-s-nest",
+    "url": "https://events.sidequestz.tech/seasick-standup-at-the-crow-s-nest",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -695,8 +695,8 @@
   "ratingCount": null,
   "popularity": 0.47,
   "trail": null,
-  "url": "https://saltlight.example/shipyard-robot-regatta",
-  "ticketUrl": "https://saltlight.example/shipyard-robot-regatta/tickets",
+  "url": "https://events.sidequestz.tech/shipyard-robot-regatta",
+  "ticketUrl": "https://events.sidequestz.tech/shipyard-robot-regatta/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:shipyard-robot-regatta"
@@ -705,7 +705,7 @@
    {
     "name": "demo",
     "id": "shipyard-robot-regatta",
-    "url": "https://saltlight.example/shipyard-robot-regatta",
+    "url": "https://events.sidequestz.tech/shipyard-robot-regatta",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -876,8 +876,8 @@
   "ratingCount": null,
   "popularity": 0.45,
   "trail": null,
-  "url": "https://saltlight.example/harbor-dumpling-brunch-crawl",
-  "ticketUrl": "https://saltlight.example/harbor-dumpling-brunch-crawl/tickets",
+  "url": "https://events.sidequestz.tech/harbor-dumpling-brunch-crawl",
+  "ticketUrl": "https://events.sidequestz.tech/harbor-dumpling-brunch-crawl/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:harbor-dumpling-brunch-crawl"
@@ -886,7 +886,7 @@
    {
     "name": "demo",
     "id": "harbor-dumpling-brunch-crawl",
-    "url": "https://saltlight.example/harbor-dumpling-brunch-crawl",
+    "url": "https://events.sidequestz.tech/harbor-dumpling-brunch-crawl",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -967,8 +967,8 @@
   "ratingCount": null,
   "popularity": 0.57,
   "trail": null,
-  "url": "https://saltlight.example/paint-the-lighthouse-sip-and-paint",
-  "ticketUrl": "https://saltlight.example/paint-the-lighthouse-sip-and-paint/tickets",
+  "url": "https://events.sidequestz.tech/paint-the-lighthouse-sip-and-paint",
+  "ticketUrl": "https://events.sidequestz.tech/paint-the-lighthouse-sip-and-paint/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:paint-the-lighthouse-sip-and-paint"
@@ -977,7 +977,7 @@
    {
     "name": "demo",
     "id": "paint-the-lighthouse-sip-and-paint",
-    "url": "https://saltlight.example/paint-the-lighthouse-sip-and-paint",
+    "url": "https://events.sidequestz.tech/paint-the-lighthouse-sip-and-paint",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -1056,8 +1056,8 @@
   "ratingCount": null,
   "popularity": 0.44,
   "trail": null,
-  "url": "https://saltlight.example/saltlight-mariners-vs-port-coral-fc",
-  "ticketUrl": "https://saltlight.example/saltlight-mariners-vs-port-coral-fc/tickets",
+  "url": "https://events.sidequestz.tech/saltlight-mariners-vs-port-coral-fc",
+  "ticketUrl": "https://events.sidequestz.tech/saltlight-mariners-vs-port-coral-fc/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:saltlight-mariners-vs-port-coral-fc"
@@ -1066,7 +1066,7 @@
    {
     "name": "demo",
     "id": "saltlight-mariners-vs-port-coral-fc",
-    "url": "https://saltlight.example/saltlight-mariners-vs-port-coral-fc",
+    "url": "https://events.sidequestz.tech/saltlight-mariners-vs-port-coral-fc",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -1238,8 +1238,8 @@
   "ratingCount": null,
   "popularity": 0.5,
   "trail": null,
-  "url": "https://saltlight.example/bioluminescence-night-paddle",
-  "ticketUrl": "https://saltlight.example/bioluminescence-night-paddle/tickets",
+  "url": "https://events.sidequestz.tech/bioluminescence-night-paddle",
+  "ticketUrl": "https://events.sidequestz.tech/bioluminescence-night-paddle/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:bioluminescence-night-paddle"
@@ -1248,7 +1248,7 @@
    {
     "name": "demo",
     "id": "bioluminescence-night-paddle",
-    "url": "https://saltlight.example/bioluminescence-night-paddle",
+    "url": "https://events.sidequestz.tech/bioluminescence-night-paddle",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -1508,8 +1508,8 @@
   "ratingCount": null,
   "popularity": 0.46,
   "trail": null,
-  "url": "https://saltlight.example/pop-the-balloon-harbor-speed-friending",
-  "ticketUrl": "https://saltlight.example/pop-the-balloon-harbor-speed-friending/tickets",
+  "url": "https://events.sidequestz.tech/pop-the-balloon-harbor-speed-friending",
+  "ticketUrl": "https://events.sidequestz.tech/pop-the-balloon-harbor-speed-friending/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:pop-the-balloon-harbor-speed-friending"
@@ -1518,7 +1518,7 @@
    {
     "name": "demo",
     "id": "pop-the-balloon-harbor-speed-friending",
-    "url": "https://saltlight.example/pop-the-balloon-harbor-speed-friending",
+    "url": "https://events.sidequestz.tech/pop-the-balloon-harbor-speed-friending",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -1870,8 +1870,8 @@
   "ratingCount": null,
   "popularity": 0.57,
   "trail": null,
-  "url": "https://saltlight.example/drag-brunch-ahoy",
-  "ticketUrl": "https://saltlight.example/drag-brunch-ahoy/tickets",
+  "url": "https://events.sidequestz.tech/drag-brunch-ahoy",
+  "ticketUrl": "https://events.sidequestz.tech/drag-brunch-ahoy/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:drag-brunch-ahoy"
@@ -1880,7 +1880,7 @@
    {
     "name": "demo",
     "id": "drag-brunch-ahoy",
-    "url": "https://saltlight.example/drag-brunch-ahoy",
+    "url": "https://events.sidequestz.tech/drag-brunch-ahoy",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -1960,8 +1960,8 @@
   "ratingCount": null,
   "popularity": 0.56,
   "trail": null,
-  "url": "https://saltlight.example/boardwalk-pickleball-round-robin",
-  "ticketUrl": "https://saltlight.example/boardwalk-pickleball-round-robin/tickets",
+  "url": "https://events.sidequestz.tech/boardwalk-pickleball-round-robin",
+  "ticketUrl": "https://events.sidequestz.tech/boardwalk-pickleball-round-robin/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:boardwalk-pickleball-round-robin"
@@ -1970,7 +1970,7 @@
    {
     "name": "demo",
     "id": "boardwalk-pickleball-round-robin",
-    "url": "https://saltlight.example/boardwalk-pickleball-round-robin",
+    "url": "https://events.sidequestz.tech/boardwalk-pickleball-round-robin",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -2319,8 +2319,8 @@
   "ratingCount": null,
   "popularity": 0.53,
   "trail": null,
-  "url": "https://saltlight.example/beginner-arduino-build-a-tide-sensor",
-  "ticketUrl": "https://saltlight.example/beginner-arduino-build-a-tide-sensor/tickets",
+  "url": "https://events.sidequestz.tech/beginner-arduino-build-a-tide-sensor",
+  "ticketUrl": "https://events.sidequestz.tech/beginner-arduino-build-a-tide-sensor/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:beginner-arduino-build-a-tide-sensor"
@@ -2329,7 +2329,7 @@
    {
     "name": "demo",
     "id": "beginner-arduino-build-a-tide-sensor",
-    "url": "https://saltlight.example/beginner-arduino-build-a-tide-sensor",
+    "url": "https://events.sidequestz.tech/beginner-arduino-build-a-tide-sensor",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -2408,8 +2408,8 @@
   "ratingCount": null,
   "popularity": 0.61,
   "trail": null,
-  "url": "https://saltlight.example/moonlight-yoga-on-lanternfall-beach",
-  "ticketUrl": "https://saltlight.example/moonlight-yoga-on-lanternfall-beach/tickets",
+  "url": "https://events.sidequestz.tech/moonlight-yoga-on-lanternfall-beach",
+  "ticketUrl": "https://events.sidequestz.tech/moonlight-yoga-on-lanternfall-beach/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:moonlight-yoga-on-lanternfall-beach"
@@ -2418,7 +2418,7 @@
    {
     "name": "demo",
     "id": "moonlight-yoga-on-lanternfall-beach",
-    "url": "https://saltlight.example/moonlight-yoga-on-lanternfall-beach",
+    "url": "https://events.sidequestz.tech/moonlight-yoga-on-lanternfall-beach",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -2498,8 +2498,8 @@
   "ratingCount": null,
   "popularity": 0.44,
   "trail": null,
-  "url": "https://saltlight.example/coral-reef-restoration-dive",
-  "ticketUrl": "https://saltlight.example/coral-reef-restoration-dive/tickets",
+  "url": "https://events.sidequestz.tech/coral-reef-restoration-dive",
+  "ticketUrl": "https://events.sidequestz.tech/coral-reef-restoration-dive/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:coral-reef-restoration-dive"
@@ -2508,7 +2508,7 @@
    {
     "name": "demo",
     "id": "coral-reef-restoration-dive",
-    "url": "https://saltlight.example/coral-reef-restoration-dive",
+    "url": "https://events.sidequestz.tech/coral-reef-restoration-dive",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -2589,8 +2589,8 @@
   "ratingCount": null,
   "popularity": 0.48,
   "trail": null,
-  "url": "https://saltlight.example/karaoke-night-at-the-fish-box",
-  "ticketUrl": "https://saltlight.example/karaoke-night-at-the-fish-box/tickets",
+  "url": "https://events.sidequestz.tech/karaoke-night-at-the-fish-box",
+  "ticketUrl": "https://events.sidequestz.tech/karaoke-night-at-the-fish-box/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:karaoke-night-at-the-fish-box"
@@ -2599,7 +2599,7 @@
    {
     "name": "demo",
     "id": "karaoke-night-at-the-fish-box",
-    "url": "https://saltlight.example/karaoke-night-at-the-fish-box",
+    "url": "https://events.sidequestz.tech/karaoke-night-at-the-fish-box",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -2769,8 +2769,8 @@
   "ratingCount": null,
   "popularity": 0.6,
   "trail": null,
-  "url": "https://saltlight.example/chef-s-table-seven-courses-of-the-sea",
-  "ticketUrl": "https://saltlight.example/chef-s-table-seven-courses-of-the-sea/tickets",
+  "url": "https://events.sidequestz.tech/chef-s-table-seven-courses-of-the-sea",
+  "ticketUrl": "https://events.sidequestz.tech/chef-s-table-seven-courses-of-the-sea/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:chef-s-table-seven-courses-of-the-sea"
@@ -2779,7 +2779,7 @@
    {
     "name": "demo",
     "id": "chef-s-table-seven-courses-of-the-sea",
-    "url": "https://saltlight.example/chef-s-table-seven-courses-of-the-sea",
+    "url": "https://events.sidequestz.tech/chef-s-table-seven-courses-of-the-sea",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -3038,8 +3038,8 @@
   "ratingCount": null,
   "popularity": 0.48,
   "trail": null,
-  "url": "https://saltlight.example/kids-shipwright-workshop-cardboard-boats",
-  "ticketUrl": "https://saltlight.example/kids-shipwright-workshop-cardboard-boats/tickets",
+  "url": "https://events.sidequestz.tech/kids-shipwright-workshop-cardboard-boats",
+  "ticketUrl": "https://events.sidequestz.tech/kids-shipwright-workshop-cardboard-boats/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:kids-shipwright-workshop-cardboard-boats"
@@ -3048,7 +3048,7 @@
    {
     "name": "demo",
     "id": "kids-shipwright-workshop-cardboard-boats",
-    "url": "https://saltlight.example/kids-shipwright-workshop-cardboard-boats",
+    "url": "https://events.sidequestz.tech/kids-shipwright-workshop-cardboard-boats",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -3128,8 +3128,8 @@
   "ratingCount": null,
   "popularity": 0.49,
   "trail": null,
-  "url": "https://saltlight.example/xr-art-night-paint-in-virtual-waves",
-  "ticketUrl": "https://saltlight.example/xr-art-night-paint-in-virtual-waves/tickets",
+  "url": "https://events.sidequestz.tech/xr-art-night-paint-in-virtual-waves",
+  "ticketUrl": "https://events.sidequestz.tech/xr-art-night-paint-in-virtual-waves/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:xr-art-night-paint-in-virtual-waves"
@@ -3138,7 +3138,7 @@
    {
     "name": "demo",
     "id": "xr-art-night-paint-in-virtual-waves",
-    "url": "https://saltlight.example/xr-art-night-paint-in-virtual-waves",
+    "url": "https://events.sidequestz.tech/xr-art-night-paint-in-virtual-waves",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -3308,8 +3308,8 @@
   "ratingCount": null,
   "popularity": 0.5,
   "trail": null,
-  "url": "https://saltlight.example/oyster-shucking-101",
-  "ticketUrl": "https://saltlight.example/oyster-shucking-101/tickets",
+  "url": "https://events.sidequestz.tech/oyster-shucking-101",
+  "ticketUrl": "https://events.sidequestz.tech/oyster-shucking-101/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:oyster-shucking-101"
@@ -3318,7 +3318,7 @@
    {
     "name": "demo",
     "id": "oyster-shucking-101",
-    "url": "https://saltlight.example/oyster-shucking-101",
+    "url": "https://events.sidequestz.tech/oyster-shucking-101",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -3396,8 +3396,8 @@
   "ratingCount": null,
   "popularity": 0.46,
   "trail": null,
-  "url": "https://saltlight.example/the-tempest-at-the-tidewater-playhouse",
-  "ticketUrl": "https://saltlight.example/the-tempest-at-the-tidewater-playhouse/tickets",
+  "url": "https://events.sidequestz.tech/the-tempest-at-the-tidewater-playhouse",
+  "ticketUrl": "https://events.sidequestz.tech/the-tempest-at-the-tidewater-playhouse/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:the-tempest-at-the-tidewater-playhouse"
@@ -3406,7 +3406,7 @@
    {
     "name": "demo",
     "id": "the-tempest-at-the-tidewater-playhouse",
-    "url": "https://saltlight.example/the-tempest-at-the-tidewater-playhouse",
+    "url": "https://events.sidequestz.tech/the-tempest-at-the-tidewater-playhouse",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -3486,8 +3486,8 @@
   "ratingCount": null,
   "popularity": 0.55,
   "trail": null,
-  "url": "https://saltlight.example/deep-house-at-the-deep-end",
-  "ticketUrl": "https://saltlight.example/deep-house-at-the-deep-end/tickets",
+  "url": "https://events.sidequestz.tech/deep-house-at-the-deep-end",
+  "ticketUrl": "https://events.sidequestz.tech/deep-house-at-the-deep-end/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:deep-house-at-the-deep-end"
@@ -3496,7 +3496,7 @@
    {
     "name": "demo",
     "id": "deep-house-at-the-deep-end",
-    "url": "https://saltlight.example/deep-house-at-the-deep-end",
+    "url": "https://events.sidequestz.tech/deep-house-at-the-deep-end",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -3667,8 +3667,8 @@
   "ratingCount": null,
   "popularity": 0.54,
   "trail": null,
-  "url": "https://saltlight.example/friday-fish-fry-and-bluegrass",
-  "ticketUrl": "https://saltlight.example/friday-fish-fry-and-bluegrass/tickets",
+  "url": "https://events.sidequestz.tech/friday-fish-fry-and-bluegrass",
+  "ticketUrl": "https://events.sidequestz.tech/friday-fish-fry-and-bluegrass/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:friday-fish-fry-and-bluegrass"
@@ -3677,7 +3677,7 @@
    {
     "name": "demo",
     "id": "friday-fish-fry-and-bluegrass",
-    "url": "https://saltlight.example/friday-fish-fry-and-bluegrass",
+    "url": "https://events.sidequestz.tech/friday-fish-fry-and-bluegrass",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -3757,8 +3757,8 @@
   "ratingCount": null,
   "popularity": 0.46,
   "trail": null,
-  "url": "https://saltlight.example/lantern-festival-on-the-water",
-  "ticketUrl": "https://saltlight.example/lantern-festival-on-the-water/tickets",
+  "url": "https://events.sidequestz.tech/lantern-festival-on-the-water",
+  "ticketUrl": "https://events.sidequestz.tech/lantern-festival-on-the-water/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:lantern-festival-on-the-water"
@@ -3767,7 +3767,7 @@
    {
     "name": "demo",
     "id": "lantern-festival-on-the-water",
-    "url": "https://saltlight.example/lantern-festival-on-the-water",
+    "url": "https://events.sidequestz.tech/lantern-festival-on-the-water",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -3846,8 +3846,8 @@
   "ratingCount": null,
   "popularity": 0.6,
   "trail": null,
-  "url": "https://saltlight.example/retro-sea-monster-arcade-tournament",
-  "ticketUrl": "https://saltlight.example/retro-sea-monster-arcade-tournament/tickets",
+  "url": "https://events.sidequestz.tech/retro-sea-monster-arcade-tournament",
+  "ticketUrl": "https://events.sidequestz.tech/retro-sea-monster-arcade-tournament/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:retro-sea-monster-arcade-tournament"
@@ -3856,7 +3856,7 @@
    {
     "name": "demo",
     "id": "retro-sea-monster-arcade-tournament",
-    "url": "https://saltlight.example/retro-sea-monster-arcade-tournament",
+    "url": "https://events.sidequestz.tech/retro-sea-monster-arcade-tournament",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
@@ -4027,8 +4027,8 @@
   "ratingCount": null,
   "popularity": 0.57,
   "trail": null,
-  "url": "https://saltlight.example/sustainable-seafood-cooking-class",
-  "ticketUrl": "https://saltlight.example/sustainable-seafood-cooking-class/tickets",
+  "url": "https://events.sidequestz.tech/sustainable-seafood-cooking-class",
+  "ticketUrl": "https://events.sidequestz.tech/sustainable-seafood-cooking-class/tickets",
   "imageUrl": null,
   "sourceKeys": [
    "demo:sustainable-seafood-cooking-class"
@@ -4037,7 +4037,7 @@
    {
     "name": "demo",
     "id": "sustainable-seafood-cooking-class",
-    "url": "https://saltlight.example/sustainable-seafood-cooking-class",
+    "url": "https://events.sidequestz.tech/sustainable-seafood-cooking-class",
     "fetchedAt": {
      "$date": "2026-09-26T12:00:00Z"
     }
