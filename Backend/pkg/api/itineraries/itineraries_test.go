@@ -78,7 +78,9 @@ func TestCreateFromContractExample(t *testing.T) {
 			t.Errorf("item %d = %+v (place %+v), want %+v", i, got, got.Place, w)
 		}
 		if len(got.People) != 0 || len(got.Interested) != 0 || got.ExtraGoing != 0 || got.Bookable || got.PriceCents != nil ||
-			got.Notes != nil || got.Rating != nil || got.TransitMode != nil || got.Ticket != nil {
+			got.Notes != nil || got.Rating != nil || got.Ticket != nil ||
+			// a stop's transit choice defaults to the inbound leg's mode; legs carry none
+			(got.TransitMode != nil) != (got.Kind != contract.KindTransit) {
 			t.Errorf("item %d carries extras it should not: %+v", i, got)
 		}
 		if got.ID == "" || ids[got.ID] {

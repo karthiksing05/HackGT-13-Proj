@@ -86,7 +86,12 @@ func TestJoinPlan(t *testing.T) {
 			t.Fatalf("items for %s: %+v", s.User.Name, its[0].Items)
 		}
 		mine := s == joiner
-		if (stop.Notes != nil) != mine || (stop.TransitMode != nil) != mine {
+		// The joiner's own transit pick; everyone else sees the inbound leg's mode (the default).
+		wantMode := contract.TravelMode("walk")
+		if mine {
+			wantMode = "marta"
+		}
+		if (stop.Notes != nil) != mine || stop.TransitMode == nil || *stop.TransitMode != wantMode {
 			t.Fatalf("per-viewer item state leaked or missing for %s: %+v", s.User.Name, stop)
 		}
 	}

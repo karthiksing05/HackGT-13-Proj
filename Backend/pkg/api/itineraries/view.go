@@ -249,6 +249,9 @@ func (v *viewer) item(it *models.Itinerary, item *models.ItineraryItem) contract
 			ticket = state.Ticket
 		}
 	}
+	if out.TransitMode == nil && item.Kind == models.ItemStop {
+		out.TransitMode = inboundLegMode(it, item.ID)
+	}
 	if ticket != nil {
 		out.Ticket = &contract.Ticket{ID: ticket.ID, Quantity: ticket.Quantity, TotalCents: ticket.TotalCents, Confirmation: ticket.Confirmation, URL: ticket.URL}
 	}
@@ -328,4 +331,23 @@ func placeIn(p contract.Place) models.PlaceDoc {
 		out.Lat, out.Lng = &lat, &lng
 	}
 	return out
+}
+
+// inboundLegMode is the mode of the transit leg that leads to a stop, the
+// default "Getting there" choice until the member picks one.
+func inboundLegMode(it *models.Itinerary, stopID string) *contract.TravelMode {
+	for i := range it.Items {
+		if it.Items[i].ID != stopID {
+			continue
+		}
+		if i == 0 || it.Items[i-1].Kind != models.ItemTransit {
+			return nil
+		}
+		mode := contract.TravelMode(it.Items[i-1].LegMode)
+		if !mode.Valid() {
+			return nil
+		}
+		return &mode
+	}
+	return nil
 }

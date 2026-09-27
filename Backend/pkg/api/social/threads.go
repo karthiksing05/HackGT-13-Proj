@@ -17,6 +17,8 @@ import (
 const (
 	MsgDMSelf    = "You can't message yourself."
 	MsgEmptyText = "Type a message first."
+	// MsgTextTooLong caps a message like notes are capped.
+	MsgTextTooLong = "Keep messages under 2,000 characters."
 )
 
 // threadLimit caps GET /threads.

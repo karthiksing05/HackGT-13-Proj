@@ -10,9 +10,13 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gorilla/mux"
 )
+
+// maxMessageRunes is the longest chat message (notes are capped the same way).
+const maxMessageRunes = 2000
 
 // messagePage is how many messages one GET returns.
 const messagePage = 30
@@ -64,6 +68,10 @@ func (h *H) SendMessage(w http.ResponseWriter, r *http.Request) {
 	text := strings.TrimSpace(req.Text)
 	if text == "" {
 		httpx.Error(w, http.StatusBadRequest, MsgEmptyText)
+		return
+	}
+	if utf8.RuneCountInString(text) > maxMessageRunes {
+		httpx.Error(w, http.StatusBadRequest, MsgTextTooLong)
 		return
 	}
 	msg := &models.Message{ThreadID: th.ID, SenderID: viewerID, Text: text}
