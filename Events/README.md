@@ -63,6 +63,6 @@ codes `bad_signature`, `missing_idempotency`, `idempotency_conflict`, `bad_reque
 ```bash
 go test ./...
 ./build.sh            # linux/amd64 binary in bin/
-bash deploy_env.sh   # upload Events/.env only; no restart
+bash deploy_env.sh   # upload Events/.env and restart events.service
 bash deploy.sh       # code to /opt/events, restarts events.service
 ```
