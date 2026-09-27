@@ -86,6 +86,11 @@ struct Ticket: Codable, Hashable {
     var confirmation: String?
     /// The ticket itself (PDF / pass / web page).
     var url: URL?
+    /// false: another member of the plan booked it (the group sees it). The viewer can still get
+    /// their own. Absent (older servers, a checkout that just booked) means the viewer's own.
+    var mine: Bool?
+
+    var isMine: Bool { mine ?? true }
 }
 
 struct Itinerary: Codable, Identifiable, Hashable {

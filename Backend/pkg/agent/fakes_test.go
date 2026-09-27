@@ -300,15 +300,21 @@ func newHarnessWith(t *testing.T, edit func(*config.Config), model agent.Model, 
 // start creates a run for every stop (quantity each) and waits for it.
 func (h *harness) start(t *testing.T, budget int, quantity int) contract.CheckoutRun {
 	t.Helper()
+	return h.startAs(t, h.sess, budget, quantity)
+}
+
+// startAs is start for another member of the plan.
+func (h *harness) startAs(t *testing.T, sess *testutil.Session, budget int, quantity int) contract.CheckoutRun {
+	t.Helper()
 	req := contract.CreateCheckoutRun{BudgetCents: budget}
 	for _, id := range h.items {
 		req.Items = append(req.Items, contract.CheckoutRunItem{ItemID: id, Quantity: quantity})
 	}
 	var run contract.CheckoutRun
-	h.srv.Do(t, "POST", "/itineraries/"+h.itin.ID+"/checkout-runs", req, h.sess).Expect(t, http.StatusCreated).JSON(t, &run)
+	h.srv.Do(t, "POST", "/itineraries/"+h.itin.ID+"/checkout-runs", req, sess).Expect(t, http.StatusCreated).JSON(t, &run)
 	h.runner.Wait()
 	var done contract.CheckoutRun
-	h.srv.Do(t, "GET", "/checkout/runs/"+run.ID, nil, h.sess).Expect(t, http.StatusOK).JSON(t, &done)
+	h.srv.Do(t, "GET", "/checkout/runs/"+run.ID, nil, sess).Expect(t, http.StatusOK).JSON(t, &done)
 	return done
 }
 

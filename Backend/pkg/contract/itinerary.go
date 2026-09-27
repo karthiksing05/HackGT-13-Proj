@@ -12,6 +12,9 @@ type Ticket struct {
 	TotalCents   *int    `json:"total_cents,omitempty"`
 	Confirmation *string `json:"confirmation,omitempty"`
 	URL          *string `json:"url,omitempty"`
+	// Mine is false for a ticket another member of the plan booked (shown
+	// so the group sees it); the viewer can still get their own.
+	Mine bool `json:"mine"`
 }
 
 // ItineraryItem is one timeline block, rendered per viewer (notes, rating,

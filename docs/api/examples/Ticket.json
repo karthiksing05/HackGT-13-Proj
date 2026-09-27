@@ -1,6 +1,7 @@
 {
   "confirmation": "SQ-4F7K2",
   "id": "tk-1",
+  "mine": true,
   "quantity": 2,
   "total_cents": 2400,
   "url": "https://tickets.example/SQ-4F7K2"

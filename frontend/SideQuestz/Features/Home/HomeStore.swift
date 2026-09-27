@@ -405,7 +405,7 @@ final class HomeStore {
 
     /// Booked: the timeline's copy of the item gets its ticket right away.
     private func bookingLanded(itemId: String, fresh: ItineraryItem?) {
-        guard let ticket = fresh?.ticket else { return }
+        guard let ticket = fresh?.ticket, ticket.isMine else { return }
         updateItem(itemId) { $0.ticket = ticket }
     }
 

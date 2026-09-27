@@ -240,21 +240,21 @@ func (v *viewer) item(it *models.Itinerary, item *models.ItineraryItem) contract
 	}
 	state := v.states[item.ID]
 	out.Notes, out.NotesScope = notesFor(item, state)
-	ticket := v.tickets[item.ID]
+	ticket, mine := v.tickets[item.ID], false
 	if state != nil {
 		if state.TransitMode != "" {
 			mode := contract.TravelMode(state.TransitMode)
 			out.TransitMode = &mode
 		}
 		if state.Ticket != nil {
-			ticket = state.Ticket
+			ticket, mine = state.Ticket, true
 		}
 	}
 	if out.TransitMode == nil && item.Kind == models.ItemStop {
 		out.TransitMode = inboundLegMode(it, item.ID)
 	}
 	if ticket != nil {
-		out.Ticket = &contract.Ticket{ID: ticket.ID, Quantity: ticket.Quantity, TotalCents: ticket.TotalCents, Confirmation: ticket.Confirmation, URL: ticket.URL}
+		out.Ticket = &contract.Ticket{ID: ticket.ID, Quantity: ticket.Quantity, TotalCents: ticket.TotalCents, Confirmation: ticket.Confirmation, URL: ticket.URL, Mine: mine}
 	}
 	out.Rating = ratingOut(v.ratings[item.ID])
 	return out
