@@ -21,6 +21,8 @@ type Node struct {
 	Utility   float64
 	CostCents int64
 	Flexible  bool // the activity could have started at another time
+	// Required: every itinerary visits this activity (Config.Required).
+	Required bool
 
 	SeriesKey string
 	series    int // bit index; every node has one
@@ -100,6 +102,10 @@ func BuildNodes(w Window, acts []models.Activity, cfg Config) ([]Node, []Drop) {
 		drops = append(drops, Drop{ActivityID: a.ID.Hex(), Reason: reason})
 	}
 
+	required := map[string]bool{}
+	for _, id := range cfg.Required {
+		required[id] = true
+	}
 	seen := map[string]bool{}
 	for i := range acts {
 		a := &acts[i]
@@ -118,6 +124,7 @@ func BuildNodes(w Window, acts []models.Activity, cfg Config) ([]Node, []Drop) {
 			Loc:       loc,
 			Utility:   utility(a, cfg),
 			CostCents: costCents(a),
+			Required:  required[a.ID.Hex()],
 		}
 		if w.BudgetCents > 0 && base.CostCents > w.BudgetCents {
 			drop(a, "over_budget")
@@ -146,6 +153,10 @@ func BuildNodes(w Window, acts []models.Activity, cfg Config) ([]Node, []Drop) {
 	}
 
 	nodes = assignSeries(nodes)
+	nodes, shared := dropRequiredSiblings(nodes)
+	for _, a := range shared {
+		drops = append(drops, Drop{ActivityID: a, Reason: "required_series"})
+	}
 	nodes, capped := capSeries(nodes, cfg.seriesCap())
 	for _, a := range capped {
 		drops = append(drops, Drop{ActivityID: a, Reason: "series_cap"})
@@ -463,13 +474,48 @@ func assignSeries(nodes []Node) []Node {
 	return nodes
 }
 
-// capSeries keeps the `limit` series with the best utility; paths track
-// series in a 128-bit mask.
+// dropRequiredSiblings leaves out the other activities of a required
+// activity's series (another slot of a picked exhibition, the event at a
+// picked venue): a series is visited once, so a plan that must visit the
+// required one can never use them. It returns their ids, sorted.
+func dropRequiredSiblings(nodes []Node) ([]Node, []string) {
+	required := map[string]bool{}
+	for _, n := range nodes {
+		if n.Required {
+			required[n.SeriesKey] = true
+		}
+	}
+	if len(required) == 0 {
+		return nodes, nil
+	}
+	out := nodes[:0]
+	dropped := map[string]bool{}
+	for _, n := range nodes {
+		if required[n.SeriesKey] && !n.Required {
+			dropped[n.Act.ID.Hex()] = true
+			continue
+		}
+		out = append(out, n)
+	}
+	ids := make([]string, 0, len(dropped))
+	for id := range dropped {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return out, ids
+}
+
+// capSeries keeps the `limit` series with the best utility, required ones
+// first; paths track series in a 128-bit mask.
 func capSeries(nodes []Node, limit int) ([]Node, []string) {
 	best := map[string]float64{}
+	required := map[string]bool{}
 	for _, n := range nodes {
 		if u, ok := best[n.SeriesKey]; !ok || n.Utility > u {
 			best[n.SeriesKey] = n.Utility
+		}
+		if n.Required {
+			required[n.SeriesKey] = true
 		}
 	}
 	if len(best) <= limit {
@@ -480,6 +526,9 @@ func capSeries(nodes []Node, limit int) ([]Node, []string) {
 		keys = append(keys, k)
 	}
 	sort.Slice(keys, func(i, j int) bool {
+		if required[keys[i]] != required[keys[j]] {
+			return required[keys[i]]
+		}
 		if best[keys[i]] != best[keys[j]] {
 			return best[keys[i]] > best[keys[j]]
 		}

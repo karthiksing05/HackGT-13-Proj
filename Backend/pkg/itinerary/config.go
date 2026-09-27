@@ -56,6 +56,16 @@ type Config struct {
 	// can score candidates without writing into the activities.
 	Utility func(a *models.Activity) float64
 
+	// Required lists the activities (hex ids) every itinerary must visit:
+	// the user's must-see picks. Solve returns only itineraries that visit
+	// all of them, none when that is impossible (one of them has no visit
+	// that fits, or two share a series). A required activity is exempt from
+	// the one-stop-per-category rule (no other stop may share its category,
+	// though) and from the per-leg range on its own legs; two required
+	// visits may have any wait between them; the stop cap rises to their
+	// number; the other activities of their series are left out.
+	Required []string
+
 	// SeriesCap is how many distinct series a solve keeps (the best by
 	// utility); paths track series in a 128-bit mask, so at most 128.
 	SeriesCap int
