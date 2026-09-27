@@ -4,8 +4,11 @@ import (
 	"Backend/pkg/api/itineraries"
 	"Backend/pkg/contract"
 	"Backend/pkg/httpx"
+	"Backend/pkg/models"
 	"Backend/pkg/testutil"
+	"context"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -109,4 +112,79 @@ func TestCalendarDays(t *testing.T) {
 			t.Errorf("%s: %q, want %q", q, res.Message(), msg)
 		}
 	}
+}
+
+// busyEvent puts a block on a user's calendar, as a connected calendar or
+// the showcase seed would.
+func busyEvent(t *testing.T, srv *testutil.Server, userID, title string, start, end time.Time) *models.CalendarEvent {
+	t.Helper()
+	ev := &models.CalendarEvent{UserID: userID, Title: title, Start: start.UTC(), End: end.UTC(), Location: "Klaus Advanced Computing Building",
+		Source: "seed", SeriesID: "series-" + title, Seed: "calendar-v1"}
+	if err := srv.Store.CalendarEvents().Insert(context.Background(), ev); err != nil {
+		t.Fatal(err)
+	}
+	return ev
+}
+
+func TestCalendarDaysListTheViewersBusyBlocks(t *testing.T) {
+	srv := testutil.New(t, testutil.WithNow(time.Date(2026, 9, 26, 16, 0, 0, 0, time.UTC)))
+	a := srv.Signup(t, "Alice Busy")
+	b := srv.Signup(t, "Bob Busy")
+	math := busyEvent(t, srv, a.UserID, "MATH 3012", at(9, 28, 9, 30), at(9, 28, 10, 45))
+	busyEvent(t, srv, a.UserID, "CS 3510 lecture", at(9, 28, 13, 0), at(9, 28, 13, 50))
+	busyEvent(t, srv, a.UserID, "Night shift", at(9, 26, 22, 0), at(9, 27, 6, 30))
+	busyEvent(t, srv, a.UserID, "Next month", at(10, 20, 9, 0), at(10, 20, 10, 0))
+	busyEvent(t, srv, b.UserID, "Bob's lab", at(9, 28, 11, 0), at(9, 28, 12, 0))
+	create(t, srv, a, plan("Lunch break", contract.VisibilityJustMe,
+		stopSpec{id: "l0", title: "Tacos", start: at(9, 28, 11, 15), minutes: 60}))
+
+	var days []contract.CalendarDay
+	srv.Do(t, "GET", "/calendar/days?from=2026-09-26&to=2026-09-28", nil, a).Expect(t, http.StatusOK).JSON(t, &days)
+	got := dayItems(days)
+	want := map[string][]string{
+		"2026-09-26": {"Night shift"}, // on both days it runs into
+		"2026-09-27": {"Night shift"},
+		"2026-09-28": {"MATH 3012", "Tacos", "CS 3510 lecture"}, // in time order with the stops
+	}
+	for day, titles := range want {
+		if strings.Join(got[day], "|") != strings.Join(titles, "|") {
+			t.Errorf("%s: %v, want %v", day, got[day], titles)
+		}
+	}
+	block := days[2].Items[0]
+	if block.ID != math.ID || block.Kind != contract.KindBusy || block.ItineraryID != nil || block.People == nil || len(block.People) != 0 ||
+		block.Interested == nil || !block.Start.Equal(math.Start) || !block.End.Equal(math.End) {
+		t.Fatalf("busy block: %+v", block)
+	}
+
+	// Seen from Berlin, the night shift is one Sunday morning block.
+	srv.DoRaw(t, "GET", "/calendar/days?from=2026-09-26&to=2026-09-28", nil, map[string]string{
+		"Authorization": a.Bearer(), "X-Time-Zone": "Europe/Berlin",
+	}).Expect(t, http.StatusOK).JSON(t, &days)
+	if got := dayItems(days); len(got["2026-09-26"]) != 0 || strings.Join(got["2026-09-27"], "|") != "Night shift" {
+		t.Errorf("Berlin days: %v", got)
+	}
+
+	// Bob sees his own lab and nothing of Alice's.
+	srv.Do(t, "GET", "/calendar/days?from=2026-09-26&to=2026-09-28", nil, b).Expect(t, http.StatusOK).JSON(t, &days)
+	if got := dayItems(days); len(got["2026-09-26"]) != 0 || len(got["2026-09-27"]) != 0 || strings.Join(got["2026-09-28"], "|") != "Bob's lab" {
+		t.Errorf("Bob's calendar: %v", got)
+	}
+
+	// Tapping the block opens it: what it is, where, and the viewer's own
+	// note, which stays theirs.
+	item := event(t, srv, a, math.ID)
+	if item.Kind != contract.KindBusy || item.Title != "MATH 3012" || item.Place == nil || item.Place.Name != "Klaus Advanced Computing Building" ||
+		item.Description == nil || *item.Description != "From your calendar. SideQuests plans around it." || item.Notes != nil ||
+		!item.Start.Equal(math.Start) || item.People == nil {
+		t.Fatalf("event: %+v", item)
+	}
+	shared := contract.NotesShared
+	srv.Do(t, "PATCH", "/events/"+math.ID, contract.ItemNotesPatch{Notes: "Bring the problem set", NotesScope: &shared}, a).Expect(t, http.StatusNoContent)
+	item = event(t, srv, a, math.ID)
+	if item.Notes == nil || *item.Notes != "Bring the problem set" || item.NotesScope == nil || *item.NotesScope != contract.NotesPrivate {
+		t.Fatalf("notes: %+v", item)
+	}
+	srv.Do(t, "GET", "/events/"+math.ID, nil, b).Expect(t, http.StatusNotFound)
+	srv.Do(t, "PATCH", "/events/"+math.ID, contract.ItemNotesPatch{Notes: "mine now"}, b).Expect(t, http.StatusNotFound)
 }

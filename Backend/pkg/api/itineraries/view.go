@@ -17,10 +17,17 @@ const walkNote = "Route options below. Times update live if you run late."
 // peopleShown is how many members a group item lists; the rest are extra_going.
 const peopleShown = 3
 
-// kindBusy is a calendar block inside an itinerary. Nothing stores one yet
-// (calendar connect is simulated); re-timing and day shifts handle it like
-// the mock does.
+// kindBusy is a busy block of the host's calendar inside an itinerary: a
+// saved plan keeps the ones its window overlaps (create.go), so its
+// timeline shows what it works around. Re-timing steps around them; a day
+// shift drops them. Only the host sees them (seesItem).
 const kindBusy = string(contract.KindBusy)
+
+// seesItem reports whether viewerID sees an item of it: everything but the
+// busy blocks of the host's calendar, which only the host sees.
+func seesItem(it *models.Itinerary, item *models.ItineraryItem, viewerID string) bool {
+	return item.Kind != kindBusy || it.HostID == viewerID
+}
 
 // viewer is what rendering needs for one viewer: the members shown on group
 // items and, for full renders, the viewer's own item states and ratings and
@@ -166,7 +173,9 @@ func others(ids []string, except string) []string {
 func (v *viewer) itinerary(it *models.Itinerary) contract.Itinerary {
 	items := make([]contract.ItineraryItem, 0, len(it.Items))
 	for i := range it.Items {
-		items = append(items, v.item(it, &it.Items[i]))
+		if seesItem(it, &it.Items[i], v.id) {
+			items = append(items, v.item(it, &it.Items[i]))
+		}
 	}
 	return contract.Itinerary{
 		ID:           it.ID,
@@ -292,7 +301,8 @@ func ratingOut(r *models.Rating) *contract.Rating {
 	return &contract.Rating{Stars: r.Stars, Tags: tags, Note: r.Note}
 }
 
-// calendarItem is a stop as a calendar block (no busy blocks exist here).
+// calendarItem is a stop as a calendar block (busy blocks come from the
+// calendar itself, calendar.go).
 func (v *viewer) calendarItem(it *models.Itinerary, item *models.ItineraryItem) contract.CalendarItem {
 	kind := itemKind(it, item)
 	people, _ := v.people(it, kind)
