@@ -60,8 +60,8 @@ final class HomeMapUITests: XCTestCase {
         expect(element(app, type: .button, labelBeginsWith: "Skyline Park rooftop"))
     }
 
-    /// `-SQRoute home/map/itin-sat` opens Saturday on its map. Its last stop has no location, so
-    /// it's left off the map (the others keep their numbers).
+    /// `-SQRoute home/map/itin-sat` opens Saturday on its map, in view. Its last stop has no
+    /// location, so it's left off the map (the others keep their numbers).
     func testMapDeepLink() {
         let app = launch(["-SQRoute", "home/map/itin-sat"])
 
@@ -69,11 +69,17 @@ final class HomeMapUITests: XCTestCase {
         expect(pill)
         waitUntil { pill.value as? String == "Map" }
         XCTAssertEqual(pill.value as? String, "Map")
+        // The carousel is on Saturday's page, and its map's stops are on screen.
+        let strip = element(app, labelBeginsWith: "Starts Saturday, September 26 at 1:00 PM")
+        expect(strip)
+        waitUntil { strip.isHittable }
+        XCTAssertTrue(strip.isHittable, "Saturday's page isn't showing")
         expect(app.descendants(matching: .any)["sidequest.map"].firstMatch)
-        expect(element(app, type: .button, labelBeginsWith: "Stop 1, Atlanta Botanical Garden"))
+        let garden = element(app, type: .button, labelBeginsWith: "Stop 1, Atlanta Botanical Garden")
+        expect(garden)
+        XCTAssertTrue(garden.isHittable, "Stop 1 isn't on screen")
         expect(element(app, type: .button, labelBeginsWith: "Stop 2, Frisbee meetup"))
         XCTAssertFalse(element(app, labelBeginsWith: "Stop 3,").exists)
-        expect(element(app, labelBeginsWith: "Starts Saturday, September 26 at 1:00 PM"))
     }
 
     // MARK: Helpers

@@ -372,10 +372,12 @@ struct HomeView: View {
         case "edit":
             store.editRequest = id ?? ""
         case "map":
-            // `home/map/<itinerary id>`: that sidequest (else the first) on its map, scrolled into view.
+            // `home/map/<itinerary id>`: that sidequest (else the first) on its map, scrolled into
+            // view once the carousel is on screen (it ignores a page set before it's laid out).
             guard let list = store.itineraries.value, let itinerary = list.first(where: { $0.id == id }) ?? list.first else { break }
-            store.selectedItineraryId = itinerary.id
             store.setShowsMap(true, for: itinerary.id)
+            try? await Task.sleep(for: .milliseconds(400))
+            withMotion(Motion.gentle) { store.selectedItineraryId = itinerary.id }
             sidequestReveals += 1
         case "rate":
             await store.loadPast(env)

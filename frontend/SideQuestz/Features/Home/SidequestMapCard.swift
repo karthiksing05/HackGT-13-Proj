@@ -99,6 +99,8 @@ struct SidequestMapCard: View {
     @State private var camera: MapCameraPosition
     /// The camera shows you and the next stop (the corner button) instead of the whole route.
     @State private var framesYou = false
+    /// What the map last reported showing: the "you are here" dot, drawn over the map, moves with it.
+    @State private var shown: MKMapRect?
 
     init(itinerary: Itinerary, progress: SidequestProgress, height: CGFloat, open: @escaping (ItineraryItem) -> Void) {
         self.itinerary = itinerary
@@ -146,45 +148,48 @@ struct SidequestMapCard: View {
     private func map(_ route: SidequestRoute) -> some View {
         let split = route.split(at: progress)
         let here = progress.isFarAway ? nil : env.locationFeed.coordinate
-        return Map(position: $camera, interactionModes: []) {
-            if split.ahead.count > 1 {
-                MapPolyline(coordinates: split.ahead.map(\.location2D))
-                    .stroke(Theme.sageInk.opacity(0.55), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round, dash: [0.5, 7]))
-            }
-            if split.travelled.count > 1 {
-                MapPolyline(coordinates: split.travelled.map(\.location2D))
-                    .stroke(Theme.sage, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
-            }
-            // Where annotations meet, the one declared first is drawn on top: the stops (they're
-            // buttons), then you, then the route's ends.
-            ForEach(route.stops) { stop in
-                Annotation("", coordinate: stop.coordinate.location2D, anchor: .center) {
-                    pin(stop)
+        return MapReader { proxy in
+            Map(position: $camera, interactionModes: []) {
+                if split.ahead.count > 1 {
+                    MapPolyline(coordinates: split.ahead.map(\.location2D))
+                        .stroke(Theme.sageInk.opacity(0.55), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round, dash: [0.5, 7]))
                 }
-                .annotationTitles(.hidden)
+                if split.travelled.count > 1 {
+                    MapPolyline(coordinates: split.travelled.map(\.location2D))
+                        .stroke(Theme.sage, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                }
+                if let start = route.start {
+                    Annotation("", coordinate: start.location2D, anchor: .center) {
+                        RouteMarker(kind: .start, size: 22, onMap: true)
+                            .accessibilityLabel(route.isRoundTrip ? "Start and end, \(itinerary.startPlace.name)" : "Start, \(itinerary.startPlace.name)")
+                    }
+                    .annotationTitles(.hidden)
+                }
+                if let end = route.end {
+                    Annotation("", coordinate: end.location2D, anchor: .center) {
+                        RouteMarker(kind: .end, size: 22, onMap: true)
+                            .accessibilityLabel("End, \(itinerary.endPlace.name)")
+                    }
+                    .annotationTitles(.hidden)
+                }
+                ForEach(route.stops) { stop in
+                    Annotation("", coordinate: stop.coordinate.location2D, anchor: .center) {
+                        pin(stop)
+                    }
+                    .annotationTitles(.hidden)
+                }
             }
-            if let here {
-                Annotation("", coordinate: here.location2D, anchor: .center) {
+            .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
+            .onMapCameraChange(frequency: .continuous) { shown = $0.rect }
+            // You, over everything on the map (annotations that meet stack in no fixed order), once
+            // the map has said what it shows.
+            .overlay {
+                if let here, shown != nil, let point = proxy.convert(here.location2D, to: .local) {
                     SidequestYouDot()
+                        .position(point)
                 }
-                .annotationTitles(.hidden)
-            }
-            if let start = route.start {
-                Annotation("", coordinate: start.location2D, anchor: .center) {
-                    RouteMarker(kind: .start, size: 22, onMap: true)
-                        .accessibilityLabel(route.isRoundTrip ? "Start and end, \(itinerary.startPlace.name)" : "Start, \(itinerary.startPlace.name)")
-                }
-                .annotationTitles(.hidden)
-            }
-            if let end = route.end {
-                Annotation("", coordinate: end.location2D, anchor: .center) {
-                    RouteMarker(kind: .end, size: 22, onMap: true)
-                        .accessibilityLabel("End, \(itinerary.endPlace.name)")
-                }
-                .annotationTitles(.hidden)
             }
         }
-        .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
         .overlay(alignment: .topTrailing) {
             if youAndTarget(route) != nil {
                 locateButton(route)
