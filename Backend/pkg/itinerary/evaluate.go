@@ -31,7 +31,9 @@ type EvalStop struct {
 // Evaluate times a given stop order, e.g. after the user drags stops around.
 // Fixed-time stops keep their scheduled times and count as late when the
 // user can't get there in time. Flexible stops start on arrival, but never
-// before their planned time, which is known to be open.
+// before their planned time, which is known to be open. Legs step past the
+// user's busy blocks (busy.go), and so does a flexible visit, which moves
+// to after the block; a fixed one that a block is in the way of is late.
 func Evaluate(ctx context.Context, w Window, stops []EvalStop, tp travel.Provider) Evaluation {
 	ev := Evaluation{BrokenAt: -1}
 
@@ -67,15 +69,34 @@ func Evaluate(ctx context.Context, w Window, stops []EvalStop, tp travel.Provide
 	for i, s := range stops {
 		leg := legAt(i)
 		ev.Legs = append(ev.Legs, leg)
-		arrive := t.Add(leg.Duration)
-
-		start := arrive
-		if s.Arrive != nil && s.Arrive.After(start) {
-			start = *s.Arrive
-		}
 		dur := time.Duration(s.DurationMin) * time.Minute
 		if s.Arrive != nil && s.Depart != nil {
 			dur = s.Depart.Sub(*s.Arrive)
+		}
+		fixed := !s.Flexible && s.Arrive != nil
+
+		// The leg, the wait and a visit that can move need free time: set
+		// off after each busy block in their way.
+		setOff := t
+		var arrive, start time.Time
+		for {
+			arrive = setOff.Add(leg.Duration)
+			start = arrive
+			if s.Arrive != nil && s.Arrive.After(start) {
+				start = *s.Arrive
+			}
+			until := start.Add(dur)
+			if fixed {
+				until = start
+			}
+			b := firstClash(w.Busy, setOff, until)
+			if b == nil {
+				break
+			}
+			setOff = b.End
+		}
+		if i == 0 {
+			ev.Depart = setOff
 		}
 		end := start.Add(dur)
 
@@ -99,7 +120,7 @@ func Evaluate(ctx context.Context, w Window, stops []EvalStop, tp travel.Provide
 
 	last := legAt(len(stops))
 	ev.Legs = append(ev.Legs, last)
-	ev.Arrival = t.Add(last.Duration)
+	ev.Arrival = LegAfter(w.Busy, t, last.Duration).Add(last.Duration)
 	if ev.Arrival.After(w.BackBy) {
 		ev.MinutesLate += int(ev.Arrival.Sub(w.BackBy).Minutes())
 	}

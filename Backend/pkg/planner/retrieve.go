@@ -186,9 +186,10 @@ func visitLengths(a *models.Activity) (p75, median time.Duration) {
 
 // eventFeasible is the Go-side time check of an event against the window
 // and, for an expansion, its slot. A whole event must start inside the
-// window and end (at its p75 length) by back-by; a clipped stay needs
-// MinStay between its start (up to LateArrival late) and its end; a window
-// event needs MinStay of overlap.
+// window and end (at its p75 length) by back-by, off the user's busy
+// blocks; a clipped stay needs MinStay between its start (up to
+// LateArrival late) and its end; a window event needs MinStay of overlap,
+// free of busy blocks.
 func eventFeasible(a *models.Activity, spec *PlanSpec, q *CandidateQuery, itCfg itinerary.Config) string {
 	st, ok := itinerary.StayFor(a, itCfg)
 	if !ok {
@@ -199,6 +200,9 @@ func eventFeasible(a *models.Activity, spec *PlanSpec, q *CandidateQuery, itCfg 
 	case itinerary.StayWindow:
 		if minTime(st.End, spec.BackBy).Sub(maxTime(st.Start, spec.From)) < st.MinStay {
 			return "too_short_overlap"
+		}
+		if len(spec.Busy) > 0 && itinerary.LongestFree(maxTime(st.Start, spec.From), minTime(st.End, spec.BackBy), spec.Busy) < st.MinStay {
+			return "busy"
 		}
 		if sliced && minTime(st.End, q.To).Sub(maxTime(st.Start, q.From)) < minDuration(st.MinStay, 30*time.Minute) {
 			return "outside_slot"
@@ -224,6 +228,9 @@ func eventFeasible(a *models.Activity, spec *PlanSpec, q *CandidateQuery, itCfg 
 	if start.Add(maxDuration(st.End.Sub(start), p75)).After(spec.BackBy) {
 		return "outside_window"
 	}
+	if itinerary.Clashes(spec.Busy, start, st.End) {
+		return "busy"
+	}
 	if start.Before(q.From) || start.After(q.To.Add(-EventStartMargin)) {
 		return "outside_slot"
 	}
@@ -246,6 +253,9 @@ func placeFeasible(a *models.Activity, spec *PlanSpec, q *CandidateQuery, itCfg 
 	}
 	if longestInterval(open) < itCfg.MinDuration {
 		return "closed_during_window"
+	}
+	if len(spec.Busy) > 0 && longestInterval(itinerary.WithoutBusy(open, spec.Busy)) < itCfg.MinDuration {
+		return "busy"
 	}
 	if opts.minOpen > 0 {
 		slot, _ := itinerary.OpenIntervals(a.WeeklyHours, a.Category, loc, q.From, q.To)

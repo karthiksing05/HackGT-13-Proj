@@ -6,11 +6,16 @@ import (
 	"Backend/pkg/travel"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Leg modes the app can show (its TravelMode enum, minus "uber", which the
 // planner never produces).
 var appLegModes = map[string]bool{"walk": true, "marta": true, "drive": true, "rideshare": true}
+
+// legSlack is how much shorter a leg can really be than its minutes say:
+// they are rounded to the nearest minute.
+const legSlack = 30 * time.Second
 
 // CheckOption lists every way an option breaks the guarantees of
 // planner.md §7 for spec, the effective spec (relaxations applied). lookup
@@ -21,7 +26,8 @@ var appLegModes = map[string]bool{"walk": true, "marta": true, "drive": true, "r
 // exempt from what they bypass (picks.go): the range on their own legs,
 // the per-stop price rules, the exclusions and sharing a category with
 // each other, and the budget's total grows to what they cost when that is
-// more.
+// more. Nothing is on top of the user's busy blocks (spec.Busy): no visit,
+// and no leg as the saved plan lays them out (itinerary/busy.go).
 func CheckOption(spec *PlanSpec, opt *Option, lookup func(id string) (*models.Activity, bool)) []string {
 	return checkOption(spec, opt, lookup, itinerary.DefaultConfig())
 }
@@ -178,5 +184,33 @@ func checkOption(spec *PlanSpec, opt *Option, lookup func(id string) (*models.Ac
 			fail("must-see %s is not in the option", id)
 		}
 	}
+	checkBusy(spec, opt, fail)
 	return out
+}
+
+// checkBusy lists what an option puts on top of the user's busy blocks.
+func checkBusy(spec *PlanSpec, opt *Option, fail func(format string, args ...any)) {
+	if len(spec.Busy) == 0 {
+		return
+	}
+	for i, s := range opt.Stops {
+		if itinerary.Clashes(spec.Busy, s.Arrive, s.Depart) {
+			fail("stop %d (%v–%v) is on top of a busy block", i, s.Arrive, s.Depart)
+		}
+	}
+	if len(opt.Legs) != len(opt.Stops)+1 {
+		return
+	}
+	free := opt.Depart
+	for i, s := range opt.Stops {
+		leg := max(0, time.Duration(opt.Legs[i].Minutes)*time.Minute-legSlack)
+		if setOff := itinerary.LegInto(spec.Busy, free, s.Arrive); setOff.Add(leg).After(s.Arrive) || itinerary.Clashes(spec.Busy, setOff, setOff.Add(leg)) {
+			fail("the leg into stop %d runs into a busy block", i)
+		}
+		free = s.Depart
+	}
+	home := max(0, time.Duration(opt.Legs[len(opt.Stops)].Minutes)*time.Minute-legSlack)
+	if itinerary.LegAfter(spec.Busy, free, home).Add(home).After(spec.BackBy) {
+		fail("the way back only fits after back-by, around the busy blocks")
+	}
 }

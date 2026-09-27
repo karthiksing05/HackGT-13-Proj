@@ -388,11 +388,12 @@ func diagnose(run *Run) []Issue {
 	}
 	first, last := best.Stops[0], best.Stops[len(best.Stops)-1]
 	if len(best.Stops) < pace.MaxStops {
-		if first.Node.Start.Sub(run.Window.From) > 60*time.Minute {
+		// Gaps are free time: a busy block leaves nothing to fill.
+		if itinerary.FreeBetween(run.Window.Busy, run.Window.From, first.Node.Start) > 60*time.Minute {
 			anchor := *run.Window.Start
 			add(Issue{Kind: "head_gap", Slot: &TimeSlot{From: run.Window.From, To: first.Node.Start}, Anchor: &anchor})
 		}
-		if run.Window.BackBy.Sub(best.Arrival) > 75*time.Minute {
+		if itinerary.FreeBetween(run.Window.Busy, best.Arrival, run.Window.BackBy) > 75*time.Minute {
 			anchor := last.Node.Loc
 			add(Issue{Kind: "tail_gap", Slot: &TimeSlot{From: last.Node.End, To: run.Window.BackBy}, Anchor: &anchor})
 		}
@@ -434,7 +435,7 @@ func diagnose(run *Run) []Issue {
 	}
 	// A window of 2.5 h or more should hold the pace's target less one:
 	// two stops at a balanced pace, three when packed.
-	if len(best.Stops) < target-1 && run.Window.BackBy.Sub(run.Window.From) >= 150*time.Minute {
+	if len(best.Stops) < target-1 && itinerary.FreeBetween(run.Window.Busy, run.Window.From, run.Window.BackBy) >= 150*time.Minute {
 		add(Issue{Kind: "under_pace"})
 	}
 	return issues

@@ -28,7 +28,7 @@ func Planner(ctx context.Context, db *mongo.Database, mlc *ml.Client) (*planner.
 	if err := st.EnsureIndexes(ctx); err != nil {
 		log.Warn().Err(err).Msg("planner: pool indexes")
 	}
-	deps := planner.Deps{Source: st, Embeddings: st, Lookup: st, Pools: st}
+	deps := planner.Deps{Source: st, Embeddings: st, Lookup: st, Pools: st, Calendar: st}
 	if mlc != nil {
 		scorer := planner.NewMLScorer(mlc)
 		deps.Scorer, deps.Search = scorer, scorer

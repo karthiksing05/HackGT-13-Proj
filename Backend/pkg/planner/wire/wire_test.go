@@ -18,6 +18,9 @@ func TestPlannerWiresTheStoreAndIndexes(t *testing.T) {
 	if svc.P.Cfg.Rounds != 2 || svc.P.Scorer == nil || svc.P.Search == nil {
 		t.Errorf("config and ML not wired: rounds %d", svc.P.Cfg.Rounds)
 	}
+	if svc.P.Calendar == nil {
+		t.Error("the calendar (busy blocks) is not wired")
+	}
 	specs, err := db.Collection(mongosource.PoolsCollection).Indexes().ListSpecifications(t.Context())
 	if err != nil {
 		t.Fatal(err)

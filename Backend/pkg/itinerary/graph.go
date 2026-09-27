@@ -36,7 +36,8 @@ type edgeCandidate struct {
 // checks (time order, same series or category, straight-line distance, a
 // travel-time lower bound) before one batched call to the provider. Legs
 // into and out of a required visit are not held to the range (only to the
-// clock), and two required visits may have any wait between them.
+// clock), and two required visits may have any wait between them. No leg
+// runs into a busy block (busy.go), and time inside one is not waiting.
 func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider, cfg Config) *Graph {
 	pace := cfg.Pace(w.Pace)
 	n := len(nodes)
@@ -71,14 +72,14 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 		if !a.Required && !b.Required && travel.HaversineKm(a.Loc, b.Loc) > w.MaxLegKm {
 			return
 		}
-		if a.End.Add(travel.LowerBound(a.Loc, b.Loc, w.Mode) + cfg.Buffer).After(b.Start) {
+		if LegInto(w.Busy, a.End, b.Start).Add(travel.LowerBound(a.Loc, b.Loc, w.Mode) + cfg.Buffer).After(b.Start) {
 			return
 		}
 		add(edgeCandidate{from: i, to: j, pair: travel.Pair{From: a.Loc, To: b.Loc}})
 	}
 	for i := range n {
 		j := i + 1
-		for ; j < n && nodes[j].Start.Sub(nodes[i].End) <= cutoff; j++ {
+		for ; j < n && FreeBetween(w.Busy, nodes[i].End, nodes[j].Start) <= cutoff; j++ {
 			pair(i, j) // later nodes start even later
 		}
 		// Past the cutoff only a leg longer than the range, or a wait
@@ -98,14 +99,15 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 
 	for j := range n {
 		b := &nodes[j]
+		setOff := LegInto(w.Busy, w.From, b.Start)
 		if w.Start == nil {
-			g.In[j] = append(g.In[j], Edge{From: Source, Wait: b.Start.Sub(w.From), Penalty: firstWaitPenalty(b.Start.Sub(w.From), pace, cfg)})
+			g.In[j] = append(g.In[j], Edge{From: Source, Wait: b.Start.Sub(setOff), Penalty: firstWaitPenalty(b.Start.Sub(setOff), pace, cfg)})
 			continue
 		}
 		if !b.Required && travel.HaversineKm(*w.Start, b.Loc) > w.MaxLegKm {
 			continue
 		}
-		if w.From.Add(travel.LowerBound(*w.Start, b.Loc, w.Mode)).After(b.Start) {
+		if setOff.Add(travel.LowerBound(*w.Start, b.Loc, w.Mode)).After(b.Start) {
 			continue
 		}
 		add(edgeCandidate{from: Source, to: j, pair: travel.Pair{From: *w.Start, To: b.Loc}})
@@ -120,7 +122,7 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 		if !a.Required && travel.HaversineKm(a.Loc, *w.End) > w.MaxLegKm {
 			continue
 		}
-		if a.End.Add(travel.LowerBound(a.Loc, *w.End, w.Mode)).After(w.BackBy) {
+		if lower := travel.LowerBound(a.Loc, *w.End, w.Mode); LegAfter(w.Busy, a.End, lower).Add(lower).After(w.BackBy) {
 			continue
 		}
 		add(edgeCandidate{from: i, to: n, pair: travel.Pair{From: a.Loc, To: *w.End}})
@@ -133,13 +135,13 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 		legMin := leg.Duration.Minutes()
 		switch {
 		case c.to == n: // into the sink
-			if nodes[c.from].End.Add(leg.Duration).After(w.BackBy) {
+			if LegAfter(w.Busy, nodes[c.from].End, leg.Duration).Add(leg.Duration).After(w.BackBy) {
 				continue
 			}
 			g.In[n] = append(g.In[n], Edge{From: c.from, Leg: leg, Penalty: cfg.LambdaTravel * legMin})
 		case c.from == Source:
 			b := &nodes[c.to]
-			wait := b.Start.Sub(w.From.Add(leg.Duration))
+			wait := b.Start.Sub(LegInto(w.Busy, w.From, b.Start).Add(leg.Duration))
 			if wait < 0 {
 				continue
 			}
@@ -149,14 +151,16 @@ func BuildGraph(ctx context.Context, w Window, nodes []Node, tp travel.Provider,
 			})
 		default:
 			a, b := &nodes[c.from], &nodes[c.to]
-			wait := b.Start.Sub(a.End.Add(leg.Duration))
-			if wait < cfg.Buffer || (wait > pace.MaxWait && !(a.Required && b.Required)) {
+			// wait is at b, after the leg; idle is all the free time between
+			// the two visits that isn't travel (the same without busy blocks).
+			wait := b.Start.Sub(LegInto(w.Busy, a.End, b.Start).Add(leg.Duration))
+			idle := FreeBetween(w.Busy, a.End, b.Start) - leg.Duration
+			if wait < cfg.Buffer || (idle > pace.MaxWait && !(a.Required && b.Required)) {
 				continue
 			}
-			idle := (wait - cfg.Buffer).Minutes()
 			g.In[c.to] = append(g.In[c.to], Edge{
 				From: c.from, Leg: leg, Wait: wait,
-				Penalty: cfg.LambdaTravel*legMin + pace.LambdaWait*idle,
+				Penalty: cfg.LambdaTravel*legMin + pace.LambdaWait*(idle-cfg.Buffer).Minutes(),
 			})
 		}
 	}

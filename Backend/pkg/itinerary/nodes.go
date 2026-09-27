@@ -175,15 +175,15 @@ func eventNodes(w Window, n Node, cfg Config) ([]Node, string) {
 	case StayWindow:
 		visit, _ := durations(n.Act, cfg)
 		iv := Interval{Start: maxTime(st.Start, w.From), End: minTime(st.End, w.BackBy)}
-		slots := slotNodes(w, n, []Interval{iv}, visit, st.MinStay, true, cfg)
+		slots := slotNodes(w, n, WithoutBusy([]Interval{iv}, w.Busy), visit, st.MinStay, true, cfg)
 		if len(slots) == 0 {
-			return nil, "outside_window"
+			return nil, busyOr(w, []Interval{iv}, "outside_window")
 		}
 		return slots, ""
 	case StayClipped:
 		stays := clippedNodes(w, n, st, cfg)
 		if len(stays) == 0 {
-			return nil, "outside_window"
+			return nil, busyOr(w, []Interval{{Start: maxTime(st.Start, w.From), End: minTime(st.End, w.BackBy)}}, "outside_window")
 		}
 		return stays, ""
 	}
@@ -195,8 +195,21 @@ func eventNodes(w Window, n Node, cfg Config) ([]Node, string) {
 	if start.Before(w.From) || end.After(w.BackBy) {
 		return nil, "outside_window"
 	}
+	if Clashes(w.Busy, start, end) {
+		return nil, "busy"
+	}
 	n.Start, n.End, n.P75End = start, end, start.Add(maxDur(visit75, end.Sub(start)))
 	return []Node{n}, ""
+}
+
+// busyOr is "busy" when the user's busy blocks cover part of the times an
+// activity could have been visited in (so they may be why it can't be),
+// else reason.
+func busyOr(w Window, ivs []Interval, reason string) string {
+	if clashesAny(w.Busy, ivs) {
+		return "busy"
+	}
+	return reason
 }
 
 func placeNodes(w Window, n Node, cfg Config) ([]Node, string) {
@@ -226,9 +239,9 @@ func placeNodes(w Window, n Node, cfg Config) ([]Node, string) {
 	if minVisit > visit {
 		minVisit = visit
 	}
-	slots := slotNodes(w, n, open, visit, minVisit, short, cfg)
+	slots := slotNodes(w, n, WithoutBusy(open, w.Busy), visit, minVisit, short, cfg)
 	if len(slots) == 0 {
-		return nil, "closed_during_window"
+		return nil, busyOr(w, open, "closed_during_window")
 	}
 	return slots, ""
 }
@@ -250,7 +263,9 @@ var wholeVisitCategories = map[string]bool{"tour": true, "restaurant": true}
 func slotNodes(w Window, n Node, open []Interval, visit, minVisit time.Duration, short bool, cfg Config) []Node {
 	var arrive, leave time.Time
 	if w.Start != nil {
-		arrive = ceilTo(w.From.Add(travel.Estimate(*w.Start, n.Loc, w.Mode).Duration), anchorStep)
+		// Setting off as soon as the window opens (and no busy block is in the way).
+		leg := travel.Estimate(*w.Start, n.Loc, w.Mode).Duration
+		arrive = ceilTo(LegAfter(w.Busy, w.From, leg).Add(leg), anchorStep)
 	}
 	if w.End != nil {
 		leave = w.BackBy.Add(-travel.Estimate(n.Loc, *w.End, w.Mode).Duration).Truncate(anchorStep)

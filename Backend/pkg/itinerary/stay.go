@@ -126,12 +126,12 @@ func (st EventStay) ClippedFits(from, to time.Time) bool {
 // clippedNodes lays out the stays at a clipped event: starting at the
 // event's start or LateArrival after it (inside the window), each ending at
 // the earliest acceptable time, on the slot grid, at the last moment that
-// still reaches the end point by back-by, and at the event's end. A stay
-// keeps a share of the event's utility in proportion to how much of it the
-// user sees: 80% for the shortest, all of it for the whole event.
+// still reaches the end point by back-by, and at the event's end, or when
+// the next busy block starts (a start inside one is no stay). A stay keeps
+// a share of the event's utility in proportion to how much of it the user
+// sees: 80% for the shortest, all of it for the whole event.
 func clippedNodes(w Window, n Node, st EventStay, cfg Config) []Node {
 	span := st.End.Sub(st.Start)
-	lastEnd := minTime(st.End, w.BackBy)
 	var homeBy time.Time
 	if w.End != nil {
 		homeBy = w.BackBy.Add(-travel.Estimate(n.Loc, *w.End, w.Mode).Duration).Truncate(time.Minute)
@@ -141,6 +141,13 @@ func clippedNodes(w Window, n Node, st EventStay, cfg Config) []Node {
 	for _, begin := range []time.Time{st.Start, st.Start.Add(LateArrival)} {
 		if begin.Before(w.From) {
 			continue
+		}
+		lastEnd := minTime(st.End, w.BackBy)
+		if b := firstClash(w.Busy, begin, lastEnd); b != nil {
+			if !b.Start.After(begin) {
+				continue
+			}
+			lastEnd = b.Start
 		}
 		earliest := begin.Add(st.MinStay)
 		if earliest.After(lastEnd) {
