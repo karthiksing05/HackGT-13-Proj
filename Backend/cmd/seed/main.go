@@ -19,6 +19,11 @@
 // document it did not write, Sandy's account included.
 //
 //	go run ./cmd/seed [--apply] [--remove] [--world atlanta|saltlight|all] [--demo-email ADDRESS]
+//	go run ./cmd/seed --history @handle[=outdoors|nightlife|arts],… [--apply] [--remove]
+//
+// --history gives real accounts a believable past instead (history.go):
+// finished sidequests with rated and unrated stops and liked categories
+// that agree with them, all reversible with --remove.
 //
 // It reads the server's environment names: MONGO_URI (default
 // mongodb://127.0.0.1:27017, e.g. the SSH tunnel to the server), MONGO_DB
@@ -64,6 +69,7 @@ type Options struct {
 	// world that cannot be seeded is an error rather than a note.
 	Worlds    []string
 	Named     bool
+	History   []historySel // --history: the people to give a past (no worlds then)
 	DemoEmail string
 	Demo      *democlock.Clock // Saltlight's clock (DEMO_DATE, DEMO_TZ)
 	Atlanta   *time.Location
@@ -78,9 +84,11 @@ func main() {
 }
 
 const usage = `usage: go run ./cmd/seed [--apply] [--remove] [--world atlanta|saltlight|all] [--demo-email ADDRESS]
+       go run ./cmd/seed --history @handle[=outdoors|nightlife|arts],… [--apply] [--remove]
 
 Fills the database with showcase people and sidequests (a dry run unless --apply).
---remove deletes what it wrote instead (also a dry run unless --apply).
+--history gives the named real accounts past sidequests, ratings and interests instead.
+--remove deletes what it wrote instead and restores what it changed (also a dry run unless --apply).
 
 Environment: MONGO_URI (default mongodb://127.0.0.1:27017), MONGO_DB (required with --apply),
 DEMO_DATE (default 2026-09-27), DEMO_TZ (default America/New_York), ML_SERVICE_URL (default http://127.0.0.1:8000).
@@ -94,6 +102,7 @@ func cli(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	remove := fs.Bool("remove", false, "delete what this seed wrote instead")
 	world := fs.String("world", "all", "atlanta, saltlight or all")
 	demoEmail := fs.String("demo-email", defaultDemoEmail, "the demo account the Saltlight world is built around")
+	history := fs.String("history", "", "give these real accounts a past instead: @handle[=outdoors|nightlife|arts],…")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -102,6 +111,13 @@ func cli(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 		return 2
 	}
 	o, uri, db, err := readOptions(getenv, *apply, *remove, *world, *demoEmail)
+	if err == nil && *history != "" {
+		if *world != "all" {
+			err = fmt.Errorf("--history and --world do not go together")
+		} else {
+			o.History, err = parseHistory(*history)
+		}
+	}
 	if err != nil {
 		fmt.Fprintf(stderr, "seed: %v\n", err)
 		return 2
@@ -204,7 +220,13 @@ func Run(ctx context.Context, st *store.Store, o Options, out io.Writer) error {
 		return fmt.Errorf("list collections: %w", err)
 	}
 	want := slices.Clone(appCollections)
-	if !o.Remove {
+	switch {
+	case len(o.History) > 0:
+		want = []string{store.CollUsers, store.CollItineraries, store.CollRatings}
+		if !o.Remove {
+			want = append(want, store.DefaultCatalog)
+		}
+	case !o.Remove:
 		for _, name := range o.Worlds {
 			want = append(want, worldByName(name).catalog)
 		}
@@ -221,6 +243,9 @@ func Run(ctx context.Context, st *store.Store, o Options, out io.Writer) error {
 			return fmt.Errorf("refusing to write: %s", msg)
 		}
 		p.f("Warning: %s; --apply would refuse", msg)
+	}
+	if len(o.History) > 0 {
+		return runHistory(ctx, st, o, p)
 	}
 	if o.Remove {
 		return runRemove(ctx, st, o, p)

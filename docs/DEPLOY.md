@@ -234,6 +234,20 @@ account (default `demo@sidequestz.tech`); `DEMO_DATE` (default `2026-09-27`) mus
 Rerun it before a demo: it refreshes every time, and the Atlanta plans are for today's and tomorrow's
 evenings, the "free now" posts end tonight.
 
+`Backend/scripts/seed-live.sh` does all of this in one step: it opens that tunnel from `DEPLOY_*` in the
+root `.env`, rebuilds `bin/seed`, passes every flag through and closes the tunnel. The past of real
+accounts ([DEMO.md](DEMO.md#showcase-data)) uses the same command:
+
+```sh
+Backend/scripts/seed-live.sh --history @lilk,@bayan_98d1,@jev_d9ef             # dry run: per person, plans, ratings, interests
+Backend/scripts/seed-live.sh --history @lilk,@bayan_98d1,@jev_d9ef --apply
+Backend/scripts/seed-live.sh --history @lilk,@bayan_98d1,@jev_d9ef --remove     # add --apply to delete and restore
+```
+
+A handle that matches no account or several, or a demo, bot or showcase account, stops the run before it
+writes anything. Reruns rewrite the same plans (their dates hang off the first `--apply`) and never
+overwrite the saved originals.
+
 ## Redeploy an earlier version
 
 The scripts do not create backups. To restore earlier code, check out that revision and run

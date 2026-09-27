@@ -125,6 +125,18 @@ the same documents with fresh times (Atlanta from now, Saltlight from `DEMO_DATE
 a showcase plan stays in it. `--remove` deletes exactly what it wrote, plus what exists only inside its
 plans and chats (as when a host deletes a plan). How to run it: [DEPLOY.md](DEPLOY.md#showcase-data).
 
+**History for real accounts** (`--history @handle,…`): gives named regular accounts a believable past, one
+story each: *outdoors* (parks, the BeltLine, food halls), *nightlife* (live music, nights out, late bites)
+or *arts* (museums, galleries, long walks), whichever best fits what they already like unless named
+(`@handle=arts`). Each gets five finished sidequests over the last three weeks from real
+`pitch_activities` places (some with showcase people), ratings of some stops made through the app's own
+rating handler (so taste and insights pick them up), at least five stops left for Home's "past events to
+rate", and liked categories raised or filled to match (never lowered). Their taste vectors are then rebuilt
+like any account's. Everything is tagged `seed: "history-v1"`; the fields it changes (preferences, taste,
+vectors) are saved once in `seed_backups` first, and `--history … --remove --apply` deletes the history and
+puts those fields back exactly, except what the person changed themselves since. Demo, bot and showcase
+accounts are refused.
+
 ## Known limits
 
 - **Simulated on purpose** (labelled `// Simulated:` in the code; see the [roadmap](ROADMAP.md)): the
