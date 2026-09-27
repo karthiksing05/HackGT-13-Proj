@@ -269,6 +269,15 @@ func BuildSpec(req Request, tzHeader string, now time.Time, user *UserContext, c
 	if !spec.BackBy.After(now) {
 		return spec, &RequestError{Reason: "window already ended"}
 	}
+	// A window that already started is planned from now (the next whole
+	// minute): nothing is scheduled in the past and an event that is over,
+	// or too far along to drop in on, is not offered.
+	if spec.From.Before(now) {
+		spec.From = ceilMinute(now.UTC())
+		if !spec.BackBy.After(spec.From) {
+			return spec, &RequestError{Reason: "window already ended"}
+		}
+	}
 	spec.LocalDate = spec.From.In(spec.TZ).Format("2006-01-02")
 
 	// Travel mode and per-leg range.
@@ -338,6 +347,14 @@ func homeBase(user *UserContext) *Place {
 		out.Name = "Home base"
 	}
 	return &out
+}
+
+// ceilMinute rounds t up to a whole minute.
+func ceilMinute(t time.Time) time.Time {
+	if m := t.Truncate(time.Minute); m.Before(t) {
+		return m.Add(time.Minute)
+	}
+	return t
 }
 
 func loadTZ(cityTZ, header string) *time.Location {

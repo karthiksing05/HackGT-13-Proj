@@ -922,5 +922,17 @@ func writeSeedWorld(ctx context.Context, st *store.Store, w *seedWorld) ([]seedC
 	if _, err := st.Collection(store.CollFriendships).DeleteOne(ctx, bson.M{"_id": models.FriendshipID(w.sandyID, w.theoID)}); err != nil {
 		return nil, fmt.Errorf("reset Theo's request: %w", err)
 	}
+	// Joining Marin's plan made its group chat (or joined it). The plan is
+	// back to its seeded members above, so its chat is too; the chat and its
+	// messages stay.
+	for _, it := range w.itineraries {
+		if it.ID != seedOpenPlanID {
+			continue
+		}
+		if _, err := st.Collection(store.CollThreads).UpdateMany(ctx, bson.M{"itineraryId": it.ID},
+			bson.M{"$set": bson.M{"memberIds": it.MemberIDs}}); err != nil {
+			return nil, fmt.Errorf("reset the open plan's chat: %w", err)
+		}
+	}
 	return counts, nil
 }
