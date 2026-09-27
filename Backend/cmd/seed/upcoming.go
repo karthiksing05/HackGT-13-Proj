@@ -324,12 +324,42 @@ func writeUpcoming(ctx context.Context, st *store.Store, uid string, docs []upco
 			if err != nil {
 				return err
 			}
+			if th, ok := in.doc.(*models.Thread); ok {
+				d = memberOrder(d, th)
+			}
 			if _, err := st.Collection(in.coll).InsertOne(ctx, d); err != nil {
 				return fmt.Errorf("write the default upcoming sidequests: %w", err)
 			}
 		}
 	}
 	return nil
+}
+
+// memberOrder writes a chat's unread and read marks in member order (Go
+// maps marshal in random order), so the chat made again is byte for byte
+// the same.
+func memberOrder(d bson.D, th *models.Thread) bson.D {
+	for i, e := range d {
+		switch e.Key {
+		case "unread":
+			m := bson.D{}
+			for _, id := range th.MemberIDs {
+				if n, ok := th.Unread[id]; ok {
+					m = append(m, bson.E{Key: id, Value: n})
+				}
+			}
+			d[i].Value = m
+		case "readAt":
+			m := bson.D{}
+			for _, id := range th.MemberIDs {
+				if t, ok := th.ReadAt[id]; ok {
+					m = append(m, bson.E{Key: id, Value: t})
+				}
+			}
+			d[i].Value = m
+		}
+	}
+	return d
 }
 
 func (p printer) upcoming(docs []upcomingDoc, notes []string, loc *time.Location) {

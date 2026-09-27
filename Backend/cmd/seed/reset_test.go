@@ -131,7 +131,14 @@ func TestCalendarDryRunApplyTwiceRemove(t *testing.T) {
 
 	o.Apply = true
 	seed(t, st, o)
-	first := readAll(t, st.Collection(store.CollCalendarEvents), bson.M{fieldSeed: calendarTag})
+	classes := map[string]bool{}
+	for _, sch := range schedules {
+		for _, w := range sch.weekly {
+			if w.class {
+				classes[w.key] = true
+			}
+		}
+	}
 	for _, u := range []*models.User{karthik, bayan, jev} {
 		var events []models.CalendarEvent
 		if err := findAll(ctx, st, store.CollCalendarEvents, bson.M{fieldSeed: calendarTag, "userId": u.ID.Hex()}, bson.M{}, &events); err != nil {
@@ -146,13 +153,12 @@ func TestCalendarDryRunApplyTwiceRemove(t *testing.T) {
 			if e.Source != "seed" || !e.End.After(e.Start) || day.Before(semesterStart) || day.After(semesterEnd.AddDate(0, 0, 1)) {
 				t.Errorf("@%s %s: %+v", u.Username, e.ID, e)
 			}
-			if e.SeriesID != "" {
-				series[e.SeriesID]++
+			if e.SeriesID == "" {
+				continue
 			}
-			if strings.Contains(e.Title, "recitation") || strings.HasPrefix(e.Title, "CS ") || strings.HasPrefix(e.Title, "MATH ") {
-				if noClasses[day.Format("2006-01-02")] && !strings.Contains(e.Title, "HW") && !strings.Contains(e.Title, "problem set") {
-					t.Errorf("@%s has %q on a holiday (%s)", u.Username, e.Title, day.Format("Jan 2"))
-				}
+			series[e.SeriesID]++
+			if key := strings.TrimPrefix(e.SeriesID, calendarID(u.ID.Hex(), "")); classes[key] && noClasses[day.Format("2006-01-02")] {
+				t.Errorf("@%s has class %q on a holiday (%s)", u.Username, e.Title, day.Format("Jan 2"))
 			}
 		}
 		if len(series) < 7 {
@@ -160,27 +166,17 @@ func TestCalendarDryRunApplyTwiceRemove(t *testing.T) {
 		}
 	}
 	// A rerun writes the very same documents.
+	first := snapshot(t, st)
 	o.Now = now.Add(time.Hour)
 	seed(t, st, o)
-	again := readAll(t, st.Collection(store.CollCalendarEvents), bson.M{fieldSeed: calendarTag})
-	if len(again) != len(first) {
-		t.Fatalf("%d events, then %d", len(first), len(again))
+	if d := diff(first, snapshot(t, st), nil); len(d) > 0 {
+		t.Fatalf("the rerun changed:\n%s", strings.Join(d, "\n"))
 	}
-	byID := map[any][]byte{}
-	for _, d := range first {
-		raw, _ := bson.Marshal(d)
-		byID[d["_id"]] = raw
-	}
-	for _, d := range again {
-		raw, _ := bson.Marshal(d)
-		if !bytes.Equal(raw, byID[d["_id"]]) {
-			t.Fatalf("the rerun changed %v", d["_id"])
-		}
-	}
+	events := len(first[store.CollCalendarEvents]) - 1
 	// Remove: a dry run deletes nothing, then only the seed's events go.
 	o.Remove, o.Apply = true, false
 	seed(t, st, o)
-	if n, _ := st.Collection(store.CollCalendarEvents).CountDocuments(ctx, bson.M{}); n != int64(len(first))+1 {
+	if n, _ := st.Collection(store.CollCalendarEvents).CountDocuments(ctx, bson.M{}); n != int64(events)+1 {
 		t.Fatalf("a remove dry run deleted events")
 	}
 	o.Apply = true
@@ -297,8 +293,13 @@ func TestResetReturnsToTheBaseline(t *testing.T) {
 	if d := diff(practiced, snapshot(t, st), nil); len(d) > 0 {
 		t.Fatalf("the reset dry run changed:\n%s", strings.Join(d, "\n"))
 	}
-	for _, want := range []string{"“Late night ramen run”", "“Practice picnic”", "Bayan loses it", "“Midtown dinner crawl”",
-		"2 ratings", "1 “free now” posts", "1 calendar events not from the seed", "Back to the baseline: 5 history plans"} {
+	var crawl models.Itinerary
+	if err := st.Collection(store.CollItineraries).FindOne(ctx, bson.M{"_id": "showcase-atl-plan-crawl"}).Decode(&crawl); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"“Late night ramen run”", "“Practice picnic”", "Bayan loses it", "“" + crawl.Title + "”",
+		"2 messages", "2 ratings", "1 “free now” posts", "1 calendar events not from the seed", "Back to the baseline: 5 history plans",
+		"Default upcoming sidequests (made again with fresh dates on every --apply and --reset): 2"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the dry run lacks %q:\n%s", want, out)
 		}
@@ -311,6 +312,22 @@ func TestResetReturnsToTheBaseline(t *testing.T) {
 	}
 	if d := diff(baseline, snapshot(t, st), skip); len(d) > 0 {
 		t.Fatalf("after the reset, not the baseline:\n%s", strings.Join(d, "\n"))
+	}
+	// Home is not empty: the default upcoming sidequests, one theirs, one a showcase person's.
+	home := decode[[]contract.Itinerary](t, srv.Do(t, "GET", "/itineraries", nil, ks).Expect(t, http.StatusOK))
+	hosting, joinedOne := 0, 0
+	for _, it := range home {
+		if !strings.HasPrefix(it.ID, baselineTag+"-"+kid+"-") || !it.Start.After(srv.Clock.Now()) || it.Start.After(srv.Clock.Now().Add(5*24*time.Hour)) {
+			t.Errorf("Home has %s %q at %v", it.ID, it.Title, it.Start.Time)
+		}
+		if it.IsHost {
+			hosting++
+		} else {
+			joinedOne++
+		}
+	}
+	if hosting != 1 || joinedOne != 1 {
+		t.Errorf("Home after the reset: %d hosted, %d joined: %+v", hosting, joinedOne, home)
 	}
 	// What was never to be touched is there, as it was.
 	after := snapshot(t, st)
@@ -439,7 +456,7 @@ func TestResetTheDemoAccount(t *testing.T) {
 	seed(t, st, o)
 	baseline := snapshot(t, st)
 	// The walkthrough: she reads her Bowling night chat and joins the ferry.
-	srv.Do(t, "POST", "/threads/showcase-slt-chat-bowling/read", nil, sandy).Expect(t, http.StatusOK)
+	srv.Do(t, "POST", "/threads/showcase-slt-chat-bowling/read", nil, sandy).Expect(t, http.StatusNoContent)
 	srv.Do(t, "POST", "/forum/posts/showcase-slt-plan-ferry/join-requests", nil, sandy).Expect(t, http.StatusOK)
 	reset := resetOpts(t, srv.Clock.Now(), "@sandybyte", true)
 	if err := Run(ctx, st, reset, &bytes.Buffer{}); err == nil {

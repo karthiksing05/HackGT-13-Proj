@@ -217,6 +217,9 @@ func TestHistoryApplyTwiceAndRemove(t *testing.T) {
 	if left := tagged(t, st, historyTag); left[store.CollItineraries]+left[store.CollRatings]+left[collBackups] != 0 {
 		t.Fatalf("left after remove: %v", left)
 	}
+	if n, _ := st.Collection(store.CollItineraries).CountDocuments(ctx, bson.M{fieldSeed: baselineTag}); n != 0 {
+		t.Fatalf("%d default upcoming sidequests left after remove", n)
+	}
 	for _, u := range []*models.User{karthik, bayan, jev} {
 		if got := rawUser(t, st, u.ID); !bytes.Equal(got, accounts[u.Username]) {
 			t.Errorf("@%s is not restored byte for byte", u.Username)
@@ -320,6 +323,10 @@ func TestHistoryOverHTTP(t *testing.T) {
 	}
 	if len(toRate.Items) < minUnrated || rated == 0 || len(past.Items) != rated+len(toRate.Items) || company == 0 {
 		t.Fatalf("Past: %d stops, %d rated, %d to rate, %d with company", len(past.Items), rated, len(toRate.Items), company)
+	}
+	upcoming := decode[[]contract.Itinerary](t, srv.Do(t, "GET", "/itineraries", nil, jevSession).Expect(t, http.StatusOK))
+	if len(upcoming) != 2 {
+		t.Errorf("Home has %d upcoming sidequests, want the 2 defaults: %+v", len(upcoming), upcoming)
 	}
 	history := decode[[]contract.Itinerary](t, srv.Do(t, "GET", "/itineraries?status=past", nil, jevSession).Expect(t, http.StatusOK))
 	if len(history) < 4 || len(history) > 6 {
