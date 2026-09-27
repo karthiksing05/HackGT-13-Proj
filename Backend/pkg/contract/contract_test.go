@@ -79,13 +79,6 @@ func typeName(name string) string {
 	return name
 }
 
-// awaited are mapped types whose dumps the app's ContractTests add later:
-// until the file lands its absence is logged, not an error (the shape is
-// pinned by its own test meanwhile).
-var awaited = map[string]string{
-	"ActivityHits": "GET /activities/search; TestActivityHitShape round-trips the brief's example",
-}
-
 // skipped dumps are not one wire struct; each entry says why.
 var skipped = map[string]string{
 	"index":       "manifest of the examples, not a payload",
@@ -135,14 +128,9 @@ func TestExamplesRoundTrip(t *testing.T) {
 		})
 	}
 	for name := range examples {
-		if seen[name] {
-			continue
+		if !seen[name] {
+			t.Errorf("examples map names %s but docs/api/examples/%s.json does not exist", name, name)
 		}
-		if why, ok := awaited[name]; ok {
-			t.Logf("no %s.json yet (%s)", name, why)
-			continue
-		}
-		t.Errorf("examples map names %s but docs/api/examples/%s.json does not exist", name, name)
 	}
 }
 
@@ -165,8 +153,8 @@ func roundTrip(t *testing.T, raw []byte, target any) []byte {
 	return encoded
 }
 
-// TestActivityHitShape pins GET /activities/search's hit (the must-see
-// brief's example: an event with every field, a place with a price, a
+// TestActivityHitShape pins GET /activities/search's hit as the server
+// writes it (catalog hex ids; an event with every field, a free place, a
 // place with neither price nor distance) and PlanRequest.must_include,
 // which stays out of the body when there are no picks.
 func TestActivityHitShape(t *testing.T) {
